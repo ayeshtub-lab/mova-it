@@ -30,7 +30,8 @@ export default function CreateMomentPage() {
       });
 
       if (response.ok) {
-        router.push('/');
+        // التوجيه إلى صفحة الأحداث العامة مباشرة بعد نجاح النشر
+        router.push('/moments');
       } else {
         alert('حدث خطأ أثناء نشر الحدث');
       }
