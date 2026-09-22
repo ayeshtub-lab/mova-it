@@ -1,15 +1,51 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Sparkles, MapPin, Send } from 'lucide-react';
 import MediaActions from '@/app/components/MediaActions';
-// ... بقية الـ imports والحالة حسب ملفك الحالي
 
 export default function CreateMomentPage() {
-  // ... الدوال الخاصة بك مثل handleSubmit و setFormData وما شابه
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    city: '',
+    areaName: '',
+    whyNowReason: '',
+    missingPiece: '',
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await fetch('/api/moments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        router.push('/');
+      } else {
+        alert('حدث خطأ أثناء نشر الحدث');
+      }
+    } catch (error) {
+      console.error('Error creating moment:', error);
+      alert('حدث خطأ في الاتصال');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-xl mx-auto p-6">
       <h1 className="text-xl font-bold mb-4 text-slate-100">إنشاء حدث جديد</h1>
       
-      {/* نموذج إنشاء الحدث */}
       <form onSubmit={handleSubmit} className="space-y-4">
 
         <div className="space-y-1.5">
@@ -78,7 +114,7 @@ export default function CreateMomentPage() {
           />
         </div>
 
-        {/* هنا تم وضع أزرار الوسائط في مكانها الصحيح داخل نموذج الحدث */}
+        {/* أزرار الوسائط في مكانها الصحيح */}
         <div className="pt-2">
           <label className="text-xs font-semibold text-slate-300 block mb-1">Attach Media</label>
           <MediaActions />
