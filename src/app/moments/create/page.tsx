@@ -1,70 +1,17 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { ArrowLeft, MapPin, Sparkles, Send } from 'lucide-react';
+import React from 'react';
+import MediaActions from '@/app/components/MediaActions';
+// ... بقية الـ imports والحالة حسب ملفك الحالي
 
 export default function CreateMomentPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const [formData, setFormData] = useState({
-    title: '',
-    city: 'Bethlehem',
-    areaName: '',
-    whyNowReason: '',
-    missingPiece: '',
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const response = await fetch('/api/moments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to create moment');
-      }
-
-      // الانتقال إلى صفحة اللحظة التي تم إنشاؤها حديثاً
-      router.push(`/moment/${data.id}`);
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
-      setLoading(false);
-    }
-  };
+  // ... الدوال الخاصة بك مثل handleSubmit و setFormData وما شابه
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-24 max-w-md mx-auto relative border-x border-slate-800 p-4 space-y-6">
+    <div className="max-w-xl mx-auto p-6">
+      <h1 className="text-xl font-bold mb-4 text-slate-100">إنشاء حدث جديد</h1>
       
-      {/* رأس الصفحة وزر العودة */}
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-        <Link href="/" className="inline-flex items-center gap-2 text-xs text-indigo-400 hover:text-indigo-300 font-semibold bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl transition-all">
-          <ArrowLeft className="w-4 h-4" />
-          Feed
-        </Link>
-        <h1 className="text-sm font-bold tracking-wider text-indigo-400 uppercase">MOVA IT — New Moment</h1>
-      </div>
-
-      {error && (
-        <div className="bg-rose-950/40 border border-rose-500/30 text-rose-300 p-3 rounded-xl text-xs">
-          {error}
-        </div>
-      )}
-
-      {/* نموذج إنشاء اللحظة */}
+      {/* نموذج إنشاء الحدث */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        
+
         <div className="space-y-1.5">
           <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
@@ -131,6 +78,12 @@ export default function CreateMomentPage() {
           />
         </div>
 
+        {/* هنا تم وضع أزرار الوسائط في مكانها الصحيح داخل نموذج الحدث */}
+        <div className="pt-2">
+          <label className="text-xs font-semibold text-slate-300 block mb-1">Attach Media</label>
+          <MediaActions />
+        </div>
+
         <button
           type="submit"
           disabled={loading}
@@ -147,7 +100,6 @@ export default function CreateMomentPage() {
         </button>
 
       </form>
-
     </div>
   );
 }
