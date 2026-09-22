@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Moment {
+  id           String    @id @default(cuid())
+  title        String
+  city         String    @default("Bethlehem")
+  areaName     String    @default("Central Zone")
+  whyNowReason String    @default("Just created by a local user")
+  missingPiece String?
+  createdAt    DateTime  @default(now())
+  witnesses    Witness[]
+}
+
+model Witness {
+  id        String   @id @default(cuid())
+  momentId  String
+  moment    Moment   @relation(fields: [momentId], references: [cuid()], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
