@@ -1,26 +1,47 @@
 @import "tailwindcss";
 
+/* MOVA identity: warm ivory ground, coral accent ("sunset hour"), muted purple secondary. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --background: #fffbf0;
+  --surface: #f6eedf;
+  --foreground: #1f1a17;
+  --muted: #5e534c;
+  --line: #efe3d0;
+  --accent: #c8432b;
+  --accent-soft: #fbe2d8;
+  --accent-ink: #9e3320;
+  --secondary: #6e5c9e;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #15110f;
+    --surface: #211b18;
+    --foreground: #f5ede3;
+    --muted: #b8ada6;
+    --line: #2e2622;
+    --accent: #c8432b;
+    --accent-soft: #3a2019;
+    --accent-ink: #ff8a6b;
+    --secondary: #b3a4e0;
   }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-secondary: var(--secondary);
+  --font-sans: var(--font-cairo);
+  --font-display: var(--font-syne);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }

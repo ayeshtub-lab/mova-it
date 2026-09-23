@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "title": "MOVA IT — One moment. Many eyes.",
+    "description": "Capture your moment and see it through the eyes of everyone who was there."
+  },
+  "home": {
+    "tagline": "One moment. Many eyes.",
+    "motto": "Move with the moment",
+    "lead": "Every great moment is seen by more than one person. On MOVA, all your angles meet in one place and become the whole moment.",
+    "points": [
+      "Everyone adds their angle: a photo or a video up to 20 seconds",
+      "An automatic montage of every angle, ready to share",
+      "Send the link to anyone who was there, no app install needed"
+    ],
+    "status": "In the works — coming soon"
+  },
+  "lang": {
+    "switchTo": "العربية",
+    "switchLabel": "التبديل إلى العربية"
+  }
+}
