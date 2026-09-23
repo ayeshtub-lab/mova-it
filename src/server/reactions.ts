@@ -1,6 +1,7 @@
 import { ReactionKind } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { visibleAngle } from "@/server/access";
 
 export const REACTION_KINDS = Object.values(ReactionKind);
 export type ReactionCounts = Record<ReactionKind, number>;
@@ -29,25 +30,7 @@ export async function reactionsFor(angleIds: string[], viewer: User | null) {
 // someone who has not added an angle may only react to the one angle they can see.
 export async function setReaction(user: User, angleId: string, kind: unknown) {
   if (kind !== null && !REACTION_KINDS.includes(kind as ReactionKind)) throw new ReactionError("invalid");
-
-  const now = new Date();
-  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: true } });
-  const live = angle && angle.status === "READY" && (!angle.expiresAt || angle.expiresAt > now);
-  if (!angle || !live) throw new ReactionError("not_found");
-  const { moment } = angle;
-  if (moment.status === "HIDDEN" && moment.creatorId !== user.id) throw new ReactionError("not_found");
-
-  const unlocked =
-    moment.creatorId === user.id ||
-    (await db.angle.count({ where: { momentId: moment.id, contributorId: user.id, status: "READY" } })) > 0;
-  if (!unlocked) {
-    const first = await db.angle.findFirst({
-      where: { momentId: moment.id, status: "READY", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-      orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
-      select: { id: true },
-    });
-    if (first?.id !== angle.id) throw new ReactionError("not_found");
-  }
+  if (!(await visibleAngle(user, angleId))) throw new ReactionError("not_found");
 
   const key = { angleId_userId: { angleId, userId: user.id } };
   if (kind === null) await db.reaction.deleteMany({ where: { angleId, userId: user.id } });

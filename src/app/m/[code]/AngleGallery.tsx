@@ -9,6 +9,8 @@ type Kind = (typeof KINDS)[number];
 const EMOJI: Record<Kind, string> = { HEART: "❤️", LAUGH: "😂", FIRE: "🔥", WOW: "😮" };
 type Reactions = { counts: Record<Kind, number>; mine: Kind | null };
 
+type CommentView = { id: string; body: string; createdAt: string; authorName: string; mine: boolean; canDelete: boolean };
+
 export type GalleryAngle = {
   id: string;
   mediaType: "PHOTO" | "VIDEO";
@@ -18,6 +20,7 @@ export type GalleryAngle = {
   mediaUrl: string | null;
   thumbUrl: string | null;
   reactions: Reactions;
+  commentCount: number;
   canDelete: boolean;
 };
 
@@ -34,10 +37,31 @@ type Labels = {
   delete: string;
   confirmDelete: string;
   deleteFailed: string;
+  comments: {
+    open: string;
+    title: string;
+    empty: string;
+    loading: string;
+    placeholder: string;
+    send: string;
+    failed: string;
+    tooMany: string;
+    delete: string;
+    joinToComment: string;
+  };
 };
 
 const total = (r: Reactions) => KINDS.reduce((sum, k) => sum + r.counts[k], 0);
 const topKind = (r: Reactions) => KINDS.reduce((best, k) => (r.counts[k] > r.counts[best] ? k : best), KINDS[0]);
+
+function timeAgo(iso: string, locale: string) {
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  const minutes = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
+  if (Math.abs(minutes) < 60) return rtf.format(Math.min(minutes, -1), "minute");
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
+  return rtf.format(Math.round(hours / 24), "day");
+}
 
 // The grid of a moment's angles, plus a full-screen viewer that swipes sideways
 // between angles of the same moment — the horizontal half of MOVA's two-way feed.
@@ -53,12 +77,44 @@ export function AngleGallery({
   labels: Labels;
   canReact: boolean;
 }) {
+  const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
+  const [deleting, setDeleting] = useState(false);
   const [reactions, setReactions] = useState(() => new Map(angles.map((a) => [a.id, a.reactions])));
+  const [commentCounts, setCommentCounts] = useState(() => new Map(angles.map((a) => [a.id, a.commentCount])));
   const reactionsOf = (id: string) => reactions.get(id)!;
 
+  const slides = () => Array.from(trackRef.current?.children ?? []) as HTMLElement[];
+  const goTo = (index: number, smooth = true) =>
+    slides()[index]?.scrollIntoView({ behavior: smooth ? "smooth" : "instant", inline: "center", block: "nearest" });
+
+  function open(index: number) {
+    setCurrent(index);
+    dialogRef.current?.showModal();
+    requestAnimationFrame(() => goTo(index, false));
+  }
+
+  // Track which slide is on screen, and pause any video that scrolled away.
+  useEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const index = slides().indexOf(entry.target as HTMLElement);
+          if (entry.isIntersecting) setCurrent(index);
+          else entry.target.querySelector("video")?.pause();
+        }
+      },
+      { root: track, threshold: 0.6 },
+    );
+    slides().forEach((s) => observer.observe(s));
+    return () => observer.disconnect();
+  }, [angles.length]);
+
+  // ── Reactions ────────────────────────────────────────────────────────────
   // Quick taps on a slow connection: requests for one angle are sent one after another
   // (so the server applies them in tap order), and only the answer to the latest tap
   // may overwrite what is on screen.
@@ -90,37 +146,53 @@ export function AngleGallery({
     await run;
   }
 
-  const slides = () => Array.from(trackRef.current?.children ?? []) as HTMLElement[];
-  const goTo = (index: number, smooth = true) =>
-    slides()[index]?.scrollIntoView({ behavior: smooth ? "smooth" : "instant", inline: "center", block: "nearest" });
+  // ── Comments (a sheet over the viewer, for the angle on screen) ─────────
+  const [sheetFor, setSheetFor] = useState<string | null>(null);
+  const [comments, setComments] = useState<CommentView[] | null>(null);
+  const [commentError, setCommentError] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
 
-  function open(index: number) {
-    setCurrent(index);
-    dialogRef.current?.showModal();
-    requestAnimationFrame(() => goTo(index, false));
+  async function openComments(angleId: string) {
+    if (!canReact) return join();
+    setSheetFor(angleId);
+    setComments(null);
+    setCommentError(null);
+    const res = await fetch(`/api/angles/${angleId}/comments`).catch(() => null);
+    if (res?.ok) setComments((await res.json()).comments);
+    else setCommentError(labels.comments.failed);
   }
 
-  // Track which slide is on screen, and pause any video that scrolled away.
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const index = slides().indexOf(entry.target as HTMLElement);
-          if (entry.isIntersecting) setCurrent(index);
-          else entry.target.querySelector("video")?.pause();
-        }
-      },
-      { root: track, threshold: 0.6 },
-    );
-    slides().forEach((s) => observer.observe(s));
-    return () => observer.disconnect();
-  }, [angles.length]);
+  async function sendComment(event: React.FormEvent) {
+    event.preventDefault();
+    const angleId = sheetFor;
+    if (!angleId || !draft.trim() || sending) return;
+    setSending(true);
+    setCommentError(null);
+    const res = await fetch(`/api/angles/${angleId}/comments`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ body: draft }),
+    }).catch(() => null);
+    setSending(false);
+    if (res?.ok) {
+      const added: CommentView = await res.json();
+      setComments((list) => [...(list ?? []), added]);
+      setCommentCounts((m) => new Map(m).set(angleId, (m.get(angleId) ?? 0) + 1));
+      setDraft("");
+    } else setCommentError(res?.status === 429 ? labels.comments.tooMany : labels.comments.failed);
+  }
 
-  const router = useRouter();
-  const [deleting, setDeleting] = useState(false);
+  async function removeComment(id: string) {
+    const angleId = sheetFor;
+    if (!angleId) return;
+    const res = await fetch(`/api/comments/${id}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok) return setCommentError(labels.comments.failed);
+    setComments((list) => (list ?? []).filter((c) => c.id !== id));
+    setCommentCounts((m) => new Map(m).set(angleId, Math.max(0, (m.get(angleId) ?? 1) - 1)));
+  }
 
+  // ── Deleting an angle ───────────────────────────────────────────────────
   async function remove(angle: GalleryAngle) {
     if (!window.confirm(labels.confirmDelete)) return;
     setDeleting(true);
@@ -141,6 +213,8 @@ export function AngleGallery({
   }
 
   function onKeyDown(event: React.KeyboardEvent) {
+    // Arrow keys move the cursor inside the comment box; they only swipe elsewhere.
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
     const rtl = document.documentElement.dir === "rtl";
     if (event.key === "ArrowLeft") goTo(current + (rtl ? 1 : -1));
     if (event.key === "ArrowRight") goTo(current + (rtl ? -1 : 1));
@@ -155,6 +229,9 @@ export function AngleGallery({
     </>
   );
 
+  const railButton = "flex size-13 items-center justify-center rounded-full border border-white/25 bg-black/35 backdrop-blur-sm transition-transform active:scale-90";
+  const railCount = "text-xs font-bold text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.8)]";
+
   return (
     <>
       <ul className="contents">
@@ -162,12 +239,7 @@ export function AngleGallery({
           <li key={a.id} id={`angle-${a.id}`} className="relative overflow-hidden rounded-2xl bg-surface">
             <button type="button" onClick={() => open(i)} aria-label={`${labels.open}: ${a.contributorName}`} className="block w-full">
               {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable */}
-              <img
-                src={(a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl) ?? ""}
-                alt=""
-                loading="lazy"
-                className="aspect-[3/4] w-full object-cover"
-              />
+              <img src={(a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl) ?? ""} alt="" loading="lazy" className="aspect-[3/4] w-full object-cover" />
               {a.mediaType === "VIDEO" && (
                 <span aria-hidden="true" className="absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45">
                   <svg viewBox="0 0 24 24" className="size-6 fill-white">
@@ -175,9 +247,14 @@ export function AngleGallery({
                   </svg>
                 </span>
               )}
-              {total(reactionsOf(a.id)) > 0 && (
-                <span className="pointer-events-none absolute start-2 top-2 rounded-full bg-black/50 px-2 py-0.5 text-xs font-bold text-white">
-                  {EMOJI[topKind(reactionsOf(a.id))]} {total(reactionsOf(a.id))}
+              {(total(reactionsOf(a.id)) > 0 || (commentCounts.get(a.id) ?? 0) > 0) && (
+                <span className="pointer-events-none absolute start-2 top-2 flex gap-2 rounded-full bg-black/50 px-2 py-0.5 text-xs font-bold text-white">
+                  {total(reactionsOf(a.id)) > 0 && (
+                    <span>
+                      {EMOJI[topKind(reactionsOf(a.id))]} {total(reactionsOf(a.id))}
+                    </span>
+                  )}
+                  {(commentCounts.get(a.id) ?? 0) > 0 && <span>💬 {commentCounts.get(a.id)}</span>}
                 </span>
               )}
               <span className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6 text-xs font-bold text-white">
@@ -192,7 +269,10 @@ export function AngleGallery({
         ref={dialogRef}
         aria-label={labels.label}
         onKeyDown={onKeyDown}
-        onClose={() => slides().forEach((s) => s.querySelector("video")?.pause())}
+        onClose={() => {
+          slides().forEach((s) => s.querySelector("video")?.pause());
+          setSheetFor(null);
+        }}
         className="m-0 h-dvh max-h-none w-screen max-w-none bg-black p-0 text-white backdrop:bg-black"
       >
         <div ref={trackRef} className="flex h-full snap-x snap-mandatory overflow-x-auto overscroll-contain [scrollbar-width:none]">
@@ -204,7 +284,7 @@ export function AngleGallery({
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
                 <img src={a.mediaUrl ?? ""} alt={a.contributorName} className="max-h-full max-w-full object-contain" />
               )}
-              <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-black/80 to-transparent p-4 pt-10 text-sm font-bold">
+              <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-black/80 to-transparent p-4 pe-20 pt-10 text-sm font-bold">
                 {caption(a)}
                 {a.capturedAt && (
                   <span className="ms-auto font-normal text-white/80">
@@ -212,24 +292,40 @@ export function AngleGallery({
                   </span>
                 )}
               </figcaption>
-              <div className="absolute inset-x-0 bottom-14 flex justify-center gap-2 px-4">
+
+              {/* Side rail, TikTok-style: reactions, then comments. `end` is the left side in Arabic. */}
+              <div className="absolute end-3 bottom-20 flex flex-col items-center gap-3">
                 {KINDS.map((kind) => {
                   const r = reactionsOf(a.id);
                   const active = r.mine === kind;
                   return (
-                    <button
-                      key={kind}
-                      type="button"
-                      aria-pressed={active}
-                      aria-label={canReact ? labels.reactions.react.replace("{name}", labels.reactions[kind]) : labels.reactions.joinToReact}
-                      onClick={() => (canReact ? react(a.id, kind) : join())}
-                      className={`flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full px-3 text-lg font-bold transition-colors ${active ? "bg-white text-black" : "bg-black/50 text-white"}`}
-                    >
-                      <span aria-hidden="true">{EMOJI[kind]}</span>
-                      {r.counts[kind] > 0 && <span className="text-sm">{r.counts[kind]}</span>}
-                    </button>
+                    <div key={kind} className="flex flex-col items-center gap-0.5">
+                      <button
+                        type="button"
+                        aria-pressed={active}
+                        aria-label={canReact ? labels.reactions.react.replace("{name}", labels.reactions[kind]) : labels.reactions.joinToReact}
+                        onClick={() => (canReact ? react(a.id, kind) : join())}
+                        className={`${railButton} text-[26px] ${active ? "scale-110 border-white bg-accent/90" : ""}`}
+                      >
+                        <span aria-hidden="true">{EMOJI[kind]}</span>
+                      </button>
+                      <span className={railCount}>{r.counts[kind] || ""}</span>
+                    </div>
                   );
                 })}
+                <div className="flex flex-col items-center gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => openComments(a.id)}
+                    aria-label={canReact ? labels.comments.open : labels.comments.joinToComment}
+                    className={railButton}
+                  >
+                    <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="white" strokeWidth="2" strokeLinejoin="round">
+                      <path d="M4 5h16v11H9l-5 4z" />
+                    </svg>
+                  </button>
+                  <span className={railCount}>{commentCounts.get(a.id) || ""}</span>
+                </div>
               </div>
             </figure>
           ))}
@@ -289,6 +385,67 @@ export function AngleGallery({
               </svg>
             </button>
           </>
+        )}
+
+        {sheetFor && (
+          <section
+            aria-label={labels.comments.title}
+            className="absolute inset-x-0 bottom-0 flex max-h-[70dvh] flex-col rounded-t-3xl bg-background text-foreground shadow-2xl"
+          >
+            <header className="flex items-center justify-between border-b border-line px-5 py-3">
+              <h2 className="font-extrabold">
+                {labels.comments.title} ({commentCounts.get(sheetFor) ?? 0})
+              </h2>
+              <button type="button" onClick={() => setSheetFor(null)} aria-label={labels.close} className="flex size-11 items-center justify-center rounded-full hover:bg-surface">
+                <svg viewBox="0 0 24 24" className="size-5 stroke-current" fill="none" strokeWidth="2.4" strokeLinecap="round">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </header>
+
+            <ul className="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-4" aria-live="polite">
+              {comments === null && !commentError && <li className="text-sm text-muted">{labels.comments.loading}</li>}
+              {comments?.length === 0 && <li className="text-sm text-muted">{labels.comments.empty}</li>}
+              {comments?.map((c) => (
+                <li key={c.id} className="flex items-start gap-3">
+                  <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-bold text-accent-ink">
+                    {c.authorName.charAt(0)}
+                  </span>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <div className="flex items-baseline gap-2 text-xs text-muted">
+                      <span className="font-bold text-foreground">{c.authorName}</span>
+                      <span>{timeAgo(c.createdAt, locale)}</span>
+                    </div>
+                    <p className="whitespace-pre-line break-words text-sm leading-relaxed">{c.body}</p>
+                  </div>
+                  {c.canDelete && (
+                    <button type="button" onClick={() => removeComment(c.id)} className="min-h-9 shrink-0 rounded-full px-2 text-xs font-bold text-muted hover:text-accent-ink">
+                      {labels.comments.delete}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            {commentError && (
+              <p role="alert" className="px-5 pb-1 text-sm font-semibold text-accent-ink">
+                {commentError}
+              </p>
+            )}
+            <form onSubmit={sendComment} className="flex gap-2 border-t border-line p-3">
+              <input
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                maxLength={300}
+                placeholder={labels.comments.placeholder}
+                aria-label={labels.comments.placeholder}
+                className="min-h-11 min-w-0 flex-1 rounded-full border border-line bg-surface px-4 outline-none focus:border-accent"
+              />
+              <button type="submit" disabled={sending || !draft.trim()} className="min-h-11 shrink-0 rounded-full bg-accent px-5 font-bold text-white disabled:opacity-50">
+                {labels.comments.send}
+              </button>
+            </form>
+          </section>
         )}
       </dialog>
     </>

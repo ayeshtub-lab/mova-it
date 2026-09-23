@@ -24,6 +24,7 @@ model User {
   createdMoments  Moment[]         @relation("MomentCreator")
   angles          Angle[]
   reactions       Reaction[]
+  comments        Comment[]
   participations  Participant[]
   following       Follow[]         @relation("Follower")
   followers       Follow[]         @relation("Following")
@@ -164,6 +165,7 @@ model Angle {
   moment          Moment           @relation(fields: [momentId], references: [id], onDelete: Cascade)
   contributor     User             @relation(fields: [contributorId], references: [id])
   reactions       Reaction[]
+  comments        Comment[]
   reports         Report[]
   removalRequests RemovalRequest[]
 
@@ -192,6 +194,23 @@ model Reaction {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([angleId, userId])
+}
+
+// ── Comments ──────────────────────────────────────────────────────────────
+
+// A short comment on one angle. Deleted by its author or the moment's creator.
+model Comment {
+  id        String   @id @default(cuid())
+  angleId   String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+
+  angle Angle @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([angleId, createdAt])
+  @@index([userId, createdAt])
 }
 
 // ── Montage (automatic multi-angle video) ─────────────────────────────────

@@ -113,6 +113,7 @@ export default async function MomentPage({ params }: PageProps<"/m/[code]">) {
                 mediaUrl: a.mediaUrl,
                 thumbUrl: a.thumbUrl,
                 reactions: a.reactions,
+                commentCount: a.commentCount,
                 canDelete: a.canDelete,
               }))}
               locale={locale}
