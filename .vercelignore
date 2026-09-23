@@ -1,0 +1,7 @@
+# Never upload secrets or local-only data when deploying from this machine.
+# Production gets its variables from the Vercel project settings.
+.env
+.env.*
+backups
+scripts
+src/generated
