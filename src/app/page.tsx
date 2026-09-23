@@ -1,6 +1,7 @@
 import { signOut } from "@/app/actions/session";
 import { CreateMomentForm } from "@/app/CreateMomentForm";
 import { GuestForm } from "@/app/GuestForm";
+import { MyMoments } from "@/app/MyMoments";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
@@ -78,6 +79,8 @@ export default async function Home() {
             </>
           )}
         </section>
+
+        {user && <MyMoments user={user} locale={locale} dict={dict} />}
 
         <p className="self-start rounded-full border border-line px-4 py-1.5 text-sm font-semibold text-muted">
           {dict.home.status}

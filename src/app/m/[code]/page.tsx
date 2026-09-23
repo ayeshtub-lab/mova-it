@@ -10,6 +10,7 @@ import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { relativeTime, siteOrigin } from "@/lib/site";
 import { getMomentView } from "@/server/moments";
+import { AngleGallery } from "./AngleGallery";
 import { ShareBar } from "./ShareBar";
 
 // Shared by generateMetadata and the page within one request.
@@ -100,29 +101,19 @@ export default async function MomentPage({ params }: PageProps<"/m/[code]">) {
           <p className="rounded-3xl bg-surface p-6 text-center text-muted">{t.noAngles}</p>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {view.angles.map((a) => (
-              <figure key={a.id} id={`angle-${a.id}`} className="relative overflow-hidden rounded-2xl bg-surface">
-                {a.mediaType === "VIDEO" ? (
-                  <video
-                    src={a.mediaUrl ?? undefined}
-                    poster={a.thumbUrl ?? undefined}
-                    controls
-                    playsInline
-                    preload="none"
-                    className="aspect-[3/4] w-full object-cover"
-                  />
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
-                  <img src={a.mediaUrl ?? ""} alt={a.contributorName} loading="lazy" className="aspect-[3/4] w-full object-cover" />
-                )}
-                <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6 text-xs font-bold text-white">
-                  <span className="truncate">{a.contributorName}</span>
-                  <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">
-                    {a.presence === "REMOTE" ? t.remoteTag : t.thereTag}
-                  </span>
-                </figcaption>
-              </figure>
-            ))}
+            <AngleGallery
+              angles={view.angles.map((a) => ({
+                id: a.id,
+                mediaType: a.mediaType,
+                presence: a.presence,
+                contributorName: a.contributorName,
+                capturedAt: a.capturedAt?.toISOString() ?? null,
+                mediaUrl: a.mediaUrl,
+                thumbUrl: a.thumbUrl,
+              }))}
+              locale={locale}
+              labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag }}
+            />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (
               <div
                 key={`locked-${i}`}

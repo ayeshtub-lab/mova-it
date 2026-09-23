@@ -142,6 +142,44 @@ export async function getMomentView(code: string, viewer: User | null) {
   };
 }
 
+// "My moments": everything the user created or took part in, most recently active first.
+// The cover is the moment's first angle — the one every link holder may already see.
+export async function listMyMoments(user: User, limit = 20) {
+  const now = new Date();
+  const moments = await db.moment.findMany({
+    where: {
+      participants: { some: { userId: user.id } },
+      OR: [{ status: "ACTIVE" }, { creatorId: user.id }],
+    },
+    orderBy: { lastActivityAt: "desc" },
+    take: limit,
+    include: {
+      _count: { select: { participants: true } },
+      angles: {
+        where: { status: "READY", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
+        orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
+        select: { mediaType: true, mediaPath: true, thumbPath: true },
+      },
+    },
+  });
+
+  return Promise.all(
+    moments.map(async (m) => {
+      const cover = m.angles[0];
+      return {
+        code: m.code,
+        title: m.title,
+        placeName: m.placeName,
+        lastActivityAt: m.lastActivityAt,
+        isCreator: m.creatorId === user.id,
+        angleCount: m.angles.length,
+        participantCount: m._count.participants,
+        coverUrl: cover ? await viewUrl(cover.mediaType === "VIDEO" ? cover.thumbPath : cover.mediaPath) : null,
+      };
+    }),
+  );
+}
+
 // Candidates: public moments, moments the viewer is part of, and friends-only moments
 // by people the viewer follows. Ranked by "why now" (recent activity × richness).
 export async function listFeed(viewer: User | null, limit = 20) {

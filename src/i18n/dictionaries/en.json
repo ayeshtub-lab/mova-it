@@ -85,5 +85,18 @@
       "one": "1 angle is locked",
       "other": "{n} angles are locked"
     }
+  },
+  "mine": {
+    "title": "My moments",
+    "empty": "No moments yet. Start one above, or open a moment link someone sent you.",
+    "host": "You started it"
+  },
+  "viewer": {
+    "open": "Open this angle full screen",
+    "close": "Close",
+    "prev": "Previous angle",
+    "next": "Next angle",
+    "counter": "{i} of {n}",
+    "label": "Angles of this moment"
   }
 }
