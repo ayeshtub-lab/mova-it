@@ -1,3 +1,4 @@
+import { del } from "@vercel/blob";
 import { MediaType, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
@@ -114,6 +115,24 @@ export async function uploadConstraintsFor(user: User, pathname: string) {
     return { angleId: angle.id, allowedContentTypes: ["image/jpeg"], maximumSizeInBytes: 12 * 1024 * 1024 };
   }
   return { angleId: angle.id, allowedContentTypes: Object.keys(VIDEO_TYPES), maximumSizeInBytes: 150 * 1024 * 1024 };
+}
+
+// Deletes an angle for good: its files, its reactions, and every montage it appears in
+// (so deleted footage does not live on inside an old montage). Allowed for the person
+// who added it and for the moment's creator, who moderates their moment.
+export async function deleteAngle(user: User, angleId: string) {
+  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: true } });
+  if (!angle || (angle.contributorId !== user.id && angle.moment.creatorId !== user.id)) throw new AngleError("not_found");
+
+  const montages = await db.montage.findMany({ where: { momentId: angle.momentId, angleIds: { has: angle.id } } });
+  const files = [angle.mediaPath, angle.thumbPath, ...montages.map((m) => m.videoUrl)].filter((p): p is string => !!p);
+
+  await db.$transaction([
+    db.montage.deleteMany({ where: { id: { in: montages.map((m) => m.id) } } }),
+    db.angle.delete({ where: { id: angle.id } }),
+  ]);
+  // After the rows are gone, so a failed storage call can never leave a visible angle without its file.
+  if (files.length) await del(files).catch((error) => console.error("deleteAngle: blob cleanup failed", angle.id, error));
 }
 
 // Step 3: the device reports the upload finished; trust it only after the files exist.

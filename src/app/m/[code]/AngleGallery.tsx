@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LocalTime } from "@/app/LocalTime";
 
@@ -17,6 +18,7 @@ export type GalleryAngle = {
   mediaUrl: string | null;
   thumbUrl: string | null;
   reactions: Reactions;
+  canDelete: boolean;
 };
 
 type Labels = {
@@ -29,6 +31,9 @@ type Labels = {
   thereTag: string;
   remoteTag: string;
   reactions: Record<Kind, string> & { react: string; joinToReact: string };
+  delete: string;
+  confirmDelete: string;
+  deleteFailed: string;
 };
 
 const total = (r: Reactions) => KINDS.reduce((sum, k) => sum + r.counts[k], 0);
@@ -112,6 +117,22 @@ export function AngleGallery({
     slides().forEach((s) => observer.observe(s));
     return () => observer.disconnect();
   }, [angles.length]);
+
+  const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
+
+  async function remove(angle: GalleryAngle) {
+    if (!window.confirm(labels.confirmDelete)) return;
+    setDeleting(true);
+    const res = await fetch(`/api/angles/${angle.id}`, { method: "DELETE" }).catch(() => null);
+    setDeleting(false);
+    if (!res?.ok) {
+      window.alert(labels.deleteFailed);
+      return;
+    }
+    dialogRef.current?.close();
+    router.refresh();
+  }
 
   // Visitors without a name yet: close the viewer and take them to the name form.
   function join() {
@@ -218,6 +239,19 @@ export function AngleGallery({
           <span className="rounded-full bg-black/50 px-3 py-1 text-sm font-bold" aria-live="polite">
             {labels.counter.replace("{i}", String(current + 1)).replace("{n}", String(angles.length))}
           </span>
+          {angles[current]?.canDelete && (
+            <button
+              type="button"
+              onClick={() => remove(angles[current])}
+              disabled={deleting}
+              aria-label={labels.delete}
+              className="pointer-events-auto ms-auto me-2 flex size-11 items-center justify-center rounded-full bg-black/50 disabled:opacity-50"
+            >
+              <svg viewBox="0 0 24 24" className="size-5 stroke-white" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+              </svg>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => dialogRef.current?.close()}

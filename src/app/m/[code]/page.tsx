@@ -113,6 +113,7 @@ export default async function MomentPage({ params }: PageProps<"/m/[code]">) {
                 mediaUrl: a.mediaUrl,
                 thumbUrl: a.thumbUrl,
                 reactions: a.reactions,
+                canDelete: a.canDelete,
               }))}
               locale={locale}
               labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag }}

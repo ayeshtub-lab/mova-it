@@ -140,6 +140,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         mediaUrl: await viewUrl(a.mediaPath),
         thumbUrl: await viewUrl(a.thumbPath),
         reactions: reactions.get(a.id)!,
+        canDelete: !!viewer && (a.contributorId === viewer.id || isCreator),
       })),
     ),
   };

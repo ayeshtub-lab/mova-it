@@ -41,8 +41,9 @@
       "too_many": "You reached the maximum number of angles for this moment.",
       "failed": "Upload failed. Please try again."
     },
-    "camera": "Shoot now",
-    "gallery": "From gallery"
+    "gallery": "Pick from gallery",
+    "cameraPhoto": "Take a photo",
+    "cameraVideo": "Record a video"
   },
   "moment": {
     "meta": "{angles} · {people}",
@@ -106,7 +107,10 @@
       "WOW": "Wow",
       "react": "React: {name}",
       "joinToReact": "Enter your name below to react to angles"
-    }
+    },
+    "delete": "Delete this angle",
+    "confirmDelete": "Delete this angle for good? It will also be removed from any montage it was in. This cannot be undone.",
+    "deleteFailed": "Could not delete. Please try again."
   },
   "montage": {
     "label": "Angle {i} of {n} · {name}",
