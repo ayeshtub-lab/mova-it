@@ -70,7 +70,12 @@
     "submit": "Start the moment",
     "titleError": "Enter a title of 1 to 80 characters.",
     "placeError": "Place names are up to 60 characters.",
-    "serverError": "Something went wrong on our side. Please try again."
+    "serverError": "Something went wrong on our side. Please try again.",
+    "visibilityLabel": "Who can see it?",
+    "visibilityFriends": "My friends",
+    "visibilityFriendsHint": "Shows on the page of people you shared moments with, and anyone with the link.",
+    "visibilityLink": "Only people with the link",
+    "visibilityLinkHint": "Nobody sees it unless you send them the link."
   },
   "plurals": {
     "angles": {
@@ -136,5 +141,21 @@
     "share": "Share the video",
     "download": "Download the video",
     "locked": "Add your own angle first to make this moment’s montage."
+  },
+  "afterUpload": {
+    "title": "🔥 You’re in! Send the moment to someone who was with you?",
+    "whatsapp": "WhatsApp",
+    "share": "Share link",
+    "friendsTitle": "Or send it to your friends on MOVA:",
+    "sendToFriends": "Send to friends",
+    "sent": "Sent! They will see it on their page.",
+    "failed": "Could not send. Please try again.",
+    "skip": "Later"
+  },
+  "friends": {
+    "title": "From your friends",
+    "sentYou": "{name} sent you a moment",
+    "started": "Your friend {name} started a moment",
+    "cta": "Got an angle?"
   }
 }

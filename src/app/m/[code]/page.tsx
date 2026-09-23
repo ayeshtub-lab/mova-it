@@ -13,6 +13,7 @@ import { latestMontageFor } from "@/server/montage";
 import { getMomentView } from "@/server/moments";
 import { AngleGallery } from "./AngleGallery";
 import { MontagePanel } from "./MontagePanel";
+import { ShareAfterUpload } from "./ShareAfterUpload";
 import { ShareBar } from "./ShareBar";
 
 // Shared by generateMetadata and the page within one request.
@@ -146,7 +147,13 @@ export default async function MomentPage({ params }: PageProps<"/m/[code]">) {
         <section id="join" className="flex scroll-mt-4 flex-col gap-3 rounded-3xl border border-line p-5">
           <h2 className="text-xl font-extrabold">{t.ctaTitle}</h2>
           {user ? (
-            <AngleUploader code={view.code} labels={dict.upload} />
+            <AngleUploader
+              code={view.code}
+              labels={dict.upload}
+              afterUpload={
+                <ShareAfterUpload code={view.code} url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={{ ...dict.afterUpload, copied: t.copied }} />
+              }
+            />
           ) : (
             <>
               <p className="text-sm leading-relaxed text-muted">{t.ctaGuest}</p>

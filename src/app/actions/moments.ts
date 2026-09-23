@@ -15,7 +15,8 @@ export async function createMomentAction(_prev: CreateMomentState, formData: For
     const moment = await createMoment(user, {
       title: formData.get("title"),
       placeName: formData.get("placeName"),
-      visibility: "LINK",
+      // Only these two are offered in the form; anything else falls back to friends.
+      visibility: formData.get("visibility") === "LINK" ? "LINK" : "FRIENDS",
     });
     code = moment.code;
   } catch (error) {

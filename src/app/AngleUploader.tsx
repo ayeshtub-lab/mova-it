@@ -25,7 +25,9 @@ async function postJson(url: string, body?: unknown) {
   return data;
 }
 
-export function AngleUploader({ code, labels }: { code: string; labels: Labels }) {
+// `afterUpload` is shown once at least one angle was added (e.g. "send it to friends").
+export function AngleUploader({ code, labels, afterUpload }: { code: string; labels: Labels; afterUpload?: React.ReactNode }) {
+  const [uploaded, setUploaded] = useState(false);
   const inputId = useId();
   const router = useRouter();
   const [items, setItems] = useState<ItemState[]>([]);
@@ -64,6 +66,7 @@ export function AngleUploader({ code, labels }: { code: string; labels: Labels }
       });
       await postJson(`/api/angles/${angleId}/complete`);
       update(index, { status: "done", pct: 100 });
+      setUploaded(true);
     } catch (error) {
       const serverCode = (error as { code?: string }).code;
       const reason =
@@ -139,6 +142,7 @@ export function AngleUploader({ code, labels }: { code: string; labels: Labels }
           ))}
         </ul>
       )}
+      {uploaded && !busy && afterUpload}
     </div>
   );
 }

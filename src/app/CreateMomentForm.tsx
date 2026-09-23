@@ -9,6 +9,11 @@ type Labels = {
   titlePlaceholder: string;
   placeLabel: string;
   placePlaceholder: string;
+  visibilityLabel: string;
+  visibilityFriends: string;
+  visibilityFriendsHint: string;
+  visibilityLink: string;
+  visibilityLinkHint: string;
   submit: string;
   titleError: string;
   placeError: string;
@@ -33,6 +38,23 @@ export function CreateMomentForm({ labels }: { labels: Labels }) {
         {labels.placeLabel}
         <input name="placeName" maxLength={60} placeholder={labels.placePlaceholder} className={`${inputClass} font-normal`} />
       </label>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1.5 text-sm font-bold">{labels.visibilityLabel}</legend>
+        {(
+          [
+            ["FRIENDS", labels.visibilityFriends, labels.visibilityFriendsHint],
+            ["LINK", labels.visibilityLink, labels.visibilityLinkHint],
+          ] as const
+        ).map(([value, title, hint]) => (
+          <label key={value} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-line p-3 has-[:checked]:border-accent has-[:checked]:bg-accent-soft/50">
+            <input type="radio" name="visibility" value={value} defaultChecked={value === "FRIENDS"} className="mt-1 accent-[var(--accent)]" />
+            <span className="flex flex-col">
+              <span className="font-bold">{title}</span>
+              <span className="text-xs text-muted">{hint}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
       {error && (
         <p role="alert" className="text-sm font-semibold text-accent-ink">
           {error}

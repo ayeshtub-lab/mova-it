@@ -25,6 +25,8 @@ model User {
   angles          Angle[]
   reactions       Reaction[]
   comments        Comment[]
+  invitesSent     MomentInvite[]   @relation("InvitesSent")
+  invitesReceived MomentInvite[]   @relation("InvitesReceived")
   participations  Participant[]
   following       Follow[]         @relation("Follower")
   followers       Follow[]         @relation("Following")
@@ -99,6 +101,7 @@ model Moment {
   creator      User          @relation("MomentCreator", fields: [creatorId], references: [id])
   angles       Angle[]
   participants Participant[]
+  invites      MomentInvite[]
   montages     Montage[]
   reports      Report[]
 
@@ -211,6 +214,25 @@ model Comment {
 
   @@index([angleId, createdAt])
   @@index([userId, createdAt])
+}
+
+// ── Invites between friends ───────────────────────────────────────────────
+
+// "X sent you a moment": shown on the recipient's home page for 24 hours. Only between
+// people who already shared a moment (see src/server/friends.ts) — no phone numbers.
+model MomentInvite {
+  id         String   @id @default(cuid())
+  momentId   String
+  fromUserId String
+  toUserId   String
+  createdAt  DateTime @default(now())
+
+  moment   Moment @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  fromUser User   @relation("InvitesSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User   @relation("InvitesReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([momentId, fromUserId, toUserId])
+  @@index([toUserId, createdAt])
 }
 
 // ── Montage (automatic multi-angle video) ─────────────────────────────────

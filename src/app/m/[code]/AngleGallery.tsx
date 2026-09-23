@@ -237,9 +237,11 @@ export function AngleGallery({
       <ul className="contents">
         {angles.map((a, i) => (
           <li key={a.id} id={`angle-${a.id}`} className="relative overflow-hidden rounded-2xl bg-surface">
-            <button type="button" onClick={() => open(i)} aria-label={`${labels.open}: ${a.contributorName}`} className="block w-full">
+            <button type="button" onClick={() => open(i)} aria-label={`${labels.open}: ${a.contributorName}`} className="relative block w-full">
+              {/* Loading shimmer behind the image; the opaque image simply covers it once loaded. */}
+              <span aria-hidden="true" className="absolute inset-0 animate-pulse bg-gradient-to-br from-line via-surface to-line" />
               {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable */}
-              <img src={(a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl) ?? ""} alt="" loading="lazy" className="aspect-[3/4] w-full object-cover" />
+              <img src={(a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl) ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" />
               {a.mediaType === "VIDEO" && (
                 <span aria-hidden="true" className="absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45">
                   <svg viewBox="0 0 24 24" className="size-6 fill-white">

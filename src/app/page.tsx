@@ -1,5 +1,6 @@
 import { signOut } from "@/app/actions/session";
 import { CreateMomentForm } from "@/app/CreateMomentForm";
+import { FriendsActivity } from "@/app/FriendsActivity";
 import { GuestForm } from "@/app/GuestForm";
 import { MyMoments } from "@/app/MyMoments";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -48,6 +49,8 @@ function SignedInHome({ user, locale, dict }: { user: User; locale: Locale; dict
           <CreateMomentForm labels={dict.create} />
         </div>
       </details>
+
+      <FriendsActivity user={user} locale={locale} dict={dict} />
 
       <MyMoments user={user} locale={locale} dict={dict} />
     </main>
