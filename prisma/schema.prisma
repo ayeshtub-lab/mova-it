@@ -1,26 +1,221 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+}
+
+// ── People ────────────────────────────────────────────────────────────────
+
+// A guest (web visitor who only typed a name) is a User with isGuest = true
+// and no phone; signing in with a phone later upgrades the same row.
+model User {
+  id          String   @id @default(cuid())
+  phone       String?  @unique
+  displayName String
+  avatarUrl   String?
+  locale      String   @default("ar")
+  isGuest     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  createdMoments  Moment[]         @relation("MomentCreator")
+  angles          Angle[]
+  participations  Participant[]
+  following       Follow[]         @relation("Follower")
+  followers       Follow[]         @relation("Following")
+  reports         Report[]
+  removalRequests RemovalRequest[]
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followingId])
+}
+
+// ── Moments ───────────────────────────────────────────────────────────────
+
+enum MomentKind {
+  EVERYDAY // created by someone: a trip, a sunset, a hangout
+  BIG // announced synchronized moment: a match, iftar, new year
+  DAILY // the "moment of the day" prompt
+}
+
+enum Visibility {
+  FRIENDS // default: followers of the creator + participants
+  LINK // anyone holding the link
+  PUBLIC // eligible for the public feed
+}
+
+enum ModerationStatus {
+  ACTIVE
+  HIDDEN
 }
 
 model Moment {
-  id           String    @id @default(cuid())
-  title        String
-  city         String    @default("Bethlehem")
-  areaName     String    @default("Central Zone")
-  whyNowReason String    @default("Just created by a local user")
-  missingPiece String?
-  createdAt    DateTime  @default(now())
-  witnesses    Witness[]
+  id         String           @id @default(cuid())
+  code       String           @unique // short share code: /m/K7M2Q4
+  title      String
+  kind       MomentKind       @default(EVERYDAY)
+  visibility Visibility       @default(FRIENDS)
+  status     ModerationStatus @default(ACTIVE)
+  // Approximate place only: a name, and coordinates rounded to 2 decimals (~1 km).
+  placeName  String?
+  latApprox  Float?
+  lngApprox  Float?
+  // Angles hide until this time ("reveal"); "give to get" lives in app logic.
+  revealAt   DateTime?
+  // A moment that gathered enough angles is kept ("لحظة خالدة"); its angles stop expiring.
+  isPermanent    Boolean  @default(false)
+  creatorId      String
+  createdAt      DateTime @default(now())
+  lastActivityAt DateTime @default(now()) // drives "why now" ranking
+
+  creator      User          @relation("MomentCreator", fields: [creatorId], references: [id])
+  angles       Angle[]
+  participants Participant[]
+  montages     Montage[]
+  reports      Report[]
+
+  @@index([lastActivityAt])
+  @@index([creatorId])
 }
 
-model Witness {
-  id        String   @id @default(cuid())
-  momentId  String
-  moment    Moment   @relation(fields: [momentId], references: [cuid()], onDelete: Cascade)
-  createdAt DateTime @default(now())
+enum ParticipantRole {
+  HOST
+  CONTRIBUTOR
+  VIEWER
+}
+
+model Participant {
+  momentId String
+  userId   String
+  role     ParticipantRole @default(VIEWER)
+  joinedAt DateTime        @default(now())
+
+  moment Moment @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([momentId, userId])
+  @@index([userId])
+}
+
+// ── Angles (one person's photo or ≤20 s video of a moment) ────────────────
+
+enum MediaType {
+  PHOTO
+  VIDEO
+}
+
+enum Presence {
+  THERE // "كنت هناك"
+  REMOTE // "من بعيد" — a reaction from elsewhere (BIG moments)
+}
+
+enum AngleStatus {
+  PROCESSING // uploaded, video still encoding
+  READY
+  HIDDEN // hidden by the moment's host or moderation
+  REMOVED // removal request approved
+}
+
+model Angle {
+  id            String      @id @default(cuid())
+  momentId      String
+  contributorId String
+  mediaType     MediaType
+  presence      Presence    @default(THERE)
+  status        AngleStatus @default(PROCESSING)
+  photoUrl      String? // Vercel Blob, for photos
+  streamUid     String? // Cloudflare Stream id, for videos
+  thumbnailUrl  String?
+  durationSec   Float? // videos only; the upload flow enforces ≤ 20
+  width         Int?
+  height        Int?
+  capturedAt    DateTime? // read from the file on the device before upload
+  uploadedAt    DateTime    @default(now())
+  expiresAt     DateTime? // 24 h unless the moment becomes permanent
+
+  moment          Moment           @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  contributor     User             @relation(fields: [contributorId], references: [id])
+  reports         Report[]
+  removalRequests RemovalRequest[]
+
+  @@index([momentId, capturedAt])
+  @@index([contributorId])
+  @@index([expiresAt])
+}
+
+// ── Montage (automatic multi-angle video) ─────────────────────────────────
+
+enum MontageStatus {
+  QUEUED
+  RENDERING
+  READY
+  FAILED
+}
+
+model Montage {
+  id          String        @id @default(cuid())
+  momentId    String
+  status      MontageStatus @default(QUEUED)
+  angleIds    String[] // the angles used, in cut order
+  videoUrl    String?
+  durationSec Float?
+  error       String?
+  createdAt   DateTime      @default(now())
+  finishedAt  DateTime?
+
+  moment Moment @relation(fields: [momentId], references: [id], onDelete: Cascade)
+
+  @@index([momentId])
+}
+
+// ── Safety ────────────────────────────────────────────────────────────────
+
+model Report {
+  id         String    @id @default(cuid())
+  reporterId String?
+  momentId   String?
+  angleId    String?
+  reason     String
+  note       String?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  reporter User?   @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+  moment   Moment? @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  angle    Angle?  @relation(fields: [angleId], references: [id], onDelete: Cascade)
+
+  @@index([resolvedAt])
+}
+
+enum RemovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// "Remove me from this angle": someone who appears in it asks the host to take it down.
+model RemovalRequest {
+  id          String        @id @default(cuid())
+  angleId     String
+  requesterId String
+  note        String?
+  status      RemovalStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  decidedAt   DateTime?
+
+  angle     Angle @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  requester User  @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([status])
 }
