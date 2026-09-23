@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LocalTime } from "@/app/LocalTime";
+import { ReportSheet, type ReportLabels } from "./ReportSheet";
 
 const KINDS = ["HEART", "LAUGH", "FIRE", "WOW"] as const;
 type Kind = (typeof KINDS)[number];
@@ -22,6 +23,7 @@ export type GalleryAngle = {
   reactions: Reactions;
   commentCount: number;
   canDelete: boolean;
+  isMine: boolean;
 };
 
 type Labels = {
@@ -37,6 +39,9 @@ type Labels = {
   delete: string;
   confirmDelete: string;
   deleteFailed: string;
+  reportAngle: string;
+  reportComment: string;
+  report: ReportLabels;
   comments: {
     open: string;
     title: string;
@@ -82,6 +87,7 @@ export function AngleGallery({
   const trackRef = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
   const [deleting, setDeleting] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ angleId: string } | { commentId: string } | null>(null);
   const [reactions, setReactions] = useState(() => new Map(angles.map((a) => [a.id, a.reactions])));
   const [commentCounts, setCommentCounts] = useState(() => new Map(angles.map((a) => [a.id, a.commentCount])));
   const reactionsOf = (id: string) => reactions.get(id)!;
@@ -337,29 +343,43 @@ export function AngleGallery({
           <span className="rounded-full bg-black/50 px-3 py-1 text-sm font-bold" aria-live="polite">
             {labels.counter.replace("{i}", String(current + 1)).replace("{n}", String(angles.length))}
           </span>
-          {angles[current]?.canDelete && (
+          <div className="flex items-center gap-2">
+            {canReact && angles[current] && !angles[current].isMine && (
+              <button
+                type="button"
+                onClick={() => setReportTarget({ angleId: angles[current].id })}
+                aria-label={labels.reportAngle}
+                className="pointer-events-auto flex size-11 items-center justify-center rounded-full bg-black/50"
+              >
+                <svg viewBox="0 0 24 24" className="size-5 stroke-white" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 21V4M5 4h11l-2 4 2 4H5" />
+                </svg>
+              </button>
+            )}
+            {angles[current]?.canDelete && (
+              <button
+                type="button"
+                onClick={() => remove(angles[current])}
+                disabled={deleting}
+                aria-label={labels.delete}
+                className="pointer-events-auto flex size-11 items-center justify-center rounded-full bg-black/50 disabled:opacity-50"
+              >
+                <svg viewBox="0 0 24 24" className="size-5 stroke-white" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+                </svg>
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => remove(angles[current])}
-              disabled={deleting}
-              aria-label={labels.delete}
-              className="pointer-events-auto ms-auto me-2 flex size-11 items-center justify-center rounded-full bg-black/50 disabled:opacity-50"
+              onClick={() => dialogRef.current?.close()}
+              aria-label={labels.close}
+              className="pointer-events-auto flex size-11 items-center justify-center rounded-full bg-black/50"
             >
-              <svg viewBox="0 0 24 24" className="size-5 stroke-white" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+              <svg viewBox="0 0 24 24" className="size-6 stroke-white" fill="none" strokeWidth="2.4" strokeLinecap="round">
+                <path d="M6 6l12 12M18 6L6 18" />
               </svg>
             </button>
-          )}
-          <button
-            type="button"
-            onClick={() => dialogRef.current?.close()}
-            aria-label={labels.close}
-            className="pointer-events-auto flex size-11 items-center justify-center rounded-full bg-black/50"
-          >
-            <svg viewBox="0 0 24 24" className="size-6 stroke-white" fill="none" strokeWidth="2.4" strokeLinecap="round">
-              <path d="M6 6l12 12M18 6L6 18" />
-            </svg>
-          </button>
+          </div>
         </div>
 
         {angles.length > 1 && (
@@ -425,6 +445,11 @@ export function AngleGallery({
                       {labels.comments.delete}
                     </button>
                   )}
+                  {!c.mine && (
+                    <button type="button" onClick={() => setReportTarget({ commentId: c.id })} className="min-h-9 shrink-0 rounded-full px-2 text-xs font-bold text-muted hover:text-accent-ink">
+                      {labels.reportComment}
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
@@ -449,6 +474,7 @@ export function AngleGallery({
             </form>
           </section>
         )}
+        {reportTarget && <ReportSheet key={JSON.stringify(reportTarget)} target={reportTarget} labels={labels.report} onClose={() => setReportTarget(null)} />}
       </dialog>
     </>
   );

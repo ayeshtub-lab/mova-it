@@ -18,6 +18,7 @@ model User {
   avatarUrl   String?
   locale      String   @default("ar")
   isGuest     Boolean  @default(true)
+  isAdmin     Boolean  @default(false) // may open /admin to review reports
   createdAt   DateTime @default(now())
 
   sessions        Session[]
@@ -25,6 +26,8 @@ model User {
   angles          Angle[]
   reactions       Reaction[]
   comments        Comment[]
+  blocking        Block[]          @relation("Blocker")
+  blockedBy       Block[]          @relation("Blocked")
   invitesSent     MomentInvite[]   @relation("InvitesSent")
   invitesReceived MomentInvite[]   @relation("InvitesReceived")
   participations  Participant[]
@@ -209,8 +212,9 @@ model Comment {
   body      String
   createdAt DateTime @default(now())
 
-  angle Angle @relation(fields: [angleId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  angle   Angle    @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports Report[]
 
   @@index([angleId, createdAt])
   @@index([userId, createdAt])
@@ -267,16 +271,34 @@ model Report {
   reporterId String?
   momentId   String?
   angleId    String?
+  commentId  String?
   reason     String
   note       String?
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
+  resolution String? // "hidden" | "deleted" | "dismissed"
 
-  reporter User?   @relation(fields: [reporterId], references: [id], onDelete: SetNull)
-  moment   Moment? @relation(fields: [momentId], references: [id], onDelete: Cascade)
-  angle    Angle?  @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  reporter User?    @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+  moment   Moment?  @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  angle    Angle?   @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  comment  Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@index([resolvedAt])
+  @@index([reporterId, createdAt])
+}
+
+// "Block": the blocked person can no longer send you moments or messages, and you no
+// longer see their comments. Silent — they are not told.
+model Block {
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
 }
 
 enum RemovalStatus {

@@ -1,6 +1,7 @@
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { visibleAngle } from "@/server/access";
+import { blockedIdsFor } from "@/server/moderation";
 
 const MAX_LENGTH = 300;
 const MAX_PER_HOUR = 40;
@@ -33,8 +34,10 @@ const toView = (c: { id: string; body: string; createdAt: Date; userId: string; 
 export async function listComments(user: User, angleId: string) {
   const angle = await visibleAngle(user, angleId);
   if (!angle) throw new CommentError("not_found");
+  // Comments by people the viewer blocked (or who blocked them) are left out.
+  const blocked = [...(await blockedIdsFor(user.id))];
   const comments = await db.comment.findMany({
-    where: { angleId },
+    where: { angleId, userId: { notIn: blocked } },
     orderBy: { createdAt: "asc" },
     take: 200,
     include: { user: { select: { displayName: true } } },

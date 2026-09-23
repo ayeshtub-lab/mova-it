@@ -127,6 +127,24 @@
       "tooMany": "You wrote a lot of comments this hour. Please wait a bit.",
       "delete": "Delete",
       "joinToComment": "Enter your name below to comment"
+    },
+    "reportAngle": "Report this angle",
+    "reportComment": "Report",
+    "report": {
+      "title": "What is wrong?",
+      "reasons": {
+        "OFFENSIVE": "Offensive or inappropriate",
+        "SPAM": "Spam or ads",
+        "PRIVACY": "I am in it and do not want it shared",
+        "OTHER": "Something else"
+      },
+      "note": "Details (optional)",
+      "block": "Also block this person",
+      "submit": "Send report",
+      "cancel": "Close",
+      "thanks": "Thanks, we got your report and will review it soon.",
+      "failed": "Could not send. Please try again.",
+      "tooMany": "You sent many reports this hour. Please wait a bit."
     }
   },
   "montage": {

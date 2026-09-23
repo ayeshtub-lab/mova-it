@@ -1,6 +1,7 @@
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { viewUrl } from "@/server/media";
+import { blockedIdsFor } from "@/server/moderation";
 
 // "Friends" on MOVA are people you have already shared a moment with. No phone
 // numbers or address books: the relationship comes from moments you were both part of.
@@ -14,8 +15,11 @@ export class FriendError extends Error {
   }
 }
 
-// People who shared a moment with the user, most recent shared moment first.
+// People who shared a moment with the user, most recent shared moment first — minus
+// anyone either of them blocked (so blocks also cover suggestions, invites and the
+// "from your friends" list).
 export async function friendsOf(user: User, limit = 50) {
+  const blocked = await blockedIdsFor(user.id);
   const rows = await db.participant.findMany({
     where: { userId: { not: user.id }, moment: { participants: { some: { userId: user.id } } } },
     include: { user: { select: { id: true, displayName: true } }, moment: { select: { lastActivityAt: true } } },
@@ -23,7 +27,7 @@ export async function friendsOf(user: User, limit = 50) {
     take: 500,
   });
   const seen = new Map<string, { id: string; displayName: string }>();
-  for (const r of rows) if (!seen.has(r.user.id)) seen.set(r.user.id, r.user);
+  for (const r of rows) if (!seen.has(r.user.id) && !blocked.has(r.user.id)) seen.set(r.user.id, r.user);
   return [...seen.values()].slice(0, limit);
 }
 
@@ -77,9 +81,10 @@ export async function friendsActivity(user: User, limit = 10): Promise<ActivityI
   const liveAngles = { where: { status: "READY" as const, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } };
   const firstAngle = { ...liveAngles, orderBy: [{ capturedAt: "asc" as const }, { uploadedAt: "asc" as const }], select: { mediaType: true, mediaPath: true, thumbPath: true } };
 
+  const blocked = [...(await blockedIdsFor(user.id))];
   const [invites, friendIds] = await Promise.all([
     db.momentInvite.findMany({
-      where: { toUserId: user.id, createdAt: { gt: since }, moment: { status: "ACTIVE" } },
+      where: { toUserId: user.id, fromUserId: { notIn: blocked }, createdAt: { gt: since }, moment: { status: "ACTIVE" } },
       orderBy: { createdAt: "desc" },
       take: 30,
       include: { fromUser: { select: { displayName: true } }, moment: { include: { angles: firstAngle, participants: { where: { userId: user.id }, select: { userId: true } } } } },

@@ -124,6 +124,7 @@ export default async function MomentPage({ params }: PageProps<"/m/[code]">) {
                 reactions: a.reactions,
                 commentCount: a.commentCount,
                 canDelete: a.canDelete,
+                isMine: a.isMine,
               }))}
               locale={locale}
               labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag }}

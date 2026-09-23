@@ -144,6 +144,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         reactions: reactions.get(a.id)!,
         commentCount: comments.get(a.id) ?? 0,
         canDelete: !!viewer && (a.contributorId === viewer.id || isCreator),
+        isMine: !!viewer && a.contributorId === viewer.id,
       })),
     ),
   };
