@@ -21,25 +21,22 @@ export function calculateDistanceKm(
 }
 
 /**
- * Computes the "Why Now Score" for ranking moments based on freshness, 
- * angles count, and witness activity.
+ * Computes the "Why Now Score" for ranking moments based on freshness
+ * (time since the last new angle or participant), angles and participants.
  */
 export function computeWhyNowScore(
-  createdAt: Date,
-  updatedAt: Date,
+  lastActivityAt: Date,
   anglesCount: number,
-  witnessesCount: number
+  participantsCount: number
 ): number {
-  const now = new Date().getTime();
-  const hoursSinceCreated = (now - createdAt.getTime()) / (1000 * 60 * 60);
-  const hoursSinceUpdated = (now - updatedAt.getTime()) / (1000 * 60 * 60);
+  const hoursSinceActivity = (Date.now() - lastActivityAt.getTime()) / (1000 * 60 * 60);
 
-  // Boost score if updated recently with new witness/angle
-  const freshnessFactor = 1 / (hoursSinceUpdated + 0.5);
+  // Boost score if updated recently with a new angle or participant
+  const freshnessFactor = 1 / (hoursSinceActivity + 0.5);
   const anglesFactor = anglesCount * 1.5;
-  const witnessFactor = witnessesCount * 2.0;
+  const participantsFactor = participantsCount * 2.0;
 
-  return freshnessFactor * (1 + anglesFactor + witnessFactor);
+  return freshnessFactor * (1 + anglesFactor + participantsFactor);
 }
 
 /**
