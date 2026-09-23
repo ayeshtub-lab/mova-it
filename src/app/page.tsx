@@ -1,5 +1,8 @@
+import { signOut } from "@/app/actions/session";
+import { GuestForm } from "@/app/GuestForm";
 import { setLocale } from "@/i18n/actions";
 import { getDictionary, getLocale } from "@/i18n/server";
+import { getCurrentUser } from "@/lib/session";
 
 // Brand mark: three overlapping lenses; where they meet is "the moment".
 function LensMark({ className }: { className?: string }) {
@@ -16,6 +19,7 @@ export default async function Home() {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const other = locale === "ar" ? "en" : "ar";
+  const user = await getCurrentUser();
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
@@ -57,6 +61,34 @@ export default async function Home() {
             </li>
           ))}
         </ol>
+
+        <section className="flex max-w-xl flex-col gap-3 rounded-3xl border border-line p-5">
+          {user ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold">{dict.guest.welcome.replace("{name}", user.displayName)}</span>
+                {user.isGuest && (
+                  <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-bold text-accent-ink">
+                    {dict.guest.badge}
+                  </span>
+                )}
+              </div>
+              <form action={signOut}>
+                <button type="submit" className="min-h-11 rounded-full px-4 text-sm font-bold text-muted underline-offset-4 hover:underline">
+                  {dict.guest.signOut}
+                </button>
+              </form>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-1">
+                <h2 className="text-lg font-bold">{dict.guest.title}</h2>
+                <p className="text-sm leading-relaxed text-muted">{dict.guest.hint}</p>
+              </div>
+              <GuestForm labels={dict.guest} />
+            </>
+          )}
+        </section>
 
         <p className="self-start rounded-full border border-line px-4 py-1.5 text-sm font-semibold text-muted">
           {dict.home.status}

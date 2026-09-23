@@ -17,5 +17,17 @@
   "lang": {
     "switchTo": "English",
     "switchLabel": "Switch to English"
+  },
+  "guest": {
+    "title": "جرّب كضيف",
+    "hint": "اكتب اسمك فقط، بدون تسجيل. هكذا سيراك أصحابك عندما تضيف زاويتك.",
+    "nameLabel": "اسمك",
+    "placeholder": "مثلًا: سلمى",
+    "submit": "ابدأ",
+    "nameError": "اكتب اسمًا من حرف إلى 40 حرفًا.",
+    "welcome": "أهلًا، {name}",
+    "badge": "ضيف",
+    "signOut": "خروج",
+    "serverError": "صار في مشكلة من جهتنا. جرّب مرة ثانية بعد لحظة."
   }
 }

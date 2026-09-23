@@ -17,5 +17,17 @@
   "lang": {
     "switchTo": "العربية",
     "switchLabel": "التبديل إلى العربية"
+  },
+  "guest": {
+    "title": "Try it as a guest",
+    "hint": "Just your name, no sign-up. It is how friends will see you when you add your angle.",
+    "nameLabel": "Your name",
+    "placeholder": "e.g. Salma",
+    "submit": "Start",
+    "nameError": "Enter a name of 1 to 40 characters.",
+    "welcome": "Welcome, {name}",
+    "badge": "Guest",
+    "signOut": "Sign out",
+    "serverError": "Something went wrong on our side. Please try again in a moment."
   }
 }

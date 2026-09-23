@@ -20,6 +20,7 @@ model User {
   isGuest     Boolean  @default(true)
   createdAt   DateTime @default(now())
 
+  sessions        Session[]
   createdMoments  Moment[]         @relation("MomentCreator")
   angles          Angle[]
   participations  Participant[]
@@ -27,6 +28,20 @@ model User {
   followers       Follow[]         @relation("Following")
   reports         Report[]
   removalRequests RemovalRequest[]
+}
+
+// Opaque random token in an httpOnly cookie (web) or a bearer header (app later);
+// only its SHA-256 is stored, so a leaked database row cannot be replayed.
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Follow {
