@@ -98,5 +98,18 @@
     "next": "Next angle",
     "counter": "{i} of {n}",
     "label": "Angles of this moment"
+  },
+  "montage": {
+    "label": "Angle {i} of {n} · {name}",
+    "cta": "Were you there? Add your angle",
+    "title": "Moment montage",
+    "hint": "A 9:16 video of every angle in capture order, ready for TikTok, Reels and WhatsApp.",
+    "make": "Make the montage",
+    "remake": "Make a new montage with the new angles",
+    "working": "Making the montage… this can take a minute.",
+    "failed": "The montage did not work this time. Please try again.",
+    "share": "Share the video",
+    "download": "Download the video",
+    "locked": "Add your own angle first to make this moment’s montage."
   }
 }

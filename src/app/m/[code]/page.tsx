@@ -9,8 +9,10 @@ import { plural } from "@/i18n/plural";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { relativeTime, siteOrigin } from "@/lib/site";
+import { latestMontageFor } from "@/server/montage";
 import { getMomentView } from "@/server/moments";
 import { AngleGallery } from "./AngleGallery";
+import { MontagePanel } from "./MontagePanel";
 import { ShareBar } from "./ShareBar";
 
 // Shared by generateMetadata and the page within one request.
@@ -129,6 +131,13 @@ export default async function MomentPage({ params }: PageProps<"/m/[code]">) {
             {fill(t.locked, { lockedAngles: plural(locale, dict.plurals.lockedAngles, view.lockedCount) })}
           </p>
         )}
+
+        {view.angleCount > 0 &&
+          (view.viewer.isCreator || view.viewer.hasContributed ? (
+            <MontagePanel code={view.code} initial={await latestMontageFor(user, view.code)} labels={dict.montage} />
+          ) : (
+            <p className="rounded-2xl bg-surface p-4 text-sm text-muted">{dict.montage.locked}</p>
+          ))}
 
         <section className="flex flex-col gap-3 rounded-3xl border border-line p-5">
           <h2 className="text-xl font-extrabold">{t.ctaTitle}</h2>
