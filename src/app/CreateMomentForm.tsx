@@ -25,7 +25,6 @@ export function CreateMomentForm({ labels }: { labels: Labels }) {
 
   return (
     <form action={action} className="flex flex-col gap-3">
-      <h2 className="text-lg font-bold">{labels.title}</h2>
       <label className="flex flex-col gap-1.5 text-sm font-bold">
         {labels.titleLabel}
         <input name="title" required maxLength={80} placeholder={labels.titlePlaceholder} className={`${inputClass} font-normal`} />
