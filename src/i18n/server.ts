@@ -1,12 +1,16 @@
 import { cookies, headers } from "next/headers";
 import { defaultLocale, isLocale, localeCookie, type Locale } from "./config";
+import type ar from "./dictionaries/ar.json";
+import type { PluralForms } from "./plural";
 
-const dictionaries = {
+// Shape taken from the Arabic file; plural entries vary by language (Arabic has six
+// forms, English two), so they are typed by what plural() needs instead.
+export type Dictionary = Omit<typeof ar, "plurals"> & { plurals: Record<keyof typeof ar.plurals, PluralForms> };
+
+const dictionaries: Record<Locale, () => Promise<Dictionary>> = {
   ar: () => import("./dictionaries/ar.json").then((m) => m.default),
   en: () => import("./dictionaries/en.json").then((m) => m.default),
 };
-
-export type Dictionary = Awaited<ReturnType<(typeof dictionaries)["ar"]>>;
 
 export const getDictionary = (locale: Locale): Promise<Dictionary> => dictionaries[locale]();
 

@@ -1,6 +1,7 @@
 import { signOut } from "@/app/actions/session";
+import { CreateMomentForm } from "@/app/CreateMomentForm";
 import { GuestForm } from "@/app/GuestForm";
-import { setLocale } from "@/i18n/actions";
+import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 
@@ -18,26 +19,11 @@ function LensMark({ className }: { className?: string }) {
 export default async function Home() {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
-  const other = locale === "ar" ? "en" : "ar";
   const user = await getCurrentUser();
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
-      <header className="mx-auto flex w-full max-w-3xl items-center justify-between py-5">
-        <span dir="ltr" className="font-display text-xl font-extrabold tracking-[0.12em]">
-          MOVA IT
-        </span>
-        <form action={setLocale}>
-          <input type="hidden" name="locale" value={other} />
-          <button
-            type="submit"
-            aria-label={dict.lang.switchLabel}
-            className="min-h-11 rounded-full bg-accent-soft px-4 text-sm font-bold text-accent-ink"
-          >
-            {dict.lang.switchTo}
-          </button>
-        </form>
-      </header>
+      <SiteHeader locale={locale} dict={dict} />
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 py-10">
         <LensMark className="w-28 sm:w-36" />
@@ -64,21 +50,24 @@ export default async function Home() {
 
         <section className="flex max-w-xl flex-col gap-3 rounded-3xl border border-line p-5">
           {user ? (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold">{dict.guest.welcome.replace("{name}", user.displayName)}</span>
-                {user.isGuest && (
-                  <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-bold text-accent-ink">
-                    {dict.guest.badge}
-                  </span>
-                )}
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold">{dict.guest.welcome.replace("{name}", user.displayName)}</span>
+                  {user.isGuest && (
+                    <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-bold text-accent-ink">
+                      {dict.guest.badge}
+                    </span>
+                  )}
+                </div>
+                <form action={signOut}>
+                  <button type="submit" className="min-h-11 rounded-full px-4 text-sm font-bold text-muted underline-offset-4 hover:underline">
+                    {dict.guest.signOut}
+                  </button>
+                </form>
               </div>
-              <form action={signOut}>
-                <button type="submit" className="min-h-11 rounded-full px-4 text-sm font-bold text-muted underline-offset-4 hover:underline">
-                  {dict.guest.signOut}
-                </button>
-              </form>
-            </div>
+              <CreateMomentForm labels={dict.create} />
+            </>
           ) : (
             <>
               <div className="flex flex-col gap-1">

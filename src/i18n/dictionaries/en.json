@@ -42,5 +42,48 @@
       "too_many": "You reached the maximum number of angles for this moment.",
       "failed": "Upload failed. Please try again."
     }
+  },
+  "moment": {
+    "meta": "{angles} · {people}",
+    "lastAdded": "Last added {when}",
+    "noAngles": "No angles yet. Be the first to add yours.",
+    "locked": "{lockedAngles}. Add yours to unlock them all.",
+    "timeline": "Timeline",
+    "ctaTitle": "Were you there? Got an angle?",
+    "ctaGuest": "Enter your name first, then add a photo or a video up to 20 seconds. No app to install.",
+    "thereTag": "Was there",
+    "remoteTag": "From afar",
+    "share": "Share the moment",
+    "copied": "Link copied",
+    "whatsapp": "WhatsApp",
+    "shareText": "{title} — see every angle. Got one? Add it:",
+    "by": "Started by {name}"
+  },
+  "create": {
+    "title": "Start a new moment",
+    "titleLabel": "What is the moment?",
+    "titlePlaceholder": "e.g. Sunset at the beach today",
+    "placeLabel": "Where? (optional)",
+    "placePlaceholder": "e.g. Bethlehem",
+    "submit": "Start the moment",
+    "titleError": "Enter a title of 1 to 80 characters.",
+    "placeError": "Place names are up to 60 characters.",
+    "serverError": "Something went wrong on our side. Please try again."
+  },
+  "plurals": {
+    "angles": {
+      "zero": "no angles",
+      "one": "1 angle",
+      "other": "{n} angles"
+    },
+    "people": {
+      "zero": "nobody yet",
+      "one": "1 person",
+      "other": "{n} people"
+    },
+    "lockedAngles": {
+      "one": "1 angle is locked",
+      "other": "{n} angles are locked"
+    }
   }
 }
