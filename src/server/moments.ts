@@ -3,6 +3,7 @@ import { Visibility } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { computeWhyNowScore } from "@/lib/movaEngine";
+import { viewUrl } from "@/server/media";
 
 // No 0/O, 1/I/L: codes get read aloud and typed from screenshots.
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -123,17 +124,21 @@ export async function getMomentView(code: string, viewer: User | null) {
     angleCount: angles.length,
     lockedCount: angles.length - visible.length,
     viewer: { isCreator, hasContributed },
-    angles: visible.map((a) => ({
-      id: a.id,
-      mediaType: a.mediaType,
-      presence: a.presence,
-      contributorName: a.contributor.displayName,
-      capturedAt: a.capturedAt,
-      uploadedAt: a.uploadedAt,
-      durationSec: a.durationSec,
-      width: a.width,
-      height: a.height,
-    })),
+    angles: await Promise.all(
+      visible.map(async (a) => ({
+        id: a.id,
+        mediaType: a.mediaType,
+        presence: a.presence,
+        contributorName: a.contributor.displayName,
+        capturedAt: a.capturedAt,
+        uploadedAt: a.uploadedAt,
+        durationSec: a.durationSec,
+        width: a.width,
+        height: a.height,
+        mediaUrl: await viewUrl(a.mediaPath),
+        thumbUrl: await viewUrl(a.thumbPath),
+      })),
+    ),
   };
 }
 

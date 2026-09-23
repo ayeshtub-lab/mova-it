@@ -29,5 +29,18 @@
     "badge": "Guest",
     "signOut": "Sign out",
     "serverError": "Something went wrong on our side. Please try again in a moment."
+  },
+  "upload": {
+    "button": "Add your angle",
+    "hint": "A photo or a video up to 20 seconds. You can pick several files.",
+    "preparing": "Preparing…",
+    "uploading": "Uploading {pct}%",
+    "done": "Added",
+    "errors": {
+      "unsupported": "This file type is not supported in this browser.",
+      "too_long": "The video is longer than 20 seconds.",
+      "too_many": "You reached the maximum number of angles for this moment.",
+      "failed": "Upload failed. Please try again."
+    }
   }
 }

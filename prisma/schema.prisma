@@ -149,9 +149,10 @@ model Angle {
   mediaType     MediaType
   presence      Presence    @default(THERE)
   status        AngleStatus @default(PROCESSING)
-  photoUrl      String? // Vercel Blob, for photos
-  streamUid     String? // Cloudflare Stream id, for videos
-  thumbnailUrl  String?
+  // Pathnames in the private Blob store; viewers get short-lived signed URLs.
+  mediaPath     String? // the photo (JPEG) or the video file
+  thumbPath     String? // video poster frame (JPEG)
+  streamUid     String? // Cloudflare Stream id, once videos move there
   durationSec   Float? // videos only; the upload flow enforces ≤ 20
   width         Int?
   height        Int?
