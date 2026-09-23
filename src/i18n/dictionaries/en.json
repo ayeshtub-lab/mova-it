@@ -31,8 +31,7 @@
     "serverError": "Something went wrong on our side. Please try again in a moment."
   },
   "upload": {
-    "button": "Add your angle",
-    "hint": "A photo or a video up to 20 seconds. You can pick several files.",
+    "hint": "Shoot a photo or a video up to 20 seconds, or pick from your gallery (several files).",
     "preparing": "Preparing…",
     "uploading": "Uploading {pct}%",
     "done": "Added",
@@ -41,7 +40,9 @@
       "too_long": "The video is longer than 20 seconds.",
       "too_many": "You reached the maximum number of angles for this moment.",
       "failed": "Upload failed. Please try again."
-    }
+    },
+    "camera": "Shoot now",
+    "gallery": "From gallery"
   },
   "moment": {
     "meta": "{angles} · {people}",
@@ -97,7 +98,15 @@
     "prev": "Previous angle",
     "next": "Next angle",
     "counter": "{i} of {n}",
-    "label": "Angles of this moment"
+    "label": "Angles of this moment",
+    "reactions": {
+      "HEART": "Love",
+      "LAUGH": "Haha",
+      "FIRE": "Fire",
+      "WOW": "Wow",
+      "react": "React: {name}",
+      "joinToReact": "Enter your name below to react to angles"
+    }
   },
   "montage": {
     "label": "Angle {i} of {n} · {name}",

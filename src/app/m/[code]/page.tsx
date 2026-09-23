@@ -112,9 +112,11 @@ export default async function MomentPage({ params }: PageProps<"/m/[code]">) {
                 capturedAt: a.capturedAt?.toISOString() ?? null,
                 mediaUrl: a.mediaUrl,
                 thumbUrl: a.thumbUrl,
+                reactions: a.reactions,
               }))}
               locale={locale}
               labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag }}
+              canReact={!!user}
             />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (
               <div
@@ -139,7 +141,7 @@ export default async function MomentPage({ params }: PageProps<"/m/[code]">) {
             <p className="rounded-2xl bg-surface p-4 text-sm text-muted">{dict.montage.locked}</p>
           ))}
 
-        <section className="flex flex-col gap-3 rounded-3xl border border-line p-5">
+        <section id="join" className="flex scroll-mt-4 flex-col gap-3 rounded-3xl border border-line p-5">
           <h2 className="text-xl font-extrabold">{t.ctaTitle}</h2>
           {user ? (
             <AngleUploader code={view.code} labels={dict.upload} />

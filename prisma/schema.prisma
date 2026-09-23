@@ -23,6 +23,7 @@ model User {
   sessions        Session[]
   createdMoments  Moment[]         @relation("MomentCreator")
   angles          Angle[]
+  reactions       Reaction[]
   participations  Participant[]
   following       Follow[]         @relation("Follower")
   followers       Follow[]         @relation("Following")
@@ -162,12 +163,35 @@ model Angle {
 
   moment          Moment           @relation(fields: [momentId], references: [id], onDelete: Cascade)
   contributor     User             @relation(fields: [contributorId], references: [id])
+  reactions       Reaction[]
   reports         Report[]
   removalRequests RemovalRequest[]
 
   @@index([momentId, capturedAt])
   @@index([contributorId])
   @@index([expiresAt])
+}
+
+// ── Reactions ─────────────────────────────────────────────────────────────
+
+enum ReactionKind {
+  HEART // ❤️
+  LAUGH // 😂
+  FIRE // 🔥
+  WOW // 😮
+}
+
+// One reaction per person per angle; reacting again with another emoji replaces it.
+model Reaction {
+  angleId   String
+  userId    String
+  kind      ReactionKind
+  createdAt DateTime     @default(now())
+
+  angle Angle @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([angleId, userId])
 }
 
 // ── Montage (automatic multi-angle video) ─────────────────────────────────

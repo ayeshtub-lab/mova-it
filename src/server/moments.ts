@@ -4,6 +4,7 @@ import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { computeWhyNowScore } from "@/lib/movaEngine";
 import { viewUrl } from "@/server/media";
+import { reactionsFor } from "@/server/reactions";
 
 // No 0/O, 1/I/L: codes get read aloud and typed from screenshots.
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -110,6 +111,7 @@ export async function getMomentView(code: string, viewer: User | null) {
   const hasContributed = !!viewer && angles.some((a) => a.contributorId === viewer.id);
   const unlocked = isCreator || hasContributed;
   const visible = unlocked ? angles : angles.slice(0, 1);
+  const reactions = await reactionsFor(visible.map((a) => a.id), viewer);
 
   return {
     code: moment.code,
@@ -137,6 +139,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         height: a.height,
         mediaUrl: await viewUrl(a.mediaPath),
         thumbUrl: await viewUrl(a.thumbPath),
+        reactions: reactions.get(a.id)!,
       })),
     ),
   };

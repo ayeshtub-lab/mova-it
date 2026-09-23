@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { LocalTime } from "@/app/LocalTime";
 
+const KINDS = ["HEART", "LAUGH", "FIRE", "WOW"] as const;
+type Kind = (typeof KINDS)[number];
+const EMOJI: Record<Kind, string> = { HEART: "❤️", LAUGH: "😂", FIRE: "🔥", WOW: "😮" };
+type Reactions = { counts: Record<Kind, number>; mine: Kind | null };
+
 export type GalleryAngle = {
   id: string;
   mediaType: "PHOTO" | "VIDEO";
@@ -11,6 +16,7 @@ export type GalleryAngle = {
   capturedAt: string | null;
   mediaUrl: string | null;
   thumbUrl: string | null;
+  reactions: Reactions;
 };
 
 type Labels = {
@@ -22,15 +28,62 @@ type Labels = {
   label: string;
   thereTag: string;
   remoteTag: string;
+  reactions: Record<Kind, string> & { react: string; joinToReact: string };
 };
+
+const total = (r: Reactions) => KINDS.reduce((sum, k) => sum + r.counts[k], 0);
+const topKind = (r: Reactions) => KINDS.reduce((best, k) => (r.counts[k] > r.counts[best] ? k : best), KINDS[0]);
 
 // The grid of a moment's angles, plus a full-screen viewer that swipes sideways
 // between angles of the same moment — the horizontal half of MOVA's two-way feed.
 // Swiping is native scroll-snap, so it follows the finger on phones with no library.
-export function AngleGallery({ angles, locale, labels }: { angles: GalleryAngle[]; locale: string; labels: Labels }) {
+export function AngleGallery({
+  angles,
+  locale,
+  labels,
+  canReact,
+}: {
+  angles: GalleryAngle[];
+  locale: string;
+  labels: Labels;
+  canReact: boolean;
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
+  const [reactions, setReactions] = useState(() => new Map(angles.map((a) => [a.id, a.reactions])));
+  const reactionsOf = (id: string) => reactions.get(id)!;
+
+  // Quick taps on a slow connection: requests for one angle are sent one after another
+  // (so the server applies them in tap order), and only the answer to the latest tap
+  // may overwrite what is on screen.
+  const latestTap = useRef(new Map<string, number>());
+  const queue = useRef(new Map<string, Promise<unknown>>());
+
+  // Optimistic: show the change at once, then settle on what the server counted.
+  async function react(angleId: string, kind: Kind) {
+    const before = reactionsOf(angleId);
+    const next = before.mine === kind ? null : kind;
+    const counts = { ...before.counts };
+    if (before.mine) counts[before.mine]--;
+    if (next) counts[next]++;
+    setReactions((m) => new Map(m).set(angleId, { counts, mine: next }));
+
+    const tap = (latestTap.current.get(angleId) ?? 0) + 1;
+    latestTap.current.set(angleId, tap);
+    const send = async () => {
+      const res = await fetch(`/api/angles/${angleId}/reaction`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: next }),
+      }).catch(() => null);
+      const settled: Reactions = res?.ok ? await res.json() : before;
+      if (latestTap.current.get(angleId) === tap) setReactions((m) => new Map(m).set(angleId, settled));
+    };
+    const run = (queue.current.get(angleId) ?? Promise.resolve()).then(send);
+    queue.current.set(angleId, run);
+    await run;
+  }
 
   const slides = () => Array.from(trackRef.current?.children ?? []) as HTMLElement[];
   const goTo = (index: number, smooth = true) =>
@@ -59,6 +112,12 @@ export function AngleGallery({ angles, locale, labels }: { angles: GalleryAngle[
     slides().forEach((s) => observer.observe(s));
     return () => observer.disconnect();
   }, [angles.length]);
+
+  // Visitors without a name yet: close the viewer and take them to the name form.
+  function join() {
+    dialogRef.current?.close();
+    document.getElementById("join")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 
   function onKeyDown(event: React.KeyboardEvent) {
     const rtl = document.documentElement.dir === "rtl";
@@ -95,6 +154,11 @@ export function AngleGallery({ angles, locale, labels }: { angles: GalleryAngle[
                   </svg>
                 </span>
               )}
+              {total(reactionsOf(a.id)) > 0 && (
+                <span className="pointer-events-none absolute start-2 top-2 rounded-full bg-black/50 px-2 py-0.5 text-xs font-bold text-white">
+                  {EMOJI[topKind(reactionsOf(a.id))]} {total(reactionsOf(a.id))}
+                </span>
+              )}
               <span className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6 text-xs font-bold text-white">
                 {caption(a)}
               </span>
@@ -127,6 +191,25 @@ export function AngleGallery({ angles, locale, labels }: { angles: GalleryAngle[
                   </span>
                 )}
               </figcaption>
+              <div className="absolute inset-x-0 bottom-14 flex justify-center gap-2 px-4">
+                {KINDS.map((kind) => {
+                  const r = reactionsOf(a.id);
+                  const active = r.mine === kind;
+                  return (
+                    <button
+                      key={kind}
+                      type="button"
+                      aria-pressed={active}
+                      aria-label={canReact ? labels.reactions.react.replace("{name}", labels.reactions[kind]) : labels.reactions.joinToReact}
+                      onClick={() => (canReact ? react(a.id, kind) : join())}
+                      className={`flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-full px-3 text-lg font-bold transition-colors ${active ? "bg-white text-black" : "bg-black/50 text-white"}`}
+                    >
+                      <span aria-hidden="true">{EMOJI[kind]}</span>
+                      {r.counts[kind] > 0 && <span className="text-sm">{r.counts[kind]}</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </figure>
           ))}
         </div>

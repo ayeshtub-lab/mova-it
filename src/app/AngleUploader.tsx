@@ -6,7 +6,8 @@ import { useId, useState } from "react";
 import { PrepareError, prepareAngleFile } from "@/lib/media-client";
 
 type Labels = {
-  button: string;
+  camera: string;
+  gallery: string;
   hint: string;
   preparing: string;
   uploading: string;
@@ -81,14 +82,30 @@ export function AngleUploader({ code, labels }: { code: string; labels: Labels }
     router.refresh();
   }
 
+  const disabled = busy ? "pointer-events-none opacity-60" : "";
+
   return (
     <div className="flex flex-col gap-3">
-      <label
-        htmlFor={inputId}
-        className={`flex min-h-12 cursor-pointer items-center justify-center rounded-full bg-accent px-6 text-base font-bold text-white ${busy ? "pointer-events-none opacity-60" : ""}`}
-      >
-        {labels.button}
-      </label>
+      <div className="flex gap-2">
+        {/* `capture` opens the phone's camera directly (photo or video); desktops fall back to a file picker. */}
+        <label
+          htmlFor={`${inputId}-camera`}
+          className={`flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-accent px-5 text-base font-bold text-white ${disabled}`}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+            <circle cx="12" cy="13" r="3.5" />
+          </svg>
+          {labels.camera}
+        </label>
+        <label
+          htmlFor={inputId}
+          className={`flex min-h-12 cursor-pointer items-center justify-center rounded-full border border-line px-5 text-base font-bold ${disabled}`}
+        >
+          {labels.gallery}
+        </label>
+      </div>
+      <input id={`${inputId}-camera`} type="file" accept="image/*,video/*" capture="environment" onChange={onPick} className="sr-only" />
       <input id={inputId} type="file" accept="image/*,video/mp4,video/quicktime,video/webm" multiple onChange={onPick} className="sr-only" />
       <p className="text-sm text-muted">{labels.hint}</p>
 
