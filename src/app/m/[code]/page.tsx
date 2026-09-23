@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { AngleUploader } from "@/app/AngleUploader";
@@ -68,6 +69,13 @@ export default async function MomentPage({ params }: PageProps<"/m/[code]">) {
       <SiteHeader locale={locale} dict={dict} />
 
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-16">
+        <Link href="/" className="-mb-2 flex min-h-11 items-center gap-1.5 self-start rounded-full bg-surface px-4 text-sm font-bold hover:bg-line">
+          {/* Points "back": right in Arabic, left in English. */}
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 rtl:rotate-180" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 6l-6 6 6 6" />
+          </svg>
+          {dict.mine.title}
+        </Link>
         <section className="flex flex-col gap-2">
           <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">{view.title}</h1>
           <p className="text-sm text-muted">
