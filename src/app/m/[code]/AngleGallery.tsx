@@ -106,6 +106,21 @@ export function AngleGallery({
     requestAnimationFrame(() => goTo(index, false));
   }
 
+  // The angle wheel above the grid opens the viewer through a window event, so the
+  // two components stay independent.
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  });
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const index = angles.findIndex((a) => a.id === (event as CustomEvent<string>).detail);
+      if (index >= 0) openRef.current(index);
+    };
+    window.addEventListener("zawmo:open-angle", onOpen);
+    return () => window.removeEventListener("zawmo:open-angle", onOpen);
+  }, [angles]);
+
   // Track which slide is on screen, and pause any video that scrolled away.
   useEffect(() => {
     const track = trackRef.current;

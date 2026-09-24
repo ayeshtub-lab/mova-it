@@ -253,5 +253,9 @@
     "create": "New moment",
     "me": "Me",
     "account": "Account"
+  },
+  "wheel": {
+    "open": "Open angle",
+    "locked": "Locked angle — add yours to see it"
   }
 }

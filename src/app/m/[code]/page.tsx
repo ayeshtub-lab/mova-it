@@ -15,6 +15,7 @@ import { latestMontageFor } from "@/server/montage";
 import { googleEnabled } from "@/server/google";
 import { getMomentView } from "@/server/moments";
 import { AngleGallery } from "./AngleGallery";
+import { AngleWheel } from "./AngleWheel";
 import { MontagePanel } from "./MontagePanel";
 import { ShareAfterUpload } from "./ShareAfterUpload";
 import { ShareBar } from "./ShareBar";
@@ -92,6 +93,12 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           </p>
           {view.creatorName && <p className="text-sm text-muted">{fill(t.by, { name: view.creatorName })}</p>}
         </section>
+
+        <AngleWheel
+          angles={view.angles.map((a) => ({ id: a.id, imageUrl: a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl, name: a.contributorName }))}
+          locked={view.lockedCount}
+          labels={dict.wheel}
+        />
 
         {timeline.length > 1 && (
           <nav aria-label={t.timeline} className="-mx-4 overflow-x-auto px-4">
