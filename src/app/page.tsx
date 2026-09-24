@@ -65,11 +65,11 @@ const POINT_ICONS = [
 
 // Visitors: the idea at a glance (an angle wheel of four friends' angles, each with
 // their account photo and name), three short points, then sign in or try as a guest.
-function VisitorHome({ dict, google, locale }: { dict: Dictionary; google: boolean; locale: Locale }) {
+function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean }) {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 py-4 sm:py-10">
       <section className="flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-8 sm:text-start">
-        <DemoWheel locale={locale} className="w-64 shrink-0 sm:w-80" />
+        <DemoWheel className="w-full max-w-[26rem] shrink-0 sm:w-96" />
         <div className="flex flex-col gap-3">
           <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl">{dict.home.tagline}</h1>
           <p dir="ltr" className="font-display text-sm font-bold tracking-[0.2em] text-secondary uppercase">
@@ -124,7 +124,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           {dict.account.failed}
         </p>
       )}
-      {user ? <SignedInHome user={user} locale={locale} dict={dict} google={google} /> : <VisitorHome dict={dict} google={google} locale={locale} />}
+      {user ? <SignedInHome user={user} locale={locale} dict={dict} google={google} /> : <VisitorHome dict={dict} google={google} />}
     </div>
   );
 }

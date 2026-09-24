@@ -2,10 +2,7 @@ Illustrative images for the visitor home page (DemoWheel). Downloaded 2026-09-25
 from Unsplash under the Unsplash License (free commercial use, no attribution
 required): https://unsplash.com/license — people shown are models, not Zawmo users.
 
-coffee.webp      https://unsplash.com/photos/steaming-mug-on-wooden-table-u1QfqxhsrXQ
-sea.webp         https://unsplash.com/photos/turquoise-calm-sea-wave-splashing-on-white-sand-beach-aerial-photography-QP6XWJ9q6GY
-nature.webp      https://unsplash.com/photos/aerial-photography-of-green-mountains-K94HiVOKjZE
-graduation.webp  https://unsplash.com/photos/graduates-throwing-caps-in-celebration-hpRGrfOIybc
+moment-*.webp   cropped from the owner's own mockup image (his, supplied 2026-09-25)
 face-sara.webp   https://images.unsplash.com/photo-1718048170732-0ef8a77fce9e
 face-karim.webp  https://images.unsplash.com/photo-1765366574945-e2f1b4b1a5b3
 face-mazen.webp  https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d
