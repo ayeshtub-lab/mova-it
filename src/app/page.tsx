@@ -1,5 +1,5 @@
 import { signOut } from "@/app/actions/session";
-import { CreateMomentForm } from "@/app/CreateMomentForm";
+import Link from "next/link";
 import { FriendsActivity } from "@/app/FriendsActivity";
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
@@ -15,40 +15,40 @@ import { googleEnabled } from "@/server/google";
 // Signed in: straight to their moments — no introduction to scroll past.
 function SignedInHome({ user, locale, dict, google }: { user: User; locale: Locale; dict: Dictionary; google: boolean }) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 pb-12">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-xl font-extrabold">{dict.guest.welcome.replace("{name}", user.displayName)}</span>
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 pb-12">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="truncate text-2xl font-extrabold">{dict.guest.welcome.replace("{name}", user.displayName)} 👋</h1>
           {user.isGuest && (
-            <span className="rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-bold text-accent-ink">{dict.guest.badge}</span>
+            <span className="shrink-0 rounded-full bg-accent-soft px-2.5 py-0.5 text-xs font-bold text-accent-ink">{dict.guest.badge}</span>
           )}
         </div>
         <form action={signOut}>
-          <button type="submit" className="min-h-11 rounded-full px-4 text-sm font-bold text-muted underline-offset-4 hover:underline">
+          <button type="submit" className="min-h-11 shrink-0 rounded-full px-3 text-sm font-bold text-muted underline-offset-4 hover:underline">
             {dict.guest.signOut}
           </button>
         </form>
       </div>
 
       {user.isGuest && google && (
-        <section className="flex max-w-xl flex-col gap-3 rounded-3xl border border-secondary/30 bg-secondary/10 p-5">
+        <section id="save" className="flex scroll-mt-6 flex-col gap-3 rounded-3xl border border-secondary/30 bg-secondary-soft p-5">
           <h2 className="text-lg font-extrabold">{dict.account.saveTitle}</h2>
           <p className="text-sm leading-relaxed text-muted">{dict.account.saveHint}</p>
           <GoogleButton label={dict.account.saveButton} returnTo="/" />
         </section>
       )}
 
-      <details className="group max-w-xl rounded-3xl border border-line">
-        <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-3xl bg-accent px-5 font-bold text-white group-open:rounded-b-none [&::-webkit-details-marker]:hidden">
-          {dict.create.title}
-          <span aria-hidden="true" className="text-2xl leading-none transition-transform group-open:rotate-45">
-            +
-          </span>
-        </summary>
-        <div className="p-5">
-          <CreateMomentForm labels={dict.create} />
-        </div>
-      </details>
+      {/* The ＋ lives in the bottom bar on phones; wider screens get this banner. */}
+      <Link
+        href="/new"
+        className="hidden items-center gap-4 rounded-3xl bg-gradient-to-l from-brand-red to-brand-blue p-5 text-white shadow-md transition-transform hover:scale-[1.01] sm:flex"
+      >
+        <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white/20 text-3xl">＋</span>
+        <span className="flex flex-col">
+          <span className="text-xl font-extrabold">{dict.create.title}</span>
+          <span className="text-sm opacity-90">{dict.home.createHint}</span>
+        </span>
+      </Link>
 
       <FriendsActivity user={user} locale={locale} dict={dict} />
 

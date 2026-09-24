@@ -12,7 +12,8 @@
       "An automatic montage of every angle, ready to share",
       "Send the link to anyone who was there, no app install needed"
     ],
-    "status": "In the works — coming soon"
+    "status": "In the works — coming soon",
+    "createHint": "Capture it, and let your friends add their angles."
   },
   "lang": {
     "switchTo": "العربية",
@@ -245,5 +246,12 @@
   },
   "footer": {
     "privacy": "Privacy"
+  },
+  "nav": {
+    "home": "Home",
+    "inbox": "Inbox",
+    "create": "New moment",
+    "me": "Me",
+    "account": "Account"
   }
 }

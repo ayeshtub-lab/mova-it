@@ -1,5 +1,7 @@
 import type { User } from "@/generated/prisma/client";
+import { cache } from "react";
 import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
 import { viewUrl } from "@/server/media";
 import { blockedIdsFor, blockUser } from "@/server/moderation";
 
@@ -157,3 +159,10 @@ export async function blockInThread(user: User, id: string) {
   if (!t) throw new InboxError("not_found");
   await blockUser(user, t.fromUserId === user.id ? t.toUserId : t.fromUserId);
 }
+
+// The signed-in user's unread count, computed once per request however many
+// components (header, bottom bar) ask for it.
+export const currentUnread = cache(async () => {
+  const user = await getCurrentUser();
+  return user ? unreadCount(user) : 0;
+});

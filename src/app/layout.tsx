@@ -3,6 +3,9 @@ import Link from "next/link";
 import { Cairo, Syne } from "next/font/google";
 import { dirOf } from "@/i18n/config";
 import { getDictionary, getLocale } from "@/i18n/server";
+import { getCurrentUser } from "@/lib/session";
+import { currentUnread } from "@/server/inbox";
+import { BottomNav } from "./BottomNav";
 import "./globals.css";
 
 const cairo = Cairo({
@@ -25,6 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
+  const [user, unread] = await Promise.all([getCurrentUser(), currentUnread()]);
   return (
     <html
       lang={locale}
@@ -33,11 +37,18 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col font-sans">
         {children}
-        <footer className="px-4 py-6 text-center text-xs text-muted">
+        <footer className={`px-4 py-6 text-center text-xs text-muted ${user ? "pb-28 sm:pb-6" : ""}`}>
           <Link href="/privacy" className="underline-offset-4 hover:underline">
             {dict.footer.privacy}
           </Link>
         </footer>
+        {user && (
+          <BottomNav
+            unread={unread}
+            meHref={user.isGuest ? "/#save" : `/u/${user.id}`}
+            labels={{ ...dict.nav, me: user.isGuest ? dict.nav.account : dict.nav.me }}
+          />
+        )}
       </body>
     </html>
   );
