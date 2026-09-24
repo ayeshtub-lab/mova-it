@@ -3,12 +3,12 @@ import { arcPath, bbox, pt, R_OUT, R_RING, slicePath } from "@/lib/wheel";
 // The visitor home's hero art, after the owner's mockup: a big angle wheel with four
 // friends' angles of one day — slices centred up, right, down and left — each friend's
 // account photo on the dashed red/blue ring, the moment (yellow) in the middle.
-// Scene photos come from the owner's own mockup; faces are Unsplash (see CREDITS.txt).
+// Photos and faces are Unsplash (free licence; see public/demo/CREDITS.txt).
 const SLICES = [
-  { photo: "/demo/moment-camera.webp", face: "/demo/face-sara.webp" },
-  { photo: "/demo/moment-mountain.webp", face: "/demo/face-karim.webp" },
-  { photo: "/demo/moment-graffiti.webp", face: "/demo/face-mazen.webp" },
-  { photo: "/demo/moment-leaf.webp", face: "/demo/face-layan.webp" },
+  { photo: "/demo/coffee.webp", face: "/demo/face-sara.webp" },
+  { photo: "/demo/sea.webp", face: "/demo/face-karim.webp" },
+  { photo: "/demo/nature.webp", face: "/demo/face-mazen.webp" },
+  { photo: "/demo/graduation.webp", face: "/demo/face-layan.webp" },
 ];
 const FACE_R = 17;
 
