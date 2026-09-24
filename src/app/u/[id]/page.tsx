@@ -12,7 +12,7 @@ import { ProfileTabs } from "./ProfileTabs";
 
 export async function generateMetadata({ params }: PageProps<"/u/[id]">): Promise<Metadata> {
   const profile = await getProfile(await getCurrentUser(), (await params).id);
-  return profile ? { title: `${profile.displayName} · MOVA IT`, robots: { index: false } } : {};
+  return profile ? { title: `${profile.displayName} · Zawmo`, robots: { index: false } } : {};
 }
 
 async function rename(_prev: RenameState, formData: FormData): Promise<RenameState> {
@@ -43,7 +43,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
       <SiteHeader locale={locale} dict={dict} />
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-16">
         <section className="flex flex-col items-center gap-3 text-center">
-          <span className="rounded-full bg-gradient-to-br from-[#f4a55b] via-accent to-secondary p-1">
+          <span className="rounded-full bg-gradient-to-br from-brand-red via-moment to-brand-blue p-1">
             {profile.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- Google profile photo
               <img src={profile.avatarUrl} alt="" referrerPolicy="no-referrer" className="size-24 rounded-full border-4 border-background object-cover" />

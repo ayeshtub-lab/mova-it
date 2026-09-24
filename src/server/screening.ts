@@ -18,7 +18,7 @@ export type Verdict =
   | { result: "blocked"; category: string; reason: string }
   | { result: "error"; reason: string };
 
-const PROMPT = `You are the content safety check for MOVA IT, a social app where friends and family share photos and short videos of everyday moments (gatherings, food, travel, sports, celebrations, nature). Many users are in Arab and Muslim-majority countries.
+const PROMPT = `You are the content safety check for Zawmo, a social app where friends and family share photos and short videos of everyday moments (gatherings, food, travel, sports, celebrations, nature). Many users are in Arab and Muslim-majority countries.
 
 Decide whether this content may be shown. BLOCK only when it clearly contains:
 - sexual: nudity, sexual acts, sexually explicit or provocative content, lingerie/underwear shown sexually;

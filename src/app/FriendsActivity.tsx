@@ -27,7 +27,7 @@ export async function FriendsActivity({ user, locale, dict }: { user: User; loca
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
                 <img src={m.coverUrl} alt="" className="size-16 shrink-0 rounded-xl object-cover" />
               ) : (
-                <span aria-hidden="true" className="size-16 shrink-0 rounded-xl bg-gradient-to-br from-accent/60 via-secondary/50 to-[#f4a55b]/60" />
+                <span aria-hidden="true" className="size-16 shrink-0 rounded-xl bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
               )}
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="text-sm text-accent-ink">

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { viewUrl } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
 
-// "Friends" on MOVA are people you have already shared a moment with. No phone
+// "Friends" on Zawmo are people you have already shared a moment with. No phone
 // numbers or address books: the relationship comes from moments you were both part of.
 
 const DAY_MS = 24 * 60 * 60 * 1000;

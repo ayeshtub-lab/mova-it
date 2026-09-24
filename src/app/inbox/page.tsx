@@ -7,7 +7,7 @@ import { relativeTime } from "@/lib/site";
 import { listThreads } from "@/server/inbox";
 import { RefreshOnFocus } from "./RefreshOnFocus";
 
-export const metadata = { title: "MOVA IT · 📥", robots: { index: false } };
+export const metadata = { title: "Zawmo · 📥", robots: { index: false } };
 
 const fill = (template: string, values: Record<string, string>) => template.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? "");
 
@@ -38,7 +38,7 @@ export default async function InboxPage() {
                     // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
                     <img src={th.coverUrl} alt="" className="size-16 shrink-0 rounded-xl object-cover" />
                   ) : (
-                    <span aria-hidden="true" className="size-16 shrink-0 rounded-xl bg-gradient-to-br from-accent/60 via-secondary/50 to-[#f4a55b]/60" />
+                    <span aria-hidden="true" className="size-16 shrink-0 rounded-xl bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
                   )}
                   <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <span className={`truncate ${th.unread ? "font-extrabold" : "font-bold"}`}>

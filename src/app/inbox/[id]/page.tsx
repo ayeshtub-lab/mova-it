@@ -9,7 +9,7 @@ import { RefreshOnFocus } from "../RefreshOnFocus";
 import { ConfirmButton } from "./ConfirmButton";
 import { Thread } from "./Thread";
 
-export const metadata = { title: "MOVA IT · 📥", robots: { index: false } };
+export const metadata = { title: "Zawmo · 📥", robots: { index: false } };
 
 const fill = (template: string, values: Record<string, string>) => template.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? "");
 
@@ -50,7 +50,7 @@ export default async function ThreadPage({ params }: PageProps<"/inbox/[id]">) {
             // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
             <img src={thread.coverUrl} alt="" className="aspect-[16/10] w-full object-cover transition-transform group-hover:scale-[1.02]" />
           ) : (
-            <span aria-hidden="true" className="block aspect-[16/10] w-full bg-gradient-to-br from-accent/60 via-secondary/50 to-[#f4a55b]/60" />
+            <span aria-hidden="true" className="block aspect-[16/10] w-full bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
           )}
           <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/75 to-transparent p-4 pt-12 text-white">
             <span className="min-w-0">

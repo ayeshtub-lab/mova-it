@@ -28,7 +28,7 @@ function Tile({ href, coverUrl, video, children }: { href: string; coverUrl: str
         // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
         <img src={coverUrl} alt="" loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
       ) : (
-        <span aria-hidden="true" className="block size-full bg-gradient-to-br from-accent/60 via-secondary/50 to-[#f4a55b]/60" />
+        <span aria-hidden="true" className="block size-full bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
       )}
       {video && (
         <span aria-hidden="true" className="absolute end-1.5 top-1.5 rounded-full bg-black/50 px-1.5 text-xs text-white">

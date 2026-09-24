@@ -1,29 +1,40 @@
 @import "tailwindcss";
 
-/* MOVA identity: warm ivory ground, coral accent ("sunset hour"), muted purple secondary. */
+/* Zawmo identity, taken from the logo: two angles (red, blue) meeting at the
+   moment (yellow). Calm near-white / near-black grounds so photos carry the colour.
+   Contrast checked: white on --accent ≥ 4.5:1; --accent-ink and --secondary
+   as text on --background ≥ 4.5:1 in both modes. */
 :root {
-  --background: #fffbf0;
-  --surface: #f6eedf;
-  --foreground: #1f1a17;
-  --muted: #5e534c;
-  --line: #efe3d0;
-  --accent: #c8432b;
-  --accent-soft: #fbe2d8;
-  --accent-ink: #9e3320;
-  --secondary: #6e5c9e;
+  --background: #fbfaf7;
+  --surface: #f1efea;
+  --foreground: #15161b;
+  --muted: #5c5e69;
+  --line: #e3e1db;
+  --accent: #d62839; /* Zawmo red: buttons, active states */
+  --accent-soft: #fde6e7;
+  --accent-ink: #b3202c; /* red as text */
+  --secondary: #2563eb; /* Zawmo blue */
+  --secondary-soft: #e3ecfe;
+  --moment: #ffbf1f; /* the moment: the yellow dot */
+  --brand-red: #e63946; /* logo strokes */
+  --brand-blue: #2f6fed;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #15110f;
-    --surface: #211b18;
-    --foreground: #f5ede3;
-    --muted: #b8ada6;
-    --line: #2e2622;
-    --accent: #c8432b;
-    --accent-soft: #3a2019;
-    --accent-ink: #ff8a6b;
-    --secondary: #b3a4e0;
+    --background: #0d0e12;
+    --surface: #181a20;
+    --foreground: #f3f3f6;
+    --muted: #a2a5b1;
+    --line: #282b33;
+    --accent: #d62839;
+    --accent-soft: #3b1a1f;
+    --accent-ink: #ff7b85;
+    --secondary: #7aa2ff;
+    --secondary-soft: #1a2440;
+    --moment: #ffc940;
+    --brand-red: #ff5a66;
+    --brand-blue: #5b8dff;
   }
 }
 
@@ -37,6 +48,10 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
   --color-secondary: var(--secondary);
+  --color-secondary-soft: var(--secondary-soft);
+  --color-moment: var(--moment);
+  --color-brand-red: var(--brand-red);
+  --color-brand-blue: var(--brand-blue);
   --font-sans: var(--font-cairo);
   --font-display: var(--font-syne);
 }

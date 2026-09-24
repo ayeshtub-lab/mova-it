@@ -10,7 +10,7 @@ const cairo = Cairo({
   subsets: ["arabic", "latin"],
 });
 
-// Latin display face, used only for the MOVA IT wordmark.
+// Latin display face, used only for the zawmo wordmark.
 const syne = Syne({
   variable: "--font-syne",
   subsets: ["latin"],

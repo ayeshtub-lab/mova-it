@@ -8,7 +8,7 @@ import { isArabic, Line, satoriFonts, wrap } from "@/server/og-text";
 // The card WhatsApp/Telegram/iMessage show for a shared /m/[code] link. It uses the
 // moment's first angle only — the one any link holder may already see ("give to get").
 export const runtime = "nodejs";
-export const alt = "MOVA IT";
+export const alt = "Zawmo";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -39,9 +39,9 @@ export default async function Image({ params }: { params: Promise<{ code: string
         )}
         <div style={{ ...fullBox, display: "flex", background: "linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.2) 45%, rgba(0,0,0,0.85) 100%)" }} />
         <div style={{ ...fullBox, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "48px 56px", color: "#FFFBF0" }}>
-          <div style={{ display: "flex", fontSize: 34, letterSpacing: 6, alignSelf: arabic ? "flex-end" : "flex-start" }}>MOVA IT</div>
+          <div style={{ display: "flex", fontSize: 34, letterSpacing: 2, alignSelf: arabic ? "flex-end" : "flex-start" }}>zawmo</div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: arabic ? "flex-end" : "flex-start", gap: 6 }}>
-            {wrap(view?.title ?? "MOVA IT", 26, 2).map((line) => (
+            {wrap(view?.title ?? "Zawmo", 26, 2).map((line) => (
               <Line key={line} text={line} rtl={arabic} fontSize={64} />
             ))}
             {meta && <Line text={meta} rtl={arabic} fontSize={32} color="#FBE2D8" />}

@@ -48,7 +48,7 @@ export async function createMoment(creator: User, input: CreateMomentInput) {
     ? (input.visibility as Visibility)
     : Visibility.FRIENDS;
 
-  // Users only create everyday moments; BIG and DAILY moments are scheduled by MOVA.
+  // Users only create everyday moments; BIG and DAILY moments are scheduled by Zawmo.
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = newCode();
     if (await db.moment.findUnique({ where: { code }, select: { id: true } })) continue;

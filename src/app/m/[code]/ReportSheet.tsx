@@ -18,7 +18,7 @@ export type ReportLabels = {
 };
 
 // A sheet over the viewer: why is this angle or comment a problem, and optionally
-// block its author. Reports go to the MOVA moderators (/admin).
+// block its author. Reports go to the Zawmo moderators (/admin).
 export function ReportSheet({
   target,
   labels,

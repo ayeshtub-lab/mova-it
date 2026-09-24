@@ -1,4 +1,4 @@
-// Moderation queue for MOVA admins (User.isAdmin). Everyone else gets a 404.
+// Moderation queue for Zawmo admins (User.isAdmin). Everyone else gets a 404.
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -18,7 +18,7 @@ async function act(formData: FormData) {
   revalidatePath("/admin");
 }
 
-export const metadata = { title: "MOVA IT · الإشراف", robots: { index: false } };
+export const metadata = { title: "زاومو · الإشراف", robots: { index: false } };
 
 export default async function AdminPage() {
   const user = await getCurrentUser();

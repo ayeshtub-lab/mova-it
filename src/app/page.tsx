@@ -3,6 +3,7 @@ import { CreateMomentForm } from "@/app/CreateMomentForm";
 import { FriendsActivity } from "@/app/FriendsActivity";
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
+import { ZMark } from "@/app/Logo";
 import { MyMoments } from "@/app/MyMoments";
 import { SiteHeader } from "@/app/SiteHeader";
 import type { User } from "@/generated/prisma/client";
@@ -10,17 +11,6 @@ import type { Locale } from "@/i18n/config";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { googleEnabled } from "@/server/google";
-
-// Brand mark: three overlapping lenses; where they meet is "the moment".
-function LensMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 120 100" className={className} aria-hidden="true">
-      <circle cx="42" cy="40" r="30" fill="var(--accent)" fillOpacity="0.85" />
-      <circle cx="78" cy="40" r="30" fill="var(--secondary)" fillOpacity="0.7" />
-      <circle cx="60" cy="66" r="30" fill="#f4a55b" fillOpacity="0.75" />
-    </svg>
-  );
-}
 
 // Signed in: straight to their moments — no introduction to scroll past.
 function SignedInHome({ user, locale, dict, google }: { user: User; locale: Locale; dict: Dictionary; google: boolean }) {
@@ -70,7 +60,7 @@ function SignedInHome({ user, locale, dict, google }: { user: User; locale: Loca
 function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean }) {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 py-10">
-      <LensMark className="w-28 sm:w-36" />
+      <ZMark className="w-24 sm:w-32" />
 
       <div className="flex flex-col gap-3">
         <h1 className="text-4xl font-extrabold leading-tight sm:text-6xl">{dict.home.tagline}</h1>

@@ -17,7 +17,7 @@ type Labels = {
 
 // Right after someone adds their angle — the moment they are most likely to share —
 // invite them to pass the moment on: WhatsApp, the phone's share sheet, or friends
-// already on MOVA (people they shared moments with).
+// already on Zawmo (people they shared moments with).
 export function ShareAfterUpload({ code, url, text, labels }: { code: string; url: string; text: string; labels: Labels }) {
   const [open, setOpen] = useState(true);
   const [friends, setFriends] = useState<Friend[]>([]);

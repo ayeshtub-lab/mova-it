@@ -16,7 +16,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
     title: "سياسة الخصوصية",
     updated: "آخر تحديث",
     intro:
-      "MOVA IT مكان لمشاركة اللحظات مع من كانوا معك. هذه الصفحة تشرح بوضوح ما نحفظه عنك، ولماذا، ومن يراه، وكيف تتحكم فيه.",
+      "زاومو مكان لمشاركة اللحظات مع من كانوا معك. هذه الصفحة تشرح بوضوح ما نحفظه عنك، ولماذا، ومن يراه، وكيف تتحكم فيه.",
     sections: [
       {
         title: "ما نحفظه",
@@ -55,7 +55,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       {
         title: "كيف نستخدم بياناتك",
         items: [
-          "فقط لتشغيل MOVA IT: عرض لحظاتك لمن اخترتهم، وصنع المونتاج، وإرسال ما تشاركه لأصحابك.",
+          "فقط لتشغيل زاومو: عرض لحظاتك لمن اخترتهم، وصنع المونتاج، وإرسال ما تشاركه لأصحابك.",
           "لحماية المستخدمين: مراجعة البلاغات وإخفاء المحتوى المخالف.",
           "كل صورة أو فيديو يُفحص تلقائيًا عند رفعه، وما يخالف القواعد (مثل المحتوى الجنسي أو العنف الدموي) يُخفى ويراجعه فريقنا.",
         ],
@@ -88,7 +88,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       },
       {
         title: "الأطفال",
-        items: ["MOVA IT ليس موجّهًا لمن هم دون ١٣ سنة."],
+        items: ["زاومو ليس موجّهًا لمن هم دون ١٣ سنة."],
       },
       {
         title: "التغييرات",
@@ -101,7 +101,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
     title: "Privacy Policy",
     updated: "Last updated",
     intro:
-      "MOVA IT is a place to share moments with the people who were there. This page explains plainly what we keep about you, why, who sees it, and how you control it.",
+      "Zawmo is a place to share moments with the people who were there. This page explains plainly what we keep about you, why, who sees it, and how you control it.",
     sections: [
       {
         title: "What we keep",
@@ -140,7 +140,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       {
         title: "How we use your data",
         items: [
-          "Only to run MOVA IT: showing your moments to the people you chose, making montages, and delivering what you share to your friends.",
+          "Only to run Zawmo: showing your moments to the people you chose, making montages, and delivering what you share to your friends.",
           "To keep people safe: reviewing reports and hiding content that breaks the rules.",
           "Every photo and video is checked automatically when uploaded; anything that breaks the rules (such as sexual content or graphic violence) is hidden and reviewed by our team.",
         ],
@@ -173,7 +173,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       },
       {
         title: "Children",
-        items: ["MOVA IT is not intended for anyone under 13."],
+        items: ["Zawmo is not intended for anyone under 13."],
       },
       {
         title: "Changes",
@@ -186,7 +186,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  return { title: `${CONTENT[locale].title} · MOVA IT` };
+  return { title: `${CONTENT[locale].title} · ${locale === "ar" ? "زاومو" : "Zawmo"}` };
 }
 
 export default async function PrivacyPage() {
@@ -224,7 +224,7 @@ export default async function PrivacyPage() {
           </a>
         </p>
         <Link href="/" className="self-start text-sm font-bold text-secondary underline-offset-4 hover:underline">
-          ← MOVA IT
+          ← {locale === "ar" ? "زاومو" : "Zawmo"}
         </Link>
       </main>
     </div>

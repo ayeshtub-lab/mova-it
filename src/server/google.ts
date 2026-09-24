@@ -82,7 +82,7 @@ export async function exchangeCode(code: string, attempt: Attempt, redirectUri: 
   };
 }
 
-// Who is this Google account on MOVA?
+// Who is this Google account on Zawmo?
 // - already linked → that user (a guest on this browser stays as it was);
 // - a guest is signed in here → upgrade that guest in place: same row, so every
 //   moment, angle, comment and message stays theirs (and the name they chose);
@@ -107,7 +107,7 @@ export async function accountForGoogle(current: User | null, profile: GoogleProf
       googleSub: profile.sub,
       isGuest: false,
       locale,
-      displayName: googleName ?? cleanDisplayName(profile.email?.split("@")[0]) ?? "MOVA",
+      displayName: googleName ?? cleanDisplayName(profile.email?.split("@")[0]) ?? "Zawmo",
       ...fromGoogle({ avatarUrl: null }),
     },
   });

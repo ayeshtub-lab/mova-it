@@ -73,7 +73,7 @@ function timeAgo(iso: string, locale: string) {
 }
 
 // The grid of a moment's angles, plus a full-screen viewer that swipes sideways
-// between angles of the same moment — the horizontal half of MOVA's two-way feed.
+// between angles of the same moment — the horizontal half of Zawmo's two-way feed.
 // Swiping is native scroll-snap, so it follows the finger on phones with no library.
 export function AngleGallery({
   angles,

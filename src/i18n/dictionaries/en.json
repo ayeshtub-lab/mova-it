@@ -1,12 +1,12 @@
 {
   "meta": {
-    "title": "MOVA IT — One moment. Many eyes.",
+    "title": "Zawmo — Shot from all angles",
     "description": "Capture your moment and see it through the eyes of everyone who was there."
   },
   "home": {
-    "tagline": "One moment. Many eyes.",
-    "motto": "Move with the moment",
-    "lead": "Every great moment is seen by more than one person. On MOVA, all your angles meet in one place and become the whole moment.",
+    "tagline": "One moment, from every angle.",
+    "motto": "Shot from all angles",
+    "lead": "Every great moment is seen by more than one person. On Zawmo, all your angles meet in one place and become the whole moment.",
     "points": [
       "Everyone adds their angle: a photo or a video up to 20 seconds",
       "An automatic montage of every angle, ready to share",
@@ -40,7 +40,7 @@
       "too_long": "The video is longer than 20 seconds.",
       "too_many": "You reached the maximum number of angles for this moment.",
       "failed": "Upload failed. Please try again.",
-      "blocked": "This shot doesn't meet MOVA's rules and won't be shown."
+      "blocked": "This shot doesn't meet Zawmo's rules and won't be shown."
     },
     "gallery": "Pick from gallery",
     "cameraPhoto": "Take a photo",
@@ -168,7 +168,7 @@
     "title": "🔥 You’re in! Send the moment to someone who was with you?",
     "whatsapp": "WhatsApp",
     "share": "Share link",
-    "friendsTitle": "Or send it to your friends on MOVA:",
+    "friendsTitle": "Or send it to your friends on Zawmo:",
     "sendToFriends": "Send to friends",
     "sent": "Sent! They will see it on their page.",
     "failed": "Could not send. Please try again.",

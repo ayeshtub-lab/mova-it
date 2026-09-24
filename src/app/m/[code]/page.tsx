@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
   const dict = await getDictionary(locale);
   const description = countsLine(dict, locale, view.angleCount, view.participantCount);
   return {
-    title: `${view.title} · MOVA IT`,
+    title: `${view.title} · Zawmo`,
     description,
     openGraph: { title: view.title, description, type: "website" },
   };
@@ -139,7 +139,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               <div
                 key={`locked-${i}`}
                 aria-hidden="true"
-                className="aspect-[3/4] rounded-2xl bg-gradient-to-br from-accent/60 via-secondary/50 to-[#f4a55b]/60 blur-[1px]"
+                className="aspect-[3/4] rounded-2xl bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55 blur-[1px]"
               />
             ))}
           </div>
