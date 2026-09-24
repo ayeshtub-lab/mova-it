@@ -16,6 +16,23 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
       </Link>
       <div className="flex items-center gap-2">
         {user && <InboxLink unread={unread} label={unread ? dict.inbox.openUnread.replace("{n}", String(unread)) : dict.inbox.open} />}
+        {user && !user.isGuest && (
+          <Link
+            href={`/u/${user.id}`}
+            aria-label={dict.profile.mine}
+            title={dict.profile.mine}
+            className="flex size-11 items-center justify-center rounded-full bg-gradient-to-br from-[#f4a55b] via-accent to-secondary p-0.5 transition-transform hover:scale-105"
+          >
+            {user.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- Google profile photo
+              <img src={user.avatarUrl} alt="" referrerPolicy="no-referrer" className="size-full rounded-full border-2 border-background object-cover" />
+            ) : (
+              <span aria-hidden="true" className="flex size-full items-center justify-center rounded-full border-2 border-background bg-surface font-extrabold">
+                {[...user.displayName][0]}
+              </span>
+            )}
+          </Link>
+        )}
         <form action={setLocale}>
           <input type="hidden" name="locale" value={locale === "ar" ? "en" : "ar"} />
           <button

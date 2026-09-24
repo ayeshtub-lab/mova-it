@@ -121,6 +121,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 mediaType: a.mediaType,
                 presence: a.presence,
                 contributorName: a.contributorName,
+                profileId: a.profileId,
                 capturedAt: a.capturedAt?.toISOString() ?? null,
                 mediaUrl: a.mediaUrl,
                 thumbUrl: a.thumbUrl,
@@ -128,6 +129,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 commentCount: a.commentCount,
                 canDelete: a.canDelete,
                 isMine: a.isMine,
+                views: a.views,
               }))}
               locale={locale}
               labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag }}

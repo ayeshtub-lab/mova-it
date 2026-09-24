@@ -45,7 +45,7 @@ export function authorizeUrl(attempt: Attempt, redirectUri: string) {
   return `${AUTH_URL}?${params}`;
 }
 
-export type GoogleProfile = { sub: string; email: string | null; name: string | null };
+export type GoogleProfile = { sub: string; email: string | null; name: string | null; picture?: string | null };
 
 // Exchange the code for an ID token. It comes straight from Google's token endpoint
 // over TLS, so (per OpenID Connect) its claims are checked rather than its signature.
@@ -77,31 +77,40 @@ export async function exchangeCode(code: string, attempt: Attempt, redirectUri: 
   return {
     sub: claims.sub,
     email: claims.email_verified === true && typeof claims.email === "string" ? claims.email : null,
-    name: typeof claims.given_name === "string" ? claims.given_name : typeof claims.name === "string" ? claims.name : null,
+    name: typeof claims.name === "string" ? claims.name : typeof claims.given_name === "string" ? claims.given_name : null,
+    picture: typeof claims.picture === "string" && claims.picture.startsWith("https://") ? claims.picture : null,
   };
 }
 
 // Who is this Google account on MOVA?
 // - already linked → that user (a guest on this browser stays as it was);
 // - a guest is signed in here → upgrade that guest in place: same row, so every
-//   moment, angle, comment and message stays theirs;
-// - otherwise → a new official account named after their Google first name.
+//   moment, angle, comment and message stays theirs (and the name they chose);
+// - otherwise → a new official account named after their Google name.
+// Each sign-in refreshes the Google name (offered on the profile as a one-tap choice)
+// and the Google photo, unless the user set a photo of their own.
 export async function accountForGoogle(current: User | null, profile: GoogleProfile, locale: string) {
+  const googleName = cleanDisplayName(profile.name);
+  const fromGoogle = (u: { avatarUrl: string | null }) => ({
+    email: profile.email,
+    googleName,
+    ...(profile.picture && (!u.avatarUrl || isGooglePhoto(u.avatarUrl)) ? { avatarUrl: profile.picture } : {}),
+  });
+
   const linked = await db.user.findUnique({ where: { googleSub: profile.sub } });
-  if (linked) {
-    if (profile.email && linked.email !== profile.email) await db.user.update({ where: { id: linked.id }, data: { email: profile.email } });
-    return linked;
-  }
+  if (linked) return db.user.update({ where: { id: linked.id }, data: fromGoogle(linked) });
   if (current?.isGuest && !current.googleSub) {
-    return db.user.update({ where: { id: current.id }, data: { googleSub: profile.sub, email: profile.email, isGuest: false } });
+    return db.user.update({ where: { id: current.id }, data: { googleSub: profile.sub, isGuest: false, ...fromGoogle(current) } });
   }
   return db.user.create({
     data: {
       googleSub: profile.sub,
-      email: profile.email,
       isGuest: false,
       locale,
-      displayName: cleanDisplayName(profile.name) ?? cleanDisplayName(profile.email?.split("@")[0]) ?? "MOVA",
+      displayName: googleName ?? cleanDisplayName(profile.email?.split("@")[0]) ?? "MOVA",
+      ...fromGoogle({ avatarUrl: null }),
     },
   });
 }
+
+export const isGooglePhoto = (url: string) => /^https:\/\/[a-z0-9-]+\.googleusercontent\.com\//.test(url);

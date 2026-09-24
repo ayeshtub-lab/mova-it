@@ -145,7 +145,8 @@
       "thanks": "Thanks, we got your report and will review it soon.",
       "failed": "Could not send. Please try again.",
       "tooMany": "You sent many reports this hour. Please wait a bit."
-    }
+    },
+    "seenBy": "Seen by"
   },
   "montage": {
     "label": "Angle {i} of {n} · {name}",
@@ -215,5 +216,28 @@
     "saveButton": "Link with Google",
     "failed": "Google sign-in didn't work. Please try again.",
     "official": "Official account"
+  },
+  "profile": {
+    "mine": "My profile",
+    "followers": "Followers",
+    "following": "Following",
+    "shots": "Shots",
+    "moments": "Moments",
+    "likes": "Likes",
+    "follow": "Follow",
+    "unfollow": "Unfollow",
+    "isFollowing": "Following ✓",
+    "editName": "Edit name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "useGoogle": "Use my Google name: {name}",
+    "nameError": "Use a name of 1 to 40 characters.",
+    "emptyShots": "No shots here yet.",
+    "emptyMoments": "No moments here yet.",
+    "emptyLikes": "You haven't liked any shots yet.",
+    "likesPrivate": "🔒 Only you can see your likes",
+    "viewsPrivate": "👁 View counts are visible only to you",
+    "admin": "Reports",
+    "failed": "That didn't work, try again."
   }
 }

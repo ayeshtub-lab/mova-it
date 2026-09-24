@@ -23,6 +23,7 @@ model User {
   // the same row (and everything they made); isGuest becomes false.
   googleSub   String?  @unique
   email       String? // private, never shown to other users
+  googleName  String? // name on the Google account, offered as a one-tap choice
   createdAt   DateTime @default(now())
 
   sessions        Session[]
@@ -35,6 +36,7 @@ model User {
   invitesSent     MomentInvite[]   @relation("InvitesSent")
   invitesReceived MomentInvite[]   @relation("InvitesReceived")
   directMessages  DirectMessage[]
+  angleViews      AngleView[]
   participations  Participant[]
   following       Follow[]         @relation("Follower")
   followers       Follow[]         @relation("Following")
@@ -177,6 +179,7 @@ model Angle {
   contributor     User             @relation(fields: [contributorId], references: [id])
   reactions       Reaction[]
   comments        Comment[]
+  views           AngleView[]
   reports         Report[]
   removalRequests RemovalRequest[]
 
@@ -195,6 +198,19 @@ enum ReactionKind {
 }
 
 // One reaction per person per angle; reacting again with another emoji replaces it.
+// Who has seen an angle (once per person). Only the angle's owner sees the count.
+model AngleView {
+  angleId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  angle Angle @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([angleId, userId])
+  @@index([userId])
+}
+
 model Reaction {
   angleId   String
   userId    String

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { computeWhyNowScore } from "@/lib/movaEngine";
 import { viewUrl } from "@/server/media";
 import { commentCounts } from "@/server/comments";
+import { viewCounts } from "@/server/profile";
 import { reactionsFor } from "@/server/reactions";
 
 // No 0/O, 1/I/L: codes get read aloud and typed from screenshots.
@@ -101,7 +102,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         status: "READY",
         OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
-      include: { contributor: { select: { displayName: true } } },
+      include: { contributor: { select: { displayName: true, isGuest: true } } },
       orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
     }),
     db.participant.count({ where: { momentId: moment.id } }),
@@ -113,7 +114,9 @@ export async function getMomentView(code: string, viewer: User | null) {
   const unlocked = isCreator || hasContributed;
   const visible = unlocked ? angles : angles.slice(0, 1);
   const visibleIds = visible.map((a) => a.id);
-  const [reactions, comments] = await Promise.all([reactionsFor(visibleIds, viewer), commentCounts(visibleIds)]);
+  // View counts are private: only for the viewer's own angles.
+  const mineIds = viewer ? visible.filter((a) => a.contributorId === viewer.id).map((a) => a.id) : [];
+  const [reactions, comments, views] = await Promise.all([reactionsFor(visibleIds, viewer), commentCounts(visibleIds), viewCounts(mineIds)]);
 
   return {
     code: moment.code,
@@ -134,6 +137,8 @@ export async function getMomentView(code: string, viewer: User | null) {
         mediaType: a.mediaType,
         presence: a.presence,
         contributorName: a.contributor.displayName,
+        // Official accounts have a profile page; guests don't.
+        profileId: a.contributor.isGuest ? null : a.contributorId,
         capturedAt: a.capturedAt,
         uploadedAt: a.uploadedAt,
         durationSec: a.durationSec,
@@ -145,6 +150,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         commentCount: comments.get(a.id) ?? 0,
         canDelete: !!viewer && (a.contributorId === viewer.id || isCreator),
         isMine: !!viewer && a.contributorId === viewer.id,
+        views: viewer && a.contributorId === viewer.id ? (views.get(a.id) ?? 0) : null,
       })),
     ),
   };

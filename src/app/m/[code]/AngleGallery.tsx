@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LocalTime } from "@/app/LocalTime";
@@ -17,6 +18,7 @@ export type GalleryAngle = {
   mediaType: "PHOTO" | "VIDEO";
   presence: "THERE" | "REMOTE";
   contributorName: string;
+  profileId: string | null;
   capturedAt: string | null;
   mediaUrl: string | null;
   thumbUrl: string | null;
@@ -24,6 +26,7 @@ export type GalleryAngle = {
   commentCount: number;
   canDelete: boolean;
   isMine: boolean;
+  views: number | null; // only for your own angles
 };
 
 type Labels = {
@@ -33,6 +36,7 @@ type Labels = {
   next: string;
   counter: string;
   label: string;
+  seenBy: string;
   thereTag: string;
   remoteTag: string;
   reactions: Record<Kind, string> & { react: string; joinToReact: string };
@@ -119,6 +123,24 @@ export function AngleGallery({
     slides().forEach((s) => observer.observe(s));
     return () => observer.disconnect();
   }, [angles.length]);
+
+  // "Seen by": note each angle shown full screen (not your own), sent in small
+  // batches so swiping through many angles costs only a few requests.
+  const seenQueue = useRef(new Set<string>());
+  const seenSent = useRef(new Set<string>());
+  useEffect(() => {
+    const angle = angles[current];
+    if (canReact && angle && !angle.isMine && dialogRef.current?.open && !seenSent.current.has(angle.id)) seenQueue.current.add(angle.id);
+    if (!seenQueue.current.size) return;
+    const timer = setTimeout(() => {
+      const ids = [...seenQueue.current];
+      seenQueue.current.clear();
+      if (!ids.length) return;
+      ids.forEach((id) => seenSent.current.add(id));
+      fetch("/api/angles/views", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) }).catch(() => {});
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [current, angles, canReact]);
 
   // ── Reactions ────────────────────────────────────────────────────────────
   // Quick taps on a slow connection: requests for one angle are sent one after another
@@ -293,7 +315,16 @@ export function AngleGallery({
                 <img src={a.mediaUrl ?? ""} alt={a.contributorName} className="max-h-full max-w-full object-contain" />
               )}
               <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-black/80 to-transparent p-4 pe-20 pt-10 text-sm font-bold">
-                {caption(a)}
+                {a.profileId ? (
+                  <>
+                    <Link href={`/u/${a.profileId}`} className="pointer-events-auto truncate underline-offset-4 hover:underline">
+                      {a.contributorName}
+                    </Link>
+                    <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{a.presence === "REMOTE" ? labels.remoteTag : labels.thereTag}</span>
+                  </>
+                ) : (
+                  caption(a)
+                )}
                 {a.capturedAt && (
                   <span className="ms-auto font-normal text-white/80">
                     <LocalTime iso={a.capturedAt} locale={locale} />
@@ -340,9 +371,18 @@ export function AngleGallery({
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-3">
-          <span className="rounded-full bg-black/50 px-3 py-1 text-sm font-bold" aria-live="polite">
-            {labels.counter.replace("{i}", String(current + 1)).replace("{n}", String(angles.length))}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-black/50 px-3 py-1 text-sm font-bold" aria-live="polite">
+              {labels.counter.replace("{i}", String(current + 1)).replace("{n}", String(angles.length))}
+            </span>
+            {angles[current]?.views != null && (
+              <span className="rounded-full bg-black/50 px-3 py-1 text-sm font-bold" title={labels.seenBy}>
+                <span aria-hidden="true">👁 </span>
+                <span className="sr-only">{labels.seenBy} </span>
+                {angles[current].views}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {canReact && angles[current] && !angles[current].isMine && (
               <button
