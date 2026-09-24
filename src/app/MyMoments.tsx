@@ -12,7 +12,7 @@ export async function MyMoments({ user, locale, dict }: { user: User; locale: Lo
   const moments = await listMyMoments(user);
 
   return (
-    <section className="flex flex-col gap-3">
+    <section id="mine" className="flex scroll-mt-6 flex-col gap-3">
       <h2 className="text-xl font-extrabold">{dict.mine.title}</h2>
       <ul className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:-mx-8 sm:px-8">
         <li className="shrink-0 snap-start">

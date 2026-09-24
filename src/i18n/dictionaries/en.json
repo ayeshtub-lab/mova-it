@@ -252,7 +252,8 @@
     "inbox": "Inbox",
     "create": "New moment",
     "me": "Me",
-    "account": "Account"
+    "account": "Account",
+    "mine": "Moments"
   },
   "wheel": {
     "open": "Open angle",
