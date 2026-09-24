@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 /* Zawmo identity, taken from the logo: two angles (red, blue) meeting at the
-   moment (yellow). Calm near-white / near-black grounds so photos carry the colour.
+   moment (yellow). Light: a very pale cool pink; dark: midnight blue — so photos carry the colour.
    Contrast checked: white on --accent ≥ 4.5:1; --accent-ink and --secondary
    as text on --background ≥ 4.5:1 in both modes. */
 :root {
-  --background: #fbfaf7;
-  --surface: #f1efea;
+  --background: #fcf3f7; /* light = a whisper of pink: the logo's red + blue mixed */
+  --surface: #f5e6ee;
   --foreground: #15161b;
-  --muted: #5c5e69;
-  --line: #e3e1db;
+  --muted: #5f5664;
+  --line: #eed9e3;
   --accent: #d62839; /* Zawmo red: buttons, active states */
-  --accent-soft: #fde6e7;
+  --accent-soft: #f9dde8;
   --accent-ink: #b3202c; /* red as text */
   --secondary: #2563eb; /* Zawmo blue */
-  --secondary-soft: #e3ecfe;
+  --secondary-soft: #e8e8fb;
   --moment: #ffbf1f; /* the moment: the yellow dot */
   --brand-red: #e63946; /* logo strokes */
   --brand-blue: #2f6fed;
