@@ -95,7 +95,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         </section>
 
         <AngleWheel
-          angles={view.angles.map((a) => ({ id: a.id, imageUrl: a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl, name: a.contributorName }))}
+          angles={view.angles.map((a) => ({ id: a.id, imageUrl: a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl, name: a.contributorName, avatarUrl: a.contributorAvatar }))}
           locked={view.lockedCount}
           labels={dict.wheel}
         />

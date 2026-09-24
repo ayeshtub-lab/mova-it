@@ -102,7 +102,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         status: "READY",
         OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
-      include: { contributor: { select: { displayName: true, isGuest: true } } },
+      include: { contributor: { select: { displayName: true, isGuest: true, avatarUrl: true } } },
       orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
     }),
     db.participant.count({ where: { momentId: moment.id } }),
@@ -137,6 +137,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         mediaType: a.mediaType,
         presence: a.presence,
         contributorName: a.contributor.displayName,
+        contributorAvatar: a.contributor.avatarUrl,
         // Official accounts have a profile page; guests don't.
         profileId: a.contributor.isGuest ? null : a.contributorId,
         capturedAt: a.capturedAt,

@@ -7,7 +7,7 @@
 
 import { arcPath, bbox, pt, R_IN, R_OUT, R_RING, slicePath } from "@/lib/wheel";
 
-type WheelAngle = { id: string; imageUrl: string | null; name: string };
+type WheelAngle = { id: string; imageUrl: string | null; name: string; avatarUrl: string | null };
 type Labels = { open: string; locked: string };
 
 const MAX_SLICES = 8;
@@ -25,11 +25,19 @@ export function AngleWheel({ angles, locked, labels }: { angles: WheelAngle[]; l
     <figure className="mx-auto w-full max-w-[22rem]">
       <svg viewBox="-160 -160 320 320" className="w-full overflow-visible" role="group" aria-label={labels.open}>
         <defs>
-          {Array.from({ length: total }, (_, i) => (
-            <clipPath key={i} id={`wheel-slice-${i}`}>
-              <path d={slicePath(i * step, (i + 1) * step)} />
-            </clipPath>
-          ))}
+          {Array.from({ length: total }, (_, i) => {
+            const [ax, ay] = pt(R_RING, i * step + step / 2);
+            return (
+              <g key={i}>
+                <clipPath id={`wheel-slice-${i}`}>
+                  <path d={slicePath(i * step, (i + 1) * step)} />
+                </clipPath>
+                <clipPath id={`wheel-face-${i}`}>
+                  <circle cx={ax} cy={ay} r="14" />
+                </clipPath>
+              </g>
+            );
+          })}
         </defs>
 
         {/* The ring: one arc per slice, alternating the logo's red and blue. */}
@@ -70,10 +78,15 @@ export function AngleWheel({ angles, locked, labels }: { angles: WheelAngle[]; l
                 {a.imageUrl && <image href={a.imageUrl} x={box.x} y={box.y} width={box.w} height={box.h} preserveAspectRatio="xMidYMid slice" />}
               </g>
               <path d={slicePath(i * step, (i + 1) * step)} fill="none" className="wheel-outline" strokeWidth="3" />
-              <circle cx={ax} cy={ay} r="12" fill={i % 2 ? "var(--brand-blue)" : "var(--brand-red)"} stroke="var(--background)" strokeWidth="3" />
-              <text x={ax} y={ay} dy="0.35em" textAnchor="middle" fontSize="12" fontWeight="800" fill="#fff">
-                {[...a.name][0] ?? "?"}
-              </text>
+              {/* Whose angle: their account photo on the ring (initial if they have none). */}
+              <circle cx={ax} cy={ay} r="17" fill={i % 2 ? "var(--brand-blue)" : "var(--brand-red)"} />
+              {a.avatarUrl ? (
+                <image href={a.avatarUrl} x={ax - 14} y={ay - 14} width="28" height="28" clipPath={`url(#wheel-face-${i})`} preserveAspectRatio="xMidYMid slice" />
+              ) : (
+                <text x={ax} y={ay} dy="0.35em" textAnchor="middle" fontSize="13" fontWeight="800" fill="#fff">
+                  {[...a.name][0] ?? "?"}
+                </text>
+              )}
             </g>
           );
         })}
