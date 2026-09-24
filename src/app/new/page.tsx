@@ -9,7 +9,8 @@ export const metadata = { robots: { index: false } };
 
 // Start a moment: the page behind the ＋ in the bottom bar.
 export default async function NewMomentPage() {
-  if (!(await getCurrentUser())) redirect("/");
+  const user = await getCurrentUser();
+  if (!user) redirect("/");
   const locale = await getLocale();
   const dict = await getDictionary(locale);
 
@@ -25,7 +26,7 @@ export default async function NewMomentPage() {
           </div>
         </header>
         <div className="rounded-3xl border border-line bg-surface/60 p-5">
-          <CreateMomentForm labels={dict.create} />
+          <CreateMomentForm labels={dict.create} canPublic={!user.isGuest} />
         </div>
       </main>
     </div>

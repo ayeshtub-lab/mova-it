@@ -130,7 +130,8 @@ export async function resolveReports(admin: User, key: string, action: "hide" | 
 
   if (action === "hide" && type === "a") await db.angle.update({ where: { id }, data: { status: "HIDDEN" } });
   // "No problem" on an angle the automatic check hid: a false alarm, so put it back.
-  if (action === "dismiss" && type === "a") await db.angle.updateMany({ where: { id, status: "HIDDEN" }, data: { status: "READY" } });
+  // An admin's "no problem" also counts as a passed check (so it may show in Discover).
+  if (action === "dismiss" && type === "a") await db.angle.updateMany({ where: { id, status: "HIDDEN" }, data: { status: "READY", screening: "allowed" } });
   // A deleted comment takes its reports with it (cascade), so close them first.
   const resolution = action === "hide" ? "hidden" : action === "delete" ? "deleted" : "dismissed";
   await db.report.updateMany({ where, data: { resolvedAt: new Date(), resolution } });

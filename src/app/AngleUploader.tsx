@@ -14,7 +14,7 @@ type Labels = {
   uploading: string;
   checking: string;
   done: string;
-  errors: { unsupported: string; too_long: string; too_many: string; failed: string; blocked: string };
+  errors: { unsupported: string; too_long: string; too_many: string; failed: string; blocked: string; official_required: string };
 };
 
 type ItemState = { name: string; status: "preparing" | "uploading" | "checking" | "done" | "error"; pct: number; error?: keyof Labels["errors"] };
@@ -74,7 +74,11 @@ export function AngleUploader({ code, labels, afterUpload }: { code: string; lab
     } catch (error) {
       const serverCode = (error as { code?: string }).code;
       const reason =
-        error instanceof PrepareError ? error.code : serverCode === "too_many" || serverCode === "too_long" ? serverCode : "failed";
+        error instanceof PrepareError
+          ? error.code
+          : serverCode === "too_many" || serverCode === "too_long" || serverCode === "official_required"
+            ? serverCode
+            : "failed";
       update(index, { status: "error", error: reason });
     }
   }

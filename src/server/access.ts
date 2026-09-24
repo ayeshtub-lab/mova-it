@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 
 // Can this user see this angle? The rule behind reactions and comments, matching
 // getMomentView's "give to get": the moment's creator and anyone who added an angle
-// see every live angle; everyone else sees only the moment's first angle.
+// see every live angle; everyone else sees only the moment's first angle. Public
+// moments are open: every live angle is visible.
 export async function visibleAngle(user: User, angleId: string) {
   const now = new Date();
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: true } });
@@ -12,6 +13,7 @@ export async function visibleAngle(user: User, angleId: string) {
   if (moment.status === "HIDDEN" && moment.creatorId !== user.id) return null;
 
   const unlocked =
+    moment.visibility === "PUBLIC" ||
     moment.creatorId === user.id ||
     (await db.angle.count({ where: { momentId: moment.id, contributorId: user.id, status: "READY" } })) > 0;
   if (unlocked) return angle;

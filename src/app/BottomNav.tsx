@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type Labels = { home: string; inbox: string; create: string; mine: string; me: string };
+type Labels = { home: string; inbox: string; create: string; discover: string; me: string };
 
 // Phone navigation, thumb-reachable: five equal columns — home, inbox, a big ＋ for a
-// new moment (always the exact middle), my moments, and you.
+// new moment (always the exact middle), Discover, and you.
 // Hidden on wider screens, where the header carries the same links.
 export function BottomNav({ labels, unread, meHref }: { labels: Labels; unread: number; meHref: string }) {
   const path = usePathname();
@@ -51,7 +51,7 @@ export function BottomNav({ labels, unread, meHref }: { labels: Labels; unread: 
             </svg>
           </Link>
         </div>
-        {item("/#mine", labels.mine, svg("M4 7a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3zM4 15l4-4 3 3 3-3 6 6M15.5 8.5h.01"), false)}
+        {item("/discover", labels.discover, svg("M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15.5 8.5l-2 5-5 2 2-5z"), path.startsWith("/discover"))}
         {item(meHref, labels.me, svg("M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0"), path.startsWith("/u/") || path === meHref)}
       </div>
     </nav>

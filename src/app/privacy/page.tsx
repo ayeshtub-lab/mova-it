@@ -45,7 +45,8 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       {
         title: "من يرى ماذا",
         items: [
-          "أنت تختار لكل لحظة: «أصحابي» (من شاركوك لحظات من قبل) أو «فقط من معه الرابط».",
+          "أنت تختار لكل لحظة: «أصحابي» (من شاركوك لحظات من قبل) أو «فقط من معه الرابط» أو «للكل».",
+          "لحظات «للكل» تظهر في «اكتشف» لكل مستخدمي زاومو المسجلين بحساب Google، وتظهر كل زواياها. لا يضيف إليها إلا أصحاب الحسابات الرسمية، ولا تظهر فيها إلا الصور التي اجتازت الفحص التلقائي.",
           "لحظات «فقط من معه الرابط» لا تظهر في صفحتك الشخصية لأي شخص ليس فيها.",
           "من لم يُضف زاوية للحظة يرى أول زاوية فقط، إلى أن يشارك.",
           "إعجاباتك وعدد مشاهدات لقطاتك يظهران لك وحدك.",
@@ -130,7 +131,8 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       {
         title: "Who sees what",
         items: [
-          "You choose for each moment: \"Friends\" (people you've shared moments with) or \"Only people with the link\".",
+          "You choose for each moment: \"Friends\" (people you've shared moments with), \"Only people with the link\", or \"Everyone\".",
+          "\"Everyone\" moments appear in Discover for every Zawmo user signed in with Google, with all their angles. Only official accounts can add to them, and only photos that passed the automatic check are shown.",
           "Link-only moments never appear on your profile to anyone who isn't in them.",
           "Until someone adds an angle to a moment, they see only its first angle.",
           "Your likes and your shots' view counts are visible only to you.",

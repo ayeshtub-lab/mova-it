@@ -15,13 +15,15 @@ export async function createMomentAction(_prev: CreateMomentState, formData: For
     const moment = await createMoment(user, {
       title: formData.get("title"),
       placeName: formData.get("placeName"),
-      // Only these two are offered in the form; anything else falls back to friends.
-      visibility: formData.get("visibility") === "LINK" ? "LINK" : "FRIENDS",
+      // The form offers these three (PUBLIC to official accounts only — createMoment
+      // refuses it for guests); anything else falls back to friends.
+      visibility: ["LINK", "PUBLIC"].includes(String(formData.get("visibility"))) ? String(formData.get("visibility")) : "FRIENDS",
     });
     code = moment.code;
   } catch (error) {
     if (error instanceof MomentError && error.code === "invalid_title") return { error: "title" };
     if (error instanceof MomentError && error.code === "invalid_place") return { error: "place" };
+    if (error instanceof MomentError && error.code === "official_required") return { error: "server" };
     console.error("createMomentAction failed", error);
     return { error: "server" };
   }

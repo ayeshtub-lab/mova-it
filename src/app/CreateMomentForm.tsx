@@ -14,6 +14,8 @@ type Labels = {
   visibilityFriendsHint: string;
   visibilityLink: string;
   visibilityLinkHint: string;
+  visibilityPublic: string;
+  visibilityPublicHint: string;
   submit: string;
   titleError: string;
   placeError: string;
@@ -23,7 +25,8 @@ type Labels = {
 const inputClass =
   "min-h-11 w-full rounded-full border border-line bg-background px-4 outline-none focus:border-accent";
 
-export function CreateMomentForm({ labels }: { labels: Labels }) {
+// «للكل» is offered to official (Google) accounts only; the server enforces it too.
+export function CreateMomentForm({ labels, canPublic = false }: { labels: Labels; canPublic?: boolean }) {
   const [state, action, pending] = useActionState(createMomentAction, undefined);
   const error =
     state?.error === "title" ? labels.titleError : state?.error === "place" ? labels.placeError : state?.error ? labels.serverError : null;
@@ -44,6 +47,7 @@ export function CreateMomentForm({ labels }: { labels: Labels }) {
           [
             ["FRIENDS", labels.visibilityFriends, labels.visibilityFriendsHint],
             ["LINK", labels.visibilityLink, labels.visibilityLinkHint],
+            ...(canPublic ? ([["PUBLIC", labels.visibilityPublic, labels.visibilityPublicHint]] as const) : []),
           ] as const
         ).map(([value, title, hint]) => (
           <label key={value} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-line p-3 has-[:checked]:border-accent has-[:checked]:bg-accent-soft/50">

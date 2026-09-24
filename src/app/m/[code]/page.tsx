@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { cache } from "react";
 import { AngleUploader } from "@/app/AngleUploader";
 import { GoogleButton } from "@/app/GoogleButton";
@@ -13,7 +15,8 @@ import { getCurrentUser } from "@/lib/session";
 import { relativeTime, siteOrigin } from "@/lib/site";
 import { latestMontageFor } from "@/server/montage";
 import { googleEnabled } from "@/server/google";
-import { getMomentView } from "@/server/moments";
+import { screenForPublic } from "@/server/angles";
+import { getMomentView, MomentError, setMomentVisibility } from "@/server/moments";
 import { AngleGallery } from "./AngleGallery";
 import { AngleWheel } from "./AngleWheel";
 import { MontagePanel } from "./MontagePanel";
@@ -58,6 +61,22 @@ function timelineOf(angles: { id: string; capturedAt: Date | null }[]) {
   return [...buckets.values()];
 }
 
+// The creator switches their moment between friends and everyone. Going public
+// re-checks older angles in the background (anything unclear waits for an admin).
+async function changeVisibility(formData: FormData) {
+  "use server";
+  const user = await getCurrentUser();
+  if (!user) return;
+  const code = String(formData.get("code"));
+  try {
+    const moment = await setMomentVisibility(user, code, formData.get("visibility"));
+    if (moment.visibility === "PUBLIC") after(() => screenForPublic(moment.id));
+  } catch (error) {
+    if (!(error instanceof MomentError)) throw error;
+  }
+  revalidatePath(`/m/${code.toUpperCase()}`);
+}
+
 export default async function MomentPage({ params, searchParams }: PageProps<"/m/[code]">) {
   const { code } = await params;
   const signinFailed = (await searchParams).signin === "failed";
@@ -92,7 +111,34 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               .join(" · ")}
           </p>
           {view.creatorName && <p className="text-sm text-muted">{fill(t.by, { name: view.creatorName })}</p>}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`rounded-full px-3 py-1 text-xs font-bold ${view.visibility === "PUBLIC" ? "bg-secondary-soft text-secondary" : "bg-surface text-muted"}`}>
+              {dict.visibility[view.visibility as "PUBLIC" | "FRIENDS" | "LINK"] ?? dict.visibility.FRIENDS}
+            </span>
+            {view.viewer.isCreator && view.visibility === "PUBLIC" && (
+              <form action={changeVisibility}>
+                <input type="hidden" name="code" value={view.code} />
+                <button name="visibility" value="FRIENDS" className="min-h-9 rounded-full px-3 text-xs font-bold text-muted underline-offset-4 hover:underline">
+                  {dict.visibility.makeFriends}
+                </button>
+              </form>
+            )}
+          </div>
         </section>
+
+        {/* After the first angle: invite the creator to share it with everyone. */}
+        {view.viewer.isCreator && user && !user.isGuest && view.visibility !== "PUBLIC" && view.angleCount > 0 && (
+          <form action={changeVisibility} className="flex flex-col gap-3 rounded-3xl bg-secondary-soft p-5 sm:flex-row sm:items-center">
+            <input type="hidden" name="code" value={view.code} />
+            <div className="flex flex-1 flex-col gap-1">
+              <p className="font-extrabold">{dict.visibility.nudgeTitle}</p>
+              <p className="text-sm leading-relaxed text-muted">{dict.visibility.nudgeText}</p>
+            </div>
+            <button name="visibility" value="PUBLIC" className="min-h-11 shrink-0 rounded-full bg-secondary px-5 font-bold text-white dark:text-background">
+              {dict.visibility.makePublic}
+            </button>
+          </form>
+        )}
 
         <AngleWheel
           angles={view.angles.map((a) => ({ id: a.id, imageUrl: a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl, name: a.contributorName, avatarUrl: a.contributorAvatar }))}
@@ -169,7 +215,12 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         <div className="rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px] shadow-sm">
           <section id="join" className="flex scroll-mt-4 flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">
             <h2 className="text-xl font-extrabold">{t.ctaTitle}</h2>
-            {user ? (
+            {user?.isGuest && view.visibility === "PUBLIC" ? (
+              <>
+                <p className="text-sm leading-relaxed text-muted">{dict.visibility.publicGuest}</p>
+                {googleEnabled() && <GoogleButton label={dict.account.saveButton} returnTo={`/m/${view.code}#join`} />}
+              </>
+            ) : user ? (
               <AngleUploader
                 code={view.code}
                 labels={dict.upload}

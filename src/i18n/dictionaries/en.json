@@ -41,7 +41,8 @@
       "too_long": "The video is longer than 20 seconds.",
       "too_many": "You reached the maximum number of angles for this moment.",
       "failed": "Upload failed. Please try again.",
-      "blocked": "This shot doesn't meet Zawmo's rules and won't be shown."
+      "blocked": "This shot doesn't meet Zawmo's rules and won't be shown.",
+      "official_required": "Public moments need a Google account. Link yours first."
     },
     "gallery": "Pick from gallery",
     "cameraPhoto": "Take a photo",
@@ -78,7 +79,9 @@
     "visibilityFriends": "My friends",
     "visibilityFriendsHint": "Shows on the page of people you shared moments with, and anyone with the link.",
     "visibilityLink": "Only people with the link",
-    "visibilityLinkHint": "Nobody sees it unless you send them the link."
+    "visibilityLinkHint": "Nobody sees it unless you send them the link.",
+    "visibilityPublic": "Everyone 🌍",
+    "visibilityPublicHint": "Shows in Discover for every signed-in Zawmo user. Every photo is checked automatically."
   },
   "plurals": {
     "angles": {
@@ -253,10 +256,36 @@
     "create": "New moment",
     "me": "Me",
     "account": "Account",
-    "mine": "Moments"
+    "mine": "Moments",
+    "discover": "Discover"
   },
   "wheel": {
     "open": "Open angle",
     "locked": "Locked angle — add yours to see it"
+  },
+  "discover": {
+    "title": "Discover 🧭",
+    "gateTitle": "Moments from everywhere 🌍",
+    "gateText": "Discover has public moments from everyone on Zawmo: swipe up and down between moments, and sideways between each moment's angles. Sign in with Google to see them.",
+    "gateGuest": "You're a guest. Link Google to open Discover and keep your moments.",
+    "emptyTitle": "No public moments yet",
+    "emptyText": "Be the first! Start a moment and choose “Everyone” 🌍",
+    "start": "Start a moment",
+    "open": "Open moment",
+    "add": "Add your angle",
+    "swipe": "Swipe ↔ for more angles",
+    "by": "Started by {name}"
+  },
+  "visibility": {
+    "label": "Who can see it?",
+    "PUBLIC": "🌍 Everyone",
+    "FRIENDS": "👥 Friends",
+    "LINK": "🔗 Link only",
+    "makePublic": "Make it public 🌍",
+    "makeFriends": "Back to friends",
+    "nudgeTitle": "Make it public? 🌍",
+    "nudgeText": "It'll show in Discover for everyone on Zawmo, and every photo is checked automatically first.",
+    "publicBadge": "🌍 Public moment",
+    "publicGuest": "This is a public moment: link your Google account to add your angle."
   }
 }

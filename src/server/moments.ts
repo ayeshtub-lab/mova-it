@@ -13,7 +13,7 @@ const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const CODE_LENGTH = 6;
 
 export class MomentError extends Error {
-  constructor(public code: "invalid_title" | "invalid_place" | "not_found" | "code_exhausted") {
+  constructor(public code: "invalid_title" | "invalid_place" | "not_found" | "code_exhausted" | "official_required" | "forbidden" | "invalid") {
     super(code);
   }
 }
@@ -47,6 +47,8 @@ export async function createMoment(creator: User, input: CreateMomentInput) {
   const visibility = Object.values(Visibility).includes(input.visibility as Visibility)
     ? (input.visibility as Visibility)
     : Visibility.FRIENDS;
+  // «للكل» is for official (Google) accounts only.
+  if (visibility === Visibility.PUBLIC && creator.isGuest) throw new MomentError("official_required");
 
   // Users only create everyday moments; BIG and DAILY moments are scheduled by Zawmo.
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -111,7 +113,8 @@ export async function getMomentView(code: string, viewer: User | null) {
 
   const isCreator = viewer?.id === moment.creatorId;
   const hasContributed = !!viewer && angles.some((a) => a.contributorId === viewer.id);
-  const unlocked = isCreator || hasContributed;
+  // Public moments are open to everyone; "give to get" is for friends/link moments.
+  const unlocked = isCreator || hasContributed || moment.visibility === Visibility.PUBLIC;
   const visible = unlocked ? angles : angles.slice(0, 1);
   const visibleIds = visible.map((a) => a.id);
   // View counts are private: only for the viewer's own angles.
@@ -226,4 +229,16 @@ export async function listFeed(viewer: User | null, limit = 20) {
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, Math.min(Math.max(limit, 1), 50));
+}
+
+// The creator changes who can see their moment. «للكل» needs an official account.
+// Returns the moment so the caller can check older angles before they go public.
+export async function setMomentVisibility(user: User, code: string, raw: unknown) {
+  const visibility = Object.values(Visibility).includes(raw as Visibility) ? (raw as Visibility) : null;
+  if (!visibility) throw new MomentError("invalid");
+  const moment = await db.moment.findUnique({ where: { code: code.toUpperCase() } });
+  if (!moment) throw new MomentError("not_found");
+  if (moment.creatorId !== user.id) throw new MomentError("forbidden");
+  if (visibility === Visibility.PUBLIC && user.isGuest) throw new MomentError("official_required");
+  return db.moment.update({ where: { id: moment.id }, data: { visibility } });
 }

@@ -9,7 +9,8 @@ import { blockedIdsFor } from "@/server/moderation";
 // everywhere else:
 // - "link only" moments never show on a profile, except to people already in them;
 // - "friends" moments show to friends (people who shared a moment) and participants;
-// - "give to get": in a moment you haven't added to, only its first angle is visible.
+// - "give to get": in a friends/link moment you haven't added to, only its first angle
+//   is visible (public moments are open).
 // Likes and view counts are private to the profile's owner.
 
 const SHOTS = 60;
@@ -56,7 +57,7 @@ async function visibilityFor(viewer: User | null, owner: User, moments: MomentLi
   const moment = (m: MomentLite) =>
     m.visibility === "PUBLIC" || inMoment.has(m.id) || (m.visibility === "FRIENDS" && friend);
   const angle = (a: { id: string; moment: MomentLite }) =>
-    moment(a.moment) && (a.moment.creatorId === viewer?.id || unlocked.has(a.moment.id) || firstIds.has(a.id));
+    moment(a.moment) && (a.moment.visibility === "PUBLIC" || a.moment.creatorId === viewer?.id || unlocked.has(a.moment.id) || firstIds.has(a.id));
   return { moment, angle };
 }
 

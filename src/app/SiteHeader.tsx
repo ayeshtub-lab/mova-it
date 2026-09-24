@@ -16,7 +16,19 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
         <Logo locale={locale} />
       </Link>
       <div className="flex items-center gap-2">
-        {/* On phones these two live in the bottom bar. */}
+        {/* On phones these live in the bottom bar. */}
+        {user && !user.isGuest && (
+          <Link
+            href="/discover"
+            aria-label={dict.nav.discover}
+            title={dict.nav.discover}
+            className="hidden size-11 items-center justify-center rounded-full bg-surface text-secondary transition-transform hover:scale-105 sm:flex"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" className="size-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM15.5 8.5l-2 5-5 2 2-5z" />
+            </svg>
+          </Link>
+        )}
         {user && (
           <span className="hidden sm:flex">
             <InboxLink unread={unread} label={unread ? dict.inbox.openUnread.replace("{n}", String(unread)) : dict.inbox.open} />

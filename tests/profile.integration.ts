@@ -50,15 +50,15 @@ async function main() {
       assert.deepEqual(await shotIds(owner), new Set([pubA.id, frA.id, linkA.id, lateA.id]));
     });
 
-    await check("visitor: only public, and give-to-get still applies (not a later angle)", async () => {
-      assert.deepEqual(await shotIds(null), new Set([pubA.id]));
-      assert.deepEqual(await shotIds(stranger), new Set([pubA.id]));
+    await check("visitor: only public moments — and public moments are fully open", async () => {
+      assert.deepEqual(await shotIds(null), new Set([pubA.id, lateA.id]));
+      assert.deepEqual(await shotIds(stranger), new Set([pubA.id, lateA.id]));
       // Host shares a moment with the owner (so: a friend) and created it (so: unlocked).
       assert.deepEqual(await shotIds(host), new Set([pubA.id, frA.id, lateA.id]));
     });
 
     await check("friend: public + friends-only, never link-only", async () => {
-      assert.deepEqual(await shotIds(friend), new Set([pubA.id, frA.id]));
+      assert.deepEqual(await shotIds(friend), new Set([pubA.id, frA.id, lateA.id])); // lateA is in a public moment
       const moments = (await getProfile(friend, owner.id))!.moments.map((m) => m.code);
       assert.ok(moments.includes(fr.code) && !moments.includes(link.code));
       // "past" is link-only too, but the friend is in it, so they may see it.
@@ -81,7 +81,7 @@ async function main() {
       assert.deepEqual(await recordViews(friend, [frA.id]), { recorded: 1 }); // counted once anyway
       assert.deepEqual(await recordViews(owner, [frA.id]), { recorded: 0 }); // own angle
       await db.participant.create({ data: { momentId: other.id, userId: friend.id, role: "VIEWER" } });
-      assert.deepEqual(await recordViews(friend, [lateA.id]), { recorded: 0 }); // locked by give-to-get
+      assert.deepEqual(await recordViews(friend, [lateA.id]), { recorded: 1 }); // public moment: open to all
       await assert.rejects(recordViews(friend, "x"), isProfile("invalid"));
       const views = new Map((await getProfile(owner, owner.id))!.shots.map((s) => [s.id, s.views]));
       assert.equal(views.get(frA.id), 1);

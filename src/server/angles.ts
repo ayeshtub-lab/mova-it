@@ -16,7 +16,7 @@ const VIDEO_TYPES: Record<string, string> = { "video/mp4": "mp4", "video/quickti
 
 export class AngleError extends Error {
   constructor(
-    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden",
+    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required",
   ) {
     super(code);
   }
@@ -49,6 +49,8 @@ export async function prepareAngle(user: User, input: PrepareAngleInput) {
   const code = typeof input.code === "string" ? input.code.toUpperCase() : "";
   const moment = await db.moment.findUnique({ where: { code } });
   if (!moment || moment.status === "HIDDEN") throw new AngleError("not_found");
+  // Anything added to a public moment is public: only official (Google) accounts.
+  if (moment.visibility === "PUBLIC" && user.isGuest) throw new AngleError("official_required");
 
   const mediaType = input.mediaType === "VIDEO" ? MediaType.VIDEO : input.mediaType === "PHOTO" ? MediaType.PHOTO : null;
   if (!mediaType) throw new AngleError("invalid_media");
@@ -149,10 +151,12 @@ export async function completeAngle(user: User, angleId: string) {
   if (present.includes(false)) throw new AngleError("not_uploaded");
 
   // Automatic check before anyone sees it. Blocked → hidden and queued for the admins.
-  // If the check itself fails, the angle goes up (friends-only for now) and it's logged.
+  // If the check itself fails: friends/link moments still go up (and it's logged), but
+  // in a public moment the angle waits for an admin — public content is always checked.
   const verdict = screeningEnabled() ? await screenAngle(angle) : null;
   if (verdict?.result === "error") console.error("screening failed", angle.id, verdict.reason);
-  const blocked = verdict?.result === "blocked";
+  const isPublic = angle.moment.visibility === "PUBLIC";
+  const blocked = verdict?.result === "blocked" || (isPublic && verdict?.result !== "allowed");
 
   const now = new Date();
   return db.$transaction(async (tx) => {
@@ -166,10 +170,30 @@ export async function completeAngle(user: User, angleId: string) {
       },
     });
     if (blocked) {
-      await tx.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "AI", note: `${verdict.category}: ${verdict.reason}`.slice(0, 500) } });
+      const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : `public, not checked: ${verdict?.result === "error" ? verdict.reason : "screening off"}`;
+      await tx.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "AI", note: note.slice(0, 500) } });
     } else {
       await tx.moment.update({ where: { id: angle.momentId }, data: { lastActivityAt: now } });
     }
     return done;
   });
+}
+
+// A moment just became public: angles added before (unchecked, or checked while the
+// check was failing) are checked now. (Explicit null: in SQL, NULL <> "allowed" is not true.) Anything not clearly fine is hidden for an admin.
+export async function screenForPublic(momentId: string) {
+  const angles = await db.angle.findMany({ where: { momentId, status: "READY", OR: [{ screening: null }, { screening: { not: "allowed" } }] } });
+  for (const angle of angles) {
+    const verdict = screeningEnabled() ? await screenAngle(angle) : null;
+    const now = new Date();
+    if (verdict?.result === "allowed") {
+      await db.angle.update({ where: { id: angle.id }, data: { screening: "allowed", screenedAt: now } });
+      continue;
+    }
+    const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : `public, not checked: ${verdict?.result === "error" ? verdict.reason : "screening off"}`;
+    await db.$transaction([
+      db.angle.update({ where: { id: angle.id }, data: { status: "HIDDEN", screening: verdict?.result ?? null, screenedAt: verdict ? now : null } }),
+      db.report.create({ data: { momentId, angleId: angle.id, reason: "AI", note: note.slice(0, 500) } }),
+    ]);
+  }
 }
