@@ -3,6 +3,7 @@ import { MediaType, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { blobExists } from "@/server/media";
+import { screenAngle, screeningEnabled } from "@/server/screening";
 
 export const MAX_VIDEO_SECONDS = 20;
 // A little slack: containers round durations, and a 20.3 s clip is still "20 seconds".
@@ -139,23 +140,36 @@ export async function deleteAngle(user: User, angleId: string) {
 export async function completeAngle(user: User, angleId: string) {
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: true } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
-  if (angle.status === "READY") return angle;
+  // Already done (a retry): report what happened the first time.
+  if (angle.status === "READY" || (angle.status === "HIDDEN" && angle.screening === "blocked")) return angle;
   if (angle.status !== "PROCESSING") throw new AngleError("forbidden");
 
   const needed = [angle.mediaPath, angle.thumbPath].filter((p): p is string => !!p);
   const present = await Promise.all(needed.map(blobExists));
   if (present.includes(false)) throw new AngleError("not_uploaded");
 
+  // Automatic check before anyone sees it. Blocked → hidden and queued for the admins.
+  // If the check itself fails, the angle goes up (friends-only for now) and it's logged.
+  const verdict = screeningEnabled() ? await screenAngle(angle) : null;
+  if (verdict?.result === "error") console.error("screening failed", angle.id, verdict.reason);
+  const blocked = verdict?.result === "blocked";
+
   const now = new Date();
-  const [ready] = await db.$transaction([
-    db.angle.update({
+  return db.$transaction(async (tx) => {
+    const done = await tx.angle.update({
       where: { id: angle.id },
       data: {
-        status: "READY",
+        status: blocked ? "HIDDEN" : "READY",
         expiresAt: angle.moment.isPermanent ? null : new Date(now.getTime() + ANGLE_LIFETIME_MS),
+        screening: verdict?.result ?? null,
+        screenedAt: verdict ? now : null,
       },
-    }),
-    db.moment.update({ where: { id: angle.momentId }, data: { lastActivityAt: now } }),
-  ]);
-  return ready;
+    });
+    if (blocked) {
+      await tx.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "AI", note: `${verdict.category}: ${verdict.reason}`.slice(0, 500) } });
+    } else {
+      await tx.moment.update({ where: { id: angle.momentId }, data: { lastActivityAt: now } });
+    }
+    return done;
+  });
 }

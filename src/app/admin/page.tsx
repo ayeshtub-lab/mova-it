@@ -74,7 +74,7 @@ export default async function AdminPage() {
               <input type="hidden" name="key" value={item.key} />
               {item.kind === "angle" ? (
                 <button name="action" value="hide" className="min-h-11 rounded-full bg-accent px-5 text-sm font-bold text-white">
-                  إخفاء الزاوية
+                  {item.angleStatus === "HIDDEN" ? "إبقاؤها مخفية" : "إخفاء الزاوية"}
                 </button>
               ) : (
                 <button name="action" value="delete" className="min-h-11 rounded-full bg-accent px-5 text-sm font-bold text-white">
@@ -82,7 +82,7 @@ export default async function AdminPage() {
                 </button>
               )}
               <button name="action" value="dismiss" className="min-h-11 rounded-full border border-line px-5 text-sm font-bold">
-                لا مشكلة، تجاهل
+                {item.kind === "angle" && item.angleStatus === "HIDDEN" ? "لا مشكلة، أعِدها" : "لا مشكلة، تجاهل"}
               </button>
             </form>
           </article>

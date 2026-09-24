@@ -57,6 +57,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
         items: [
           "فقط لتشغيل MOVA IT: عرض لحظاتك لمن اخترتهم، وصنع المونتاج، وإرسال ما تشاركه لأصحابك.",
           "لحماية المستخدمين: مراجعة البلاغات وإخفاء المحتوى المخالف.",
+          "كل صورة أو فيديو يُفحص تلقائيًا عند رفعه، وما يخالف القواعد (مثل المحتوى الجنسي أو العنف الدموي) يُخفى ويراجعه فريقنا.",
         ],
       },
       {
@@ -64,7 +65,8 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
         items: [
           "Vercel: استضافة الموقع وتخزين الصور والفيديوهات.",
           "Neon: قاعدة البيانات.",
-          "Google: تسجيل الدخول فقط، إذا اخترته.",
+          "Google: تسجيل الدخول، إذا اخترته.",
+          "Google Gemini: الفحص التلقائي للصور والفيديوهات. تُرسل الصورة (أو لقطات من الفيديو) للفحص فقط، ولا يستخدمها Google لتدريب نماذجه.",
           "هذه الخدمات تحفظ البيانات نيابة عنا، ولا يحق لها استخدامها لأغراضها الخاصة.",
         ],
       },
@@ -140,6 +142,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
         items: [
           "Only to run MOVA IT: showing your moments to the people you chose, making montages, and delivering what you share to your friends.",
           "To keep people safe: reviewing reports and hiding content that breaks the rules.",
+          "Every photo and video is checked automatically when uploaded; anything that breaks the rules (such as sexual content or graphic violence) is hidden and reviewed by our team.",
         ],
       },
       {
@@ -147,7 +150,8 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
         items: [
           "Vercel: hosting, and storage for photos and videos.",
           "Neon: the database.",
-          "Google: sign-in only, if you choose it.",
+          "Google: sign-in, if you choose it.",
+          "Google Gemini: the automatic check of photos and videos. The image (or a few frames of a video) is sent only to be checked, and Google does not use it to train its models.",
           "These services store data on our behalf and may not use it for their own purposes.",
         ],
       },

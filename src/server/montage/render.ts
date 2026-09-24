@@ -1,43 +1,19 @@
-import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { put } from "@vercel/blob";
-import ffmpegStatic from "ffmpeg-static";
 import ar from "@/i18n/dictionaries/ar.json";
 import en from "@/i18n/dictionaries/en.json";
 import { plural } from "@/i18n/plural";
 import { db } from "@/lib/db";
+import { ffmpeg } from "@/server/ffmpeg";
 import { viewUrl } from "@/server/media";
 import { isArabic } from "@/server/og-text";
 import { FRAME, renderOverlay } from "./overlay";
 
-// On Vercel the binary comes from ffmpeg-static (fetched at build time); locally the
-// ffmpeg on PATH is used.
-const FFMPEG = process.env.FFMPEG_PATH || (ffmpegStatic && existsSync(ffmpegStatic) ? ffmpegStatic : "ffmpeg");
-
 const PHOTO_SECONDS = 2.5;
 const VIDEO_MAX_SECONDS = 6;
 const FPS = 30;
-
-function ffmpeg(args: string[], timeoutMs = 120_000) {
-  return new Promise<string>((resolve, reject) => {
-    const proc = spawn(FFMPEG, ["-hide_banner", "-y", ...args], { stdio: ["ignore", "ignore", "pipe"] });
-    let stderr = "";
-    proc.stderr.on("data", (chunk) => (stderr = (stderr + chunk).slice(-4000)));
-    const timer = setTimeout(() => proc.kill("SIGKILL"), timeoutMs);
-    proc.on("error", (error) => {
-      clearTimeout(timer);
-      reject(error);
-    });
-    proc.on("close", (code) => {
-      clearTimeout(timer);
-      if (code === 0) resolve(stderr);
-      else reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-600)}`));
-    });
-  });
-}
 
 // ffmpeg-static has no ffprobe, so read what we need from `ffmpeg -i`'s banner.
 async function probe(file: string) {

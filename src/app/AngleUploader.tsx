@@ -12,11 +12,12 @@ type Labels = {
   hint: string;
   preparing: string;
   uploading: string;
+  checking: string;
   done: string;
-  errors: { unsupported: string; too_long: string; too_many: string; failed: string };
+  errors: { unsupported: string; too_long: string; too_many: string; failed: string; blocked: string };
 };
 
-type ItemState = { name: string; status: "preparing" | "uploading" | "done" | "error"; pct: number; error?: keyof Labels["errors"] };
+type ItemState = { name: string; status: "preparing" | "uploading" | "checking" | "done" | "error"; pct: number; error?: keyof Labels["errors"] };
 
 async function postJson(url: string, body?: unknown) {
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
@@ -31,7 +32,7 @@ export function AngleUploader({ code, labels, afterUpload }: { code: string; lab
   const inputId = useId();
   const router = useRouter();
   const [items, setItems] = useState<ItemState[]>([]);
-  const busy = items.some((i) => i.status === "preparing" || i.status === "uploading");
+  const busy = items.some((i) => i.status === "preparing" || i.status === "uploading" || i.status === "checking");
 
   const update = (index: number, patch: Partial<ItemState>) =>
     setItems((all) => all.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -64,8 +65,11 @@ export function AngleUploader({ code, labels, afterUpload }: { code: string; lab
         multipart: prepared.file.size > 8 * 1024 * 1024,
         onUploadProgress: ({ percentage }) => update(index, { pct: Math.round(percentage) }),
       });
-      await postJson(`/api/angles/${angleId}/complete`);
-      update(index, { status: "done", pct: 100 });
+      update(index, { status: "checking", pct: 100 });
+      const result = await postJson(`/api/angles/${angleId}/complete`);
+      // Hidden by the automatic content check: it never shows up.
+      if (result.status === "HIDDEN") return update(index, { status: "error", error: "blocked" });
+      update(index, { status: "done" });
       setUploaded(true);
     } catch (error) {
       const serverCode = (error as { code?: string }).code;
@@ -135,6 +139,7 @@ export function AngleUploader({ code, labels, afterUpload }: { code: string; lab
               <span className={`shrink-0 font-semibold ${item.status === "error" ? "text-accent-ink" : "text-muted"}`}>
                 {item.status === "preparing" && labels.preparing}
                 {item.status === "uploading" && labels.uploading.replace("{pct}", String(item.pct))}
+                {item.status === "checking" && labels.checking}
                 {item.status === "done" && labels.done}
                 {item.status === "error" && labels.errors[item.error ?? "failed"]}
               </span>

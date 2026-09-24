@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { AngleError, completeAngle } from "@/server/angles";
 
+// The automatic content check runs inside this request (a few seconds).
+export const maxDuration = 60;
+
 // Step 3: the device says the upload finished; the server checks the files exist.
 export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();

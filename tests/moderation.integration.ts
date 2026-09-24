@@ -84,6 +84,18 @@ async function main() {
       assert.ok(!(await friendsOf(rude)).some((f) => f.id === viewer.id));
     });
 
+    await check("automatic check: a hidden angle shows in /admin, and 'no problem' puts it back", async () => {
+      const flagged = await db.angle.create({ data: { momentId: moment.id, contributorId: viewer.id, mediaType: "PHOTO", status: "HIDDEN", screening: "blocked" } });
+      await db.report.create({ data: { momentId: moment.id, angleId: flagged.id, reason: "AI", note: "sexual: test" } });
+      const item = (await openReports(admin)).find((i) => i.key === `a:${flagged.id}`);
+      assert.deepEqual(item?.reasons, ["AI"]);
+      assert.equal(item?.angleStatus, "HIDDEN");
+      await resolveReports(admin, `a:${flagged.id}`, "dismiss");
+      assert.equal((await db.angle.findUniqueOrThrow({ where: { id: flagged.id } })).status, "READY");
+      // Whereas "hide" on a human report keeps it hidden and is not undone by anything else.
+      assert.ok(!(await openReports(admin)).some((i) => i.key === `a:${flagged.id}`));
+    });
+
     await check("rate limit: at most 10 reports an hour", async () => {
       const target = await angle(viewer.id);
       const n = await db.report.count({ where: { reporterId: host.id } });

@@ -8,6 +8,8 @@ const nextConfig: NextConfig = {
     "/m/**": ["./public/Cairo-Bold.ttf"],
     // The montage route renders frames and runs the ffmpeg binary fetched at build time.
     "/api/moments/**": ["./public/Cairo-Bold.ttf", "./node_modules/ffmpeg-static/ffmpeg"],
+    // Content screening grabs video frames with ffmpeg when an upload completes.
+    "/api/angles/**": ["./node_modules/ffmpeg-static/ffmpeg"],
   },
 };
 

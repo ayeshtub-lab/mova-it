@@ -39,11 +39,13 @@
       "unsupported": "This file type is not supported in this browser.",
       "too_long": "The video is longer than 20 seconds.",
       "too_many": "You reached the maximum number of angles for this moment.",
-      "failed": "Upload failed. Please try again."
+      "failed": "Upload failed. Please try again.",
+      "blocked": "This shot doesn't meet MOVA's rules and won't be shown."
     },
     "gallery": "Pick from gallery",
     "cameraPhoto": "Take a photo",
-    "cameraVideo": "Record a video"
+    "cameraVideo": "Record a video",
+    "checking": "Checking…"
   },
   "moment": {
     "meta": "{angles} · {people}",
@@ -136,7 +138,8 @@
         "OFFENSIVE": "Offensive or inappropriate",
         "SPAM": "Spam or ads",
         "PRIVACY": "I am in it and do not want it shared",
-        "OTHER": "Something else"
+        "OTHER": "Something else",
+        "AI": "🤖 Automatic check"
       },
       "note": "Details (optional)",
       "block": "Also block this person",
