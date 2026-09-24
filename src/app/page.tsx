@@ -1,6 +1,7 @@
 import { signOut } from "@/app/actions/session";
 import { CreateMomentForm } from "@/app/CreateMomentForm";
 import { FriendsActivity } from "@/app/FriendsActivity";
+import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
 import { MyMoments } from "@/app/MyMoments";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -8,6 +9,7 @@ import type { User } from "@/generated/prisma/client";
 import type { Locale } from "@/i18n/config";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
+import { googleEnabled } from "@/server/google";
 
 // Brand mark: three overlapping lenses; where they meet is "the moment".
 function LensMark({ className }: { className?: string }) {
@@ -21,7 +23,7 @@ function LensMark({ className }: { className?: string }) {
 }
 
 // Signed in: straight to their moments — no introduction to scroll past.
-function SignedInHome({ user, locale, dict }: { user: User; locale: Locale; dict: Dictionary }) {
+function SignedInHome({ user, locale, dict, google }: { user: User; locale: Locale; dict: Dictionary; google: boolean }) {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 pb-12">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -37,6 +39,14 @@ function SignedInHome({ user, locale, dict }: { user: User; locale: Locale; dict
           </button>
         </form>
       </div>
+
+      {user.isGuest && google && (
+        <section className="flex max-w-xl flex-col gap-3 rounded-3xl border border-secondary/30 bg-secondary/10 p-5">
+          <h2 className="text-lg font-extrabold">{dict.account.saveTitle}</h2>
+          <p className="text-sm leading-relaxed text-muted">{dict.account.saveHint}</p>
+          <GoogleButton label={dict.account.saveButton} returnTo="/" />
+        </section>
+      )}
 
       <details className="group max-w-xl rounded-3xl border border-line">
         <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 rounded-3xl bg-accent px-5 font-bold text-white group-open:rounded-b-none [&::-webkit-details-marker]:hidden">
@@ -57,7 +67,7 @@ function SignedInHome({ user, locale, dict }: { user: User; locale: Locale; dict
   );
 }
 
-function VisitorHome({ dict }: { dict: Dictionary }) {
+function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean }) {
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 py-10">
       <LensMark className="w-28 sm:w-36" />
@@ -83,8 +93,14 @@ function VisitorHome({ dict }: { dict: Dictionary }) {
       </ol>
 
       <section className="flex max-w-xl flex-col gap-3 rounded-3xl border border-line p-5">
+        {google && (
+          <>
+            <GoogleButton label={dict.account.google} returnTo="/" />
+            <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
+          </>
+        )}
         <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-bold">{dict.guest.title}</h2>
+          <h2 className="text-lg font-bold">{google ? dict.account.guestOption : dict.guest.title}</h2>
           <p className="text-sm leading-relaxed text-muted">{dict.guest.hint}</p>
         </div>
         <GuestForm labels={dict.guest} />
@@ -95,15 +111,22 @@ function VisitorHome({ dict }: { dict: Dictionary }) {
   );
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }: PageProps<"/">) {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const user = await getCurrentUser();
+  const google = googleEnabled();
+  const failed = (await searchParams).signin === "failed";
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
       <SiteHeader locale={locale} dict={dict} />
-      {user ? <SignedInHome user={user} locale={locale} dict={dict} /> : <VisitorHome dict={dict} />}
+      {failed && (
+        <p role="alert" className="mx-auto mb-4 w-full max-w-3xl rounded-2xl bg-accent-soft p-3 text-sm font-semibold text-accent-ink">
+          {dict.account.failed}
+        </p>
+      )}
+      {user ? <SignedInHome user={user} locale={locale} dict={dict} google={google} /> : <VisitorHome dict={dict} google={google} />}
     </div>
   );
 }

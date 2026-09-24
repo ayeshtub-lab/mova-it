@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { AngleUploader } from "@/app/AngleUploader";
+import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
 import { LocalTime } from "@/app/LocalTime";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -11,6 +12,7 @@ import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { relativeTime, siteOrigin } from "@/lib/site";
 import { latestMontageFor } from "@/server/montage";
+import { googleEnabled } from "@/server/google";
 import { getMomentView } from "@/server/moments";
 import { AngleGallery } from "./AngleGallery";
 import { MontagePanel } from "./MontagePanel";
@@ -55,8 +57,9 @@ function timelineOf(angles: { id: string; capturedAt: Date | null }[]) {
   return [...buckets.values()];
 }
 
-export default async function MomentPage({ params }: PageProps<"/m/[code]">) {
+export default async function MomentPage({ params, searchParams }: PageProps<"/m/[code]">) {
   const { code } = await params;
+  const signinFailed = (await searchParams).signin === "failed";
   const [view, locale, user] = await Promise.all([loadMoment(code), getLocale(), getCurrentUser()]);
   if (!view) notFound();
   const dict = await getDictionary(locale);
@@ -166,6 +169,17 @@ export default async function MomentPage({ params }: PageProps<"/m/[code]">) {
           ) : (
             <>
               <p className="text-sm leading-relaxed text-muted">{t.ctaGuest}</p>
+              {signinFailed && (
+                <p role="alert" className="text-sm font-semibold text-accent-ink">
+                  {dict.account.failed}
+                </p>
+              )}
+              {googleEnabled() && (
+                <>
+                  <GoogleButton label={dict.account.google} returnTo={`/m/${view.code}#join`} />
+                  <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
+                </>
+              )}
               <GuestForm labels={dict.guest} />
             </>
           )}

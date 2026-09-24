@@ -15,10 +15,22 @@ export function cleanDisplayName(raw: unknown): string | null {
   return name.length >= 1 && name.length <= 40 ? name : null;
 }
 
+const newExpiry = () => new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+
+async function setSessionCookie(token: string, expiresAt: Date) {
+  (await cookies()).set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    expires: expiresAt,
+  });
+}
+
 // Must be called from a Server Function or Route Handler (it sets a cookie).
 export async function startGuestSession(displayName: string, locale: string) {
   const token = randomBytes(32).toString("base64url");
-  const expiresAt = new Date(Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000);
+  const expiresAt = newExpiry();
 
   const user = await db.user.create({
     data: {
@@ -29,14 +41,17 @@ export async function startGuestSession(displayName: string, locale: string) {
     },
   });
 
-  (await cookies()).set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    expires: expiresAt,
-  });
+  await setSessionCookie(token, expiresAt);
   return user;
+}
+
+// Sign this browser in as an existing user (e.g. after "Continue with Google").
+// Route Handler / Server Function only.
+export async function startSessionFor(userId: string) {
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = newExpiry();
+  await db.session.create({ data: { userId, tokenHash: hashToken(token), expiresAt } });
+  await setSessionCookie(token, expiresAt);
 }
 
 // Memoized per request so several components can ask without extra queries.

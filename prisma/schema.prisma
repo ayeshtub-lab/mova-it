@@ -19,6 +19,10 @@ model User {
   locale      String   @default("ar")
   isGuest     Boolean  @default(true)
   isAdmin     Boolean  @default(false) // may open /admin to review reports
+  // Official account: Google's stable user id. A guest who signs in with Google keeps
+  // the same row (and everything they made); isGuest becomes false.
+  googleSub   String?  @unique
+  email       String? // private, never shown to other users
   createdAt   DateTime @default(now())
 
   sessions        Session[]

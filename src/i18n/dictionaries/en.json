@@ -205,5 +205,15 @@
     "tooMany": "Too many messages this hour. Take a short break.",
     "block": "Block {name}",
     "confirmBlock": "Block {name}? You won't see each other anymore."
+  },
+  "account": {
+    "google": "Continue with Google",
+    "or": "or",
+    "guestOption": "Try as a guest with just a name",
+    "saveTitle": "Keep your account 🔒",
+    "saveHint": "You're a guest: if you sign out or switch phones, your moments are lost. Link Google and all your moments, photos and chats stay with you.",
+    "saveButton": "Link with Google",
+    "failed": "Google sign-in didn't work. Please try again.",
+    "official": "Official account"
   }
 }
