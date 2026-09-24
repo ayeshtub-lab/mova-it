@@ -20,21 +20,29 @@
   --brand-blue: #2f6fed;
 }
 
+/* Dark = "midnight blue": the logo's blue taken to night, with a faint red/blue glow
+   at the top of the page — an evening out with friends, not a switched-off screen. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0d0e12;
-    --surface: #181a20;
-    --foreground: #f3f3f6;
-    --muted: #a2a5b1;
-    --line: #282b33;
+    --background: #10163a;
+    --surface: #1a2250;
+    --foreground: #eef1ff;
+    --muted: #a9b3d9;
+    --line: #28326c;
     --accent: #d62839;
-    --accent-soft: #3b1a1f;
-    --accent-ink: #ff7b85;
-    --secondary: #7aa2ff;
-    --secondary-soft: #1a2440;
+    --accent-soft: #3b1f45;
+    --accent-ink: #ff8a93;
+    --secondary: #8fb0ff;
+    --secondary-soft: #1f2a5e;
     --moment: #ffc940;
     --brand-red: #ff5a66;
-    --brand-blue: #5b8dff;
+    --brand-blue: #6f9bff;
+  }
+  body {
+    background-image:
+      radial-gradient(120% 45% at 90% -8%, rgb(111 155 255 / 0.22), transparent 60%),
+      radial-gradient(90% 35% at 0% 0%, rgb(255 90 102 / 0.14), transparent 60%);
+    background-repeat: no-repeat;
   }
 }
 
@@ -57,6 +65,6 @@
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
 }
