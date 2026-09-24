@@ -165,34 +165,37 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
             <p className="rounded-2xl bg-surface p-4 text-sm text-muted">{dict.montage.locked}</p>
           ))}
 
-        <section id="join" className="flex scroll-mt-4 flex-col gap-3 rounded-3xl border border-line p-5">
-          <h2 className="text-xl font-extrabold">{t.ctaTitle}</h2>
-          {user ? (
-            <AngleUploader
-              code={view.code}
-              labels={dict.upload}
-              afterUpload={
-                <ShareAfterUpload code={view.code} url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={{ ...dict.afterUpload, copied: t.copied }} />
-              }
-            />
-          ) : (
-            <>
-              <p className="text-sm leading-relaxed text-muted">{t.ctaGuest}</p>
-              {signinFailed && (
-                <p role="alert" className="text-sm font-semibold text-accent-ink">
-                  {dict.account.failed}
-                </p>
-              )}
-              {googleEnabled() && (
-                <>
-                  <GoogleButton label={dict.account.google} returnTo={`/m/${view.code}#join`} />
-                  <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
-                </>
-              )}
-              <GuestForm labels={dict.guest} />
-            </>
-          )}
-        </section>
+        {/* "Add your angle", framed in the logo's red → yellow → blue. */}
+        <div className="rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px] shadow-sm">
+          <section id="join" className="flex scroll-mt-4 flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">
+            <h2 className="text-xl font-extrabold">{t.ctaTitle}</h2>
+            {user ? (
+              <AngleUploader
+                code={view.code}
+                labels={dict.upload}
+                afterUpload={
+                  <ShareAfterUpload code={view.code} url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={{ ...dict.afterUpload, copied: t.copied }} />
+                }
+              />
+            ) : (
+              <>
+                <p className="text-sm leading-relaxed text-muted">{t.ctaGuest}</p>
+                {signinFailed && (
+                  <p role="alert" className="text-sm font-semibold text-accent-ink">
+                    {dict.account.failed}
+                  </p>
+                )}
+                {googleEnabled() && (
+                  <>
+                    <GoogleButton label={dict.account.google} returnTo={`/m/${view.code}#join`} />
+                    <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
+                  </>
+                )}
+                <GuestForm labels={dict.guest} />
+              </>
+            )}
+          </section>
+        </div>
 
         <ShareBar url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={t} />
       </main>

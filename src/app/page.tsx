@@ -3,7 +3,7 @@ import Link from "next/link";
 import { FriendsActivity } from "@/app/FriendsActivity";
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
-import { ZMark } from "@/app/Logo";
+import { DemoWheel } from "@/app/DemoWheel";
 import { MyMoments } from "@/app/MyMoments";
 import { SiteHeader } from "@/app/SiteHeader";
 import type { User } from "@/generated/prisma/client";
@@ -57,46 +57,54 @@ function SignedInHome({ user, locale, dict, google }: { user: User; locale: Loca
   );
 }
 
+const POINT_ICONS = [
+  ["📸", "bg-brand-red/15"],
+  ["🎬", "bg-brand-blue/15"],
+  ["🔗", "bg-moment/25"],
+] as const;
+
+// Visitors: the idea at a glance (an angle wheel of four friends' shots of one
+// sunset), three short points, then sign in with Google or try as a guest.
 function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean }) {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-8 py-10">
-      <ZMark className="w-24 sm:w-32" />
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 py-4 sm:py-10">
+      <section className="flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-8 sm:text-start">
+        <DemoWheel className="w-60 shrink-0 sm:w-72" />
+        <div className="flex flex-col gap-3">
+          <h1 className="text-4xl font-extrabold leading-tight sm:text-5xl">{dict.home.tagline}</h1>
+          <p dir="ltr" className="font-display text-sm font-bold tracking-[0.2em] text-secondary uppercase">
+            {dict.home.motto}
+          </p>
+          <p className="text-lg leading-relaxed text-muted">{dict.home.lead}</p>
+        </div>
+      </section>
 
-      <div className="flex flex-col gap-3">
-        <h1 className="text-4xl font-extrabold leading-tight sm:text-6xl">{dict.home.tagline}</h1>
-        <p dir="ltr" className="self-start font-display text-sm font-bold tracking-[0.2em] text-secondary uppercase">
-          {dict.home.motto}
-        </p>
-      </div>
-
-      <p className="max-w-xl text-lg leading-relaxed text-muted">{dict.home.lead}</p>
-
-      <ol className="flex max-w-xl flex-col gap-3">
+      <ul className="grid gap-3 sm:grid-cols-3">
         {dict.home.points.map((point, i) => (
-          <li key={i} className="flex items-start gap-3 rounded-2xl bg-surface p-4">
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">
-              {i + 1}
+          <li key={i} className="flex items-start gap-3 rounded-3xl bg-surface p-4 sm:flex-col">
+            <span aria-hidden="true" className={`flex size-11 shrink-0 items-center justify-center rounded-2xl text-xl ${POINT_ICONS[i]?.[1] ?? "bg-line"}`}>
+              {POINT_ICONS[i]?.[0] ?? "✨"}
             </span>
             <span className="leading-relaxed">{point}</span>
           </li>
         ))}
-      </ol>
+      </ul>
 
-      <section className="flex max-w-xl flex-col gap-3 rounded-3xl border border-line p-5">
-        {google && (
-          <>
-            <GoogleButton label={dict.account.google} returnTo="/" />
-            <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
-          </>
-        )}
-        <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-bold">{google ? dict.account.guestOption : dict.guest.title}</h2>
-          <p className="text-sm leading-relaxed text-muted">{dict.guest.hint}</p>
-        </div>
-        <GuestForm labels={dict.guest} />
-      </section>
-
-      <p className="self-start rounded-full border border-line px-4 py-1.5 text-sm font-semibold text-muted">{dict.home.status}</p>
+      <div className="rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px] shadow-md">
+        <section id="start" className="flex flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">
+          {google && (
+            <>
+              <GoogleButton label={dict.account.google} returnTo="/" />
+              <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
+            </>
+          )}
+          <div className="flex flex-col gap-1">
+            <h2 className="text-lg font-bold">{google ? dict.account.guestOption : dict.guest.title}</h2>
+            <p className="text-sm leading-relaxed text-muted">{dict.guest.hint}</p>
+          </div>
+          <GuestForm labels={dict.guest} />
+        </section>
+      </div>
     </main>
   );
 }

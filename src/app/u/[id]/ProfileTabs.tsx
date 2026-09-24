@@ -52,7 +52,7 @@ export function ProfileTabs({ shots, moments, likes, labels }: { shots: Shot[]; 
 
   return (
     <section className="flex flex-col gap-3">
-      <div role="tablist" className="flex border-b border-line">
+      <div role="tablist" className="flex rounded-full bg-surface p-1">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -60,7 +60,7 @@ export function ProfileTabs({ shots, moments, likes, labels }: { shots: Shot[]; 
             type="button"
             aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
-            className={`min-h-12 flex-1 border-b-2 text-sm font-bold transition-colors ${tab === t.key ? "border-accent text-foreground" : "border-transparent text-muted hover:text-foreground"}`}
+            className={`min-h-10 flex-1 rounded-full text-sm font-bold transition-all ${tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
           >
             {t.label}
           </button>

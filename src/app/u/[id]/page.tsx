@@ -65,7 +65,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             <h1 className="text-2xl font-extrabold">{profile.displayName}</h1>
           )}
 
-          <dl className="flex gap-8">
+          <dl className="flex gap-2">
             {(
               [
                 [profile.shots.length, t.shots],
@@ -73,7 +73,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
                 [profile.following, t.following],
               ] as const
             ).map(([n, label]) => (
-              <div key={label} className="flex flex-col-reverse items-center">
+              <div key={label} className="flex min-w-22 flex-col-reverse items-center rounded-2xl bg-surface px-3 py-2">
                 <dt className="text-sm text-muted">{label}</dt>
                 <dd className="text-xl font-extrabold">{n}</dd>
               </div>
