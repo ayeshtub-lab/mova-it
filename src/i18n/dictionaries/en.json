@@ -239,5 +239,8 @@
     "viewsPrivate": "👁 View counts are visible only to you",
     "admin": "Reports",
     "failed": "That didn't work, try again."
+  },
+  "footer": {
+    "privacy": "Privacy"
   }
 }
