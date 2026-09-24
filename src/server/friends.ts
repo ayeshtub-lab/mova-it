@@ -54,8 +54,10 @@ export async function inviteFriends(user: User, code: string, userIds: unknown) 
     .slice(0, MAX_INVITES_PER_REQUEST);
   if (!targets.length) return { sent: 0 };
 
+  const now = new Date();
   const result = await db.momentInvite.createMany({
-    data: targets.map((toUserId) => ({ momentId: moment.id, fromUserId: user.id, toUserId })),
+    // The sender has seen their own invite (same timestamp), so it is unread only for the friend.
+    data: targets.map((toUserId) => ({ momentId: moment.id, fromUserId: user.id, toUserId, createdAt: now, lastActivityAt: now, fromSeenAt: now })),
     skipDuplicates: true,
   });
   return { sent: result.count };

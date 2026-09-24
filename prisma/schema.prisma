@@ -30,6 +30,7 @@ model User {
   blockedBy       Block[]          @relation("Blocked")
   invitesSent     MomentInvite[]   @relation("InvitesSent")
   invitesReceived MomentInvite[]   @relation("InvitesReceived")
+  directMessages  DirectMessage[]
   participations  Participant[]
   following       Follow[]         @relation("Follower")
   followers       Follow[]         @relation("Following")
@@ -40,11 +41,11 @@ model User {
 // Opaque random token in an httpOnly cookie (web) or a bearer header (app later);
 // only its SHA-256 is stored, so a leaked database row cannot be replayed.
 model Session {
-  id         String   @id @default(cuid())
-  tokenHash  String   @unique
-  userId     String
-  createdAt  DateTime @default(now())
-  expiresAt  DateTime
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -83,25 +84,25 @@ enum ModerationStatus {
 }
 
 model Moment {
-  id         String           @id @default(cuid())
-  code       String           @unique // short share code: /m/K7M2Q4
-  title      String
-  kind       MomentKind       @default(EVERYDAY)
-  visibility Visibility       @default(FRIENDS)
-  status     ModerationStatus @default(ACTIVE)
+  id             String           @id @default(cuid())
+  code           String           @unique // short share code: /m/K7M2Q4
+  title          String
+  kind           MomentKind       @default(EVERYDAY)
+  visibility     Visibility       @default(FRIENDS)
+  status         ModerationStatus @default(ACTIVE)
   // Approximate place only: a name, and coordinates rounded to 2 decimals (~1 km).
-  placeName  String?
-  latApprox  Float?
-  lngApprox  Float?
+  placeName      String?
+  latApprox      Float?
+  lngApprox      Float?
   // Angles hide until this time ("reveal"); "give to get" lives in app logic.
-  revealAt   DateTime?
+  revealAt       DateTime?
   // A moment that gathered enough angles is kept ("لحظة خالدة"); its angles stop expiring.
-  isPermanent    Boolean  @default(false)
+  isPermanent    Boolean          @default(false)
   creatorId      String
-  createdAt      DateTime @default(now())
-  lastActivityAt DateTime @default(now()) // drives "why now" ranking
+  createdAt      DateTime         @default(now())
+  lastActivityAt DateTime         @default(now()) // drives "why now" ranking
 
-  creator      User          @relation("MomentCreator", fields: [creatorId], references: [id])
+  creator      User           @relation("MomentCreator", fields: [creatorId], references: [id])
   angles       Angle[]
   participants Participant[]
   invites      MomentInvite[]
@@ -224,19 +225,41 @@ model Comment {
 
 // "X sent you a moment": shown on the recipient's home page for 24 hours. Only between
 // people who already shared a moment (see src/server/friends.ts) — no phone numbers.
+// A moment one friend sent another. It doubles as their inbox thread about that
+// moment (quick replies in DirectMessage). Each side has its own "seen up to" time.
 model MomentInvite {
-  id         String   @id @default(cuid())
-  momentId   String
-  fromUserId String
-  toUserId   String
-  createdAt  DateTime @default(now())
+  id             String    @id @default(cuid())
+  momentId       String
+  fromUserId     String
+  toUserId       String
+  createdAt      DateTime  @default(now())
+  lastActivityAt DateTime  @default(now())
+  fromSeenAt     DateTime?
+  toSeenAt       DateTime?
 
-  moment   Moment @relation(fields: [momentId], references: [id], onDelete: Cascade)
-  fromUser User   @relation("InvitesSent", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUser   User   @relation("InvitesReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  moment   Moment          @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  fromUser User            @relation("InvitesSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User            @relation("InvitesReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  messages DirectMessage[]
 
   @@unique([momentId, fromUserId, toUserId])
   @@index([toUserId, createdAt])
+  @@index([toUserId, lastActivityAt])
+  @@index([fromUserId, lastActivityAt])
+}
+
+model DirectMessage {
+  id        String   @id @default(cuid())
+  inviteId  String
+  senderId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  invite MomentInvite @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  sender User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([inviteId, createdAt])
+  @@index([senderId, createdAt])
 }
 
 // ── Montage (automatic multi-angle video) ─────────────────────────────────

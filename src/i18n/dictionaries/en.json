@@ -175,5 +175,35 @@
     "sentYou": "{name} sent you a moment",
     "started": "Your friend {name} started a moment",
     "cta": "Got an angle?"
+  },
+  "inbox": {
+    "open": "Inbox",
+    "openUnread": "Inbox, {n} new",
+    "title": "Inbox 📥",
+    "empty": "Nothing here yet. When a friend sends you a moment, or you send one to a friend, it lands here and you can reply to each other.",
+    "sentYou": "{name} sent you “{title}”",
+    "youSent": "You sent “{title}” to {name}",
+    "you": "You: ",
+    "noReply": "No replies yet",
+    "back": "Inbox",
+    "withName": "With {name}",
+    "openMoment": "Open moment",
+    "threadSentYou": "{name} sent you this moment",
+    "threadYouSent": "You sent this moment to {name}",
+    "quick": [
+      "😍",
+      "😂",
+      "🔥",
+      "😮",
+      "Where is this?",
+      "Amazing!",
+      "Why didn't you tell me?"
+    ],
+    "placeholder": "Reply to {name}…",
+    "send": "Send",
+    "failed": "Your message didn't go through. Try again.",
+    "tooMany": "Too many messages this hour. Take a short break.",
+    "block": "Block {name}",
+    "confirmBlock": "Block {name}? You won't see each other anymore."
   }
 }
