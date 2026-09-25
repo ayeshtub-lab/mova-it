@@ -113,8 +113,9 @@ export async function getMomentView(code: string, viewer: User | null) {
 
   const isCreator = viewer?.id === moment.creatorId;
   const hasContributed = !!viewer && angles.some((a) => a.contributorId === viewer.id);
-  // Public moments are open to everyone; "give to get" is for friends/link moments.
-  const unlocked = isCreator || hasContributed || moment.visibility === Visibility.PUBLIC;
+  // Public moments are open to everyone; "give to get" is for friends/link moments —
+  // and for «لحظة اليوم», where seeing everyone's angle is the reward for adding yours.
+  const unlocked = isCreator || hasContributed || (moment.visibility === Visibility.PUBLIC && moment.kind !== "DAILY");
   const visible = unlocked ? angles : angles.slice(0, 1);
   const visibleIds = visible.map((a) => a.id);
   // View counts are private: only for the viewer's own angles.
@@ -122,6 +123,7 @@ export async function getMomentView(code: string, viewer: User | null) {
   const [reactions, comments, views] = await Promise.all([reactionsFor(visibleIds, viewer), commentCounts(visibleIds), viewCounts(mineIds)]);
 
   return {
+    id: moment.id,
     code: moment.code,
     title: moment.title,
     kind: moment.kind,
@@ -241,4 +243,23 @@ export async function setMomentVisibility(user: User, code: string, raw: unknown
   if (moment.creatorId !== user.id) throw new MomentError("forbidden");
   if (visibility === Visibility.PUBLIC && user.isGuest) throw new MomentError("official_required");
   return db.moment.update({ where: { id: moment.id }, data: { visibility } });
+}
+
+// «لحظة اليوم» is started by the Zawmo system account: public, kind DAILY.
+export async function createDailyMoment(system: User, title: string) {
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const code = newCode();
+    if (await db.moment.findUnique({ where: { code }, select: { id: true } })) continue;
+    return db.moment.create({
+      data: {
+        code,
+        title: title.slice(0, 80),
+        kind: "DAILY",
+        visibility: Visibility.PUBLIC,
+        creatorId: system.id,
+        participants: { create: { userId: system.id, role: "HOST" } },
+      },
+    });
+  }
+  throw new MomentError("code_exhausted");
 }

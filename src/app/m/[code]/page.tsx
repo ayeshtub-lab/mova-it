@@ -16,12 +16,15 @@ import { relativeTime, siteOrigin } from "@/lib/site";
 import { latestMontageFor } from "@/server/montage";
 import { googleEnabled } from "@/server/google";
 import { screenForPublic } from "@/server/angles";
+import { dailyFor, tomorrowVote } from "@/server/daily";
+import { themeText } from "@/lib/dailyThemes";
 import { getMomentView, MomentError, setMomentVisibility } from "@/server/moments";
 import { AngleGallery } from "./AngleGallery";
 import { AngleWheel } from "./AngleWheel";
 import { MontagePanel } from "./MontagePanel";
 import { ShareAfterUpload } from "./ShareAfterUpload";
 import { ShareBar } from "./ShareBar";
+import { VoteBox } from "./VoteBox";
 
 // Shared by generateMetadata and the page within one request.
 const loadMoment = cache(async (code: string) => getMomentView(code, await getCurrentUser()));
@@ -86,6 +89,9 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   const t = dict.moment;
   const shareUrl = `${await siteOrigin()}/m/${view.code}`;
   const timeline = timelineOf(view.angles);
+  // «لحظة اليوم»: its theme, time left, and (while it's today) the vote for tomorrow.
+  const daily = view.kind === "DAILY" ? await dailyFor(view.id) : null;
+  const ballot = daily?.isToday ? await tomorrowVote(user) : null;
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
@@ -100,7 +106,14 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           {dict.mine.title}
         </Link>
         <section className="flex flex-col gap-2">
-          <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">{view.title}</h1>
+          {daily && (
+            <p className="w-fit rounded-full bg-moment/25 px-3 py-1 text-xs font-extrabold">
+              {dict.daily.label}
+              {daily.isToday && <> · {dict.daily.endsIn.replace("{time}", new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(daily.hoursLeft, "hour"))}</>}
+            </p>
+          )}
+          <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">{daily ? `${daily.theme.emoji} ${themeText(daily.theme, locale)}` : view.title}</h1>
+          {daily?.theme.tip && <p className="rounded-2xl bg-secondary-soft px-3 py-2 text-sm font-semibold text-secondary">🤍 {locale === "ar" ? daily.theme.tip.ar : daily.theme.tip.en}</p>}
           <p className="text-sm text-muted">
             {[
               view.placeName,
@@ -247,6 +260,18 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
             )}
           </section>
         </div>
+
+        {ballot &&
+          (ballot.decided ? (
+            <p className="rounded-3xl bg-surface p-5 font-bold">{dict.daily.decided.replace("{theme}", `${ballot.decided.emoji} ${themeText(ballot.decided, locale)}`)}</p>
+          ) : (
+            <VoteBox
+              initial={ballot.options.map((o) => ({ key: o.key, emoji: o.emoji, label: themeText(o, locale), votes: o.votes }))}
+              mine={ballot.mine}
+              signedIn={!!user}
+              labels={{ title: dict.daily.voteTitle, hint: dict.daily.voteHint, voted: dict.daily.voted, failed: dict.daily.voteFailed, votes: dict.daily.votes }}
+            />
+          ))}
 
         <ShareBar url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={t} />
       </main>

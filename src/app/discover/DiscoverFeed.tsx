@@ -13,8 +13,18 @@ type Angle = {
   avatarUrl: string | null;
   profileId: string | null;
 };
-type Moment = { code: string; title: string; placeName: string | null; creatorName: string; people: number; lastActivityAt: string; angles: Angle[] };
-type Labels = { open: string; add: string; swipe: string; by: string; people: PluralForms };
+type Moment = {
+  code: string;
+  title: string;
+  placeName: string | null;
+  creatorName: string;
+  people: number;
+  lastActivityAt: string;
+  daily: boolean;
+  lockedCount: number;
+  angles: Angle[];
+};
+type Labels = { open: string; add: string; swipe: string; by: string; people: PluralForms; daily: string; locked: string };
 
 // Zawmo's two-way feed: swipe up/down between public moments, left/right between the
 // angles of one moment. Native scroll-snap (no library); videos play muted while on screen.
@@ -81,6 +91,10 @@ function MomentSlide({ moment: m, locale, labels, hint }: { moment: Moment; loca
         ))}
       </div>
 
+      {m.daily && (
+        <span className="pointer-events-none absolute start-4 top-4 rounded-full bg-moment px-3 py-1 text-xs font-extrabold text-black shadow">{labels.daily}</span>
+      )}
+
       {hint && m.angles.length > 1 && !swiped && (
         <span className="pointer-events-none absolute inset-x-0 top-4 mx-auto w-fit animate-pulse rounded-full bg-black/55 px-4 py-1.5 text-sm font-bold backdrop-blur-sm">
           {labels.swipe}
@@ -113,6 +127,9 @@ function MomentSlide({ moment: m, locale, labels, hint }: { moment: Moment; loca
           </Link>
         )}
         <h2 className="text-2xl font-extrabold leading-tight [text-shadow:0_1px_6px_rgb(0_0_0/0.5)]">{m.title}</h2>
+        {m.lockedCount > 0 && (
+          <p className="w-fit rounded-full bg-black/45 px-3 py-1 text-sm font-bold backdrop-blur-sm">{labels.locked.replace("{n}", String(m.lockedCount))}</p>
+        )}
         <p className="text-sm opacity-90">
           {[m.placeName, labels.by.replace("{name}", m.creatorName), plural(locale, labels.people, m.people)].filter(Boolean).join(" · ")}
         </p>

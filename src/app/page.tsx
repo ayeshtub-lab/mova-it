@@ -3,6 +3,7 @@ import Link from "next/link";
 import { FriendsActivity } from "@/app/FriendsActivity";
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
+import { DailyCard } from "@/app/DailyCard";
 import { DemoWheel } from "@/app/DemoWheel";
 import { MyMoments } from "@/app/MyMoments";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -37,6 +38,8 @@ function SignedInHome({ user, locale, dict, google }: { user: User; locale: Loca
           <GoogleButton label={dict.account.saveButton} returnTo="/" />
         </section>
       )}
+
+      <DailyCard user={user} locale={locale} dict={dict} />
 
       {/* The ＋ lives in the bottom bar on phones; wider screens get this banner. */}
       <Link

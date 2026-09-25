@@ -1,6 +1,6 @@
 // Integration test for public moments («للكل») and Discover («اكتشف»).
 // Run: npx tsx tests/discover.integration.ts — every row it creates is deleted at the end.
-import "dotenv/config";
+import "./env"; // DATABASE_URL + Blob token (Discover may include real public moments)
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { visibleAngle } from "../src/server/access";

@@ -19,6 +19,7 @@ model User {
   locale      String   @default("ar")
   isGuest     Boolean  @default(true)
   isAdmin     Boolean  @default(false) // may open /admin to review reports
+  isSystem    Boolean  @default(false) // the «زاومو» account that starts «لحظة اليوم»
   // Official account: Google's stable user id. A guest who signs in with Google keeps
   // the same row (and everything they made); isGuest becomes false.
   googleSub   String?  @unique
@@ -37,6 +38,7 @@ model User {
   invitesReceived MomentInvite[]   @relation("InvitesReceived")
   directMessages  DirectMessage[]
   angleViews      AngleView[]
+  dailyVotes      DailyVote[]
   participations  Participant[]
   following       Follow[]         @relation("Follower")
   followers       Follow[]         @relation("Following")
@@ -112,6 +114,7 @@ model Moment {
   angles       Angle[]
   participants Participant[]
   invites      MomentInvite[]
+  daily        DailyPlan?
   montages     Montage[]
   reports      Report[]
 
@@ -367,4 +370,30 @@ model RemovalRequest {
   requester User  @relation(fields: [requesterId], references: [id], onDelete: Cascade)
 
   @@index([status])
+}
+
+// «لحظة اليوم»: one plan per day. A day runs from 06:00 to 06:00 Mecca time (03:00 UTC)
+// and is keyed by its date ("2026-09-25"). The theme comes from the curated list
+// (src/lib/dailyThemes.ts): the vote winner, an admin's pick, or a seeded random one.
+model DailyPlan {
+  day       String   @id
+  themeKey  String
+  source    String // "vote" | "random" | "admin"
+  momentId  String?  @unique
+  createdAt DateTime @default(now())
+
+  moment Moment? @relation(fields: [momentId], references: [id], onDelete: SetNull)
+}
+
+// A vote for the theme of a coming day (one per person per day, may be changed).
+model DailyVote {
+  day       String
+  userId    String
+  themeKey  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([day, userId])
+  @@index([day, themeKey])
 }

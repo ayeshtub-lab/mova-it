@@ -287,5 +287,24 @@
     "nudgeText": "It'll show in Discover for everyone on Zawmo, and every photo is checked automatically first.",
     "publicBadge": "🌍 Public moment",
     "publicGuest": "This is a public moment: link your Google account to add your angle."
+  },
+  "daily": {
+    "label": "☀️ Moment of the day",
+    "endsIn": "Ends {time}",
+    "angles": "{n} so far",
+    "add": "Add your angle",
+    "see": "See the angles",
+    "lockedHint": "🔒 Add your angle to see everyone's",
+    "lockedDiscover": "🔒 Add yours to see {n} more",
+    "voteTitle": "🗳️ Vote for tomorrow's theme",
+    "voteHint": "The winner starts at 6 am Mecca time.",
+    "voted": "Vote saved ✓ You can change it until morning.",
+    "decided": "Tomorrow's theme: {theme}",
+    "voteFailed": "Voting didn't work, try again.",
+    "votes": "{n} votes",
+    "adminTitle": "Moment of the day",
+    "adminToday": "Today's theme",
+    "adminTomorrow": "Tomorrow's theme",
+    "adminSave": "Save"
   }
 }

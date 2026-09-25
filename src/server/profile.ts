@@ -25,7 +25,7 @@ const live = () => ({ status: "READY" as const, OR: [{ expiresAt: null }, { expi
 const cover = (a: { mediaType: string; mediaPath: string | null; thumbPath: string | null }) =>
   viewUrl(a.mediaType === "VIDEO" ? a.thumbPath : a.mediaPath);
 
-type MomentLite = { id: string; visibility: string; creatorId: string };
+type MomentLite = { id: string; visibility: string; creatorId: string; kind: string };
 
 // Everything needed to decide, for one viewer, which of the owner's moments and
 // angles are visible — in four queries, however many moments there are.
@@ -57,7 +57,8 @@ async function visibilityFor(viewer: User | null, owner: User, moments: MomentLi
   const moment = (m: MomentLite) =>
     m.visibility === "PUBLIC" || inMoment.has(m.id) || (m.visibility === "FRIENDS" && friend);
   const angle = (a: { id: string; moment: MomentLite }) =>
-    moment(a.moment) && (a.moment.visibility === "PUBLIC" || a.moment.creatorId === viewer?.id || unlocked.has(a.moment.id) || firstIds.has(a.id));
+    moment(a.moment) &&
+    ((a.moment.visibility === "PUBLIC" && a.moment.kind !== "DAILY") || a.moment.creatorId === viewer?.id || unlocked.has(a.moment.id) || firstIds.has(a.id));
   return { moment, angle };
 }
 
@@ -75,7 +76,7 @@ export async function getProfile(viewer: User | null, userId: string) {
       where: { contributorId: owner.id, ...live(), moment: { status: "ACTIVE" } },
       orderBy: { uploadedAt: "desc" },
       take: SHOTS,
-      include: { moment: { select: { id: true, code: true, title: true, visibility: true, creatorId: true } } },
+      include: { moment: { select: { id: true, code: true, title: true, visibility: true, creatorId: true, kind: true } } },
     }),
     db.participant.findMany({
       where: { userId: owner.id, moment: { status: "ACTIVE" } },
@@ -89,6 +90,7 @@ export async function getProfile(viewer: User | null, userId: string) {
             title: true,
             visibility: true,
             creatorId: true,
+            kind: true,
             lastActivityAt: true,
             angles: { where: live(), orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true } },
           },

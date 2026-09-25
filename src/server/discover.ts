@@ -23,7 +23,12 @@ export async function listDiscover(viewer: User) {
   };
 
   const moments = await db.moment.findMany({
-    where: { visibility: "PUBLIC", status: "ACTIVE", creatorId: { notIn: blocked }, angles: { some: shown } },
+    where: {
+      visibility: "PUBLIC",
+      status: "ACTIVE",
+      creatorId: { notIn: blocked },
+      angles: { some: shown },
+    },
     orderBy: { lastActivityAt: "desc" },
     take: CANDIDATES,
     include: {
@@ -33,36 +38,79 @@ export async function listDiscover(viewer: User) {
         where: shown,
         orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
         take: ANGLES_PER_MOMENT,
-        include: { contributor: { select: { id: true, displayName: true, avatarUrl: true, isGuest: true } } },
+        include: {
+          contributor: {
+            select: {
+              id: true,
+              displayName: true,
+              avatarUrl: true,
+              isGuest: true,
+            },
+          },
+        },
       },
     },
   });
 
+  // «لحظة اليوم» first, then by "why now".
   const ranked = moments
-    .map((m) => ({ m, score: computeWhyNowScore(m.lastActivityAt, m.angles.length, m._count.participants) }))
+    .map((m) => ({
+      m,
+      score:
+        m.kind === "DAILY"
+          ? Infinity
+          : computeWhyNowScore(
+              m.lastActivityAt,
+              m.angles.length,
+              m._count.participants,
+            ),
+    }))
     .sort((a, b) => b.score - a.score)
     .slice(0, PAGE)
     .map((x) => x.m);
 
+  // Give-to-get stays for «لحظة اليوم»: until you add yours, you see one angle.
+  const dailyIds = ranked.filter((m) => m.kind === "DAILY").map((m) => m.id);
+  const joined = new Set(
+    dailyIds.length
+      ? (
+          await db.angle.findMany({
+            where: {
+              momentId: { in: dailyIds },
+              contributorId: viewer.id,
+              status: "READY",
+            },
+            select: { momentId: true },
+          })
+        ).map((a) => a.momentId)
+      : [],
+  );
+
   return Promise.all(
-    ranked.map(async (m) => ({
-      code: m.code,
-      title: m.title,
-      placeName: m.placeName,
-      creatorName: m.creator.displayName,
-      people: m._count.participants,
-      lastActivityAt: m.lastActivityAt,
-      angles: await Promise.all(
-        m.angles.map(async (a) => ({
-          id: a.id,
-          mediaType: a.mediaType,
-          mediaUrl: await viewUrl(a.mediaPath),
-          posterUrl: await viewUrl(a.thumbPath),
-          name: a.contributor.displayName,
-          avatarUrl: a.contributor.avatarUrl,
-          profileId: a.contributor.isGuest ? null : a.contributor.id,
-        })),
-      ),
-    })),
+    ranked.map(async (m) => {
+      const locked = m.kind === "DAILY" && !joined.has(m.id);
+      const angles = locked ? m.angles.slice(0, 1) : m.angles;
+      return {
+        code: m.code,
+        daily: m.kind === "DAILY",
+        lockedCount: m.angles.length - angles.length,
+        title: m.title,
+        placeName: m.placeName,
+        creatorName: m.creator.displayName,
+        people: m._count.participants,
+        lastActivityAt: m.lastActivityAt,
+        angles: await Promise.all(
+          angles.map(async (a) => ({
+            id: a.id,
+            mediaType: a.mediaType,
+            mediaUrl: await viewUrl(a.mediaPath),
+            posterUrl: await viewUrl(a.thumbPath),
+            name: a.contributor.displayName,
+            avatarUrl: a.contributor.avatarUrl,
+            profileId: a.contributor.isGuest ? null : a.contributor.id,
+          })),
+        ),
+      };
+    }),
   );
 }

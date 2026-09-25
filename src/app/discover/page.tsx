@@ -56,7 +56,7 @@ export default async function DiscoverPage() {
           <DiscoverFeed
             moments={moments.map((m) => ({ ...m, lastActivityAt: m.lastActivityAt.toISOString() }))}
             locale={locale}
-            labels={{ open: t.open, add: t.add, swipe: t.swipe, by: t.by, people: dict.plurals.people }}
+            labels={{ open: t.open, add: t.add, swipe: t.swipe, by: t.by, people: dict.plurals.people, daily: dict.daily.label, locked: dict.daily.lockedDiscover }}
           />
         </main>
       )}
