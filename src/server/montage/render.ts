@@ -11,9 +11,10 @@ import { isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
 import { viewUrl } from "@/server/media";
 import { isArabic } from "@/server/og-text";
-import { FRAME, renderOverlay } from "./overlay";
+import { FRAME, renderOutro, renderOverlay } from "./overlay";
 
 const PHOTO_SECONDS = 2.5;
+const OUTRO_SECONDS = 2;
 const VIDEO_MAX_SECONDS = 6;
 const FPS = 30;
 
@@ -46,6 +47,17 @@ async function photoSegment(input: string, overlay: string, out: string) {
     "-map", "[v]", "-map", "2:a", ...ENCODE, "-shortest", out,
   ]);
   return PHOTO_SECONDS;
+}
+
+// The closing card: a still frame with silence (a library sound, if any, runs on over it).
+async function outroSegment(card: string, out: string) {
+  await ffmpeg([
+    "-loop", "1", "-t", String(OUTRO_SECONDS), "-i", card,
+    "-f", "lavfi", "-t", String(OUTRO_SECONDS), "-i", "anullsrc=r=44100:cl=stereo",
+    "-filter_complex", `[0:v]${COVER}[v]`,
+    "-map", "[v]", "-map", "1:a", ...ENCODE, "-shortest", out,
+  ]);
+  return OUTRO_SECONDS;
 }
 
 async function videoSegment(input: string, overlay: string, out: string) {
@@ -106,6 +118,15 @@ export async function renderMontage(montageId: string, siteHost: string) {
         }),
       );
       total += angle.mediaType === "VIDEO" ? await videoSegment(input, overlay, out) : await photoSegment(input, overlay, out);
+      segments.push(out);
+    }
+
+    // Close on the card with the short link.
+    if (segments.length) {
+      const card = join(dir, "outro.png");
+      const out = join(dir, "seg-outro.mp4");
+      await writeFile(card, await renderOutro({ name: dict.montage.outroName, tagline: dict.montage.outroTagline, cta: dict.montage.outroCta, link: `${publicHost(siteHost)}/${moment.code}` }));
+      total += await outroSegment(card, out);
       segments.push(out);
     }
 

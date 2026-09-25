@@ -13,7 +13,7 @@ export type MontageState = {
   outdated: boolean;
 };
 
-type Labels = { title: string; hint: string; make: string; remake: string; working: string; failed: string; share: string; download: string };
+type Labels = { title: string; hint: string; make: string; remake: string; working: string; failed: string; share: string; shareHint: string; download: string };
 
 export function MontagePanel({
   code,
@@ -75,7 +75,8 @@ export function MontagePanel({
 
   async function share() {
     if (file && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file] }).catch(() => {});
+      // The short link goes along as text, for the apps that keep it (WhatsApp does).
+      await navigator.share({ files: [file], text: `${location.host}/${code}` }).catch(() => {});
     } else save();
   }
 
@@ -117,6 +118,7 @@ export function MontagePanel({
           </button>
         </div>
       )}
+      {ready && <p className="-mt-1 text-center text-xs text-muted">{labels.shareHint}</p>}
 
       <button
         type="button"

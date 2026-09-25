@@ -180,7 +180,11 @@
     "failed": "The montage did not work this time. Please try again.",
     "share": "Share the video",
     "download": "Download the video",
-    "locked": "Add your own angle first to make this moment’s montage."
+    "locked": "Add your own angle first to make this moment’s montage.",
+    "outroName": "Zawmo",
+    "outroTagline": "One moment, from every angle",
+    "outroCta": "Were you there? Add your angle",
+    "shareHint": "Pick WhatsApp, an Instagram story or TikTok from the list."
   },
   "afterUpload": {
     "title": "🔥 You’re in! Send the moment to someone who was with you?",

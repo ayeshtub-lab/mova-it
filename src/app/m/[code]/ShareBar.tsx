@@ -21,8 +21,18 @@ export function ShareBar({ url, text, labels }: { url: string; text: string; lab
     setTimeout(() => setCopied(false), 2500);
   }
 
+  // WhatsApp first: it is where moments get passed on here. The phone's share sheet
+  // (Instagram, TikTok, Snapchat…) comes second.
   return (
     <div className="flex gap-2">
+      <a
+        href={`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex min-h-11 flex-1 items-center justify-center rounded-full bg-[#1a7a43] px-5 text-sm font-bold text-white"
+      >
+        {labels.whatsapp}
+      </a>
       <button
         type="button"
         onClick={share}
@@ -30,14 +40,6 @@ export function ShareBar({ url, text, labels }: { url: string; text: string; lab
       >
         <span aria-live="polite">{copied ? labels.copied : labels.share}</span>
       </button>
-      <a
-        href={`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex min-h-11 items-center rounded-full border border-line px-5 text-sm font-bold"
-      >
-        {labels.whatsapp}
-      </a>
     </div>
   );
 }
