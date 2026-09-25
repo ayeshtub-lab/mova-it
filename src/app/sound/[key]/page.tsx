@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
-import { SOUND_CATEGORIES, soundByKey, soundFile, soundName } from "@/lib/sounds";
+import { isQuran, SOUND_CATEGORIES, soundByKey, soundFile, soundName } from "@/lib/sounds";
 import { soundShots, soundUses } from "@/server/sounds";
 import { PlaySound, UseSoundButton } from "./UseSound";
 
@@ -24,10 +24,11 @@ export default async function SoundPage({ params }: PageProps<"/sound/[key]">) {
         <PlaySound src={soundFile(sound.key)} labels={{ play: t.preview, stop: t.stop }} />
         <div className="flex flex-col items-center gap-1">
           <p className="w-fit rounded-full bg-surface px-3 py-1 text-xs font-bold text-muted">
-            {cat.emoji} {t.cats[sound.cat]} · {t.library}
+            {cat.emoji} {t.cats[sound.cat]}
+            {isQuran(sound) ? "" : ` · ${t.library}`}
           </p>
-          <h1 className="text-3xl font-extrabold">🎵 {soundName(sound, locale)}</h1>
-          <p className="text-sm text-muted">{sound.credit ? t.by.replace("{author}", sound.credit.author) : t.byZawmo}</p>
+          <h1 className="text-3xl font-extrabold">{isQuran(sound) ? "" : "🎵 "}{soundName(sound, locale)}</h1>
+          <p className="text-sm text-muted">{sound.credit ? (isQuran(sound) ? t.recitedBy : t.by).replace("{author}", sound.credit.author) : t.byZawmo}</p>
           {sound.credit && (
             <p className="text-xs text-muted">
               {t.license.replace("{license}", sound.credit.license)} ·{" "}

@@ -40,7 +40,7 @@ export function SoundPicker({
 }) {
   const [key, setKey] = useState(initialKey);
   const [mute, setMute] = useState(initialMute);
-  const [cat, setCat] = useState<SoundCategory>(soundByKey(initialKey)?.cat ?? "nature");
+  const [cat, setCat] = useState<SoundCategory>(soundByKey(initialKey)?.cat ?? SOUND_CATEGORIES[0].key);
   const [playing, setPlaying] = useState<string | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
   const solemn = isSolemn(soundByKey(key));

@@ -347,6 +347,7 @@
     "title": "🎵 Pick a sound",
     "none": "No sound",
     "cats": {
+      "quran": "Quran",
       "nature": "Nature",
       "spiritual": "Remembrance",
       "wisdom": "Wisdom",
@@ -358,7 +359,7 @@
     "stop": "Stop",
     "chosen": "✓ Chosen",
     "muteOriginal": "Mute the video's own sound",
-    "solemnNote": "Under remembrance, the video's own sound is muted",
+    "solemnNote": "Under Quran and remembrance, the video's own sound is muted",
     "save": "Use this sound",
     "cancel": "Close",
     "add": "🎵 Add a sound",
@@ -377,6 +378,7 @@
     "unmute": "Unmute",
     "montage": "Montage sound",
     "openSound": "Sound page: {name}",
-    "useHint": "Pick a moment and upload your shot — the sound is added to it."
+    "useHint": "Pick a moment and upload your shot — the sound is added to it.",
+    "recitedBy": "Recited by {author}"
   }
 }

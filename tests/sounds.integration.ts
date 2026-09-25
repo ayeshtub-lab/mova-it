@@ -33,10 +33,11 @@ async function main() {
       assert.equal(view?.angles.find((a) => a.id === photo.id)?.soundKey, "n01");
     });
 
-    await check("video: mute is the contributor's choice — always muted under remembrance", async () => {
+    await check("video: mute is the contributor's choice — always muted under Quran and remembrance", async () => {
       assert.deepEqual(await setAngleSound(owner, video.id, "n02", false), { soundKey: "n02", muteOriginal: false });
       assert.deepEqual(await setAngleSound(owner, video.id, "n02", true), { soundKey: "n02", muteOriginal: true });
       assert.deepEqual(await setAngleSound(owner, video.id, "s01", false), { soundKey: "s01", muteOriginal: true });
+      assert.deepEqual(await setAngleSound(owner, video.id, "q15", false), { soundKey: "q15", muteOriginal: true }); // Quran: always alone
       assert.deepEqual(await setAngleSound(owner, video.id, null, true), { soundKey: null, muteOriginal: false });
     });
 

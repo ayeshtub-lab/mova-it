@@ -1,16 +1,36 @@
 // Zawmo's sound library: sounds people can put on a photo, a video or a montage.
 // Every file in public/sounds/ is public domain / CC0, CC BY (credit shown on the
-// sound's page), or made by Zawmo (AI voice, pronunciation checked). Keys are stored
-// in the database — add freely, never rename or remove a key that has been used.
+// sound's page), or made by Zawmo (AI voice, pronunciation checked). Quran verses are
+// Sheikh Mishary Alafasy's recitation from MP3Quran.net (its site states its rights are
+// open to all, commercial use included), cut on MP3Quran's official verse timings and
+// otherwise untouched. Keys are stored in the database — add freely, never rename or
+// remove a key that has been used.
 
-export type SoundCategory = "nature" | "spiritual" | "wisdom" | "funny" | "warm" | "daf";
+export type SoundCategory = "quran" | "nature" | "spiritual" | "wisdom" | "funny" | "warm" | "daf";
 type Credit = { author: string; license: string; url: string };
 export type Sound = { key: string; cat: SoundCategory; ar: string; en: string; seconds: number; credit: Credit | null };
 
 const PD = "Public domain";
 const commons = (file: string) => `https://commons.wikimedia.org/wiki/File:${file}`;
+const AFASY: Credit = { author: "الشيخ مشاري العفاسي", license: "MP3Quran.net", url: "https://www.mp3quran.net/ar/afs" };
 
 export const SOUNDS: Sound[] = [
+  { key: "q01", cat: "quran", ar: "الضحى: وأما بنعمة ربك فحدّث", en: "Ad-Duha 11", seconds: 5.4, credit: AFASY },
+  { key: "q02", cat: "quran", ar: "الشرح: فإن مع العسر يسرًا", en: "Ash-Sharh 5–6", seconds: 9, credit: AFASY },
+  { key: "q03", cat: "quran", ar: "إبراهيم: لئن شكرتم لأزيدنكم", en: "Ibrahim 7", seconds: 15.4, credit: AFASY },
+  { key: "q04", cat: "quran", ar: "الرعد: ألا بذكر الله تطمئن القلوب", en: "Ar-Ra'd 28", seconds: 18.4, credit: AFASY },
+  { key: "q05", cat: "quran", ar: "النمل: صُنع الله الذي أتقن كل شيء", en: "An-Naml 88", seconds: 23.5, credit: AFASY },
+  { key: "q06", cat: "quran", ar: "الرحمن: فبأي آلاء ربكما تكذبان", en: "Ar-Rahman 13", seconds: 9.5, credit: AFASY },
+  { key: "q07", cat: "quran", ar: "آل عمران: إن في خلق السماوات والأرض", en: "Al Imran 190", seconds: 13.9, credit: AFASY },
+  { key: "q08", cat: "quran", ar: "ق: وأنبتنا فيها من كل زوج بهيج", en: "Qaf 7", seconds: 15.7, credit: AFASY },
+  { key: "q09", cat: "quran", ar: "الإسراء: وقرآن الفجر كان مشهودًا", en: "Al-Isra 78", seconds: 14.5, credit: AFASY },
+  { key: "q10", cat: "quran", ar: "الروم: وجعل بينكم مودة ورحمة", en: "Ar-Rum 21", seconds: 28.6, credit: AFASY },
+  { key: "q11", cat: "quran", ar: "الفرقان: هب لنا من أزواجنا وذرياتنا قرة أعين", en: "Al-Furqan 74", seconds: 16.3, credit: AFASY },
+  { key: "q12", cat: "quran", ar: "النحل: وإن تعدّوا نعمة الله لا تحصوها", en: "An-Nahl 18", seconds: 12.7, credit: AFASY },
+  { key: "q13", cat: "quran", ar: "الزخرف: سبحان الذي سخّر لنا هذا", en: "Az-Zukhruf 13–14", seconds: 32.6, credit: AFASY },
+  { key: "q14", cat: "quran", ar: "البقرة: فإني قريب أجيب دعوة الداع", en: "Al-Baqarah 186", seconds: 24.2, credit: AFASY },
+  { key: "q15", cat: "quran", ar: "سورة الإخلاص", en: "Al-Ikhlas", seconds: 13.2, credit: AFASY },
+  { key: "q16", cat: "quran", ar: "آية الكرسي", en: "Ayat al-Kursi", seconds: 54.2, credit: AFASY },
   { key: "n01", cat: "nature", ar: "عصافير الصباح", en: "Morning birds", seconds: 30, credit: { author: "stephan", license: PD, url: commons("Birdsong_mild_sunny_day.ogg") } },
   { key: "n02", cat: "nature", ar: "عصافير في الحديقة", en: "Birds in the garden", seconds: 30, credit: { author: "ezwa", license: PD, url: commons("Birds_singing_in_garden.ogg") } },
   { key: "n03", cat: "nature", ar: "تغريد العندليب", en: "Nightingale", seconds: 30, credit: { author: "Digweed1", license: "CC0", url: commons("Common_Nightingale%27s_song_2.ogg") } },
@@ -49,6 +69,7 @@ export const SOUNDS: Sound[] = [
 ];
 
 export const SOUND_CATEGORIES: { key: SoundCategory; emoji: string }[] = [
+  { key: "quran", emoji: "🕋" },
   { key: "nature", emoji: "🌿" },
   { key: "spiritual", emoji: "🤲" },
   { key: "wisdom", emoji: "📜" },
@@ -61,7 +82,9 @@ const BY_KEY = new Map(SOUNDS.map((s) => [s.key, s]));
 export const soundByKey = (key: string | null | undefined) => (key ? (BY_KEY.get(key) ?? null) : null);
 export const soundName = (s: Sound, locale: string) => (locale === "ar" ? s.ar : s.en);
 export const soundFile = (key: string) => `/sounds/${key}.mp3`;
-// Remembrance and wisdom are heard alone: a video's own sound is always muted under them.
-export const isSolemn = (s: Sound | null) => s?.cat === "spiritual" || s?.cat === "wisdom";
+// Quran, remembrance and wisdom are heard alone: a video's own sound is always muted under them.
+export const isSolemn = (s: Sound | null) => s?.cat === "quran" || s?.cat === "spiritual" || s?.cat === "wisdom";
+// A verse is heard once, never looped, and never cut short.
+export const isQuran = (s: Sound | null) => s?.cat === "quran";
 // «Use this sound» on a sound's page leaves its key in the browser for the next upload.
 export const PENDING_SOUND = "zawmo:sound";

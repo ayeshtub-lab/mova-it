@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LocalTime } from "@/app/LocalTime";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
-import { soundByKey, soundFile, soundName } from "@/lib/sounds";
+import { isQuran, soundByKey, soundFile, soundName } from "@/lib/sounds";
 import { ReportSheet, type ReportLabels } from "./ReportSheet";
 
 type Likes = { count: number; liked: boolean };
@@ -205,6 +205,7 @@ export function AngleGallery({
     const audio = player.current;
     if (!s?.key || muted) return void audio.pause();
     const src = soundFile(s.key);
+    audio.loop = !isQuran(soundByKey(s.key)); // a verse is heard once
     if (!audio.src.endsWith(src)) audio.src = src;
     audio.play().catch(() => {});
   }, [current, opened, sounds, muted, angles]);
