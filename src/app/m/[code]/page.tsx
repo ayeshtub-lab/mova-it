@@ -17,7 +17,7 @@ import { latestMontageFor } from "@/server/montage";
 import { googleEnabled } from "@/server/google";
 import { screenForPublic } from "@/server/angles";
 import { dailyFor, tomorrowVote } from "@/server/daily";
-import { themeText } from "@/lib/dailyThemes";
+import { themeHint, themeText } from "@/lib/dailyThemes";
 import { getMomentView, MomentError, setMomentVisibility } from "@/server/moments";
 import { AngleGallery } from "./AngleGallery";
 import { AngleWheel } from "./AngleWheel";
@@ -113,6 +113,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
             </p>
           )}
           <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">{daily ? `${daily.theme.emoji} ${themeText(daily.theme, locale)}` : view.title}</h1>
+          {daily && <p className="leading-relaxed text-muted">{themeHint(daily.theme, locale)}</p>}
           {daily?.theme.tip && <p className="rounded-2xl bg-secondary-soft px-3 py-2 text-sm font-semibold text-secondary">🤍 {locale === "ar" ? daily.theme.tip.ar : daily.theme.tip.en}</p>}
           <p className="text-sm text-muted">
             {[
@@ -228,10 +229,11 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         <div className="rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px] shadow-sm">
           <section id="join" className="flex scroll-mt-4 flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">
             <h2 className="text-xl font-extrabold">{t.ctaTitle}</h2>
-            {user?.isGuest && view.visibility === "PUBLIC" ? (
+            {/* Public moments take official (Google) accounts only: no guest form here. */}
+            {(!user || user.isGuest) && view.visibility === "PUBLIC" ? (
               <>
                 <p className="text-sm leading-relaxed text-muted">{dict.visibility.publicGuest}</p>
-                {googleEnabled() && <GoogleButton label={dict.account.saveButton} returnTo={`/m/${view.code}#join`} />}
+                {googleEnabled() && <GoogleButton label={user ? dict.account.saveButton : dict.account.google} returnTo={`/m/${view.code}#join`} />}
               </>
             ) : user ? (
               <AngleUploader

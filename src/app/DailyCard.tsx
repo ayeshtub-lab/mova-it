@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { User } from "@/generated/prisma/client";
-import { themeText } from "@/lib/dailyThemes";
+import { themeHint, themeText } from "@/lib/dailyThemes";
 import { plural } from "@/i18n/plural";
 import type { Dictionary } from "@/i18n/server";
 import { todayCard } from "@/server/daily";
@@ -56,6 +56,9 @@ export async function DailyCard({
             </span>
             <span className="text-lg font-extrabold leading-snug">
               {themeText(d.theme, locale)}
+            </span>
+            <span className="line-clamp-2 text-sm leading-snug text-muted">
+              {themeHint(d.theme, locale)}
             </span>
             <span className="text-xs text-muted">
               {t.angles.replace(
