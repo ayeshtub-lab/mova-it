@@ -3,7 +3,9 @@ import { cookies } from "next/headers";
 import { cache } from "react";
 import { db } from "@/lib/db";
 
-export const SESSION_COOKIE = "mova_session";
+import { SESSION_COOKIE } from "@/lib/session-cookie";
+
+export { SESSION_COOKIE };
 const SESSION_DAYS = 180;
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
@@ -72,4 +74,30 @@ export async function endSession() {
   const token = store.get(SESSION_COOKIE)?.value;
   if (token) await db.session.deleteMany({ where: { tokenHash: hashToken(token) } });
   store.delete(SESSION_COOKIE);
+}
+
+// ── Moving to a new address ────────────────────────────────────────────────
+// Cookies belong to one address, so moving from mova-it.vercel.app to zawmo.com would
+// sign everyone out (and guests would lose their moments). The old address hands the
+// browser a one-time token (valid 2 minutes, stored hashed like any session) in a
+// redirect; the new address trades it for a normal session.
+const TRANSFER_MS = 2 * 60 * 1000;
+
+export async function createTransferToken(userId: string) {
+  const token = randomBytes(32).toString("base64url");
+  await db.session.create({ data: { userId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + TRANSFER_MS) } });
+  return token;
+}
+
+// Route Handler only (sets the cookie). Single use: the token is deleted either way;
+// with signIn false (the browser is already signed in here) it is only spent.
+export async function claimTransferToken(token: string, signIn = true) {
+  const session = await db.session.findUnique({ where: { tokenHash: hashToken(token) } });
+  if (!session) return false;
+  await db.session.delete({ where: { id: session.id } });
+  // Only short-lived transfer tokens qualify — never a normal 180-day session.
+  const lifetime = session.expiresAt.getTime() - session.createdAt.getTime();
+  if (session.expiresAt < new Date() || lifetime > TRANSFER_MS + 5000 || !signIn) return false;
+  await startSessionFor(session.userId);
+  return true;
 }

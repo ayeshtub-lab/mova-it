@@ -6,6 +6,7 @@ import ar from "@/i18n/dictionaries/ar.json";
 import en from "@/i18n/dictionaries/en.json";
 import { plural } from "@/i18n/plural";
 import { db } from "@/lib/db";
+import { publicHost } from "@/lib/hosts";
 import { isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
 import { viewUrl } from "@/server/media";
@@ -100,7 +101,8 @@ export async function renderMontage(montageId: string, siteHost: string) {
             .replace("{n}", String(ordered.length))
             .replace("{name}", angle.contributor.displayName),
           cta: dict.montage.cta,
-          link: `${siteHost}/m/${moment.code}`,
+          // The short link (zawmo.com/K7M2Q4): easy to read off a video and type in.
+          link: `${publicHost(siteHost)}/${moment.code}`,
         }),
       );
       total += angle.mediaType === "VIDEO" ? await videoSegment(input, overlay, out) : await photoSegment(input, overlay, out);

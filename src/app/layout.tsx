@@ -4,6 +4,7 @@ import { Cairo, Syne } from "next/font/google";
 import { dirOf } from "@/i18n/config";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
+import { CANONICAL_HOST } from "@/lib/hosts";
 import { currentUnread } from "@/server/inbox";
 import { BottomNav } from "./BottomNav";
 import "./globals.css";
@@ -22,7 +23,8 @@ const syne = Syne({
 
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary(await getLocale());
-  return { title: dict.meta.title, description: dict.meta.description };
+  // Absolute links in previews (WhatsApp, social) always point at zawmo.com.
+  return { metadataBase: new URL(`https://${CANONICAL_HOST}`), title: dict.meta.title, description: dict.meta.description };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

@@ -8,7 +8,7 @@ export type OverlayText = {
   meta: string; // e.g. "٥ زوايا · ٣ أشخاص"
   label: string; // e.g. "زاوية ٢ من ٥ · كريم"
   cta: string; // e.g. "كنت هون؟ ضيف زاويتك"
-  link: string; // e.g. "mova-it.vercel.app/m/K7M2Q4"
+  link: string; // e.g. "zawmo.com/K7M2Q4"
 };
 
 const box = { position: "absolute", top: 0, left: 0, width: FRAME.width, height: FRAME.height } as const;

@@ -25,3 +25,5 @@ export function relativeTime(date: Date, locale: string) {
   }
   return rtf.format(value, "year");
 }
+
+export { CANONICAL_HOST, OLD_HOSTS, publicHost } from "@/lib/hosts";
