@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-type Shot = { id: string; mediaType: string; coverUrl: string | null; momentCode: string; momentTitle: string; views: number };
+type Shot = { id: string; mediaType: string; coverUrl: string | null; momentCode: string; momentTitle: string; views: number; isNew: boolean };
 type Like = { id: string; mediaType: string; coverUrl: string | null; momentCode: string; momentTitle: string };
 type MomentItem = { code: string; title: string; angleCount: number; coverUrl: string | null };
 
@@ -19,6 +19,7 @@ type Labels = {
   emptySaved: string;
   savedPrivate: string;
   seenBy: string;
+  isNew: string;
 };
 
 function Tile({ href, coverUrl, video, children }: { href: string; coverUrl: string | null; video: boolean; children?: React.ReactNode }) {
@@ -105,6 +106,7 @@ export function ProfileTabs({
           <div className="grid grid-cols-3 gap-1.5">
               {shots.map((s) => (
                 <Tile key={s.id} href={`/m/${s.momentCode}#angle-${s.id}`} coverUrl={s.coverUrl} video={s.mediaType === "VIDEO"}>
+                  {s.isNew && <span className="absolute start-1.5 top-1.5"><span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span></span>}
                   <span className="absolute bottom-1.5 start-1.5 rounded-full bg-black/55 px-2 text-xs font-bold text-white" title={labels.seenBy}>
                     👁 {s.views}
                   </span>

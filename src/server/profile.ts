@@ -3,6 +3,7 @@ import { del, put } from "@vercel/blob";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { cleanDisplayName } from "@/lib/session";
+import { isNew } from "@/lib/site";
 import { visibleAngle } from "@/server/access";
 import { viewUrl } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
@@ -115,6 +116,7 @@ export async function getProfile(viewer: User | null, userId: string) {
       momentCode: a.moment.code,
       momentTitle: a.moment.title,
       views: views.get(a.id) ?? 0,
+      isNew: isNew(a.uploadedAt),
     })),
   );
   const moments = await Promise.all(

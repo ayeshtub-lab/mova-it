@@ -31,6 +31,7 @@ export type GalleryAngle = {
   canDelete: boolean;
   isMine: boolean;
   views: number;
+  isNew: boolean; // first 24 hours
 };
 
 type Labels = {
@@ -56,6 +57,7 @@ type Labels = {
   play: string;
   pause: string;
   actionFailed: string;
+  isNew: string;
   sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
   delete: string;
   confirmDelete: string;
@@ -456,6 +458,7 @@ export function AngleGallery({
               <span aria-hidden="true" className="absolute inset-0 animate-pulse bg-gradient-to-br from-line via-surface to-line" />
               {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable */}
               <img src={(a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl) ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" />
+              {a.isNew && <span className="pointer-events-none absolute end-2 top-2"><span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span></span>}
               {a.mediaType === "VIDEO" && (
                 <span aria-hidden="true" className="absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45">
                   <svg viewBox="0 0 24 24" className="size-6 fill-white">
@@ -557,6 +560,7 @@ export function AngleGallery({
                         {a.contributorName}
                       </Link>
                       <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{a.presence === "REMOTE" ? labels.remoteTag : labels.thereTag}</span>
+                      {a.isNew && <span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span>}
                     </>
                   ) : (
                     caption(a)

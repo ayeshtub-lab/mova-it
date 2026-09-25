@@ -167,7 +167,8 @@
     "views": "views",
     "play": "Play",
     "pause": "Pause",
-    "actionFailed": "That didn't work, try again."
+    "actionFailed": "That didn't work, try again.",
+    "isNew": "New"
   },
   "montage": {
     "label": "Angle {i} of {n} · {name}",
@@ -384,5 +385,24 @@
     "openSound": "Sound page: {name}",
     "useHint": "Pick a moment and upload your shot — the sound is added to it.",
     "recitedBy": "Recited by {author}"
+  },
+  "deleteAccount": {
+    "title": "Delete my account",
+    "goesTitle": "Deleted right away:",
+    "goes": [
+      "Your account, name and photo.",
+      "All your shots (photos and videos) and their files.",
+      "Your comments, likes, saved shots, messages and follows.",
+      "Moments you started that only have your shots, and any montage with one of your shots."
+    ],
+    "others": "Moments you started where others added shots are not deleted, so their memories stay: they pass to the Zawmo account, and only your shots are removed.",
+    "final": "This is permanent and can't be undone.",
+    "typeToConfirm": "To confirm, type “{word}”:",
+    "word": "DELETE",
+    "button": "Delete my account permanently",
+    "working": "Deleting…",
+    "mismatch": "That doesn't match.",
+    "failed": "Couldn't delete. Try again or email us.",
+    "link": "Delete my account"
   }
 }

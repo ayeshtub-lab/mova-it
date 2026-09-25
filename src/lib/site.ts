@@ -8,6 +8,10 @@ export async function siteOrigin() {
   return `${proto}://${host}`;
 }
 
+// A shot counts as new for its first 24 hours (the «جديد» badge).
+export const NEW_FOR_MS = 24 * 60 * 60 * 1000;
+export const isNew = (uploadedAt: Date, now = new Date()) => now.getTime() - uploadedAt.getTime() < NEW_FOR_MS;
+
 export function relativeTime(date: Date, locale: string) {
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
   const seconds = Math.round((date.getTime() - Date.now()) / 1000);

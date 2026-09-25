@@ -7,7 +7,7 @@ import { getDictionary, getLocale } from "@/i18n/server";
 // update this page (and UPDATED) whenever data handling changes.
 
 const CONTACT_EMAIL = "ayeshcom44@gmail.com";
-const UPDATED = { ar: "٢٤ سبتمبر ٢٠٢٦", en: "September 24, 2026" };
+const UPDATED = { ar: "٢٥ سبتمبر ٢٠٢٦", en: "September 25, 2026" };
 
 type Section = { title: string; items: string[] };
 
@@ -78,14 +78,14 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       {
         title: "مدة الاحتفاظ",
         items: [
-          "اللقطات تختفي بعد ٢٤ ساعة، إلا إذا صارت اللحظة دائمة.",
+          "لقطاتك تبقى محفوظة، لتبقى ذكرياتك، حتى تحذفها أنت أو تحذف حسابك.",
           "تستطيع حذف لقطاتك وتعليقاتك في أي وقت، فيُحذف الملف معها.",
-          "لحذف حسابك كاملًا، راسلنا وسنحذفه خلال ٣٠ يومًا.",
+          "تستطيع حذف حسابك بنفسك في أي وقت (صفحتك ← «حذف حسابي»، أو zawmo.com/account/delete)، فيُحذف فورًا مع لقطاتك وملفاتك.",
         ],
       },
       {
         title: "حقوقك",
-        items: ["تعديل اسمك من صفحتك الشخصية.", "حذف ما نشرته.", "طلب نسخة من بياناتك أو حذف حسابك، بمراسلتنا."],
+        items: ["تعديل اسمك من صفحتك الشخصية.", "حذف ما نشرته.", "حذف حسابك بنفسك، أو طلب نسخة من بياناتك بمراسلتنا."],
       },
       {
         title: "الأطفال",
@@ -164,14 +164,14 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       {
         title: "How long we keep things",
         items: [
-          "Shots disappear after 24 hours unless the moment becomes permanent.",
+          "Your shots are kept, so your memories stay, until you delete them or your account.",
           "You can delete your shots and comments at any time, and the file is deleted with them.",
-          "To delete your whole account, email us and we'll delete it within 30 days.",
+          "You can delete your account yourself at any time (your page → “Delete my account”, or zawmo.com/account/delete); it goes right away, with your shots and files.",
         ],
       },
       {
         title: "Your rights",
-        items: ["Change your name from your profile.", "Delete what you posted.", "Ask for a copy of your data or for your account to be deleted, by emailing us."],
+        items: ["Change your name from your profile.", "Delete what you posted.", "Delete your account yourself, or ask for a copy of your data by emailing us."],
       },
       {
         title: "Children",

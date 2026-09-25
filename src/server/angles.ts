@@ -10,7 +10,6 @@ export const MAX_VIDEO_SECONDS = 20;
 const VIDEO_SECONDS_TOLERANCE = 0.5;
 const ANGLES_PER_USER_PER_MOMENT = 30;
 const UPLOAD_WINDOW_MS = 15 * 60 * 1000;
-const ANGLE_LIFETIME_MS = 24 * 60 * 60 * 1000;
 
 const VIDEO_TYPES: Record<string, string> = { "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm" };
 
@@ -164,7 +163,7 @@ export async function completeAngle(user: User, angleId: string) {
       where: { id: angle.id },
       data: {
         status: blocked ? "HIDDEN" : "READY",
-        expiresAt: angle.moment.isPermanent ? null : new Date(now.getTime() + ANGLE_LIFETIME_MS),
+        expiresAt: null, // shots are kept until their owner deletes them
         screening: verdict?.result ?? null,
         screenedAt: verdict ? now : null,
       },

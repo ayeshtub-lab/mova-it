@@ -8,6 +8,7 @@ import { commentCounts } from "@/server/comments";
 import { viewCounts } from "@/server/profile";
 import { reactionsFor, savedFor } from "@/server/reactions";
 import { screenText } from "@/server/screening";
+import { isNew } from "@/lib/site";
 
 // No 0/O, 1/I/L: codes get read aloud and typed from screenshots.
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -166,6 +167,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         profileId: a.contributor.isGuest ? null : a.contributorId,
         capturedAt: a.capturedAt,
         uploadedAt: a.uploadedAt,
+        isNew: isNew(a.uploadedAt, now),
         durationSec: a.durationSec,
         width: a.width,
         height: a.height,

@@ -80,7 +80,7 @@ async function winner(day: string) {
   return { theme: best, source: (votes.get(best.key) ?? 0) > 0 ? "vote" : "random" };
 }
 
-async function systemUser() {
+export async function systemUser() {
   return (
     (await db.user.findFirst({ where: { isSystem: true } })) ??
     db.user.create({ data: { displayName: "زاومو", isGuest: false, isSystem: true } })

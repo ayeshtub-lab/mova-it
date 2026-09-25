@@ -118,8 +118,14 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             emptySaved: t.emptySaved,
             savedPrivate: t.savedPrivate,
             seenBy: dict.viewer.seenBy,
+            isNew: dict.viewer.isNew,
           }}
         />
+        {profile.isMe && (
+          <Link href="/account/delete" className="self-center text-xs font-bold text-muted underline-offset-4 hover:text-accent-ink hover:underline">
+            {dict.deleteAccount.link}
+          </Link>
+        )}
       </main>
     </div>
   );
