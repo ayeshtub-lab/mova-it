@@ -152,10 +152,12 @@ export async function setTheme(admin: User, day: string, themeKey: string) {
 export async function todayCard(viewer: User | null) {
   const t = await today();
   const live = { momentId: t.moment.id, status: "READY" as const, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] };
-  const [angleCount, joined, first] = await Promise.all([
+  const tomorrow = addDays(t.day, 1);
+  const [angleCount, joined, first, vote] = await Promise.all([
     db.angle.count({ where: live }),
     viewer ? db.angle.count({ where: { ...live, contributorId: viewer.id } }).then((n) => n > 0) : false,
     db.angle.findFirst({ where: live, orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true } }),
+    viewer ? db.dailyVote.findUnique({ where: { day_userId: { day: tomorrow, userId: viewer.id } } }) : null,
   ]);
   return {
     code: t.moment.code,
@@ -163,12 +165,23 @@ export async function todayCard(viewer: User | null) {
     hoursLeft: hoursLeft(t.day),
     angleCount,
     joined,
+    // The viewer's vote for tomorrow, to remind them on the home card.
+    myVote: vote ? themeByKey(vote.themeKey) : null,
     coverUrl: first ? await viewUrl(first.mediaType === "VIDEO" ? first.thumbPath : first.mediaPath) : null,
   };
 }
 
-// If this moment is a «لحظة اليوم», its day and theme.
-export async function dailyFor(momentId: string) {
+// If this moment is a «لحظة اليوم»: its day and theme, and — when the theme won the
+// vote — how many votes it got and whether the viewer voted for it.
+export async function dailyFor(momentId: string, viewer: User | null = null) {
   const plan = await db.dailyPlan.findUnique({ where: { momentId } });
-  return plan ? { day: plan.day, theme: themeByKey(plan.themeKey), hoursLeft: hoursLeft(plan.day), isToday: plan.day === dayKey() } : null;
+  if (!plan) return null;
+  const won =
+    plan.source === "vote"
+      ? await Promise.all([
+          db.dailyVote.count({ where: { day: plan.day, themeKey: plan.themeKey } }),
+          viewer ? db.dailyVote.findUnique({ where: { day_userId: { day: plan.day, userId: viewer.id } } }) : null,
+        ]).then(([votes, mine]) => ({ votes, mineWon: mine?.themeKey === plan.themeKey }))
+      : null;
+  return { day: plan.day, theme: themeByKey(plan.themeKey), hoursLeft: hoursLeft(plan.day), isToday: plan.day === dayKey(), won };
 }

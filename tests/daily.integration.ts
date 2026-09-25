@@ -4,7 +4,7 @@ import "./env"; // DATABASE_URL + Blob token (Discover may include real public m
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { visibleAngle } from "../src/server/access";
-import { addDays, dayEnd, dayKey, DailyError, optionsFor, setTheme, today, tomorrowVote, vote } from "../src/server/daily";
+import { addDays, dailyFor, dayEnd, dayKey, DailyError, optionsFor, setTheme, today, tomorrowVote, vote } from "../src/server/daily";
 import { listDiscover } from "../src/server/discover";
 import { getMomentView } from "../src/server/moments";
 
@@ -88,6 +88,10 @@ async function main() {
       const next = await today(NOON(addDays(D1, 1)));
       assert.equal(next.plan.themeKey, winnerKey);
       assert.equal(next.plan.source, "vote");
+      // The new day shows the result: how many votes, and whether yours won.
+      const won = (await dailyFor(next.moment.id, sara))?.won;
+      assert.deepEqual(won, { votes: 2, mineWon: true });
+      assert.equal((await dailyFor(next.moment.id, admin))?.won?.mineWon, false); // didn't vote
     });
 
     await check("any theme from the list can be voted for — and win — not only the featured three", async () => {

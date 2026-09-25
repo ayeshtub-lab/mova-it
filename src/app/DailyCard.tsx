@@ -67,6 +67,11 @@ export async function DailyCard({
               )}{" "}
               · {t.endsIn.replace("{time}", endsIn)}
             </span>
+            {user && (
+              <span className="text-xs font-bold text-secondary">
+                {d.myVote ? t.cardVote.replace("{theme}", `${d.myVote.emoji} ${themeText(d.myVote, locale)}`) : t.cardVoteNow}
+              </span>
+            )}
           </span>
         </span>
         <span

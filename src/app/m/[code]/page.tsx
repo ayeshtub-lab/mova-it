@@ -91,7 +91,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   const shareUrl = `${await siteOrigin()}/m/${view.code}`;
   const timeline = timelineOf(view.angles);
   // «لحظة اليوم»: its theme, time left, and (while it's today) the vote for tomorrow.
-  const daily = view.kind === "DAILY" ? await dailyFor(view.id) : null;
+  const daily = view.kind === "DAILY" ? await dailyFor(view.id, user) : null;
   const ballot = daily?.isToday ? await tomorrowVote(user) : null;
 
   return (
@@ -114,6 +114,12 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
             </p>
           )}
           <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">{daily ? `${daily.theme.emoji} ${themeText(daily.theme, locale)}` : view.title}</h1>
+          {daily?.won && daily.won.votes > 0 && (
+            <p className="flex w-fit flex-wrap items-center gap-2 rounded-2xl bg-moment/20 px-3 py-1.5 text-sm font-extrabold">
+              {dict.daily.won.replace("{n}", String(daily.won.votes))}
+              {daily.won.mineWon && <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-white">{dict.daily.youWon}</span>}
+            </p>
+          )}
           {daily && <p className="leading-relaxed text-muted">{themeHint(daily.theme, locale)}</p>}
           {view.description && <Description text={view.description} className="text-lg" />}
           {daily?.theme.tip && <p className="rounded-2xl bg-secondary-soft px-3 py-2 text-sm font-semibold text-secondary">🤍 {locale === "ar" ? daily.theme.tip.ar : daily.theme.tip.en}</p>}
@@ -279,7 +285,19 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               initialMore={ballot.more.map((o) => ({ key: o.key, emoji: o.emoji, label: themeText(o, locale), votes: o.votes }))}
               mine={ballot.mine}
               signedIn={!!user}
-              labels={{ title: dict.daily.voteTitle, hint: dict.daily.voteHint, voted: dict.daily.voted, failed: dict.daily.voteFailed, votes: dict.daily.votes, more: dict.daily.more, less: dict.daily.less }}
+              labels={{
+                title: dict.daily.voteTitle,
+                hint: dict.daily.voteHint,
+                voted: dict.daily.voted,
+                votedFor: dict.daily.votedFor,
+                confirm: dict.daily.confirm,
+                change: dict.daily.change,
+                cancel: dict.daily.cancel,
+                failed: dict.daily.voteFailed,
+                votes: dict.daily.votes,
+                more: dict.daily.more,
+                less: dict.daily.less,
+              }}
             />
           ))}
 
