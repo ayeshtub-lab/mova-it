@@ -342,5 +342,41 @@
     "title": "#{tag}",
     "hint": "Public moments with this hashtag",
     "empty": "No public moments with this hashtag yet."
+  },
+  "sounds": {
+    "title": "🎵 Pick a sound",
+    "none": "No sound",
+    "cats": {
+      "nature": "Nature",
+      "spiritual": "Remembrance",
+      "wisdom": "Wisdom",
+      "funny": "Funny",
+      "warm": "Warm",
+      "daf": "Frame drum"
+    },
+    "preview": "Listen",
+    "stop": "Stop",
+    "chosen": "✓ Chosen",
+    "muteOriginal": "Mute the video's own sound",
+    "solemnNote": "Under remembrance, the video's own sound is muted",
+    "save": "Use this sound",
+    "cancel": "Close",
+    "add": "🎵 Add a sound",
+    "failed": "Couldn't save the sound, try again.",
+    "pending": "🎵 Chosen sound: {name} — it goes on the first shot you upload",
+    "pendingClear": "Cancel",
+    "useThis": "🎵 Use this sound",
+    "uses": "{n} uses",
+    "by": "Sound by {author}",
+    "byZawmo": "Sound by Zawmo",
+    "license": "License: {license}",
+    "source": "Source",
+    "empty": "No public shots with this sound yet. Be the first!",
+    "library": "From the Zawmo sound library",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "montage": "Montage sound",
+    "openSound": "Sound page: {name}",
+    "useHint": "Pick a moment and upload your shot — the sound is added to it."
   }
 }

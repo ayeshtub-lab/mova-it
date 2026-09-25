@@ -2,8 +2,11 @@
 
 import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { PrepareError, prepareAngleFile } from "@/lib/media-client";
+import { PENDING_SOUND, soundByKey, soundName } from "@/lib/sounds";
+
 
 type Labels = {
   cameraPhoto: string;
@@ -17,7 +20,17 @@ type Labels = {
   errors: { unsupported: string; too_long: string; too_many: string; failed: string; blocked: string; official_required: string };
 };
 
-type ItemState = { name: string; status: "preparing" | "uploading" | "checking" | "done" | "error"; pct: number; error?: keyof Labels["errors"] };
+type ItemState = {
+  name: string;
+  status: "preparing" | "uploading" | "checking" | "done" | "error";
+  pct: number;
+  error?: keyof Labels["errors"];
+  angleId?: string;
+  isVideo?: boolean;
+  soundKey?: string | null;
+  muteOriginal?: boolean;
+};
+type UploaderSoundLabels = SoundLabels & { add: string; failed: string; pending: string; pendingClear: string };
 
 async function postJson(url: string, body?: unknown) {
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
@@ -27,12 +40,59 @@ async function postJson(url: string, body?: unknown) {
 }
 
 // `afterUpload` is shown once at least one angle was added (e.g. "send it to friends").
-export function AngleUploader({ code, labels, afterUpload }: { code: string; labels: Labels; afterUpload?: React.ReactNode }) {
+export function AngleUploader({
+  code,
+  labels,
+  afterUpload,
+  locale,
+  soundLabels,
+}: {
+  code: string;
+  labels: Labels;
+  afterUpload?: React.ReactNode;
+  locale: string;
+  soundLabels: UploaderSoundLabels;
+}) {
   const [uploaded, setUploaded] = useState(false);
   const inputId = useId();
   const router = useRouter();
   const [items, setItems] = useState<ItemState[]>([]);
   const busy = items.some((i) => i.status === "preparing" || i.status === "uploading" || i.status === "checking");
+  // A sound chosen on a sound's page, waiting for the next shot.
+  const [pending, setPending] = useState<string | null>(null);
+  useEffect(() => {
+    try {
+      const key = localStorage.getItem(PENDING_SOUND);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- read once from the browser after hydration
+      if (soundByKey(key)) setPending(key);
+    } catch {}
+  }, []);
+  const [picking, setPicking] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [soundError, setSoundError] = useState(false);
+
+  function clearPending() {
+    setPending(null);
+    try {
+      localStorage.removeItem(PENDING_SOUND);
+    } catch {}
+  }
+
+  async function saveSound(index: number, angleId: string, soundKey: string | null, muteOriginal: boolean) {
+    setSaving(true);
+    setSoundError(false);
+    const res = await fetch(`/api/angles/${angleId}/sound`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ soundKey, muteOriginal }) }).catch(() => null);
+    setSaving(false);
+    if (!res?.ok) {
+      setSoundError(true);
+      return false;
+    }
+    const saved = (await res.json()) as { soundKey: string | null; muteOriginal: boolean };
+    update(index, saved);
+    setPicking(null);
+    router.refresh();
+    return true;
+  }
 
   const update = (index: number, patch: Partial<ItemState>) =>
     setItems((all) => all.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -69,8 +129,9 @@ export function AngleUploader({ code, labels, afterUpload }: { code: string; lab
       const result = await postJson(`/api/angles/${angleId}/complete`);
       // Hidden by the automatic content check: it never shows up.
       if (result.status === "HIDDEN") return update(index, { status: "error", error: "blocked" });
-      update(index, { status: "done" });
+      update(index, { status: "done", angleId, isVideo: prepared.mediaType === "VIDEO", soundKey: null });
       setUploaded(true);
+      if (pending && (await saveSound(index, angleId, pending, false))) clearPending();
     } catch (error) {
       const serverCode = (error as { code?: string }).code;
       const reason =
@@ -132,6 +193,14 @@ export function AngleUploader({ code, labels, afterUpload }: { code: string; lab
       <input id={`${inputId}-video`} type="file" accept="video/*" capture="environment" onChange={onPick} className="sr-only" />
       <input id={inputId} type="file" accept="image/*,video/mp4,video/quicktime,video/webm" multiple onChange={onPick} className="sr-only" />
       <p className="text-sm text-muted">{labels.hint}</p>
+      {pending && (
+        <p className="flex items-center justify-between gap-2 rounded-2xl bg-secondary-soft px-4 py-2.5 text-sm font-bold text-secondary">
+          <span>{soundLabels.pending.replace("{name}", soundName(soundByKey(pending)!, locale))}</span>
+          <button type="button" onClick={clearPending} className="min-h-9 shrink-0 rounded-full px-2 text-muted underline-offset-4 hover:underline">
+            {soundLabels.pendingClear}
+          </button>
+        </p>
+      )}
 
       {items.length > 0 && (
         <ul className="flex flex-col gap-2" aria-live="polite">
@@ -147,9 +216,31 @@ export function AngleUploader({ code, labels, afterUpload }: { code: string; lab
                 {item.status === "done" && labels.done}
                 {item.status === "error" && labels.errors[item.error ?? "failed"]}
               </span>
+              {item.status === "done" && item.angleId && (
+                <button type="button" onClick={() => setPicking(i)} className="min-h-9 shrink-0 rounded-full bg-background px-3 text-xs font-bold text-secondary shadow-sm">
+                  {soundByKey(item.soundKey) ? `🎵 ${soundName(soundByKey(item.soundKey)!, locale)}` : soundLabels.add}
+                </button>
+              )}
             </li>
           ))}
         </ul>
+      )}
+      {soundError && (
+        <p role="alert" className="text-sm font-semibold text-accent-ink">
+          {soundLabels.failed}
+        </p>
+      )}
+      {picking !== null && items[picking]?.angleId && (
+        <SoundPicker
+          locale={locale}
+          labels={soundLabels}
+          initialKey={items[picking].soundKey ?? null}
+          initialMute={items[picking].muteOriginal}
+          isVideo={items[picking].isVideo}
+          busy={saving}
+          onSave={(key, mute) => saveSound(picking, items[picking].angleId!, key, mute)}
+          onClose={() => setPicking(null)}
+        />
       )}
       {uploaded && !busy && afterUpload}
     </div>

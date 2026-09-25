@@ -195,6 +195,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 id: a.id,
                 mediaType: a.mediaType,
                 presence: a.presence,
+                soundKey: a.soundKey,
+                muteOriginal: a.muteOriginal,
                 contributorName: a.contributorName,
                 profileId: a.profileId,
                 contributorAvatar: a.contributorAvatar,
@@ -210,7 +212,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 views: a.views,
               }))}
               locale={locale}
-              labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag }}
+              labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds }}
               canReact={!!user}
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}
@@ -233,7 +235,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
 
         {view.angleCount > 0 &&
           (view.viewer.isCreator || view.viewer.hasContributed ? (
-            <MontagePanel code={view.code} initial={await latestMontageFor(user, view.code)} labels={dict.montage} />
+            <MontagePanel code={view.code} initial={await latestMontageFor(user, view.code)} labels={dict.montage} locale={locale} soundLabels={dict.sounds} />
           ) : (
             <p className="rounded-2xl bg-surface p-4 text-sm text-muted">{dict.montage.locked}</p>
           ))}
@@ -250,6 +252,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               </>
             ) : user ? (
               <AngleUploader
+                locale={locale}
+                soundLabels={dict.sounds}
                 code={view.code}
                 labels={dict.upload}
                 afterUpload={

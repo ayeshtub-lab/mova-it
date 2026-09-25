@@ -1,5 +1,6 @@
 import type { Montage, User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { soundByKey } from "@/lib/sounds";
 import { viewUrl } from "@/server/media";
 
 const MAX_ANGLES = 12;
@@ -37,17 +38,18 @@ const sameAngles = (a: string[], b: string[]) => a.length === b.length && a.ever
 const isAlive = (m: Montage) =>
   m.status === "READY" || ((m.status === "QUEUED" || m.status === "RENDERING") && Date.now() - m.createdAt.getTime() < STALE_RENDER_MS);
 
-// Returns the montage for the moment's current angles: an existing one when nothing
-// changed (or one is already rendering), otherwise a new queued row to render.
-export async function requestMontage(user: User, code: string) {
+// Returns the montage for the moment's current angles and sound: an existing one when
+// nothing changed (or one is already rendering), otherwise a new queued row to render.
+export async function requestMontage(user: User, code: string, rawSound: unknown = null) {
+  const soundKey = soundByKey(typeof rawSound === "string" ? rawSound : null)?.key ?? null;
   const moment = await unlockedMoment(user, code);
   const angleIds = await currentAngleIds(moment.id);
   if (!angleIds.length) throw new MontageError("no_angles");
 
   const latest = await db.montage.findFirst({ where: { momentId: moment.id }, orderBy: { createdAt: "desc" } });
-  if (latest && isAlive(latest) && sameAngles(latest.angleIds, angleIds)) return { montage: latest, created: false };
+  if (latest && isAlive(latest) && sameAngles(latest.angleIds, angleIds) && latest.soundKey === soundKey) return { montage: latest, created: false };
 
-  const montage = await db.montage.create({ data: { momentId: moment.id, angleIds } });
+  const montage = await db.montage.create({ data: { momentId: moment.id, angleIds, soundKey } });
   return { montage, created: true };
 }
 
@@ -57,6 +59,7 @@ export async function montageView(montage: Montage) {
     id: montage.id,
     status: montage.status,
     durationSec: montage.durationSec,
+    soundKey: montage.soundKey,
     videoUrl: montage.status === "READY" ? await viewUrl(montage.videoUrl) : null,
     // New angles arrived since this montage was made: offer a fresh one.
     outdated: !sameAngles(montage.angleIds, current),

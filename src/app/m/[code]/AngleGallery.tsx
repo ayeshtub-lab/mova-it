@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LocalTime } from "@/app/LocalTime";
+import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
+import { soundByKey, soundFile, soundName } from "@/lib/sounds";
 import { ReportSheet, type ReportLabels } from "./ReportSheet";
 
 type Likes = { count: number; liked: boolean };
@@ -14,6 +16,8 @@ export type GalleryAngle = {
   id: string;
   mediaType: "PHOTO" | "VIDEO";
   presence: "THERE" | "REMOTE";
+  soundKey: string | null;
+  muteOriginal: boolean;
   contributorName: string;
   contributorAvatar: string | null;
   profileId: string | null;
@@ -52,6 +56,7 @@ type Labels = {
   play: string;
   pause: string;
   actionFailed: string;
+  sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
   delete: string;
   confirmDelete: string;
   deleteFailed: string;
@@ -120,6 +125,19 @@ export function AngleGallery({
   const [paused, setPaused] = useState(() => new Set<string>());
   const [burst, setBurst] = useState<{ id: string; x: number; y: number; key: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Library sounds: per angle (the contributor may change it here), one shared player,
+  // and a mute switch remembered on this device.
+  const [sounds, setSounds] = useState(() => new Map(angles.map((a) => [a.id, { key: a.soundKey, mute: a.muteOriginal }])));
+  const [muted, setMuted] = useState(false);
+  const [soundFor, setSoundFor] = useState<string | null>(null);
+  const [savingSound, setSavingSound] = useState(false);
+  const player = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- read once from the browser after hydration
+      setMuted(localStorage.getItem("zawmo:muted") === "1");
+    } catch {}
+  }, []);
   const likesOf = (id: string) => likes.get(id)!;
 
   const slides = () => Array.from(trackRef.current?.children ?? []) as HTMLElement[];
@@ -168,11 +186,46 @@ export function AngleGallery({
     return () => observer.disconnect();
   }, [angles.length]);
 
-  // Videos play by themselves when they come on screen, like a feed.
+  // Videos play by themselves when they come on screen, like a feed; the angle's sound
+  // plays with it (looped), and a video's own sound goes softer — or silent — under it.
   useEffect(() => {
     if (!dialogRef.current?.open) return;
-    slides()[current]?.querySelector("video")?.play().catch(() => {});
-  }, [current, opened]);
+    const angle = angles[current];
+    const s = angle ? sounds.get(angle.id) : null;
+    const video = slides()[current]?.querySelector("video");
+    if (video) {
+      video.muted = muted || !!(s?.key && s.mute);
+      video.volume = s?.key ? 0.35 : 1;
+      video.play().catch(() => {});
+    }
+    if (!player.current) {
+      player.current = new Audio();
+      player.current.loop = true;
+    }
+    const audio = player.current;
+    if (!s?.key || muted) return void audio.pause();
+    const src = soundFile(s.key);
+    if (!audio.src.endsWith(src)) audio.src = src;
+    audio.play().catch(() => {});
+  }, [current, opened, sounds, muted, angles]);
+
+  function toggleMute() {
+    const next = !muted;
+    setMuted(next);
+    try {
+      localStorage.setItem("zawmo:muted", next ? "1" : "0");
+    } catch {}
+  }
+
+  async function saveSound(angleId: string, key: string | null, mute: boolean) {
+    setSavingSound(true);
+    const res = await fetch(`/api/angles/${angleId}/sound`,{ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ soundKey: key, muteOriginal: mute }) }).catch(() => null);
+    setSavingSound(false);
+    if (!res?.ok) return flash(labels.sounds.failed);
+    const saved = (await res.json()) as { soundKey: string | null; muteOriginal: boolean };
+    setSounds((m) => new Map(m).set(angleId, { key: saved.soundKey, mute: saved.muteOriginal }));
+    setSoundFor(null);
+  }
 
   function flash(text: string) {
     setToast(text);
@@ -424,7 +477,9 @@ export function AngleGallery({
         onKeyDown={onKeyDown}
         onClose={() => {
           slides().forEach((s) => s.querySelector("video")?.pause());
+          player.current?.pause();
           setSheetFor(null);
+          setSoundFor(null);
           if (window.location.hash.startsWith("#angle-")) history.replaceState(null, "", window.location.pathname + window.location.search);
         }}
         className="m-0 h-dvh max-h-none w-screen max-w-none bg-black p-0 text-white backdrop:bg-black"
@@ -444,8 +499,14 @@ export function AngleGallery({
                     playsInline
                     loop
                     preload="none"
-                    onPlay={() => setPaused((s) => (s.has(a.id) ? new Set([...s].filter((x) => x !== a.id)) : s))}
-                    onPause={() => setPaused((s) => new Set(s).add(a.id))}
+                    onPlay={() => {
+                      setPaused((s) => (s.has(a.id) ? new Set([...s].filter((x) => x !== a.id)) : s));
+                      if (sounds.get(a.id)?.key && !muted && dialogRef.current?.open) player.current?.play().catch(() => {});
+                    }}
+                    onPause={() => {
+                      setPaused((s) => new Set(s).add(a.id));
+                      if (angles[current]?.id === a.id) player.current?.pause();
+                    }}
                     className="max-h-full max-w-full"
                   />
                 ) : (
@@ -492,6 +553,12 @@ export function AngleGallery({
                     </>
                   ) : (
                     caption(a)
+                  )}
+                  {soundByKey(sounds.get(a.id)?.key) && (
+                    <Link href={`/sound/${sounds.get(a.id)!.key}`} className="pointer-events-auto flex min-w-0 items-center gap-1 truncate rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">
+                      <span aria-hidden="true">🎵</span>
+                      <span className="truncate">{soundName(soundByKey(sounds.get(a.id)!.key)!, locale)}</span>
+                    </Link>
                   )}
                   {a.capturedAt && (
                     <span className="ms-auto font-normal text-white/80">
@@ -567,6 +634,22 @@ export function AngleGallery({
                       <path d="M13.5 4.5 21.5 12l-8 7.5v-4.3c-5.4 0-8.8 1.6-11 5.3.7-5.6 3.8-10.2 11-11.2z" />
                     </svg>
                   </button>
+                  {/* The sound disc, TikTok-style: spins, and opens the sound's page. */}
+                  {soundByKey(sounds.get(a.id)?.key) ? (
+                    <Link
+                      href={`/sound/${sounds.get(a.id)!.key}`}
+                      aria-label={labels.sounds.openSound.replace("{name}", soundName(soundByKey(sounds.get(a.id)!.key)!, locale))}
+                      className="mt-2 flex size-12 items-center justify-center rounded-full border-[6px] border-neutral-800 bg-gradient-to-br from-brand-red via-moment to-brand-blue shadow-lg motion-safe:animate-[spin_4s_linear_infinite]"
+                    >
+                      <span aria-hidden="true" className="text-sm">🎵</span>
+                    </Link>
+                  ) : (
+                    a.isMine && (
+                      <button type="button" onClick={() => setSoundFor(a.id)} aria-label={labels.sounds.add} className={`${railButton} mt-2 text-2xl`}>
+                        <span aria-hidden="true">🎵</span>
+                      </button>
+                    )
+                  )}
                 </div>
               </figure>
             );
@@ -587,6 +670,27 @@ export function AngleGallery({
             )}
           </div>
           <div className="flex items-center gap-2">
+            {angles[current] && (soundByKey(sounds.get(angles[current].id)?.key) || angles[current].mediaType === "VIDEO") && (
+              <button
+                type="button"
+                onClick={toggleMute}
+                aria-label={muted ? labels.sounds.unmute : labels.sounds.mute}
+                aria-pressed={muted}
+                className="pointer-events-auto flex size-11 items-center justify-center rounded-full bg-black/50 text-lg"
+              >
+                <span aria-hidden="true">{muted ? "🔇" : "🔊"}</span>
+              </button>
+            )}
+            {angles[current]?.isMine && soundByKey(sounds.get(angles[current].id)?.key) && (
+              <button
+                type="button"
+                onClick={() => setSoundFor(angles[current].id)}
+                aria-label={labels.sounds.add}
+                className="pointer-events-auto flex size-11 items-center justify-center rounded-full bg-black/50 text-lg"
+              >
+                <span aria-hidden="true">🎵</span>
+              </button>
+            )}
             {canReact && angles[current] && !angles[current].isMine && (
               <button
                 type="button"
@@ -723,6 +827,18 @@ export function AngleGallery({
               </button>
             </form>
           </section>
+        )}
+        {soundFor && (
+          <SoundPicker
+            locale={locale}
+            labels={labels.sounds}
+            initialKey={sounds.get(soundFor)?.key ?? null}
+            initialMute={sounds.get(soundFor)?.mute}
+            isVideo={angles.find((x) => x.id === soundFor)?.mediaType === "VIDEO"}
+            busy={savingSound}
+            onSave={(key, mute) => saveSound(soundFor, key, mute)}
+            onClose={() => setSoundFor(null)}
+          />
         )}
         {reportTarget && <ReportSheet key={JSON.stringify(reportTarget)} target={reportTarget} labels={labels.report} onClose={() => setReportTarget(null)} />}
       </dialog>

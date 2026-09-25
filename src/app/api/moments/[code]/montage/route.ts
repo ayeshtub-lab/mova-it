@@ -13,7 +13,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cod
 
   const { code } = await params;
   try {
-    const { montage, created } = await requestMontage(user, code);
+    const body = await request.json().catch(() => null);
+    const { montage, created } = await requestMontage(user, code, body?.soundKey ?? null);
     if (created) {
       // The public host the visitor used (not the internal deployment URL), for the link burnt into the video.
       const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;

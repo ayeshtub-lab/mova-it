@@ -6,6 +6,7 @@ import ar from "@/i18n/dictionaries/ar.json";
 import en from "@/i18n/dictionaries/en.json";
 import { plural } from "@/i18n/plural";
 import { db } from "@/lib/db";
+import { isSolemn, soundByKey, soundFile } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
 import { viewUrl } from "@/server/media";
 import { isArabic } from "@/server/og-text";
@@ -110,8 +111,24 @@ export async function renderMontage(montageId: string, siteHost: string) {
     const output = join(dir, "montage.mp4");
     const inputs = segments.flatMap((s) => ["-i", s]);
     const streams = segments.map((_, i) => `[${i}:v][${i}:a]`).join("");
+    const concat = `${streams}concat=n=${segments.length}:v=1:a=1[v][orig]`;
+    // A library sound runs (looped) under the whole montage, fading out at the end; the
+    // clips' own sound stays, softer — or goes, under remembrance.
+    const sound = soundByKey(montage.soundKey);
+    let mix = "[orig]anull[a]";
+    const soundInput: string[] = [];
+    if (sound) {
+      const soundPath = join(dir, "sound.mp3");
+      await download(`${siteHost.startsWith("localhost") ? "http" : "https"}://${siteHost}${soundFile(sound.key)}`, soundPath);
+      soundInput.push("-stream_loop", "-1", "-i", soundPath);
+      const fade = `afade=t=out:st=${Math.max(0, total - 1.5).toFixed(2)}:d=1.5`;
+      const bed = `[${segments.length}:a]aresample=44100,atrim=0:${total.toFixed(2)},${fade}[bed]`;
+      mix = isSolemn(sound)
+        ? `${bed};[orig]anullsink;[bed]anull[a]`
+        : `${bed};[orig]volume=0.35[soft];[soft][bed]amix=inputs=2:duration=first:normalize=0[a]`;
+    }
     await ffmpeg(
-      [...inputs, "-filter_complex", `${streams}concat=n=${segments.length}:v=1:a=1[v][a]`, "-map", "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output],
+      [...inputs, ...soundInput, "-filter_complex", `${concat};${mix}`, "-map", "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output],
       240_000,
     );
 

@@ -1,19 +1,38 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
+import { soundByKey, soundName } from "@/lib/sounds";
 
 export type MontageState = {
   id: string;
   status: "QUEUED" | "RENDERING" | "READY" | "FAILED";
   videoUrl: string | null;
   durationSec: number | null;
+  soundKey: string | null;
   outdated: boolean;
 };
 
 type Labels = { title: string; hint: string; make: string; remake: string; working: string; failed: string; share: string; download: string };
 
-export function MontagePanel({ code, initial, labels }: { code: string; initial: MontageState | null; labels: Labels }) {
+export function MontagePanel({
+  code,
+  initial,
+  labels,
+  locale,
+  soundLabels,
+}: {
+  code: string;
+  initial: MontageState | null;
+  labels: Labels;
+  locale: string;
+  soundLabels: SoundLabels & { none: string; montage: string };
+}) {
   const [montage, setMontage] = useState<MontageState | null>(initial);
+  // The sound mixed under the montage; changing it offers a fresh montage.
+  const [soundKey, setSoundKey] = useState<string | null>(initial?.soundKey ?? null);
+  const [picking, setPicking] = useState(false);
+  const sound = soundByKey(soundKey);
   const [requesting, setRequesting] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const working = requesting || montage?.status === "QUEUED" || montage?.status === "RENDERING";
@@ -46,9 +65,9 @@ export function MontagePanel({ code, initial, labels }: { code: string; initial:
     setRequesting(true);
     setFile(null);
     try {
-      const res = await fetch(`/api/moments/${code}/montage`, { method: "POST" });
+      const res = await fetch(`/api/moments/${code}/montage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ soundKey }) });
       if (res.ok) setMontage(await res.json());
-      else setMontage((m) => (m ? { ...m, status: "FAILED" } : { id: "", status: "FAILED", videoUrl: null, durationSec: null, outdated: false }));
+      else setMontage((m) => (m ? { ...m, status: "FAILED" } : { id: "", status: "FAILED", videoUrl: null, durationSec: null, soundKey, outdated: false }));
     } finally {
       setRequesting(false);
     }
@@ -71,6 +90,7 @@ export function MontagePanel({ code, initial, labels }: { code: string; initial:
   }
 
   const ready = montage?.status === "READY" && montage.videoUrl;
+  const soundChanged = !!montage && montage.soundKey !== soundKey;
 
   return (
     <section className="flex flex-col gap-3 rounded-3xl bg-surface p-5">
@@ -98,7 +118,29 @@ export function MontagePanel({ code, initial, labels }: { code: string; initial:
         </div>
       )}
 
-      {(!ready || montage?.outdated) && (
+      <button
+        type="button"
+        onClick={() => setPicking(true)}
+        disabled={working}
+        className="flex min-h-11 items-center justify-between gap-2 rounded-2xl border border-line bg-background px-4 text-sm font-bold disabled:opacity-60"
+      >
+        <span>{soundLabels.montage}</span>
+        <span className="truncate text-secondary">🎵 {sound ? soundName(sound, locale) : soundLabels.none}</span>
+      </button>
+      {picking && (
+        <SoundPicker
+          locale={locale}
+          labels={soundLabels}
+          initialKey={soundKey}
+          onSave={(key) => {
+            setSoundKey(key);
+            setPicking(false);
+          }}
+          onClose={() => setPicking(false)}
+        />
+      )}
+
+      {(!ready || montage?.outdated || soundChanged) && (
         <button
           type="button"
           onClick={make}

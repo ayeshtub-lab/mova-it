@@ -183,6 +183,10 @@ model Angle {
   // Automatic content check (Gemini) when the upload completes.
   screening     String? // "allowed" | "blocked" | "error"; null = not checked
   screenedAt    DateTime?
+  // A sound from the library (src/lib/sounds.ts) played with the angle, and whether a
+  // video's own sound is muted under it.
+  soundKey      String?
+  muteOriginal  Boolean     @default(false)
 
   moment          Moment           @relation(fields: [momentId], references: [id], onDelete: Cascade)
   contributor     User             @relation(fields: [contributorId], references: [id])
@@ -196,6 +200,7 @@ model Angle {
   @@index([momentId, capturedAt])
   @@index([contributorId])
   @@index([expiresAt])
+  @@index([soundKey])
 }
 
 // ── Reactions ─────────────────────────────────────────────────────────────
@@ -320,6 +325,7 @@ model Montage {
   momentId    String
   status      MontageStatus @default(QUEUED)
   angleIds    String[] // the angles used, in cut order
+  soundKey    String? // library sound mixed under the whole montage
   videoUrl    String?
   durationSec Float?
   error       String?
