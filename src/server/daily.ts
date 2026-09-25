@@ -43,8 +43,9 @@ function seeded(text: string) {
   };
 }
 
-// The three themes people can vote for, for `day` — none used in the last 10 days.
-export async function optionsFor(day: string) {
+// Every theme people may vote for on `day` (none used in the last 10 days), in a
+// seeded order that's the same for everyone; the first three are the featured ones.
+export async function candidatesFor(day: string) {
   const recent = await db.dailyPlan.findMany({
     where: { day: { gte: addDays(day, -NO_REPEAT_DAYS), lt: day } },
     select: { themeKey: true },
@@ -57,7 +58,12 @@ export async function optionsFor(day: string) {
     const j = Math.floor(rand() * (i + 1));
     [list[i], list[j]] = [list[j], list[i]];
   }
-  return list.slice(0, OPTIONS);
+  return list;
+}
+
+// The three featured themes for `day`.
+export async function optionsFor(day: string) {
+  return (await candidatesFor(day)).slice(0, OPTIONS);
 }
 
 async function tally(day: string) {
@@ -65,11 +71,12 @@ async function tally(day: string) {
   return new Map(groups.map((g) => [g.themeKey, g._count._all]));
 }
 
-// Most votes wins; ties (and no votes) go to the first option.
+// Most votes wins (any candidate); ties go to the earlier one — so with no votes, the
+// first featured theme.
 async function winner(day: string) {
-  const [options, votes] = await Promise.all([optionsFor(day), tally(day)]);
-  let best = options[0];
-  for (const t of options) if ((votes.get(t.key) ?? 0) > (votes.get(best.key) ?? 0)) best = t;
+  const [candidates, votes] = await Promise.all([candidatesFor(day), tally(day)]);
+  let best = candidates[0];
+  for (const t of candidates) if ((votes.get(t.key) ?? 0) > (votes.get(best.key) ?? 0)) best = t;
   return { theme: best, source: (votes.get(best.key) ?? 0) > 0 ? "vote" : "random" };
 }
 
@@ -103,8 +110,8 @@ export async function today(now = new Date()) {
 // Voting for tomorrow's theme: the three options, the counts, and the viewer's vote.
 export async function tomorrowVote(viewer: User | null, now = new Date()) {
   const day = addDays(dayKey(now), 1);
-  const [options, votes, mine, preset] = await Promise.all([
-    optionsFor(day),
+  const [candidates, votes, mine, preset] = await Promise.all([
+    candidatesFor(day),
     tally(day),
     viewer ? db.dailyVote.findUnique({ where: { day_userId: { day, userId: viewer.id } } }) : null,
     db.dailyPlan.findUnique({ where: { day } }),
@@ -113,15 +120,17 @@ export async function tomorrowVote(viewer: User | null, now = new Date()) {
     day,
     // An admin already set tomorrow's theme: no vote.
     decided: preset ? themeByKey(preset.themeKey) : null,
-    options: options.map((t) => ({ ...t, votes: votes.get(t.key) ?? 0 })),
+    // The three featured themes, then all the others one can pick from.
+    options: candidates.slice(0, OPTIONS).map((t) => ({ ...t, votes: votes.get(t.key) ?? 0 })),
+    more: candidates.slice(OPTIONS).map((t) => ({ ...t, votes: votes.get(t.key) ?? 0 })),
     mine: mine?.themeKey ?? null,
   };
 }
 
 export async function vote(user: User, themeKey: unknown, now = new Date()) {
   const day = addDays(dayKey(now), 1);
-  const options = await optionsFor(day);
-  if (typeof themeKey !== "string" || !options.some((t) => t.key === themeKey)) throw new DailyError("invalid");
+  const candidates = await candidatesFor(day);
+  if (typeof themeKey !== "string" || !candidates.some((t) => t.key === themeKey)) throw new DailyError("invalid");
   await db.dailyVote.upsert({
     where: { day_userId: { day, userId: user.id } },
     create: { day, userId: user.id, themeKey },

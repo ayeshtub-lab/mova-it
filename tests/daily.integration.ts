@@ -90,11 +90,28 @@ async function main() {
       assert.equal(next.plan.source, "vote");
     });
 
+    await check("any theme from the list can be voted for — and win — not only the featured three", async () => {
+      const D2 = addDays(D1, 2);
+      const t = await tomorrowVote(ali, NOON(addDays(D1, 1)));
+      assert.equal(t.day, D2);
+      assert.equal(t.options.length, 3);
+      assert.ok(t.more.length >= 10, "the rest of the list");
+      const pick = t.more[t.more.length - 1];
+      await vote(ali, pick.key, NOON(addDays(D1, 1)));
+      await vote(sara, pick.key, NOON(addDays(D1, 1)));
+      const d2 = await today(NOON(D2));
+      assert.equal(d2.plan.themeKey, pick.key);
+      // Yesterday's and the day before's themes can't be picked again so soon.
+      const t3 = await tomorrowVote(ali, NOON(D2));
+      assert.ok(![...t3.options, ...t3.more].some((o) => o.key === pick.key));
+      await assert.rejects(vote(ali, pick.key, NOON(D2)), DailyError);
+    });
+
     await check("admin: sets a coming day's theme (no vote then) and can rename today", async () => {
-      const D3 = addDays(D1, 3);
+      const D3 = addDays(D1, 4);
       await assert.rejects(setTheme(ali, D3, "fajr"));
       await setTheme(admin, D3, "fajr");
-      const v = await tomorrowVote(ali, NOON(addDays(D1, 2)));
+      const v = await tomorrowVote(ali, NOON(addDays(D1, 3)));
       assert.equal(v.decided?.key, "fajr");
       const d3 = await today(NOON(D3));
       assert.equal(d3.plan.themeKey, "fajr");

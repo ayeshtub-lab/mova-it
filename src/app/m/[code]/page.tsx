@@ -267,9 +267,10 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           ) : (
             <VoteBox
               initial={ballot.options.map((o) => ({ key: o.key, emoji: o.emoji, label: themeText(o, locale), votes: o.votes }))}
+              initialMore={ballot.more.map((o) => ({ key: o.key, emoji: o.emoji, label: themeText(o, locale), votes: o.votes }))}
               mine={ballot.mine}
               signedIn={!!user}
-              labels={{ title: dict.daily.voteTitle, hint: dict.daily.voteHint, voted: dict.daily.voted, failed: dict.daily.voteFailed, votes: dict.daily.votes }}
+              labels={{ title: dict.daily.voteTitle, hint: dict.daily.voteHint, voted: dict.daily.voted, failed: dict.daily.voteFailed, votes: dict.daily.votes, more: dict.daily.more, less: dict.daily.less }}
             />
           ))}
 

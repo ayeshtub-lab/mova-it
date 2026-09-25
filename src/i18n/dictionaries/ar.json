@@ -315,6 +315,8 @@
     "adminTitle": "لحظة اليوم",
     "adminToday": "موضوع اليوم",
     "adminTomorrow": "موضوع بكرة",
-    "adminSave": "حفظ"
+    "adminSave": "حفظ",
+    "more": "اكتشف كل المواضيع ({n})",
+    "less": "أخفِ المواضيع"
   }
 }

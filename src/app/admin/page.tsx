@@ -59,7 +59,18 @@ export default async function AdminPage() {
               <input type="hidden" name="day" value={day} />
               <span className="w-28 text-sm font-bold">{label}</span>
               <select name="theme" defaultValue={current} className="min-h-11 flex-1 rounded-full border border-line bg-surface px-3">
-                {!current && <option value="">🗳️ بالتصويت ({next.options.map((o) => `${o.emoji} ${o.votes}`).join(" · ")})</option>}
+                {!current && (
+                  <option value="">
+                    🗳️ بالتصويت (
+                    {[...next.options, ...next.more]
+                      .filter((o) => o.votes > 0)
+                      .sort((a, b) => b.votes - a.votes)
+                      .slice(0, 3)
+                      .map((o) => `${o.emoji} ${o.votes}`)
+                      .join(" · ") || "لا أصوات بعد"}
+                    )
+                  </option>
+                )}
                 {DAILY_THEMES.map((t) => (
                   <option key={t.key} value={t.key}>
                     {t.emoji} {t.ar}

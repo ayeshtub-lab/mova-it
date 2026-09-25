@@ -305,6 +305,8 @@
     "adminTitle": "Moment of the day",
     "adminToday": "Today's theme",
     "adminTomorrow": "Tomorrow's theme",
-    "adminSave": "Save"
+    "adminSave": "Save",
+    "more": "See all themes ({n})",
+    "less": "Show fewer"
   }
 }
