@@ -148,6 +148,8 @@ export function AngleGallery({
     setCurrent(index);
     setOpened((n) => n + 1);
     dialogRef.current?.showModal();
+    // Focus the close button, not the first control (the hidden video play/pause one).
+    dialogRef.current?.querySelector<HTMLElement>("[data-close]")?.focus();
     requestAnimationFrame(() => goTo(index, false));
   }
 
@@ -719,6 +721,7 @@ export function AngleGallery({
             )}
             <button
               type="button"
+              data-close
               onClick={() => dialogRef.current?.close()}
               aria-label={labels.close}
               className="pointer-events-auto flex size-11 items-center justify-center rounded-full bg-black/50"
