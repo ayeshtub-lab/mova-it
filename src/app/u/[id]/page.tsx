@@ -6,6 +6,7 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { getProfile, ProfileError, setDisplayName } from "@/server/profile";
+import { AvatarEditor } from "./AvatarEditor";
 import { FollowButton } from "./FollowButton";
 import { NameEditor, type RenameState } from "./NameEditor";
 import { ProfileTabs } from "./ProfileTabs";
@@ -37,22 +38,31 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
   const dict = await getDictionary(locale);
   const t = dict.profile;
   const initial = [...profile.displayName][0] ?? "?";
+  const avatar = (
+    <span className="block rounded-full bg-gradient-to-br from-brand-red via-moment to-brand-blue p-1">
+      {profile.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- profile photo (Google, or uploaded)
+        <img src={profile.avatarUrl} alt="" referrerPolicy="no-referrer" className="size-24 rounded-full border-4 border-background object-cover" />
+      ) : (
+        <span aria-hidden="true" className="flex size-24 items-center justify-center rounded-full border-4 border-background bg-surface text-4xl font-extrabold">
+          {initial}
+        </span>
+      )}
+    </span>
+  );
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
       <SiteHeader locale={locale} dict={dict} />
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-16">
         <section className="flex flex-col items-center gap-3 text-center">
-          <span className="rounded-full bg-gradient-to-br from-brand-red via-moment to-brand-blue p-1">
-            {profile.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element -- Google profile photo
-              <img src={profile.avatarUrl} alt="" referrerPolicy="no-referrer" className="size-24 rounded-full border-4 border-background object-cover" />
-            ) : (
-              <span aria-hidden="true" className="flex size-24 items-center justify-center rounded-full border-4 border-background bg-surface text-4xl font-extrabold">
-                {initial}
-              </span>
-            )}
-          </span>
+          {profile.isMe ? (
+            <AvatarEditor labels={{ change: t.changePhoto, saving: t.photoSaving, failed: t.photoFailed, blocked: t.photoBlocked }}>
+              {avatar}
+            </AvatarEditor>
+          ) : (
+            avatar
+          )}
 
           {profile.isMe ? (
             <NameEditor
@@ -65,17 +75,18 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             <h1 className="text-2xl font-extrabold">{profile.displayName}</h1>
           )}
 
-          <dl className="flex gap-2">
+          <dl className="grid w-full max-w-sm grid-cols-4 gap-1.5">
             {(
               [
                 [profile.shots.length, t.shots],
                 [profile.followers, t.followers],
                 [profile.following, t.following],
+                [profile.likesReceived, t.likesReceived],
               ] as const
             ).map(([n, label]) => (
-              <div key={label} className="flex min-w-22 flex-col-reverse items-center rounded-2xl bg-surface px-3 py-2">
-                <dt className="text-sm text-muted">{label}</dt>
-                <dd className="text-xl font-extrabold">{n}</dd>
+              <div key={label} className="flex min-w-0 flex-col-reverse items-center rounded-2xl bg-surface px-1 py-2">
+                <dt className="truncate text-xs text-muted">{label}</dt>
+                <dd className="text-xl font-extrabold">{new Intl.NumberFormat(locale, { notation: "compact" }).format(n)}</dd>
               </div>
             ))}
           </dl>
@@ -94,6 +105,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
           shots={profile.shots}
           moments={profile.moments.map((m) => ({ ...m, lastActivityAt: m.lastActivityAt.toISOString() }))}
           likes={profile.likes}
+          saved={profile.saved}
           labels={{
             shots: t.shots,
             moments: t.moments,
@@ -102,7 +114,9 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             emptyMoments: t.emptyMoments,
             emptyLikes: t.emptyLikes,
             likesPrivate: t.likesPrivate,
-            viewsPrivate: t.viewsPrivate,
+            saved: t.saved,
+            emptySaved: t.emptySaved,
+            savedPrivate: t.savedPrivate,
             seenBy: dict.viewer.seenBy,
           }}
         />

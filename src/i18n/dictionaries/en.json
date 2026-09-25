@@ -81,7 +81,12 @@
     "visibilityLink": "Only people with the link",
     "visibilityLinkHint": "Nobody sees it unless you send them the link.",
     "visibilityPublic": "Everyone 🌍",
-    "visibilityPublicHint": "Shows in Discover for every signed-in Zawmo user. Every photo is checked automatically."
+    "visibilityPublicHint": "Shows in Discover for every signed-in Zawmo user. Every photo is checked automatically.",
+    "descriptionLabel": "Short description (optional)",
+    "descriptionPlaceholder": "e.g. First winter sunset #sea #sunset",
+    "descriptionHint": "Put # before a word to make it a hashtag.",
+    "descriptionError": "The description is up to 150 characters.",
+    "descriptionBlocked": "We couldn't approve this description for everyone. Edit it or try again shortly."
   },
   "plurals": {
     "angles": {
@@ -112,11 +117,8 @@
     "counter": "{i} of {n}",
     "label": "Angles of this moment",
     "reactions": {
-      "HEART": "Love",
-      "LAUGH": "Haha",
-      "FIRE": "Fire",
-      "WOW": "Wow",
-      "react": "React: {name}",
+      "like": "Like",
+      "unlike": "Unlike",
       "joinToReact": "Enter your name below to react to angles"
     },
     "delete": "Delete this angle",
@@ -153,7 +155,19 @@
       "failed": "Could not send. Please try again.",
       "tooMany": "You sent many reports this hour. Please wait a bit."
     },
-    "seenBy": "Seen by"
+    "seenBy": "Seen by",
+    "save": "Save",
+    "unsave": "Remove from saved",
+    "saved": "Saved 🔖",
+    "share": "Share",
+    "copied": "Link copied",
+    "shareText": "Look at this shot on Zawmo:",
+    "profile": "{name}'s page",
+    "follow": "Follow {name}",
+    "views": "views",
+    "play": "Play",
+    "pause": "Pause",
+    "actionFailed": "That didn't work, try again."
   },
   "montage": {
     "label": "Angle {i} of {n} · {name}",
@@ -230,7 +244,7 @@
     "following": "Following",
     "shots": "Shots",
     "moments": "Moments",
-    "likes": "Likes",
+    "likes": "Liked",
     "follow": "Follow",
     "unfollow": "Unfollow",
     "isFollowing": "Following ✓",
@@ -243,9 +257,16 @@
     "emptyMoments": "No moments here yet.",
     "emptyLikes": "You haven't liked any shots yet.",
     "likesPrivate": "🔒 Only you can see your likes",
-    "viewsPrivate": "👁 View counts are visible only to you",
     "admin": "Reports",
-    "failed": "That didn't work, try again."
+    "failed": "That didn't work, try again.",
+    "likesReceived": "Likes",
+    "saved": "Saved",
+    "emptySaved": "Nothing saved yet. Tap 🔖 on any shot to keep it here.",
+    "savedPrivate": "🔒 Only you can see what you saved",
+    "changePhoto": "Change photo",
+    "photoSaving": "Saving…",
+    "photoFailed": "Couldn't upload the photo. Try another one.",
+    "photoBlocked": "This photo can't be used as a profile photo. Choose another."
   },
   "footer": {
     "privacy": "Privacy"
@@ -308,5 +329,10 @@
     "adminSave": "Save",
     "more": "See all themes ({n})",
     "less": "Show fewer"
+  },
+  "tag": {
+    "title": "#{tag}",
+    "hint": "Public moments with this hashtag",
+    "empty": "No public moments with this hashtag yet."
   }
 }

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { createMoment, MomentError } from "@/server/moments";
 
-export type CreateMomentState = { error?: "title" | "place" | "server" } | undefined;
+export type CreateMomentState = { error?: "title" | "place" | "description" | "descriptionBlocked" | "server" } | undefined;
 
 export async function createMomentAction(_prev: CreateMomentState, formData: FormData): Promise<CreateMomentState> {
   const user = await getCurrentUser();
@@ -14,6 +14,7 @@ export async function createMomentAction(_prev: CreateMomentState, formData: For
   try {
     const moment = await createMoment(user, {
       title: formData.get("title"),
+      description: formData.get("description"),
       placeName: formData.get("placeName"),
       // The form offers these three (PUBLIC to official accounts only — createMoment
       // refuses it for guests); anything else falls back to friends.
@@ -23,6 +24,8 @@ export async function createMomentAction(_prev: CreateMomentState, formData: For
   } catch (error) {
     if (error instanceof MomentError && error.code === "invalid_title") return { error: "title" };
     if (error instanceof MomentError && error.code === "invalid_place") return { error: "place" };
+    if (error instanceof MomentError && error.code === "invalid_description") return { error: "description" };
+    if (error instanceof MomentError && error.code === "description_blocked") return { error: "descriptionBlocked" };
     if (error instanceof MomentError && error.code === "official_required") return { error: "server" };
     console.error("createMomentAction failed", error);
     return { error: "server" };

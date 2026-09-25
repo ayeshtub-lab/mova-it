@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cache } from "react";
 import { AngleUploader } from "@/app/AngleUploader";
+import { Description } from "@/app/Description";
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
 import { LocalTime } from "@/app/LocalTime";
@@ -114,6 +115,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           )}
           <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">{daily ? `${daily.theme.emoji} ${themeText(daily.theme, locale)}` : view.title}</h1>
           {daily && <p className="leading-relaxed text-muted">{themeHint(daily.theme, locale)}</p>}
+          {view.description && <Description text={view.description} className="text-lg" />}
           {daily?.theme.tip && <p className="rounded-2xl bg-secondary-soft px-3 py-2 text-sm font-semibold text-secondary">🤍 {locale === "ar" ? daily.theme.tip.ar : daily.theme.tip.en}</p>}
           <p className="text-sm text-muted">
             {[
@@ -189,10 +191,13 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 presence: a.presence,
                 contributorName: a.contributorName,
                 profileId: a.profileId,
+                contributorAvatar: a.contributorAvatar,
+                following: a.following,
+                saved: a.saved,
                 capturedAt: a.capturedAt?.toISOString() ?? null,
                 mediaUrl: a.mediaUrl,
                 thumbUrl: a.thumbUrl,
-                reactions: a.reactions,
+                likes: a.likes,
                 commentCount: a.commentCount,
                 canDelete: a.canDelete,
                 isMine: a.isMine,
@@ -201,6 +206,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               locale={locale}
               labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag }}
               canReact={!!user}
+              viewerId={user?.id ?? null}
+              share={{ url: shareUrl, title: view.title }}
             />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (
               <div

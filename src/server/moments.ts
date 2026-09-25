@@ -6,17 +6,20 @@ import { computeWhyNowScore } from "@/lib/movaEngine";
 import { viewUrl } from "@/server/media";
 import { commentCounts } from "@/server/comments";
 import { viewCounts } from "@/server/profile";
-import { reactionsFor } from "@/server/reactions";
+import { reactionsFor, savedFor } from "@/server/reactions";
+import { screenText } from "@/server/screening";
 
 // No 0/O, 1/I/L: codes get read aloud and typed from screenshots.
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 const CODE_LENGTH = 6;
 
 export class MomentError extends Error {
-  constructor(public code: "invalid_title" | "invalid_place" | "not_found" | "code_exhausted" | "official_required" | "forbidden" | "invalid") {
+  constructor(public code: "invalid_title" | "invalid_place" | "not_found" | "code_exhausted" | "official_required" | "forbidden" | "invalid" | "invalid_description" | "description_blocked") {
     super(code);
   }
 }
+
+export const DESCRIPTION_MAX = 150;
 
 const newCode = () =>
   Array.from({ length: CODE_LENGTH }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
@@ -33,6 +36,7 @@ const approx = (value: unknown) =>
 
 export type CreateMomentInput = {
   title: unknown;
+  description?: unknown;
   placeName?: unknown;
   visibility?: unknown;
   lat?: unknown;
@@ -44,11 +48,15 @@ export async function createMoment(creator: User, input: CreateMomentInput) {
   if (!title) throw new MomentError("invalid_title");
   const placeName = input.placeName == null || input.placeName === "" ? null : clean(input.placeName, 60);
   if (input.placeName && !placeName) throw new MomentError("invalid_place");
+  const description = input.description == null || input.description === "" ? null : clean(input.description, DESCRIPTION_MAX);
+  if (input.description && !description) throw new MomentError("invalid_description");
   const visibility = Object.values(Visibility).includes(input.visibility as Visibility)
     ? (input.visibility as Visibility)
     : Visibility.FRIENDS;
   // «للكل» is for official (Google) accounts only.
   if (visibility === Visibility.PUBLIC && creator.isGuest) throw new MomentError("official_required");
+  // Everyone reads a public description: it must pass the check first (fail-closed).
+  if (visibility === Visibility.PUBLIC && description && (await screenText(description)).result !== "allowed") throw new MomentError("description_blocked");
 
   // Users only create everyday moments; BIG and DAILY moments are scheduled by Zawmo.
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -58,6 +66,7 @@ export async function createMoment(creator: User, input: CreateMomentInput) {
       data: {
         code,
         title,
+        description,
         placeName,
         visibility,
         latApprox: approx(input.lat),
@@ -118,14 +127,22 @@ export async function getMomentView(code: string, viewer: User | null) {
   const unlocked = isCreator || hasContributed || (moment.visibility === Visibility.PUBLIC && moment.kind !== "DAILY");
   const visible = unlocked ? angles : angles.slice(0, 1);
   const visibleIds = visible.map((a) => a.id);
-  // View counts are private: only for the viewer's own angles.
-  const mineIds = viewer ? visible.filter((a) => a.contributorId === viewer.id).map((a) => a.id) : [];
-  const [reactions, comments, views] = await Promise.all([reactionsFor(visibleIds, viewer), commentCounts(visibleIds), viewCounts(mineIds)]);
+  // Views and likes are shown to everyone.
+  const contributorIds = [...new Set(visible.map((a) => a.contributorId))];
+  const [reactions, comments, views, saved, follows] = await Promise.all([
+    reactionsFor(visibleIds, viewer),
+    commentCounts(visibleIds),
+    viewCounts(visibleIds),
+    savedFor(visibleIds, viewer),
+    viewer ? db.follow.findMany({ where: { followerId: viewer.id, followingId: { in: contributorIds } }, select: { followingId: true } }) : [],
+  ]);
+  const following = new Set(follows.map((f) => f.followingId));
 
   return {
     id: moment.id,
     code: moment.code,
     title: moment.title,
+    description: moment.description,
     kind: moment.kind,
     visibility: moment.visibility,
     placeName: moment.placeName,
@@ -152,11 +169,14 @@ export async function getMomentView(code: string, viewer: User | null) {
         height: a.height,
         mediaUrl: await viewUrl(a.mediaPath),
         thumbUrl: await viewUrl(a.thumbPath),
-        reactions: reactions.get(a.id)!,
+        likes: reactions.get(a.id)!,
+        saved: saved.has(a.id),
+        // Follow straight from the viewer (official accounts, not yourself).
+        following: following.has(a.contributorId),
         commentCount: comments.get(a.id) ?? 0,
         canDelete: !!viewer && (a.contributorId === viewer.id || isCreator),
         isMine: !!viewer && a.contributorId === viewer.id,
-        views: viewer && a.contributorId === viewer.id ? (views.get(a.id) ?? 0) : null,
+        views: views.get(a.id) ?? 0,
       })),
     ),
   };

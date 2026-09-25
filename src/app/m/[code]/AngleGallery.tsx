@@ -6,10 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { LocalTime } from "@/app/LocalTime";
 import { ReportSheet, type ReportLabels } from "./ReportSheet";
 
-const KINDS = ["HEART", "LAUGH", "FIRE", "WOW"] as const;
-type Kind = (typeof KINDS)[number];
-const EMOJI: Record<Kind, string> = { HEART: "❤️", LAUGH: "😂", FIRE: "🔥", WOW: "😮" };
-type Reactions = { counts: Record<Kind, number>; mine: Kind | null };
+type Likes = { count: number; liked: boolean };
 
 type CommentView = { id: string; body: string; createdAt: string; authorName: string; mine: boolean; canDelete: boolean };
 
@@ -18,15 +15,18 @@ export type GalleryAngle = {
   mediaType: "PHOTO" | "VIDEO";
   presence: "THERE" | "REMOTE";
   contributorName: string;
+  contributorAvatar: string | null;
   profileId: string | null;
+  following: boolean;
+  saved: boolean;
   capturedAt: string | null;
   mediaUrl: string | null;
   thumbUrl: string | null;
-  reactions: Reactions;
+  likes: Likes;
   commentCount: number;
   canDelete: boolean;
   isMine: boolean;
-  views: number | null; // only for your own angles
+  views: number;
 };
 
 type Labels = {
@@ -39,7 +39,19 @@ type Labels = {
   seenBy: string;
   thereTag: string;
   remoteTag: string;
-  reactions: Record<Kind, string> & { react: string; joinToReact: string };
+  reactions: { like: string; unlike: string; joinToReact: string };
+  save: string;
+  unsave: string;
+  saved: string;
+  share: string;
+  copied: string;
+  shareText: string;
+  profile: string;
+  follow: string;
+  views: string;
+  play: string;
+  pause: string;
+  actionFailed: string;
   delete: string;
   confirmDelete: string;
   deleteFailed: string;
@@ -60,8 +72,7 @@ type Labels = {
   };
 };
 
-const total = (r: Reactions) => KINDS.reduce((sum, k) => sum + r.counts[k], 0);
-const topKind = (r: Reactions) => KINDS.reduce((best, k) => (r.counts[k] > r.counts[best] ? k : best), KINDS[0]);
+const HEART = "M12 20.5s-7.6-4.6-9.5-9.3C1.2 7.8 3.3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.4 0 5.5 3.3 4.2 6.7-1.9 4.7-9.5 9.3-9.5 9.3z";
 
 function timeAgo(iso: string, locale: string) {
   const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
@@ -72,29 +83,44 @@ function timeAgo(iso: string, locale: string) {
   return rtf.format(Math.round(hours / 24), "day");
 }
 
+const compact = (n: number, locale: string) => (n ? new Intl.NumberFormat(locale, { notation: "compact" }).format(n) : "");
+
 // The grid of a moment's angles, plus a full-screen viewer that swipes sideways
 // between angles of the same moment — the horizontal half of Zawmo's two-way feed.
 // Swiping is native scroll-snap, so it follows the finger on phones with no library.
+// TikTok-style: a rail on the right (the contributor, ❤️, comments, save, share),
+// double-tap to like, tap a video to pause.
 export function AngleGallery({
   angles,
   locale,
   labels,
   canReact,
+  viewerId,
+  share,
 }: {
   angles: GalleryAngle[];
   locale: string;
   labels: Labels;
   canReact: boolean;
+  viewerId: string | null;
+  share: { url: string; title: string };
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
+  // Bumped on every opening, so effects run even when it reopens on the same slide.
+  const [opened, setOpened] = useState(0);
   const [deleting, setDeleting] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ angleId: string } | { commentId: string } | null>(null);
-  const [reactions, setReactions] = useState(() => new Map(angles.map((a) => [a.id, a.reactions])));
+  const [likes, setLikes] = useState(() => new Map(angles.map((a) => [a.id, a.likes])));
+  const [saved, setSaved] = useState(() => new Set(angles.filter((a) => a.saved).map((a) => a.id)));
+  const [following, setFollowing] = useState(() => new Set(angles.filter((a) => a.following && a.profileId).map((a) => a.profileId!)));
   const [commentCounts, setCommentCounts] = useState(() => new Map(angles.map((a) => [a.id, a.commentCount])));
-  const reactionsOf = (id: string) => reactions.get(id)!;
+  const [paused, setPaused] = useState(() => new Set<string>());
+  const [burst, setBurst] = useState<{ id: string; x: number; y: number; key: number } | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const likesOf = (id: string) => likes.get(id)!;
 
   const slides = () => Array.from(trackRef.current?.children ?? []) as HTMLElement[];
   const goTo = (index: number, smooth = true) =>
@@ -102,12 +128,13 @@ export function AngleGallery({
 
   function open(index: number) {
     setCurrent(index);
+    setOpened((n) => n + 1);
     dialogRef.current?.showModal();
     requestAnimationFrame(() => goTo(index, false));
   }
 
   // The angle wheel above the grid opens the viewer through a window event, so the
-  // two components stay independent.
+  // two components stay independent. A shared link (…#angle-ID) opens it on arrival.
   const openRef = useRef(open);
   useEffect(() => {
     openRef.current = open;
@@ -118,6 +145,8 @@ export function AngleGallery({
       if (index >= 0) openRef.current(index);
     };
     window.addEventListener("zawmo:open-angle", onOpen);
+    const fromLink = angles.findIndex((a) => window.location.hash === `#angle-${a.id}`);
+    if (fromLink >= 0) openRef.current(fromLink);
     return () => window.removeEventListener("zawmo:open-angle", onOpen);
   }, [angles]);
 
@@ -139,6 +168,17 @@ export function AngleGallery({
     return () => observer.disconnect();
   }, [angles.length]);
 
+  // Videos play by themselves when they come on screen, like a feed.
+  useEffect(() => {
+    if (!dialogRef.current?.open) return;
+    slides()[current]?.querySelector("video")?.play().catch(() => {});
+  }, [current, opened]);
+
+  function flash(text: string) {
+    setToast(text);
+    setTimeout(() => setToast((t) => (t === text ? null : t)), 1800);
+  }
+
   // "Seen by": note each angle shown full screen (not your own), sent in small
   // batches so swiping through many angles costs only a few requests.
   const seenQueue = useRef(new Set<string>());
@@ -155,9 +195,9 @@ export function AngleGallery({
       fetch("/api/angles/views", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ids }) }).catch(() => {});
     }, 1500);
     return () => clearTimeout(timer);
-  }, [current, angles, canReact]);
+  }, [current, opened, angles, canReact]);
 
-  // ── Reactions ────────────────────────────────────────────────────────────
+  // ── Likes ────────────────────────────────────────────────────────────────
   // Quick taps on a slow connection: requests for one angle are sent one after another
   // (so the server applies them in tap order), and only the answer to the latest tap
   // may overwrite what is on screen.
@@ -165,13 +205,10 @@ export function AngleGallery({
   const queue = useRef(new Map<string, Promise<unknown>>());
 
   // Optimistic: show the change at once, then settle on what the server counted.
-  async function react(angleId: string, kind: Kind) {
-    const before = reactionsOf(angleId);
-    const next = before.mine === kind ? null : kind;
-    const counts = { ...before.counts };
-    if (before.mine) counts[before.mine]--;
-    if (next) counts[next]++;
-    setReactions((m) => new Map(m).set(angleId, { counts, mine: next }));
+  async function setLiked(angleId: string, liked: boolean) {
+    const before = likesOf(angleId);
+    if (before.liked === liked) return;
+    setLikes((m) => new Map(m).set(angleId, { liked, count: before.count + (liked ? 1 : -1) }));
 
     const tap = (latestTap.current.get(angleId) ?? 0) + 1;
     latestTap.current.set(angleId, tap);
@@ -179,14 +216,87 @@ export function AngleGallery({
       const res = await fetch(`/api/angles/${angleId}/reaction`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ kind: next }),
+        body: JSON.stringify({ liked }),
       }).catch(() => null);
-      const settled: Reactions = res?.ok ? await res.json() : before;
-      if (latestTap.current.get(angleId) === tap) setReactions((m) => new Map(m).set(angleId, settled));
+      const settled: Likes = res?.ok ? await res.json() : before;
+      if (latestTap.current.get(angleId) === tap) setLikes((m) => new Map(m).set(angleId, settled));
     };
     const run = (queue.current.get(angleId) ?? Promise.resolve()).then(send);
     queue.current.set(angleId, run);
     await run;
+  }
+
+  // One tap on a video pauses/plays it; two quick taps like the angle (never unlike)
+  // with a heart where the finger was. `touch-action: manipulation` stops the zoom.
+  const lastTap = useRef({ id: "", at: 0 });
+  const singleTap = useRef<ReturnType<typeof setTimeout>>(undefined);
+  function onMediaTap(event: React.MouseEvent<HTMLElement>, a: GalleryAngle) {
+    const now = event.timeStamp;
+    const area = event.currentTarget; // React clears currentTarget once the handler returns
+    if (lastTap.current.id === a.id && now - lastTap.current.at < 300) {
+      clearTimeout(singleTap.current);
+      lastTap.current = { id: "", at: 0 };
+      if (!canReact) return join();
+      const box = area.getBoundingClientRect();
+      setBurst({ id: a.id, x: event.clientX - box.left, y: event.clientY - box.top, key: now });
+      setLiked(a.id, true);
+      return;
+    }
+    lastTap.current = { id: a.id, at: now };
+    if (a.mediaType === "VIDEO") singleTap.current = setTimeout(() => togglePlay(area.parentElement!), 260);
+  }
+
+  function togglePlay(figure: HTMLElement) {
+    const video = figure.querySelector("video");
+    if (!video) return;
+    if (video.paused) video.play().catch(() => {});
+    else video.pause();
+  }
+
+  // ── Save, follow, share ─────────────────────────────────────────────────
+  async function toggleSave(angleId: string) {
+    if (!canReact) return join();
+    const next = !saved.has(angleId);
+    const apply = (on: boolean) =>
+      setSaved((s) => {
+        const copy = new Set(s);
+        if (on) copy.add(angleId);
+        else copy.delete(angleId);
+        return copy;
+      });
+    apply(next);
+    const res = await fetch(`/api/angles/${angleId}/save`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ saved: next }) }).catch(() => null);
+    if (!res?.ok) {
+      apply(!next);
+      flash(labels.actionFailed);
+    } else if (next) flash(labels.saved);
+  }
+
+  async function follow(profileId: string) {
+    if (!canReact) return join();
+    setFollowing((s) => new Set(s).add(profileId));
+    const res = await fetch(`/api/users/${profileId}/follow`, { method: "POST" }).catch(() => null);
+    if (!res?.ok) {
+      setFollowing((s) => {
+        const copy = new Set(s);
+        copy.delete(profileId);
+        return copy;
+      });
+      flash(labels.actionFailed);
+    }
+  }
+
+  async function shareAngle(a: GalleryAngle) {
+    const url = `${share.url}#angle-${a.id}`;
+    if (navigator.share) {
+      await navigator.share({ title: share.title, text: labels.shareText, url }).catch(() => {});
+      return;
+    }
+    const copied = await navigator.clipboard?.writeText(url).then(
+      () => true,
+      () => false,
+    );
+    flash(copied ? labels.copied : url);
   }
 
   // ── Comments (a sheet over the viewer, for the angle on screen) ─────────
@@ -272,8 +382,9 @@ export function AngleGallery({
     </>
   );
 
-  const railButton = "flex size-13 items-center justify-center rounded-full border border-white/25 bg-black/35 backdrop-blur-sm transition-transform active:scale-90";
-  const railCount = "text-xs font-bold text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.8)]";
+  // Icons straight on the picture, with a shadow (no circles), like TikTok.
+  const railButton = "flex size-12 items-center justify-center rounded-full transition-transform active:scale-90 [filter:drop-shadow(0_1px_3px_rgb(0_0_0/0.6))]";
+  const railCount = "-mt-1 min-h-4 text-xs font-bold text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.8)]";
 
   return (
     <>
@@ -292,13 +403,10 @@ export function AngleGallery({
                   </svg>
                 </span>
               )}
-              {(total(reactionsOf(a.id)) > 0 || (commentCounts.get(a.id) ?? 0) > 0) && (
+              {(likesOf(a.id).count > 0 || (commentCounts.get(a.id) ?? 0) > 0 || a.views > 0) && (
                 <span className="pointer-events-none absolute start-2 top-2 flex gap-2 rounded-full bg-black/50 px-2 py-0.5 text-xs font-bold text-white">
-                  {total(reactionsOf(a.id)) > 0 && (
-                    <span>
-                      {EMOJI[topKind(reactionsOf(a.id))]} {total(reactionsOf(a.id))}
-                    </span>
-                  )}
+                  {a.views > 0 && <span>👁 {compact(a.views, locale)}</span>}
+                  {likesOf(a.id).count > 0 && <span>❤️ {compact(likesOf(a.id).count, locale)}</span>}
                   {(commentCounts.get(a.id) ?? 0) > 0 && <span>💬 {commentCounts.get(a.id)}</span>}
                 </span>
               )}
@@ -317,72 +425,152 @@ export function AngleGallery({
         onClose={() => {
           slides().forEach((s) => s.querySelector("video")?.pause());
           setSheetFor(null);
+          if (window.location.hash.startsWith("#angle-")) history.replaceState(null, "", window.location.pathname + window.location.search);
         }}
         className="m-0 h-dvh max-h-none w-screen max-w-none bg-black p-0 text-white backdrop:bg-black"
       >
         <div ref={trackRef} className="flex h-full snap-x snap-mandatory overflow-x-auto overscroll-contain [scrollbar-width:none]">
-          {angles.map((a) => (
-            <figure key={a.id} className="relative flex h-full w-screen shrink-0 snap-center items-center justify-center">
-              {a.mediaType === "VIDEO" ? (
-                <video src={a.mediaUrl ?? undefined} poster={a.thumbUrl ?? undefined} controls playsInline preload="none" className="max-h-full max-w-full" />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
-                <img src={a.mediaUrl ?? ""} alt={a.contributorName} className="max-h-full max-w-full object-contain" />
-              )}
-              <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-black/80 to-transparent p-4 pe-20 pt-10 text-sm font-bold">
-                {a.profileId ? (
-                  <>
-                    <Link href={`/u/${a.profileId}`} className="pointer-events-auto truncate underline-offset-4 hover:underline">
-                      {a.contributorName}
-                    </Link>
-                    <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{a.presence === "REMOTE" ? labels.remoteTag : labels.thereTag}</span>
-                  </>
+          {angles.map((a) => {
+            const like = likesOf(a.id);
+            const isSaved = saved.has(a.id);
+            const canFollow = !!a.profileId && a.profileId !== viewerId && !following.has(a.profileId);
+            const initial = [...a.contributorName][0] ?? "?";
+            return (
+              <figure key={a.id} className="relative flex h-full w-screen shrink-0 snap-center items-center justify-center">
+                {a.mediaType === "VIDEO" ? (
+                  <video
+                    src={a.mediaUrl ?? undefined}
+                    poster={a.thumbUrl ?? undefined}
+                    playsInline
+                    loop
+                    preload="none"
+                    onPlay={() => setPaused((s) => (s.has(a.id) ? new Set([...s].filter((x) => x !== a.id)) : s))}
+                    onPause={() => setPaused((s) => new Set(s).add(a.id))}
+                    className="max-h-full max-w-full"
+                  />
                 ) : (
-                  caption(a)
+                  // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
+                  <img src={a.mediaUrl ?? ""} alt={a.contributorName} className="max-h-full max-w-full object-contain" />
                 )}
-                {a.capturedAt && (
-                  <span className="ms-auto font-normal text-white/80">
-                    <LocalTime iso={a.capturedAt} locale={locale} />
-                  </span>
-                )}
-              </figcaption>
 
-              {/* Side rail, TikTok-style: reactions, then comments. `end` is the left side in Arabic. */}
-              <div className="absolute end-3 bottom-20 flex flex-col items-center gap-3">
-                {KINDS.map((kind) => {
-                  const r = reactionsOf(a.id);
-                  const active = r.mine === kind;
-                  return (
-                    <div key={kind} className="flex flex-col items-center gap-0.5">
+                {/* The tap area over the picture: double-tap to like, tap a video to pause. */}
+                <div
+                  aria-hidden="true"
+                  onClick={(e) => onMediaTap(e, a)}
+                  className="absolute inset-0 [touch-action:manipulation] [-webkit-tap-highlight-color:transparent]"
+                >
+                  {a.mediaType === "VIDEO" && paused.has(a.id) && (
+                    <span className="absolute left-1/2 top-1/2 flex size-18 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/40">
+                      <svg viewBox="0 0 24 24" className="size-9 fill-white">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </span>
+                  )}
+                  {burst?.id === a.id && (
+                    <svg key={burst.key} viewBox="0 0 24 24" className="heart-burst pointer-events-none absolute size-28 fill-accent" style={{ left: burst.x, top: burst.y }}>
+                      <path d={HEART} />
+                    </svg>
+                  )}
+                </div>
+                {a.mediaType === "VIDEO" && (
+                  <button
+                    type="button"
+                    onClick={(e) => togglePlay(e.currentTarget.parentElement!)}
+                    className="sr-only focus:not-sr-only focus:absolute focus:left-1/2 focus:top-1/2 focus:rounded-full focus:bg-black/60 focus:px-4 focus:py-2"
+                  >
+                    {paused.has(a.id) ? labels.play : labels.pause}
+                  </button>
+                )}
+
+                <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-black/80 to-transparent p-4 pr-20 pt-10 text-sm font-bold">
+                  {a.profileId ? (
+                    <>
+                      <Link href={`/u/${a.profileId}`} className="pointer-events-auto truncate underline-offset-4 hover:underline">
+                        {a.contributorName}
+                      </Link>
+                      <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{a.presence === "REMOTE" ? labels.remoteTag : labels.thereTag}</span>
+                    </>
+                  ) : (
+                    caption(a)
+                  )}
+                  {a.capturedAt && (
+                    <span className="ms-auto font-normal text-white/80">
+                      <LocalTime iso={a.capturedAt} locale={locale} />
+                    </span>
+                  )}
+                </figcaption>
+
+                {/* Side rail, TikTok-style, on the right in both languages. */}
+                <div className="absolute bottom-20 right-2 flex flex-col items-center gap-2">
+                  {/* The contributor: their page, and ＋ to follow them right here. */}
+                  <div className="relative mb-3">
+                    {a.profileId ? (
+                      <Link href={`/u/${a.profileId}`} aria-label={labels.profile.replace("{name}", a.contributorName)} className="block rounded-full border-2 border-white">
+                        {a.contributorAvatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element -- profile photo
+                          <img src={a.contributorAvatar} alt="" referrerPolicy="no-referrer" className="size-12 rounded-full object-cover" />
+                        ) : (
+                          <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-lg font-extrabold">{initial}</span>
+                        )}
+                      </Link>
+                    ) : (
+                      <span aria-hidden="true" className="flex size-12 items-center justify-center rounded-full border-2 border-white bg-secondary text-lg font-extrabold">
+                        {initial}
+                      </span>
+                    )}
+                    {canFollow && (
                       <button
                         type="button"
-                        aria-pressed={active}
-                        aria-label={canReact ? labels.reactions.react.replace("{name}", labels.reactions[kind]) : labels.reactions.joinToReact}
-                        onClick={() => (canReact ? react(a.id, kind) : join())}
-                        className={`${railButton} text-[26px] ${active ? "scale-110 border-white bg-accent/90" : ""}`}
+                        onClick={() => follow(a.profileId!)}
+                        aria-label={labels.follow.replace("{name}", a.contributorName)}
+                        className="absolute -bottom-3 left-1/2 flex size-6 -translate-x-1/2 items-center justify-center rounded-full bg-accent text-base font-extrabold leading-none shadow"
                       >
-                        <span aria-hidden="true">{EMOJI[kind]}</span>
+                        <span aria-hidden="true">+</span>
                       </button>
-                      <span className={railCount}>{r.counts[kind] || ""}</span>
-                    </div>
-                  );
-                })}
-                <div className="flex flex-col items-center gap-0.5">
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    aria-pressed={like.liked}
+                    aria-label={canReact ? (like.liked ? labels.reactions.unlike : labels.reactions.like) : labels.reactions.joinToReact}
+                    onClick={() => (canReact ? setLiked(a.id, !like.liked) : join())}
+                    className={railButton}
+                  >
+                    <svg viewBox="0 0 24 24" className={`size-9 ${like.liked ? "heart-pop fill-accent" : "fill-white"}`}>
+                      <path d={HEART} />
+                    </svg>
+                  </button>
+                  <span className={railCount}>{compact(like.count, locale)}</span>
+
                   <button
                     type="button"
                     onClick={() => openComments(a.id)}
                     aria-label={canReact ? labels.comments.open : labels.comments.joinToComment}
                     className={railButton}
                   >
-                    <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="white" strokeWidth="2" strokeLinejoin="round">
-                      <path d="M4 5h16v11H9l-5 4z" />
+                    <svg viewBox="0 0 24 24" className="size-8 fill-white">
+                      <path d="M12 3.5c5 0 9 3.4 9 7.7s-4 7.7-9 7.7c-1 0-2-.1-2.9-.4L4.5 20.4l1.2-3.6C4 15.4 3 13.4 3 11.2 3 6.9 7 3.5 12 3.5z" />
                     </svg>
                   </button>
-                  <span className={railCount}>{commentCounts.get(a.id) || ""}</span>
+                  <span className={railCount}>{compact(commentCounts.get(a.id) ?? 0, locale)}</span>
+
+                  <button type="button" aria-pressed={isSaved} aria-label={isSaved ? labels.unsave : labels.save} onClick={() => toggleSave(a.id)} className={railButton}>
+                    <svg viewBox="0 0 24 24" className={`size-8 ${isSaved ? "heart-pop fill-moment" : "fill-white"}`}>
+                      <path d="M6.5 3h11c.8 0 1.5.7 1.5 1.5V21l-7-4.6L5 21V4.5C5 3.7 5.7 3 6.5 3z" />
+                    </svg>
+                  </button>
+                  <span className={railCount} />
+
+                  <button type="button" aria-label={labels.share} onClick={() => shareAngle(a)} className={railButton}>
+                    <svg viewBox="0 0 24 24" className="size-8 fill-white">
+                      <path d="M13.5 4.5 21.5 12l-8 7.5v-4.3c-5.4 0-8.8 1.6-11 5.3.7-5.6 3.8-10.2 11-11.2z" />
+                    </svg>
+                  </button>
                 </div>
-              </div>
-            </figure>
-          ))}
+              </figure>
+            );
+          })}
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-3">
@@ -390,11 +578,11 @@ export function AngleGallery({
             <span className="rounded-full bg-black/50 px-3 py-1 text-sm font-bold" aria-live="polite">
               {labels.counter.replace("{i}", String(current + 1)).replace("{n}", String(angles.length))}
             </span>
-            {angles[current]?.views != null && (
+            {angles[current] && (
               <span className="rounded-full bg-black/50 px-3 py-1 text-sm font-bold" title={labels.seenBy}>
                 <span aria-hidden="true">👁 </span>
-                <span className="sr-only">{labels.seenBy} </span>
-                {angles[current].views}
+                {compact(angles[current].views, locale) || "0"}
+                <span className="sr-only"> {labels.views}</span>
               </span>
             )}
           </div>
@@ -437,6 +625,7 @@ export function AngleGallery({
           </div>
         </div>
 
+        {/* Desktop arrows, kept above the rail. */}
         {angles.length > 1 && (
           <>
             <button
@@ -444,7 +633,7 @@ export function AngleGallery({
               onClick={() => goTo(current - 1)}
               disabled={current === 0}
               aria-label={labels.prev}
-              className="absolute start-2 top-1/2 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 disabled:opacity-30 sm:flex"
+              className="absolute start-2 top-[30%] hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 disabled:opacity-30 sm:flex"
             >
               <svg viewBox="0 0 24 24" className="size-6 stroke-white rtl:rotate-180" fill="none" strokeWidth="2.4" strokeLinecap="round">
                 <path d="M15 6l-6 6 6 6" />
@@ -455,13 +644,19 @@ export function AngleGallery({
               onClick={() => goTo(current + 1)}
               disabled={current === angles.length - 1}
               aria-label={labels.next}
-              className="absolute end-2 top-1/2 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 disabled:opacity-30 sm:flex"
+              className="absolute end-2 top-[30%] hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 disabled:opacity-30 sm:flex"
             >
               <svg viewBox="0 0 24 24" className="size-6 stroke-white rtl:rotate-180" fill="none" strokeWidth="2.4" strokeLinecap="round">
                 <path d="M9 6l6 6-6 6" />
               </svg>
             </button>
           </>
+        )}
+
+        {toast && (
+          <p role="status" className="pointer-events-none absolute inset-x-0 top-20 mx-auto w-fit max-w-[90vw] truncate rounded-full bg-black/75 px-4 py-2 text-sm font-bold">
+            {toast}
+          </p>
         )}
 
         {sheetFor && (

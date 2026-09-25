@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { computeWhyNowScore } from "@/lib/movaEngine";
 import { viewUrl } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
+import { hashtagsIn, normalizeTag } from "@/lib/hashtags";
 
 // «اكتشف»: public moments for signed-in official accounts. Vertical = moments,
 // horizontal = their angles. Only angles that passed the automatic check (or an
@@ -112,5 +113,41 @@ export async function listDiscover(viewer: User) {
         ),
       };
     }),
+  );
+}
+
+// Public moments whose description carries #tag, newest activity first; cover = the
+// first angle that passed the check. Same rules as «اكتشف».
+export async function listTag(viewer: User, rawTag: string) {
+  const tag = normalizeTag(rawTag);
+  if (!/^[\p{L}\p{N}_]{1,40}$/u.test(tag)) return [];
+  const now = new Date();
+  const blocked = [...(await blockedIdsFor(viewer.id))];
+  const shown = { status: "READY" as const, screening: "allowed", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }], contributorId: { notIn: blocked } };
+  const moments = await db.moment.findMany({
+    where: {
+      visibility: "PUBLIC",
+      status: "ACTIVE",
+      creatorId: { notIn: blocked },
+      description: { contains: `#${tag}`, mode: "insensitive" },
+      angles: { some: shown },
+    },
+    orderBy: { lastActivityAt: "desc" },
+    take: CANDIDATES,
+    include: { angles: { where: shown, orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], take: 1 }, _count: { select: { angles: { where: shown } } } },
+  });
+  // "contains" also matches #tagger for #tag: keep exact tags only.
+  return Promise.all(
+    moments
+      .filter((m) => hashtagsIn(m.description).includes(tag))
+      .map(async (m) => {
+        const a = m.angles[0];
+        return {
+          code: m.code,
+          title: m.title,
+          angleCount: m._count.angles,
+          coverUrl: a ? await viewUrl(a.mediaType === "VIDEO" ? a.thumbPath : a.mediaPath) : null,
+        };
+      }),
   );
 }

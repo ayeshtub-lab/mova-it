@@ -117,3 +117,38 @@ export async function screenAngle(angle: {
     return { result: "error", reason: String((error as Error)?.message ?? error).slice(0, 300) };
   }
 }
+
+// A short text shown to everyone (a public moment's description): same rules, as text.
+export async function screenText(text: string): Promise<Verdict> {
+  if (!screeningEnabled()) return { result: "error", reason: "screening off" };
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `${PROMPT}\n\nThe content is not an image but this short text (it may be Arabic, any dialect). Also BLOCK insults, harassment of a named person, and ads or spam links; allow ordinary words and hashtags.\n\nTEXT:\n"""${text.replace(/"""/g, "")}"""`,
+              },
+            ],
+          },
+        ],
+        generationConfig: { temperature: 0, responseMimeType: "application/json" },
+      }),
+    });
+    const body = (await res.json().catch(() => null)) as { candidates?: { content?: { parts?: { text?: string }[] } }[]; promptFeedback?: { blockReason?: string } } | null;
+    if (!res.ok) return { result: "error", reason: `gemini ${res.status}` };
+    if (body?.promptFeedback?.blockReason) return { result: "blocked", category: "other", reason: "input refused by Gemini" };
+    const answer = body?.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    const parsed = JSON.parse(answer) as { verdict?: string; category?: string; reason?: string };
+    if (parsed.verdict === "block") return { result: "blocked", category: String(parsed.category ?? "other").slice(0, 40), reason: String(parsed.reason ?? "").slice(0, 300) };
+    if (parsed.verdict === "allow") return { result: "allowed" };
+    return { result: "error", reason: "unreadable answer" };
+  } catch (error) {
+    return { result: "error", reason: String((error as Error)?.message ?? error).slice(0, 300) };
+  }
+}

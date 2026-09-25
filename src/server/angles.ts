@@ -3,7 +3,7 @@ import { MediaType, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { blobExists } from "@/server/media";
-import { screenAngle, screeningEnabled } from "@/server/screening";
+import { screenAngle, screeningEnabled, screenText } from "@/server/screening";
 
 export const MAX_VIDEO_SECONDS = 20;
 // A little slack: containers round durations, and a 20.3 s clip is still "20 seconds".
@@ -182,6 +182,11 @@ export async function completeAngle(user: User, angleId: string) {
 // A moment just became public: angles added before (unchecked, or checked while the
 // check was failing) are checked now. (Explicit null: in SQL, NULL <> "allowed" is not true.) Anything not clearly fine is hidden for an admin.
 export async function screenForPublic(momentId: string) {
+  // The description too: one that does not pass is removed rather than shown to everyone.
+  const moment = await db.moment.findUnique({ where: { id: momentId }, select: { description: true } });
+  if (moment?.description && (await screenText(moment.description)).result !== "allowed") {
+    await db.moment.update({ where: { id: momentId }, data: { description: null } });
+  }
   const angles = await db.angle.findMany({ where: { momentId, status: "READY", OR: [{ screening: null }, { screening: { not: "allowed" } }] } });
   for (const angle of angles) {
     const verdict = screeningEnabled() ? await screenAngle(angle) : null;

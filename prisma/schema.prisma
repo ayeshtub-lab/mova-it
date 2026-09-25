@@ -39,6 +39,7 @@ model User {
   directMessages  DirectMessage[]
   angleViews      AngleView[]
   dailyVotes      DailyVote[]
+  savedAngles     SavedAngle[]
   participations  Participant[]
   following       Follow[]         @relation("Follower")
   followers       Follow[]         @relation("Following")
@@ -95,6 +96,8 @@ model Moment {
   id             String           @id @default(cuid())
   code           String           @unique // short share code: /m/K7M2Q4
   title          String
+  // A short line under the title; may carry #hashtags (public ones link to /tag/…).
+  description    String?
   kind           MomentKind       @default(EVERYDAY)
   visibility     Visibility       @default(FRIENDS)
   status         ModerationStatus @default(ACTIVE)
@@ -186,6 +189,7 @@ model Angle {
   reactions       Reaction[]
   comments        Comment[]
   views           AngleView[]
+  saves           SavedAngle[]
   reports         Report[]
   removalRequests RemovalRequest[]
 
@@ -217,6 +221,20 @@ model AngleView {
   @@index([userId])
 }
 
+// Bookmarks («المحفوظات»): private to the person who saved.
+model SavedAngle {
+  userId    String
+  angleId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  angle Angle @relation(fields: [angleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, angleId])
+  @@index([userId, createdAt])
+}
+
+// Only ❤️ is offered now; the other kinds stay in the enum for old rows.
 model Reaction {
   angleId   String
   userId    String

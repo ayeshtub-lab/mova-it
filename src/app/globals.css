@@ -113,3 +113,53 @@ body {
     animation: none;
   }
 }
+
+/* Viewer: the heart that pops where you double-tapped, and the rail icons' little bounce. */
+@keyframes heart-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.3) rotate(-14deg);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15) rotate(-8deg);
+  }
+  30% {
+    transform: translate(-50%, -50%) scale(0.95) rotate(-8deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -60%) scale(1) rotate(-8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -140%) scale(1.1) rotate(-8deg);
+  }
+}
+@keyframes heart-pop {
+  40% {
+    transform: scale(1.3);
+  }
+}
+.heart-burst {
+  animation: heart-burst 0.9s ease-out forwards;
+  filter: drop-shadow(0 4px 12px rgb(0 0 0 / 0.35));
+}
+.heart-pop {
+  animation: heart-pop 0.35s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .heart-burst {
+    animation-duration: 0.6s;
+    animation-name: fade-out-soft;
+    transform: translate(-50%, -50%);
+  }
+  .heart-pop {
+    animation: none;
+  }
+}
+@keyframes fade-out-soft {
+  to {
+    opacity: 0;
+  }
+}

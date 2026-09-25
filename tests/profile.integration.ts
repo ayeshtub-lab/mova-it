@@ -5,8 +5,10 @@ import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { accountForGoogle } from "../src/server/google";
 import { blockUser } from "../src/server/moderation";
-import { createMoment, getMomentView } from "../src/server/moments";
-import { getProfile, ProfileError, recordViews, setDisplayName, setFollow } from "../src/server/profile";
+import { listTag } from "../src/server/discover";
+import { createMoment, getMomentView, MomentError } from "../src/server/moments";
+import { ReactionError, setReaction, setSaved } from "../src/server/reactions";
+import { getProfile, ProfileError, recordViews, setAvatar, setDisplayName, setFollow } from "../src/server/profile";
 
 const TAG = "[proftest]";
 const out: string[] = [];
@@ -65,15 +67,52 @@ async function main() {
       assert.ok(moments.includes(past.code));
     });
 
-    await check("likes and view counts are private to the owner", async () => {
-      await db.reaction.create({ data: { angleId: lateA.id, userId: owner.id, kind: "FIRE" } });
+    await check("counts are public; what you liked and saved stays yours", async () => {
+      await db.reaction.create({ data: { angleId: lateA.id, userId: owner.id, kind: "FIRE" } }); // an old-style reaction still counts
+      await setReaction(friend, pubA.id, true);
+      await setReaction(friend, pubA.id, true); // once per person
       const mine = (await getProfile(owner, owner.id))!;
-      assert.deepEqual(mine.likes?.map((l) => [l.id, l.kind]), [[lateA.id, "FIRE"]]);
-      assert.ok(mine.shots.every((s) => typeof s.views === "number"));
+      assert.deepEqual(mine.likes?.map((l) => l.id), [lateA.id]);
       const seen = (await getProfile(friend, owner.id))!;
       assert.equal(seen.likes, null);
-      assert.ok(seen.shots.every((s) => s.views === null));
+      assert.equal(seen.saved, null);
+      assert.equal(seen.likesReceived, 2); // pubA by friend + lateA by owner
+      assert.ok(seen.shots.every((s) => typeof s.views === "number"));
       assert.equal(seen.googleName, null);
+      const liked = (await getMomentView(pub.code, friend))!.angles[0].likes;
+      assert.deepEqual(liked, { count: 1, liked: true });
+      assert.deepEqual(await setReaction(friend, pubA.id, false), { count: 0, liked: false });
+      await assert.rejects(setReaction(friend, pubA.id, "HEART"), ReactionError);
+    });
+
+    await check("saved: private, only what you may see, toggles", async () => {
+      await setSaved(friend, pubA.id, true);
+      await setSaved(friend, pubA.id, true);
+      const linkB = await angle(link.id, owner.id, 3); // second angle: locked until you add yours
+      await assert.rejects(setSaved(stranger, linkB.id, true), ReactionError);
+      assert.equal((await getMomentView(pub.code, friend))!.angles[0].saved, true);
+      const me = (await getProfile(friend, friend.id))!;
+      assert.deepEqual(me.saved?.map((s) => s.id), [pubA.id]);
+      await setSaved(friend, pubA.id, false);
+      assert.deepEqual((await getProfile(friend, friend.id))!.saved, []);
+    });
+
+    await check("profile photo: official accounts only, a real small JPEG only", async () => {
+      await assert.rejects(setAvatar(guest, Buffer.from([0xff, 0xd8, 0xff, 0])), isProfile("forbidden"));
+      await assert.rejects(setAvatar(owner, Buffer.from("not a jpeg")), isProfile("invalid"));
+      await assert.rejects(setAvatar(owner, Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(700 * 1024)])), isProfile("invalid"));
+    });
+
+    await check("description with #hashtags; the tag page lists public, checked moments", async () => {
+      await assert.rejects(createMoment(owner, { title: "t", description: "x".repeat(151) }), (e) => e instanceof MomentError && e.code === "invalid_description");
+      const tagged = await createMoment(owner, { title: "tagged", description: `sunset ${TAG} #ProfTestSea #بحر_تست` });
+      assert.equal((await getMomentView(tagged.code, owner))!.description, `sunset ${TAG} #ProfTestSea #بحر_تست`);
+      await db.angle.create({ data: { momentId: tagged.id, contributorId: owner.id, mediaType: "PHOTO", status: "READY", screening: "allowed" } });
+      assert.deepEqual(await listTag(friend, "proftestsea"), [], "friends-only: not on the tag page");
+      await db.moment.update({ where: { id: tagged.id }, data: { visibility: "PUBLIC" } });
+      assert.deepEqual((await listTag(friend, "proftestsea")).map((m) => m.code), [tagged.code]);
+      assert.deepEqual((await listTag(friend, "بحر_تست")).map((m) => m.code), [tagged.code]);
+      assert.deepEqual(await listTag(friend, "proftests"), [], "exact tags only");
     });
 
     await check("views: once per person, never your own, only what you may see", async () => {
@@ -88,7 +127,7 @@ async function main() {
       assert.equal(views.get(pubA.id), 1);
       const view = await getMomentView(fr.code, owner);
       assert.equal(view?.angles[0].views, 1);
-      assert.equal((await getMomentView(fr.code, friend))?.angles[0].views, null);
+      assert.equal((await getMomentView(fr.code, friend))?.angles[0].views, 1); // public count
     });
 
     await check("follow / unfollow; can't follow yourself or a guest", async () => {

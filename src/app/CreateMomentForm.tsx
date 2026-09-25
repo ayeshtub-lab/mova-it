@@ -7,6 +7,11 @@ type Labels = {
   title: string;
   titleLabel: string;
   titlePlaceholder: string;
+  descriptionLabel: string;
+  descriptionPlaceholder: string;
+  descriptionHint: string;
+  descriptionError: string;
+  descriptionBlocked: string;
   placeLabel: string;
   placePlaceholder: string;
   visibilityLabel: string;
@@ -28,14 +33,26 @@ const inputClass =
 // «للكل» is offered to official (Google) accounts only; the server enforces it too.
 export function CreateMomentForm({ labels, canPublic = false }: { labels: Labels; canPublic?: boolean }) {
   const [state, action, pending] = useActionState(createMomentAction, undefined);
-  const error =
-    state?.error === "title" ? labels.titleError : state?.error === "place" ? labels.placeError : state?.error ? labels.serverError : null;
+  const error = state?.error
+    ? ({ title: labels.titleError, place: labels.placeError, description: labels.descriptionError, descriptionBlocked: labels.descriptionBlocked, server: labels.serverError } as const)[state.error]
+    : null;
 
   return (
     <form action={action} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1.5 text-sm font-bold">
         {labels.titleLabel}
         <input name="title" required maxLength={80} placeholder={labels.titlePlaceholder} className={`${inputClass} font-normal`} />
+      </label>
+      <label className="flex flex-col gap-1.5 text-sm font-bold">
+        {labels.descriptionLabel}
+        <textarea
+          name="description"
+          maxLength={150}
+          rows={2}
+          placeholder={labels.descriptionPlaceholder}
+          className="w-full resize-none rounded-3xl border border-line bg-background px-4 py-2.5 font-normal leading-relaxed outline-none focus:border-accent"
+        />
+        <span className="text-xs font-normal text-muted">{labels.descriptionHint}</span>
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-bold">
         {labels.placeLabel}

@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 
-type Shot = { id: string; mediaType: string; coverUrl: string | null; momentCode: string; momentTitle: string; views: number | null };
-type Like = { id: string; kind: string; mediaType: string; coverUrl: string | null; momentCode: string; momentTitle: string };
+type Shot = { id: string; mediaType: string; coverUrl: string | null; momentCode: string; momentTitle: string; views: number };
+type Like = { id: string; mediaType: string; coverUrl: string | null; momentCode: string; momentTitle: string };
 type MomentItem = { code: string; title: string; angleCount: number; coverUrl: string | null };
 
 type Labels = {
@@ -15,11 +15,11 @@ type Labels = {
   emptyMoments: string;
   emptyLikes: string;
   likesPrivate: string;
-  viewsPrivate: string;
+  saved: string;
+  emptySaved: string;
+  savedPrivate: string;
   seenBy: string;
 };
-
-const EMOJI: Record<string, string> = { HEART: "❤️", LAUGH: "😂", FIRE: "🔥", WOW: "😮" };
 
 function Tile({ href, coverUrl, video, children }: { href: string; coverUrl: string | null; video: boolean; children?: React.ReactNode }) {
   return (
@@ -40,15 +40,47 @@ function Tile({ href, coverUrl, video, children }: { href: string; coverUrl: str
   );
 }
 
-// Shots / moments / likes. Likes only exist in the owner's own view.
-export function ProfileTabs({ shots, moments, likes, labels }: { shots: Shot[]; moments: MomentItem[]; likes: Like[] | null; labels: Labels }) {
+// A private grid (what you liked / saved): tiles open the shot in its moment.
+function PrivateGrid({ items, note, empty, mark }: { items: Like[]; note: string; empty: string; mark: string }) {
+  if (!items.length) return <p className="rounded-3xl bg-surface p-6 text-center text-muted">{empty}</p>;
+  return (
+    <>
+      <p className="text-center text-xs text-muted">{note}</p>
+      <div className="grid grid-cols-3 gap-1.5">
+        {items.map((l) => (
+          <Tile key={l.id} href={`/m/${l.momentCode}#angle-${l.id}`} coverUrl={l.coverUrl} video={l.mediaType === "VIDEO"}>
+            <span aria-hidden="true" className="absolute bottom-1.5 start-1.5 text-lg drop-shadow">
+              {mark}
+            </span>
+          </Tile>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// Shots / moments, plus — in the owner's own view only — liked and saved.
+export function ProfileTabs({
+  shots,
+  moments,
+  likes,
+  saved,
+  labels,
+}: {
+  shots: Shot[];
+  moments: MomentItem[];
+  likes: Like[] | null;
+  saved: Like[] | null;
+  labels: Labels;
+}) {
   const tabs = [
-    { key: "shots", label: `📸 ${labels.shots}` },
-    { key: "moments", label: `⭐ ${labels.moments}` },
-    ...(likes ? [{ key: "likes", label: `❤️ ${labels.likes}` }] : []),
-  ] as const;
+    { key: "shots", emoji: "📸", label: labels.shots },
+    { key: "moments", emoji: "⭐", label: labels.moments },
+    ...(likes ? [{ key: "likes", emoji: "❤️", label: labels.likes }] : []),
+    ...(saved ? [{ key: "saved", emoji: "🔖", label: labels.saved }] : []),
+  ];
   const [tab, setTab] = useState<string>("shots");
-  const isMine = shots.some((s) => s.views != null) || !!likes;
+  const many = tabs.length > 2;
 
   return (
     <section className="flex flex-col gap-3">
@@ -60,29 +92,25 @@ export function ProfileTabs({ shots, moments, likes, labels }: { shots: Shot[]; 
             type="button"
             aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
-            className={`min-h-10 flex-1 rounded-full text-sm font-bold transition-all ${tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
+            className={`flex min-h-10 min-w-0 flex-1 items-center justify-center gap-1 rounded-full font-bold transition-all ${many ? "text-xs sm:text-sm" : "text-sm"} ${tab === t.key ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
           >
-            {t.label}
+            <span aria-hidden="true">{t.emoji}</span>
+            <span className="truncate">{t.label}</span>
           </button>
         ))}
       </div>
 
       {tab === "shots" &&
         (shots.length ? (
-          <>
-            {isMine && <p className="text-center text-xs text-muted">{labels.viewsPrivate}</p>}
-            <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
               {shots.map((s) => (
                 <Tile key={s.id} href={`/m/${s.momentCode}#angle-${s.id}`} coverUrl={s.coverUrl} video={s.mediaType === "VIDEO"}>
-                  {s.views != null && (
-                    <span className="absolute bottom-1.5 start-1.5 rounded-full bg-black/55 px-2 text-xs font-bold text-white" title={labels.seenBy}>
-                      👁 {s.views}
-                    </span>
-                  )}
+                  <span className="absolute bottom-1.5 start-1.5 rounded-full bg-black/55 px-2 text-xs font-bold text-white" title={labels.seenBy}>
+                    👁 {s.views}
+                  </span>
                 </Tile>
               ))}
-            </div>
-          </>
+          </div>
         ) : (
           <p className="rounded-3xl bg-surface p-6 text-center text-muted">{labels.emptyShots}</p>
         ))}
@@ -104,24 +132,8 @@ export function ProfileTabs({ shots, moments, likes, labels }: { shots: Shot[]; 
           <p className="rounded-3xl bg-surface p-6 text-center text-muted">{labels.emptyMoments}</p>
         ))}
 
-      {tab === "likes" &&
-        likes &&
-        (likes.length ? (
-          <>
-            <p className="text-center text-xs text-muted">{labels.likesPrivate}</p>
-            <div className="grid grid-cols-3 gap-1.5">
-              {likes.map((l) => (
-                <Tile key={l.id} href={`/m/${l.momentCode}#angle-${l.id}`} coverUrl={l.coverUrl} video={l.mediaType === "VIDEO"}>
-                  <span aria-hidden="true" className="absolute bottom-1.5 start-1.5 text-lg drop-shadow">
-                    {EMOJI[l.kind] ?? "❤️"}
-                  </span>
-                </Tile>
-              ))}
-            </div>
-          </>
-        ) : (
-          <p className="rounded-3xl bg-surface p-6 text-center text-muted">{labels.emptyLikes}</p>
-        ))}
+      {tab === "likes" && likes && <PrivateGrid items={likes} note={labels.likesPrivate} empty={labels.emptyLikes} mark="❤️" />}
+      {tab === "saved" && saved && <PrivateGrid items={saved} note={labels.savedPrivate} empty={labels.emptySaved} mark="🔖" />}
     </section>
   );
 }
