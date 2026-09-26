@@ -890,7 +890,7 @@ export function AngleGallery({
         {sheetFor && (
           <section
             aria-label={labels.comments.title}
-            className="absolute inset-x-0 bottom-0 flex max-h-[70dvh] flex-col rounded-t-3xl bg-background text-foreground shadow-2xl"
+            className="absolute inset-x-0 z-20 bottom-0 flex max-h-[70dvh] flex-col rounded-t-3xl bg-background text-foreground shadow-2xl"
           >
             <header className="flex items-center justify-between border-b border-line px-5 py-3">
               <h2 className="font-extrabold">
