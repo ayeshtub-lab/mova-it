@@ -147,7 +147,11 @@
       "failed": "ما زبط. جرّب مرة ثانية.",
       "tooMany": "كتبت تعليقات كثيرة خلال ساعة. استنى شوي.",
       "delete": "حذف",
-      "joinToComment": "اكتب اسمك تحت لتعلّق"
+      "joinToComment": "اكتب اسمك تحت لتعلّق",
+      "reply": "رد",
+      "replyingTo": "رد على {name}",
+      "cancelReply": "إلغاء",
+      "like": "إعجاب بالتعليق"
     },
     "reportAngle": "إبلاغ عن هذه الزاوية",
     "reportComment": "إبلاغ",

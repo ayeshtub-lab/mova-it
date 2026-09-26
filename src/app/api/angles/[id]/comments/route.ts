@@ -18,13 +18,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   }
 }
 
-// Body: { body: "text" }
+// Body: { body: "text", parentId?: "comment id" } — parentId makes it a reply.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const payload = await request.json().catch(() => null);
   try {
-    return NextResponse.json(await addComment(user, (await params).id, payload?.body), { status: 201 });
+    return NextResponse.json(await addComment(user, (await params).id, payload?.body, payload?.parentId ?? null), { status: 201 });
   } catch (error) {
     return failure(error);
   }

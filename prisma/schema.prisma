@@ -41,6 +41,7 @@ model User {
   dailyVotes      DailyVote[]
   savedAngles     SavedAngle[]
   activeDays      ActiveDay[]
+  commentLikes    CommentLike[]
   participations  Participant[]
   following       Follow[]         @relation("Follower")
   followers       Follow[]         @relation("Following")
@@ -188,6 +189,8 @@ model Angle {
   // video's own sound is muted under it.
   soundKey      String?
   muteOriginal  Boolean     @default(false)
+  // Times someone tapped «share» on it (for «الأكثر رواجًا هذا الأسبوع»).
+  shares        Int         @default(0)
 
   moment          Moment           @relation(fields: [momentId], references: [id], onDelete: Cascade)
   contributor     User             @relation(fields: [contributorId], references: [id])
@@ -273,14 +276,32 @@ model Comment {
   angleId   String
   userId    String
   body      String
+  // A reply points at the top-level comment it answers (one level, like TikTok).
+  parentId  String?
   createdAt DateTime @default(now())
 
   angle   Angle    @relation(fields: [angleId], references: [id], onDelete: Cascade)
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   reports Report[]
+  parent  Comment?      @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[]     @relation("Replies")
+  likes   CommentLike[]
 
   @@index([angleId, createdAt])
   @@index([userId, createdAt])
+}
+
+// ❤️ on a comment: one per person.
+model CommentLike {
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, userId])
+  @@index([userId])
 }
 
 // ── Invites between friends ───────────────────────────────────────────────

@@ -11,7 +11,7 @@ import { ReportSheet, type ReportLabels } from "./ReportSheet";
 
 type Likes = { count: number; liked: boolean };
 
-type CommentView = { id: string; body: string; createdAt: string; authorName: string; mine: boolean; canDelete: boolean };
+type CommentView = { id: string; body: string; createdAt: string; authorName: string; parentId: string | null; likes: number; liked: boolean; mine: boolean; canDelete: boolean };
 
 export type GalleryAngle = {
   id: string;
@@ -77,6 +77,10 @@ type Labels = {
     tooMany: string;
     delete: string;
     joinToComment: string;
+    reply: string;
+    replyingTo: string;
+    cancelReply: string;
+    like: string;
   };
 };
 
@@ -389,6 +393,7 @@ export function AngleGallery({
   }
 
   async function shareAngle(a: GalleryAngle) {
+    fetch(`/api/angles/${a.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
     const url = `${share.url}#angle-${a.id}`;
     if (navigator.share) {
       await navigator.share({ title: share.title, text: labels.shareText, url }).catch(() => {});
@@ -407,12 +412,26 @@ export function AngleGallery({
   const [commentError, setCommentError] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
+
+  // ❤️ on a comment: optimistic, then settle on the server's count.
+  async function likeComment(c: CommentView) {
+    const liked = !c.liked;
+    const patch = (likes: number, on: boolean) => setComments((list) => (list ?? []).map((x) => (x.id === c.id ? { ...x, likes, liked: on } : x)));
+    patch(c.likes + (liked ? 1 : -1), liked);
+    const res = await fetch(`/api/comments/${c.id}/like`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ liked }) }).catch(() => null);
+    if (res?.ok) {
+      const r = (await res.json()) as { likes: number; liked: boolean };
+      patch(r.likes, r.liked);
+    } else patch(c.likes, c.liked);
+  }
 
   async function openComments(angleId: string) {
     if (!canReact) return join();
     setSheetFor(angleId);
     setComments(null);
     setCommentError(null);
+    setReplyTo(null);
     const res = await fetch(`/api/angles/${angleId}/comments`).catch(() => null);
     if (res?.ok) setComments((await res.json()).comments);
     else setCommentError(labels.comments.failed);
@@ -427,12 +446,20 @@ export function AngleGallery({
     const res = await fetch(`/api/angles/${angleId}/comments`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ body: draft }),
+      body: JSON.stringify({ body: draft, parentId: replyTo?.id ?? null }),
     }).catch(() => null);
     setSending(false);
     if (res?.ok) {
       const added: CommentView = await res.json();
-      setComments((list) => [...(list ?? []), added]);
+      // A reply goes at the end of its thread; a new comment at the end of the list.
+      setComments((list) => {
+        const all = list ?? [];
+        if (!added.parentId) return [...all, added];
+        let at = all.length;
+        for (let i = all.length - 1; i >= 0; i--) if (all[i].id === added.parentId || all[i].parentId === added.parentId) { at = i + 1; break; }
+        return [...all.slice(0, at), added, ...all.slice(at)];
+      });
+      setReplyTo(null);
       setCommentCounts((m) => new Map(m).set(angleId, (m.get(angleId) ?? 0) + 1));
       setDraft("");
     } else setCommentError(res?.status === 429 ? labels.comments.tooMany : labels.comments.failed);
@@ -443,7 +470,7 @@ export function AngleGallery({
     if (!angleId) return;
     const res = await fetch(`/api/comments/${id}`, { method: "DELETE" }).catch(() => null);
     if (!res?.ok) return setCommentError(labels.comments.failed);
-    setComments((list) => (list ?? []).filter((c) => c.id !== id));
+    setComments((list) => (list ?? []).filter((c) => c.id !== id && c.parentId !== id)); // replies go with their comment
     setCommentCounts((m) => new Map(m).set(angleId, Math.max(0, (m.get(angleId) ?? 1) - 1)));
   }
 
@@ -856,8 +883,8 @@ export function AngleGallery({
               {comments === null && !commentError && <li className="text-sm text-muted">{labels.comments.loading}</li>}
               {comments?.length === 0 && <li className="text-sm text-muted">{labels.comments.empty}</li>}
               {comments?.map((c) => (
-                <li key={c.id} className="flex items-start gap-3">
-                  <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-bold text-accent-ink">
+                <li key={c.id} className={`flex items-start gap-3 ${c.parentId ? "ps-10" : ""}`}>
+                  <span aria-hidden="true" className={`flex shrink-0 items-center justify-center rounded-full bg-accent-soft font-bold text-accent-ink ${c.parentId ? "size-6 text-xs" : "size-8 text-sm"}`}>
                     {c.authorName.charAt(0)}
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col">
@@ -866,7 +893,26 @@ export function AngleGallery({
                       <span>{timeAgo(c.createdAt, locale)}</span>
                     </div>
                     <p className="whitespace-pre-line break-words text-sm leading-relaxed">{c.body}</p>
+                    <button
+                      type="button"
+                      onClick={() => setReplyTo({ id: c.parentId ?? c.id, name: c.authorName })}
+                      className="min-h-8 self-start text-xs font-bold text-muted hover:text-foreground"
+                    >
+                      {labels.comments.reply}
+                    </button>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => likeComment(c)}
+                    aria-pressed={c.liked}
+                    aria-label={labels.comments.like}
+                    className="flex min-h-9 w-8 shrink-0 flex-col items-center justify-center text-muted"
+                  >
+                    <svg viewBox="0 0 24 24" className={`size-4 ${c.liked ? "fill-accent" : "fill-none stroke-current"}`} strokeWidth="2">
+                      <path d={HEART} />
+                    </svg>
+                    <span className="text-[11px] font-bold">{c.likes || ""}</span>
+                  </button>
                   {c.canDelete && (
                     <button type="button" onClick={() => removeComment(c.id)} className="min-h-9 shrink-0 rounded-full px-2 text-xs font-bold text-muted hover:text-accent-ink">
                       {labels.comments.delete}
@@ -884,6 +930,14 @@ export function AngleGallery({
             {commentError && (
               <p role="alert" className="px-5 pb-1 text-sm font-semibold text-accent-ink">
                 {commentError}
+              </p>
+            )}
+            {replyTo && (
+              <p className="flex items-center justify-between gap-2 border-t border-line bg-surface px-4 py-1.5 text-xs font-bold text-muted">
+                <span className="truncate">{labels.comments.replyingTo.replace("{name}", replyTo.name)}</span>
+                <button type="button" onClick={() => setReplyTo(null)} className="min-h-8 shrink-0 px-2 hover:text-foreground">
+                  {labels.comments.cancelReply}
+                </button>
               </p>
             )}
             <form onSubmit={sendComment} className="flex gap-2 border-t border-line p-3">

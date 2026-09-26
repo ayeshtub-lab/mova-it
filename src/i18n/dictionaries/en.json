@@ -137,7 +137,11 @@
       "failed": "That did not work. Please try again.",
       "tooMany": "You wrote a lot of comments this hour. Please wait a bit.",
       "delete": "Delete",
-      "joinToComment": "Enter your name below to comment"
+      "joinToComment": "Enter your name below to comment",
+      "reply": "Reply",
+      "replyingTo": "Replying to {name}",
+      "cancelReply": "Cancel",
+      "like": "Like comment"
     },
     "reportAngle": "Report this angle",
     "reportComment": "Report",
