@@ -148,9 +148,10 @@ export function MontagePanel({
           <span className="absolute inset-x-0 top-3 mx-auto w-fit rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white">{labels.updating}</span>
         )}
 
-        {/* The rail, on the right like the shots' viewer; kept above the video's own controls. */}
+        {/* The rail, on the right like the shots' viewer, in the middle: clear of the title and
+            the invitation burnt into the bottom of the video, and of the video's controls. */}
         {video.videoUrl && (
-          <div className="absolute bottom-16 right-1 flex flex-col items-center gap-1">
+          <div className="absolute right-1 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1">
             <button type="button" aria-pressed={video.liked} aria-label={video.liked ? labels.unlike : labels.like} onClick={toggleLike} className={railButton}>
               <svg viewBox="0 0 24 24" className={`size-9 ${video.liked ? "heart-pop fill-accent" : "fill-white"}`}>
                 <path d={HEART} />
@@ -166,9 +167,6 @@ export function MontagePanel({
               <svg viewBox="0 0 24 24" className="size-8 fill-none stroke-white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 4v11m-5-5 5 5 5-5M5 20h14" />
               </svg>
-            </button>
-            <button type="button" aria-label={soundLabels.montage} onClick={() => setPicking(true)} disabled={busy} className={`${railButton} text-2xl`}>
-              🎵
             </button>
           </div>
         )}
