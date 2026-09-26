@@ -77,6 +77,35 @@ async function videoSegment(input: string, overlay: string, out: string, filter:
   return seconds;
 }
 
+type Sound = NonNullable<ReturnType<typeof soundByKey>>;
+
+// The sound its owner added to a shot, laid over that shot's segment (used when the
+// montage has no sound of its own): looped to the segment's length with short fades, the
+// clip's own sound softer under it — or gone when the owner muted it. A verse is heard
+// once and whole: the shot's last frame holds until it ends.
+async function withShotSound(segment: string, soundPath: string, sound: Sound, muteOriginal: boolean, seconds: number, out: string) {
+  if (isQuran(sound)) {
+    const total = Math.max(seconds, sound.seconds + 0.8);
+    await ffmpeg([
+      "-i", segment, "-i", soundPath,
+      "-filter_complex", `[0:v]tpad=stop_mode=clone:stop_duration=${(total - seconds).toFixed(2)}[v];[0:a]anullsink;[1:a]aresample=44100,apad=whole_dur=${total.toFixed(2)}[a]`,
+      "-map", "[v]", "-map", "[a]", ...ENCODE, "-t", total.toFixed(2), out,
+    ]);
+    return total;
+  }
+  const s = seconds.toFixed(2);
+  const bed = `[1:a]aresample=44100,atrim=0:${s},afade=t=in:d=0.15,afade=t=out:st=${Math.max(0, seconds - 0.4).toFixed(2)}:d=0.4[bed]`;
+  const mix = muteOriginal || isSolemn(sound)
+    ? `${bed};[0:a]anullsink;[bed]anull[a]`
+    : `${bed};[0:a]volume=0.35[soft];[soft][bed]amix=inputs=2:duration=first:normalize=0[a]`;
+  await ffmpeg([
+    "-i", segment, "-stream_loop", "-1", "-i", soundPath,
+    "-filter_complex", mix,
+    "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-ar", "44100", "-ac", "2", "-t", s, out,
+  ]);
+  return seconds;
+}
+
 // Renders a queued montage end to end and records the outcome on its row.
 export async function renderMontage(montageId: string, siteHost: string) {
   const montage = await db.montage.update({ where: { id: montageId }, data: { status: "RENDERING" }, include: { moment: true } });
@@ -97,6 +126,17 @@ export async function renderMontage(montageId: string, siteHost: string) {
     const meta = dict.moment.meta
       .replace("{angles}", plural(locale, dict.plurals.angles, ordered.length))
       .replace("{people}", plural(locale, dict.plurals.people, participants));
+
+    // Library sounds are fetched from the site once per render, whichever shots use them.
+    const fetched = new Map<string, string>();
+    const soundAt = async (sound: Sound) => {
+      if (!fetched.has(sound.key)) {
+        const path = join(dir, `sound-${sound.key}.mp3`);
+        await download(`${siteHost.startsWith("localhost") ? "http" : "https"}://${siteHost}${soundFile(sound.key)}`, path);
+        fetched.set(sound.key, path);
+      }
+      return fetched.get(sound.key)!;
+    };
 
     const segments: string[] = [];
     let total = 0;
@@ -122,8 +162,15 @@ export async function renderMontage(montageId: string, siteHost: string) {
           stamp: angle.stamp ? stampText(angle.capturedAt ?? angle.uploadedAt, locale, "Asia/Riyadh") : undefined,
         }),
       );
-      total += angle.mediaType === "VIDEO" ? await videoSegment(input, overlay, out, angle.filter) : await photoSegment(input, overlay, out, angle.filter);
-      segments.push(out);
+      let seconds = angle.mediaType === "VIDEO" ? await videoSegment(input, overlay, out, angle.filter) : await photoSegment(input, overlay, out, angle.filter);
+      let segment = out;
+      const shotSound = montage.soundKey ? null : soundByKey(angle.soundKey);
+      if (shotSound) {
+        segment = join(dir, `seg-${i}-sound.mp4`);
+        seconds = await withShotSound(out, await soundAt(shotSound), shotSound, angle.muteOriginal, seconds, segment);
+      }
+      total += seconds;
+      segments.push(segment);
     }
 
     // Close on the card with the short link.
@@ -146,8 +193,7 @@ export async function renderMontage(montageId: string, siteHost: string) {
     let mix = "[orig]anull[a]";
     const soundInput: string[] = [];
     if (sound) {
-      const soundPath = join(dir, "sound.mp3");
-      await download(`${siteHost.startsWith("localhost") ? "http" : "https"}://${siteHost}${soundFile(sound.key)}`, soundPath);
+      const soundPath = await soundAt(sound);
       if (isQuran(sound)) {
         // Once, untouched; hold the last frame until the verse ends, plus a short breath.
         soundInput.push("-i", soundPath);

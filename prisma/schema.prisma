@@ -42,6 +42,7 @@ model User {
   savedAngles     SavedAngle[]
   activeDays      ActiveDay[]
   commentLikes    CommentLike[]
+  momentLikes     MomentLike[]
   participations  Participant[]
   following       Follow[]         @relation("Follower")
   followers       Follow[]         @relation("Following")
@@ -121,6 +122,7 @@ model Moment {
   invites      MomentInvite[]
   daily        DailyPlan?
   montages     Montage[]
+  likes        MomentLike[]
   reports      Report[]
 
   @@index([lastActivityAt])
@@ -284,8 +286,8 @@ model Comment {
   parentId  String?
   createdAt DateTime @default(now())
 
-  angle   Angle    @relation(fields: [angleId], references: [id], onDelete: Cascade)
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  angle   Angle         @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   reports Report[]
   parent  Comment?      @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
   replies Comment[]     @relation("Replies")
@@ -363,6 +365,9 @@ model Montage {
   momentId    String
   status      MontageStatus @default(QUEUED)
   angleIds    String[] // the angles used, in cut order
+  // What it was made from (angles, their looks and sounds, the montage sound): a change
+  // to any of them makes a fresh montage.
+  signature   String?
   soundKey    String? // library sound mixed under the whole montage
   videoUrl    String?
   durationSec Float?
@@ -373,6 +378,19 @@ model Montage {
   moment Moment @relation(fields: [momentId], references: [id], onDelete: Cascade)
 
   @@index([momentId])
+}
+
+// Hearts on a moment's ready video (its montage). Kept on the moment, so they stay when
+// the video is remade with new angles.
+model MomentLike {
+  momentId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  moment Moment @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([momentId, userId])
 }
 
 // ── Safety ────────────────────────────────────────────────────────────────

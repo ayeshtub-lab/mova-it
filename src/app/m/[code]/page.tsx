@@ -93,6 +93,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   // «لحظة اليوم»: its theme, time left, and (while it's today) the vote for tomorrow.
   const daily = view.kind === "DAILY" ? await dailyFor(view.id, user) : null;
   const ballot = daily?.isToday ? await tomorrowVote(user) : null;
+  // The ready video, for the creator and those who added an angle (null for everyone else).
+  const montage = view.angleCount > 0 ? await latestMontageFor(user, view.code) : null;
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
@@ -160,6 +162,11 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               {dict.visibility.makePublic}
             </button>
           </form>
+        )}
+
+        {/* The moment's ready video comes first, for those who may see it. */}
+        {view.angleCount > 0 && montage && (
+          <MontagePanel code={view.code} initial={montage} labels={dict.montage} locale={locale} soundLabels={dict.sounds} />
         )}
 
         <AngleWheel
@@ -231,18 +238,13 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           </div>
         )}
 
+        {view.angleCount > 0 && !montage && <p className="rounded-2xl bg-surface p-4 text-sm text-muted">{dict.montage.locked}</p>}
+
         {view.lockedCount > 0 && (
           <p className="rounded-2xl bg-accent-soft p-4 text-sm font-semibold text-accent-ink">
             {fill(t.locked, { lockedAngles: plural(locale, dict.plurals.lockedAngles, view.lockedCount) })}
           </p>
         )}
-
-        {view.angleCount > 0 &&
-          (view.viewer.isCreator || view.viewer.hasContributed ? (
-            <MontagePanel code={view.code} initial={await latestMontageFor(user, view.code)} labels={dict.montage} locale={locale} soundLabels={dict.sounds} />
-          ) : (
-            <p className="rounded-2xl bg-surface p-4 text-sm text-muted">{dict.montage.locked}</p>
-          ))}
 
         {/* "Add your angle", framed in the logo's red → yellow → blue. */}
         <div className="rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px] shadow-sm">

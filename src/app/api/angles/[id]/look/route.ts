@@ -1,14 +1,22 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
+import { refreshMontageForAngle } from "@/server/montage";
 import { setAngleLook, SoundError } from "@/server/sounds";
+
+// The moment's video is remade with the new look after the response.
+export const maxDuration = 300;
 
 // Body: { filter: "warm" | null, stamp: boolean } — only the angle's contributor.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await request.json().catch(() => null);
+  const { id } = await params;
   try {
-    return NextResponse.json(await setAngleLook(user, (await params).id, body?.filter ?? null, body?.stamp));
+    const result = await setAngleLook(user, id, body?.filter ?? null, body?.stamp);
+    const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;
+    after(() => refreshMontageForAngle(id, host).catch((error) => console.error("montage refresh failed", id, error)));
+    return NextResponse.json(result);
   } catch (error) {
     if (!(error instanceof SoundError)) throw error;
     return NextResponse.json({ error: error.code }, { status: error.code === "not_found" ? 404 : error.code === "forbidden" ? 403 : 400 });

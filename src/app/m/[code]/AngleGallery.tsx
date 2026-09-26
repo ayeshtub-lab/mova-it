@@ -161,6 +161,23 @@ export function AngleGallery({
       setMuted(localStorage.getItem("zawmo:muted") === "1");
     } catch {}
   }, []);
+  // Leaving without the close button (the phone's back button, a link on the rail, going
+  // to another app) must not leave the sound playing: stop everything on the way out.
+  useEffect(() => {
+    const track = trackRef.current;
+    const stop = () => {
+      player.current?.pause();
+      track?.querySelectorAll("video").forEach((v) => v.pause());
+    };
+    const onHide = () => document.hidden && stop();
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", stop);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", stop);
+      stop();
+    };
+  }, []);
   // Angles that arrive later (a new upload refreshes the page) are not in the state maps
   // yet: fall back to what the server sent for them.
   const byId = new Map(angles.map((a) => [a.id, a]));
@@ -375,8 +392,14 @@ export function AngleGallery({
   function togglePlay(figure: HTMLElement) {
     const video = figure.querySelector("video");
     if (!video) return;
-    if (video.paused) video.play().catch(() => {});
-    else video.pause();
+    // The added sound pauses and resumes with the video.
+    if (video.paused) {
+      video.play().catch(() => {});
+      if (!muted && soundOf(angles[current]?.id ?? "").key) player.current?.play().catch(() => {});
+    } else {
+      video.pause();
+      player.current?.pause();
+    }
   }
 
   // ── Save, follow, share ─────────────────────────────────────────────────
