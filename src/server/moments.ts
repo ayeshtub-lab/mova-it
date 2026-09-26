@@ -161,6 +161,9 @@ export async function getMomentView(code: string, viewer: User | null) {
         presence: a.presence,
         soundKey: a.soundKey,
         muteOriginal: a.muteOriginal,
+        filter: a.filter,
+        stamp: a.stamp,
+        takenAt: a.capturedAt ?? a.uploadedAt,
         contributorName: a.contributor.displayName,
         contributorAvatar: a.contributor.avatarUrl,
         // Official accounts have a profile page; guests don't.

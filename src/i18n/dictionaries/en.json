@@ -414,5 +414,18 @@
     "mismatch": "That doesn't match.",
     "failed": "Couldn't delete. Try again or email us.",
     "link": "Delete my account"
+  },
+  "editShot": {
+    "open": "✨ Edit",
+    "title": "✨ Edit shot",
+    "filters": "Filter",
+    "natural": "Natural",
+    "stamp": "Date & time stamp",
+    "stampHint": "Like old film cameras, from when it was taken",
+    "sound": "Sound",
+    "noSound": "None",
+    "save": "Save",
+    "cancel": "Close",
+    "failed": "Couldn't save, try again."
   }
 }

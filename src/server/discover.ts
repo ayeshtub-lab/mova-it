@@ -105,6 +105,7 @@ export async function listDiscover(viewer: User | null) {
           angles.map(async (a) => ({
             id: a.id,
             mediaType: a.mediaType,
+            filter: a.filter,
             mediaUrl: await viewUrl(a.mediaPath),
             posterUrl: await viewUrl(a.thumbPath),
             name: a.contributor.displayName,
@@ -172,6 +173,7 @@ export async function publicShowcase(take = 12) {
     picked.map(async (a) => ({
       id: a.id,
       video: a.mediaType === "VIDEO",
+      filter: a.filter,
       mediaUrl: a.mediaType === "VIDEO" ? await viewUrl(a.mediaPath) : null,
       imageUrl: await viewUrl(a.mediaType === "VIDEO" ? a.thumbPath : a.mediaPath),
       momentCode: a.moment.code,

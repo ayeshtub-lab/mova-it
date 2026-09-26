@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AutoVideo } from "@/app/AutoVideo";
 import { LocalTime } from "@/app/LocalTime";
+import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
+import { filterCss, stampText } from "@/lib/filters";
 import { isQuran, soundByKey, soundFile, soundName } from "@/lib/sounds";
 import { ReportSheet, type ReportLabels } from "./ReportSheet";
 
@@ -19,6 +21,9 @@ export type GalleryAngle = {
   presence: "THERE" | "REMOTE";
   soundKey: string | null;
   muteOriginal: boolean;
+  filter: string | null;
+  stamp: boolean;
+  takenAt: string;
   contributorName: string;
   contributorAvatar: string | null;
   profileId: string | null;
@@ -59,6 +64,7 @@ type Labels = {
   pause: string;
   actionFailed: string;
   isNew: string;
+  edit: ShotEditorLabels & { open: string; failed: string };
   sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
   delete: string;
   confirmDelete: string;
@@ -142,6 +148,11 @@ export function AngleGallery({
   const [sounds, setSounds] = useState(() => new Map(angles.map((a) => [a.id, { key: a.soundKey, mute: a.muteOriginal }])));
   const [muted, setMuted] = useState(false);
   const [soundFor, setSoundFor] = useState<string | null>(null);
+  // The look (filter, date stamp): the owner can change it from the viewer.
+  const [looks, setLooks] = useState(() => new Map(angles.map((a) => [a.id, { filter: a.filter, stamp: a.stamp }])));
+  const lookOf = (id: string) => looks.get(id) ?? { filter: byIdLook(id)?.filter ?? null, stamp: byIdLook(id)?.stamp ?? false };
+  const byIdLook = (id: string) => angles.find((x) => x.id === id);
+  const [editFor, setEditFor] = useState<string | null>(null);
   const [savingSound, setSavingSound] = useState(false);
   const player = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
@@ -261,6 +272,15 @@ export function AngleGallery({
       if (!shown) seen.delete(once);
     };
   }, [current, opened, angles, likes]);
+
+  async function saveLook(angleId: string, filter: string | null, stamp: boolean) {
+    setSavingSound(true);
+    const res = await fetch(`/api/angles/${angleId}/look`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ filter, stamp }) }).catch(() => null);
+    setSavingSound(false);
+    if (!res?.ok) return flash(labels.edit.failed);
+    setLooks((m) => new Map(m).set(angleId, { filter, stamp }));
+    setEditFor(null);
+  }
 
   function toggleMute() {
     const next = !muted;
@@ -525,10 +545,10 @@ export function AngleGallery({
               <span aria-hidden="true" className="absolute inset-0 animate-pulse bg-gradient-to-br from-line via-surface to-line" />
               {a.mediaType === "VIDEO" && a.mediaUrl ? (
                 // Videos play silently in the grid while on screen, so they stand out.
-                <AutoVideo src={a.mediaUrl} poster={a.thumbUrl} className="relative aspect-[3/4] w-full object-cover" />
+                <AutoVideo src={a.mediaUrl} poster={a.thumbUrl} className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
-                <img src={(a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl) ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" />
+                <img src={(a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl) ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               )}
               {a.isNew && <span className="pointer-events-none absolute end-2 top-2"><span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span></span>}
               {a.mediaType === "VIDEO" && (
@@ -590,10 +610,14 @@ export function AngleGallery({
                       if (angles[current]?.id === a.id) player.current?.pause();
                     }}
                     className="max-h-full max-w-full"
+                    style={{ filter: filterCss(lookOf(a.id).filter) }}
                   />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
-                  <img src={a.mediaUrl ?? ""} alt={a.contributorName} className="max-h-full max-w-full object-contain" />
+                  <img src={a.mediaUrl ?? ""} alt={a.contributorName} className="max-h-full max-w-full object-contain" style={{ filter: filterCss(lookOf(a.id).filter) }} />
+                )}
+                {lookOf(a.id).stamp && (
+                  <span className="stamp absolute bottom-24 left-4 z-10 text-base">{stampText(new Date(a.takenAt), locale)}</span>
                 )}
 
                 {rain?.angleId === a.id && (
@@ -780,14 +804,14 @@ export function AngleGallery({
                 <span aria-hidden="true">{muted ? "🔇" : "🔊"}</span>
               </button>
             )}
-            {angles[current]?.isMine && soundByKey(soundOf(angles[current].id)?.key) && (
+            {angles[current]?.isMine && (
               <button
                 type="button"
-                onClick={() => setSoundFor(angles[current].id)}
-                aria-label={labels.sounds.add}
+                onClick={() => setEditFor(angles[current].id)}
+                aria-label={labels.edit.title}
                 className="pointer-events-auto flex size-11 items-center justify-center rounded-full bg-black/50 text-lg"
               >
-                <span aria-hidden="true">🎵</span>
+                <span aria-hidden="true">✨</span>
               </button>
             )}
             {canReact && angles[current] && !angles[current].isMine && (
@@ -954,6 +978,27 @@ export function AngleGallery({
               </button>
             </form>
           </section>
+        )}
+        {editFor && (
+          <ShotEditor
+            imageUrl={(() => {
+              const x = angles.find((y) => y.id === editFor);
+              return (x?.mediaType === "VIDEO" ? x.thumbUrl : x?.mediaUrl) ?? null;
+            })()}
+            locale={locale}
+            labels={labels.edit}
+            initialFilter={lookOf(editFor).filter}
+            initialStamp={lookOf(editFor).stamp}
+            stampPreview={stampText(new Date(angles.find((y) => y.id === editFor)!.takenAt), locale)}
+            soundName={soundByKey(soundOf(editFor).key) ? soundName(soundByKey(soundOf(editFor).key)!, locale) : null}
+            busy={savingSound}
+            onSave={(filter, stamp) => saveLook(editFor, filter, stamp)}
+            onSound={() => {
+              setSoundFor(editFor);
+              setEditFor(null);
+            }}
+            onClose={() => setEditFor(null)}
+          />
         )}
         {soundFor && (
           <SoundPicker

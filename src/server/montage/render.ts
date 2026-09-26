@@ -7,6 +7,7 @@ import en from "@/i18n/dictionaries/en.json";
 import { plural } from "@/i18n/plural";
 import { db } from "@/lib/db";
 import { publicHost } from "@/lib/hosts";
+import { filterByKey, stampText } from "@/lib/filters";
 import { isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
 import { viewUrl } from "@/server/media";
@@ -38,12 +39,15 @@ async function download(url: string, file: string) {
 const COVER = `scale=${FRAME.width}:${FRAME.height}:force_original_aspect_ratio=increase,crop=${FRAME.width}:${FRAME.height},setsar=1,fps=${FPS},format=yuv420p`;
 const ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "44100", "-ac", "2"];
 
-async function photoSegment(input: string, overlay: string, out: string) {
+// The shot's look (src/lib/filters.ts) goes right after the crop, before the overlay.
+const look = (filter: string | null) => (filterByKey(filter) ? `,${filterByKey(filter)!.ffmpeg}` : "");
+
+async function photoSegment(input: string, overlay: string, out: string, filter: string | null) {
   await ffmpeg([
     "-loop", "1", "-t", String(PHOTO_SECONDS), "-i", input,
     "-i", overlay,
     "-f", "lavfi", "-t", String(PHOTO_SECONDS), "-i", "anullsrc=r=44100:cl=stereo",
-    "-filter_complex", `[0:v]${COVER}[b];[b][1:v]overlay=0:0[v]`,
+    "-filter_complex", `[0:v]${COVER}${look(filter)}[b];[b][1:v]overlay=0:0[v]`,
     "-map", "[v]", "-map", "2:a", ...ENCODE, "-shortest", out,
   ]);
   return PHOTO_SECONDS;
@@ -60,14 +64,14 @@ async function outroSegment(card: string, out: string) {
   return OUTRO_SECONDS;
 }
 
-async function videoSegment(input: string, overlay: string, out: string) {
+async function videoSegment(input: string, overlay: string, out: string, filter: string | null) {
   const { duration, hasAudio } = await probe(input);
   const seconds = Math.min(duration || VIDEO_MAX_SECONDS, VIDEO_MAX_SECONDS);
   await ffmpeg([
     "-t", String(seconds), "-i", input,
     "-i", overlay,
     "-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=44100:cl=stereo",
-    "-filter_complex", `[0:v]${COVER}[b];[b][1:v]overlay=0:0[v]`,
+    "-filter_complex", `[0:v]${COVER}${look(filter)}[b];[b][1:v]overlay=0:0[v]`,
     "-map", "[v]", "-map", hasAudio ? "0:a:0" : "2:a", ...ENCODE, "-shortest", out,
   ]);
   return seconds;
@@ -115,9 +119,10 @@ export async function renderMontage(montageId: string, siteHost: string) {
           cta: dict.montage.cta,
           // The short link (zawmo.com/K7M2Q4): easy to read off a video and type in.
           link: `${publicHost(siteHost)}/${moment.code}`,
+          stamp: angle.stamp ? stampText(angle.capturedAt ?? angle.uploadedAt, locale, "Asia/Riyadh") : undefined,
         }),
       );
-      total += angle.mediaType === "VIDEO" ? await videoSegment(input, overlay, out) : await photoSegment(input, overlay, out);
+      total += angle.mediaType === "VIDEO" ? await videoSegment(input, overlay, out, angle.filter) : await photoSegment(input, overlay, out, angle.filter);
       segments.push(out);
     }
 

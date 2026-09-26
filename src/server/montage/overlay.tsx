@@ -54,6 +54,7 @@ export type OverlayText = {
   label: string; // e.g. "زاوية ٢ من ٥ · كريم"
   cta: string; // e.g. "كنت هون؟ ضيف زاويتك"
   link: string; // e.g. "zawmo.com/K7M2Q4"
+  stamp?: string; // the retro date/time, when the shot has it
 };
 
 // A transparent 720×1280 PNG laid over one montage segment: the Zawmo frame, which angle
@@ -67,13 +68,15 @@ export async function renderOverlay(o: OverlayText) {
   // The title on at most two lines, with "…" when it had to be cut.
   const titleLines = wrap(o.title, 22, 2);
   if (titleLines.join(" ").length < o.title.trim().replace(/\s+/g, " ").length) titleLines[titleLines.length - 1] += "…";
-  const [brand, label, meta, cta, link, title] = await Promise.all([
+  const [brand, label, meta, cta, link, title, stamp, stampShade] = await Promise.all([
     text("zawmo", 30, "#FFFBF0"),
     text(line(o.label), 22, "#FFFBF0"),
     text(line(o.meta), 24, "#FBE2D8"),
     text(line(o.cta), 26, "#1F1A17"),
     text(o.link, 22, "#9E3320"),
     text(titleLines.map(line).join("\n"), 46, "#FFFBF0"),
+    o.stamp ? text(o.stamp, 30, "#FF9A3C") : null,
+    o.stamp ? text(o.stamp, 30, "#5A1E00") : null,
   ]);
 
   // Bottom block, stacked upwards from y = 1240: the invitation card, the meta line, the title.
@@ -102,6 +105,8 @@ export async function renderOverlay(o: OverlayText) {
     at(brand, rtl ? W - 44 : 44, 40 + (pillH - brand.height) / 2, side),
     at(label, pillX + 18 + (rtl ? label.width : 0), 44, side),
     at(title, edge, titleY, side),
+    // The retro stamp, bottom left above the title, with a dark shadow to read on any picture.
+    ...(stamp && stampShade ? [at(stampShade, 46, titleY - 58, "start-ltr"), at(stamp, 44, titleY - 60, "start-ltr")] : []),
     at(meta, edge, metaY, side),
     at(cta, rtl ? W - 66 : 66, cardY + 10, side),
     at(link, rtl ? W - 66 : 66, cardY + 10 + cta.height, side),

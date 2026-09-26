@@ -117,6 +117,7 @@ export async function getProfile(viewer: User | null, userId: string) {
       momentTitle: a.moment.title,
       views: views.get(a.id) ?? 0,
       isNew: isNew(a.uploadedAt),
+      filter: a.filter,
     })),
   );
   const moments = await Promise.all(

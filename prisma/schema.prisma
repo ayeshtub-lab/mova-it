@@ -191,6 +191,10 @@ model Angle {
   muteOriginal  Boolean     @default(false)
   // Times someone tapped «share» on it (for «الأكثر رواجًا هذا الأسبوع»).
   shares        Int         @default(0)
+  // The look chosen after upload (src/lib/filters.ts): applied when shown and burnt into
+  // montages; the stored file is never changed. stamp = the retro date/time in a corner.
+  filter        String?
+  stamp         Boolean     @default(false)
 
   moment          Moment           @relation(fields: [momentId], references: [id], onDelete: Cascade)
   contributor     User             @relation(fields: [contributorId], references: [id])

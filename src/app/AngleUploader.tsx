@@ -3,7 +3,9 @@
 import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState } from "react";
+import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
+import { stampText } from "@/lib/filters";
 import { PrepareError, prepareAngleFile } from "@/lib/media-client";
 import { PENDING_SOUND, soundByKey, soundName } from "@/lib/sounds";
 
@@ -29,6 +31,10 @@ type ItemState = {
   isVideo?: boolean;
   soundKey?: string | null;
   muteOriginal?: boolean;
+  preview?: string; // local picture of the shot, for the edit sheet
+  takenAt?: string;
+  filter?: string | null;
+  stamp?: boolean;
 };
 type UploaderSoundLabels = SoundLabels & { add: string; failed: string; pending: string; pendingClear: string };
 
@@ -46,12 +52,14 @@ export function AngleUploader({
   afterUpload,
   locale,
   soundLabels,
+  editLabels,
 }: {
   code: string;
   labels: Labels;
   afterUpload?: React.ReactNode;
   locale: string;
   soundLabels: UploaderSoundLabels;
+  editLabels: ShotEditorLabels & { open: string; failed: string };
 }) {
   const [uploaded, setUploaded] = useState(false);
   const inputId = useId();
@@ -68,6 +76,7 @@ export function AngleUploader({
     } catch {}
   }, []);
   const [picking, setPicking] = useState<number | null>(null);
+  const [editing, setEditing] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [soundError, setSoundError] = useState(false);
 
@@ -76,6 +85,17 @@ export function AngleUploader({
     try {
       localStorage.removeItem(PENDING_SOUND);
     } catch {}
+  }
+
+  async function saveLook(index: number, angleId: string, filter: string | null, stamp: boolean) {
+    setSaving(true);
+    setSoundError(false);
+    const res = await fetch(`/api/angles/${angleId}/look`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ filter, stamp }) }).catch(() => null);
+    setSaving(false);
+    if (!res?.ok) return setSoundError(true);
+    update(index, { filter, stamp });
+    setEditing(null);
+    router.refresh();
   }
 
   async function saveSound(index: number, angleId: string, soundKey: string | null, muteOriginal: boolean) {
@@ -129,7 +149,17 @@ export function AngleUploader({
       const result = await postJson(`/api/angles/${angleId}/complete`);
       // Hidden by the automatic content check: it never shows up.
       if (result.status === "HIDDEN") return update(index, { status: "error", error: "blocked" });
-      update(index, { status: "done", angleId, isVideo: prepared.mediaType === "VIDEO", soundKey: null });
+      const picture = prepared.mediaType === "VIDEO" ? prepared.poster : prepared.file;
+      update(index, {
+        status: "done",
+        angleId,
+        isVideo: prepared.mediaType === "VIDEO",
+        soundKey: null,
+        preview: picture ? URL.createObjectURL(picture) : undefined,
+        takenAt: prepared.capturedAt ?? new Date().toISOString(),
+        filter: null,
+        stamp: false,
+      });
       setUploaded(true);
       if (pending && (await saveSound(index, angleId, pending, false))) clearPending();
     } catch (error) {
@@ -217,8 +247,9 @@ export function AngleUploader({
                 {item.status === "error" && labels.errors[item.error ?? "failed"]}
               </span>
               {item.status === "done" && item.angleId && (
-                <button type="button" onClick={() => setPicking(i)} className="min-h-9 shrink-0 rounded-full bg-background px-3 text-xs font-bold text-secondary shadow-sm">
-                  {soundByKey(item.soundKey) ? `🎵 ${soundName(soundByKey(item.soundKey)!, locale)}` : soundLabels.add}
+                <button type="button" onClick={() => setEditing(i)} className="min-h-9 shrink-0 rounded-full bg-background px-3 text-xs font-bold text-secondary shadow-sm">
+                  {editLabels.open}
+                  {soundByKey(item.soundKey) ? ` · 🎵 ${soundName(soundByKey(item.soundKey)!, locale)}` : ""}
                 </button>
               )}
             </li>
@@ -229,6 +260,24 @@ export function AngleUploader({
         <p role="alert" className="text-sm font-semibold text-accent-ink">
           {soundLabels.failed}
         </p>
+      )}
+      {editing !== null && items[editing]?.angleId && (
+        <ShotEditor
+          imageUrl={items[editing].preview ?? null}
+          locale={locale}
+          labels={editLabels}
+          initialFilter={items[editing].filter ?? null}
+          initialStamp={items[editing].stamp ?? false}
+          stampPreview={stampText(new Date(items[editing].takenAt!), locale)}
+          soundName={soundByKey(items[editing].soundKey) ? soundName(soundByKey(items[editing].soundKey)!, locale) : null}
+          busy={saving}
+          onSave={(filter, stamp) => saveLook(editing, items[editing].angleId!, filter, stamp)}
+          onSound={() => {
+            setPicking(editing);
+            setEditing(null);
+          }}
+          onClose={() => setEditing(null)}
+        />
       )}
       {picking !== null && items[picking]?.angleId && (
         <SoundPicker

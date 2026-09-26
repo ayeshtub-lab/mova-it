@@ -1,5 +1,6 @@
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { filterByKey } from "@/lib/filters";
 import { isSolemn, soundByKey } from "@/lib/sounds";
 import { viewUrl } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
@@ -60,4 +61,17 @@ export async function soundShots(viewer: User | null, key: string, take = 30) {
       coverUrl: await viewUrl(a.mediaType === "VIDEO" ? a.thumbPath : a.mediaPath),
     })),
   );
+}
+
+// ── The shot's look (filter and date stamp) ─────────────────────────────────
+
+export async function setAngleLook(user: User, angleId: string, rawFilter: unknown, rawStamp: unknown) {
+  const angle = await db.angle.findUnique({ where: { id: angleId }, select: { contributorId: true } });
+  if (!angle) throw new SoundError("not_found");
+  if (angle.contributorId !== user.id) throw new SoundError("forbidden");
+  const filter = rawFilter === null ? null : filterByKey(typeof rawFilter === "string" ? rawFilter : null);
+  if (rawFilter !== null && !filter) throw new SoundError("invalid");
+  if (typeof rawStamp !== "boolean") throw new SoundError("invalid");
+  await db.angle.update({ where: { id: angleId }, data: { filter: filter?.key ?? null, stamp: rawStamp } });
+  return { filter: filter?.key ?? null, stamp: rawStamp };
 }

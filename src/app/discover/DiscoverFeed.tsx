@@ -1,5 +1,6 @@
 "use client";
 
+import { filterCss } from "@/lib/filters";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { plural, type PluralForms } from "@/i18n/plural";
@@ -7,6 +8,7 @@ import { plural, type PluralForms } from "@/i18n/plural";
 type Angle = {
   id: string;
   mediaType: string;
+  filter: string | null;
   mediaUrl: string | null;
   posterUrl: string | null;
   name: string;
@@ -82,10 +84,10 @@ function MomentSlide({ moment: m, locale, labels, hint }: { moment: Moment; loca
         {m.angles.map((a) => (
           <div key={a.id} className="relative h-full w-full shrink-0 snap-center">
             {a.mediaType === "VIDEO" ? (
-              <video src={a.mediaUrl ?? undefined} poster={a.posterUrl ?? undefined} muted loop playsInline preload="none" className="size-full object-cover" />
+              <video src={a.mediaUrl ?? undefined} poster={a.posterUrl ?? undefined} muted loop playsInline preload="none" className="size-full object-cover" style={{ filter: filterCss(a.filter) }} />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
-              <img src={a.mediaUrl ?? ""} alt="" loading="lazy" className="size-full object-cover" />
+              <img src={a.mediaUrl ?? ""} alt="" loading="lazy" className="size-full object-cover" style={{ filter: filterCss(a.filter) }} />
             )}
           </div>
         ))}

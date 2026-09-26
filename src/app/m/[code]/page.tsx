@@ -197,6 +197,9 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 presence: a.presence,
                 soundKey: a.soundKey,
                 muteOriginal: a.muteOriginal,
+                filter: a.filter,
+                stamp: a.stamp,
+                takenAt: a.takenAt.toISOString(),
                 contributorName: a.contributorName,
                 profileId: a.profileId,
                 contributorAvatar: a.contributorAvatar,
@@ -213,7 +216,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 isNew: a.isNew,
               }))}
               locale={locale}
-              labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds }}
+              labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds, edit: dict.editShot }}
               canReact={!!user}
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}
@@ -255,6 +258,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               <AngleUploader
                 locale={locale}
                 soundLabels={dict.sounds}
+                editLabels={dict.editShot}
                 code={view.code}
                 labels={dict.upload}
                 afterUpload={

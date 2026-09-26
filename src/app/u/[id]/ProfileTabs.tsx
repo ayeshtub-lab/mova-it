@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { filterCss } from "@/lib/filters";
 
-type Shot = { id: string; mediaType: string; coverUrl: string | null; momentCode: string; momentTitle: string; views: number; isNew: boolean };
+type Shot = { id: string; mediaType: string; coverUrl: string | null; momentCode: string; momentTitle: string; views: number; isNew: boolean; filter: string | null };
 type Like = { id: string; mediaType: string; coverUrl: string | null; momentCode: string; momentTitle: string };
 type MomentItem = { code: string; title: string; angleCount: number; coverUrl: string | null };
 
@@ -22,12 +23,12 @@ type Labels = {
   isNew: string;
 };
 
-function Tile({ href, coverUrl, video, children }: { href: string; coverUrl: string | null; video: boolean; children?: React.ReactNode }) {
+function Tile({ href, coverUrl, video, filter, children }: { href: string; coverUrl: string | null; video: boolean; filter?: string | null; children?: React.ReactNode }) {
   return (
     <Link href={href} className="group relative block aspect-[3/4] overflow-hidden rounded-xl bg-surface">
       {coverUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
-        <img src={coverUrl} alt="" loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
+        <img src={coverUrl} alt="" loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(filter) }} />
       ) : (
         <span aria-hidden="true" className="block size-full bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
       )}
@@ -105,7 +106,7 @@ export function ProfileTabs({
         (shots.length ? (
           <div className="grid grid-cols-3 gap-1.5">
               {shots.map((s) => (
-                <Tile key={s.id} href={`/m/${s.momentCode}#angle-${s.id}`} coverUrl={s.coverUrl} video={s.mediaType === "VIDEO"}>
+                <Tile key={s.id} href={`/m/${s.momentCode}#angle-${s.id}`} coverUrl={s.coverUrl} video={s.mediaType === "VIDEO"} filter={s.filter}>
                   {s.isNew && <span className="absolute start-1.5 top-1.5"><span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span></span>}
                   <span className="absolute bottom-1.5 start-1.5 rounded-full bg-black/55 px-2 text-xs font-bold text-white" title={labels.seenBy}>
                     👁 {s.views}

@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 // A silent, looping preview that loads and plays only while it is on screen — so a grid
 // full of videos costs nothing until someone scrolls to them.
-export function AutoVideo({ src, poster, className }: { src: string; poster?: string | null; className?: string }) {
+export function AutoVideo({ src, poster, className, style }: { src: string; poster?: string | null; className?: string; style?: React.CSSProperties }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const video = ref.current;
@@ -21,5 +21,5 @@ export function AutoVideo({ src, poster, className }: { src: string; poster?: st
     observer.observe(video);
     return () => observer.disconnect();
   }, [src]);
-  return <video ref={ref} poster={poster ?? undefined} muted loop playsInline preload="none" aria-hidden="true" className={className} />;
+  return <video ref={ref} poster={poster ?? undefined} muted loop playsInline preload="none" aria-hidden="true" className={className} style={style} />;
 }
