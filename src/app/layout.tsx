@@ -6,6 +6,7 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { currentUnread } from "@/server/inbox";
+import { ActivityPing } from "./ActivityPing";
 import { BottomNav } from "./BottomNav";
 import "./globals.css";
 
@@ -39,6 +40,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col font-sans">
         {children}
+        {user && <ActivityPing userId={user.id} />}
         <footer className={`px-4 py-6 text-center text-xs text-muted ${user ? "pb-28 sm:pb-6" : ""}`}>
           <Link href="/privacy" className="underline-offset-4 hover:underline">
             {dict.footer.privacy}

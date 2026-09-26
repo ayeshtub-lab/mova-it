@@ -82,7 +82,12 @@ export default async function AdminPage() {
           ))}
         </section>
 
-        <h1 className="text-2xl font-extrabold">الإشراف · {items.length} بلاغ مفتوح</h1>
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-2xl font-extrabold">الإشراف · {items.length} بلاغ مفتوح</h1>
+          <Link href="/admin/stats" className="min-h-10 shrink-0 rounded-full bg-secondary px-4 py-2 text-sm font-bold text-white dark:text-background">
+            📊 لوحة القياس
+          </Link>
+        </div>
         {items.length === 0 && <p className="rounded-2xl bg-surface p-6 text-center text-muted">لا توجد بلاغات مفتوحة 🎉</p>}
         {items.map((item) => (
           <article key={item.key} className="flex flex-col gap-3 rounded-3xl border border-line p-4">
