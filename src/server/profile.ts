@@ -259,3 +259,27 @@ export async function setAvatar(user: User, bytes: Buffer) {
   if (old && AVATAR_FILE.test(old)) await del(`avatars/${old}`).catch(() => {});
   return `/api/avatars/${file}`;
 }
+
+// ── Follower lists ─────────────────────────────────────────────────────────
+
+// Who follows `userId`, or whom they follow: newest first, never anyone the viewer
+// blocked or who blocked them. Guests appear by name only (they have no page).
+export async function listFollows(viewer: User | null, userId: string, kind: "followers" | "following") {
+  const owner = await db.user.findUnique({ where: { id: userId } });
+  if (!owner || owner.isGuest) return null;
+  const blocked = viewer ? await blockedIdsFor(viewer.id) : new Set<string>();
+  if (viewer && blocked.has(owner.id)) return null;
+  const rows = await db.follow.findMany({
+    where: kind === "followers" ? { followingId: owner.id } : { followerId: owner.id },
+    orderBy: { createdAt: "desc" },
+    take: 300,
+    include: { follower: true, following: true },
+  });
+  return {
+    owner: { id: owner.id, displayName: owner.displayName },
+    people: rows
+      .map((r) => (kind === "followers" ? r.follower : r.following))
+      .filter((u) => !blocked.has(u.id) && !u.isSystem)
+      .map((u) => ({ id: u.id, displayName: u.displayName, avatarUrl: u.avatarUrl, hasPage: !u.isGuest })),
+  };
+}

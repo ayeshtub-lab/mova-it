@@ -271,7 +271,9 @@
     "changePhoto": "Change photo",
     "photoSaving": "Saving…",
     "photoFailed": "Couldn't upload the photo. Try another one.",
-    "photoBlocked": "This photo can't be used as a profile photo. Choose another."
+    "photoBlocked": "This photo can't be used as a profile photo. Choose another.",
+    "noFollowers": "No followers yet.",
+    "noFollowing": "Not following anyone yet."
   },
   "footer": {
     "privacy": "Privacy"

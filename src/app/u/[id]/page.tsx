@@ -75,21 +75,34 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             <h1 className="text-2xl font-extrabold">{profile.displayName}</h1>
           )}
 
-          <dl className="grid w-full max-w-sm grid-cols-4 gap-1.5">
+          <div className="grid w-full max-w-sm grid-cols-4 gap-1.5">
             {(
               [
-                [profile.shots.length, t.shots],
-                [profile.followers, t.followers],
-                [profile.following, t.following],
-                [profile.likesReceived, t.likesReceived],
+                [profile.shots.length, t.shots, null],
+                [profile.followers, t.followers, "followers"],
+                [profile.following, t.following, "following"],
+                [profile.likesReceived, t.likesReceived, null],
               ] as const
-            ).map(([n, label]) => (
-              <div key={label} className="flex min-w-0 flex-col-reverse items-center rounded-2xl bg-surface px-1 py-2">
-                <dt className="truncate text-xs text-muted">{label}</dt>
-                <dd className="text-xl font-extrabold">{new Intl.NumberFormat(locale, { notation: "compact" }).format(n)}</dd>
-              </div>
-            ))}
-          </dl>
+            ).map(([n, label, list]) => {
+              const inner = (
+                <>
+                  <span className="truncate text-xs text-muted">{label}</span>
+                  <span className="text-xl font-extrabold">{new Intl.NumberFormat(locale, { notation: "compact" }).format(n)}</span>
+                </>
+              );
+              const box = "flex min-w-0 flex-col-reverse items-center rounded-2xl bg-surface px-1 py-2";
+              // Followers and following open the list of people.
+              return list ? (
+                <Link key={label} href={`/u/${profile.id}/${list}`} className={`${box} transition-colors hover:bg-line`}>
+                  {inner}
+                </Link>
+              ) : (
+                <div key={label} className={box}>
+                  {inner}
+                </div>
+              );
+            })}
+          </div>
 
           {profile.canFollow && (
             <FollowButton userId={profile.id} initial={profile.isFollowing} labels={{ follow: t.follow, unfollow: t.unfollow, isFollowing: t.isFollowing, failed: t.failed }} />
