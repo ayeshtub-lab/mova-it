@@ -10,8 +10,10 @@ import { getStats, TARGET_RETURN } from "@/server/stats";
 export const metadata = { title: "زاومو · لوحة القياس", robots: { index: false } };
 export const dynamic = "force-dynamic";
 
-const num = (n: number) => new Intl.NumberFormat("ar").format(n);
-const pct = (r: number | null) => (r === null ? "—" : `${new Intl.NumberFormat("ar", { maximumFractionDigits: 0 }).format(r * 100)}٪`);
+// Arabic-Indic digits everywhere, like the rest of the page text.
+const num = (n: number) => new Intl.NumberFormat("ar-EG").format(n);
+const dateAr = (day: string) => new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
+const pct = (r: number | null) => (r === null ? "—" : `${new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 0 }).format(r * 100)}٪`);
 // Green at or above target, amber within half of it, red below.
 const tone = (r: number | null) =>
   r === null ? "text-muted" : r >= TARGET_RETURN ? "text-emerald-600 dark:text-emerald-400" : r >= TARGET_RETURN / 2 ? "text-amber-600 dark:text-amber-400" : "text-accent-ink";
@@ -24,9 +26,9 @@ function Bars({ title, values, days, color }: { title: string; values: number[];
       <div className="flex h-28 items-end gap-1" dir="ltr">
         {values.map((v, i) => (
           <div key={days[i]} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-0.5">
-            <span className="text-[10px] font-bold tabular-nums text-muted">{v || ""}</span>
+            <span className="text-[10px] font-bold tabular-nums text-muted">{v ? num(v) : ""}</span>
             <div className={`w-full rounded-t-md ${color}`} style={{ height: `${Math.max(v ? 6 : 2, (v / max) * 88)}%`, opacity: v ? 1 : 0.25 }} />
-            <span className="text-[10px] tabular-nums text-muted">{Number(days[i].slice(8))}</span>
+            <span className="text-[10px] tabular-nums text-muted">{num(Number(days[i].slice(8)))}</span>
           </div>
         ))}
       </div>
@@ -57,7 +59,7 @@ export default async function StatsPage() {
         <header className="flex items-center justify-between gap-2">
           <div>
             <h1 className="text-2xl font-extrabold">📊 لوحة القياس</h1>
-            <p className="text-sm text-muted">اليوم {s.today} · بتوقيت مكة</p>
+            <p className="text-sm text-muted">اليوم {dateAr(s.today)} · بتوقيت مكة</p>
           </div>
           <Link href="/admin" className="min-h-10 rounded-full bg-surface px-4 py-2 text-sm font-bold">
             البلاغات
