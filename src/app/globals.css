@@ -163,3 +163,34 @@ body {
     opacity: 0;
   }
 }
+
+/* Falling hearts with names (the owner opening their own shot): TikTok's rising hearts,
+   turned around — they drift down with a gentle sway. */
+@keyframes heart-fall {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -12vh) rotate(-8deg);
+  }
+  10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(calc(-50% + var(--sway, 18px)), 45vh) rotate(6deg);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 105vh) rotate(-4deg);
+  }
+}
+.heart-fall {
+  animation: heart-fall var(--fall, 4s) ease-in forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .heart-fall {
+    animation: fade-out-soft 2.5s ease-out forwards;
+    transform: translate(-50%, 30vh);
+  }
+}

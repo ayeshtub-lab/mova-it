@@ -58,3 +58,19 @@ export async function setSaved(user: User, angleId: string, saved: unknown) {
   await db.savedAngle.upsert({ where: { userId_angleId: { userId: user.id, angleId } }, create: { userId: user.id, angleId }, update: {} });
   return { saved: true };
 }
+
+// ── Who liked my shot ──────────────────────────────────────────────────────
+
+// The latest people who liked an angle — for its contributor only (the falling hearts
+// with names when they open their own shot). Nobody else sees who liked what.
+export async function recentLikers(user: User, angleId: string, take = 12) {
+  const angle = await db.angle.findUnique({ where: { id: angleId }, select: { contributorId: true } });
+  if (!angle || angle.contributorId !== user.id) throw new ReactionError("not_found");
+  const rows = await db.reaction.findMany({
+    where: { angleId, userId: { not: user.id } },
+    orderBy: { createdAt: "desc" },
+    take,
+    include: { user: { select: { displayName: true } } },
+  });
+  return rows.map((r) => r.user.displayName);
+}

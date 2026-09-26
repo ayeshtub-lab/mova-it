@@ -128,6 +128,11 @@ export function AngleGallery({
   const [paused, setPaused] = useState(() => new Set<string>());
   const [burst, setBurst] = useState<{ id: string; x: number; y: number; key: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Falling hearts with the names of people who liked it, when the owner opens their own
+  // shot (once per opening). Positions are picked when the names arrive, not in render.
+  type Drop = { name: string; left: number; delay: number; fall: number; sway: number };
+  const [rain, setRain] = useState<{ angleId: string; key: number; drops: Drop[] } | null>(null);
+  const rained = useRef(new Set<string>());
   // Library sounds: per angle (the contributor may change it here), one shared player,
   // and a mute switch remembered on this device.
   const [sounds, setSounds] = useState(() => new Map(angles.map((a) => [a.id, { key: a.soundKey, mute: a.muteOriginal }])));
@@ -218,6 +223,40 @@ export function AngleGallery({
     if (!audio.src.endsWith(src)) audio.src = src;
     audio.play().catch(() => {});
   }, [current, opened, sounds, muted, angles]);
+
+  useEffect(() => {
+    const angle = angles[current];
+    if (!dialogRef.current?.open || !angle?.isMine || !(likes.get(angle.id)?.count ?? angle.likes.count)) return;
+    const once = `${opened}:${angle.id}`;
+    const seen = rained.current;
+    if (seen.has(once)) return;
+    seen.add(once);
+    let cancelled = false;
+    let shown = false;
+    fetch(`/api/angles/${angle.id}/likers`)
+      .then((r) => (r.ok ? r.json() : { names: [] }))
+      .then(({ names }: { names: string[] }) => {
+        if (cancelled || !names.length) return;
+        shown = true;
+        const drops = names.map((name, i) => ({
+          name,
+          left: 12 + ((i * 37 + Math.random() * 20) % 70),
+          delay: i * 0.45 + Math.random() * 0.3,
+          fall: 3.6 + Math.random() * 1.6,
+          sway: (Math.random() - 0.5) * 60,
+        }));
+        setRain({ angleId: angle.id, key: Date.now(), drops });
+        const last = Math.max(...drops.map((d) => d.delay + d.fall));
+        setTimeout(() => setRain((r) => (r?.angleId === angle.id ? null : r)), (last + 0.3) * 1000);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      // Interrupted before the hearts showed (a re-render, or React checking effects in
+      // development): let the next run try again.
+      if (!shown) seen.delete(once);
+    };
+  }, [current, opened, angles, likes]);
 
   function toggleMute() {
     const next = !muted;
@@ -530,6 +569,22 @@ export function AngleGallery({
                   <img src={a.mediaUrl ?? ""} alt={a.contributorName} className="max-h-full max-w-full object-contain" />
                 )}
 
+                {rain?.angleId === a.id && (
+                  <div key={rain.key} aria-hidden="true" className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+                    {rain.drops.map((d, i) => (
+                      <span
+                        key={i}
+                        className="heart-fall absolute top-0 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-black/45 py-1 pe-3 ps-1.5 text-xs font-bold text-white opacity-0 backdrop-blur-sm"
+                        style={{ left: `${d.left}%`, animationDelay: `${d.delay}s`, ["--fall" as string]: `${d.fall}s`, ["--sway" as string]: `${d.sway}px` }}
+                      >
+                        <svg viewBox="0 0 24 24" className="size-5 fill-accent">
+                          <path d={HEART} />
+                        </svg>
+                        {d.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {/* The tap area over the picture: double-tap to like, tap a video to pause. */}
                 <div
                   aria-hidden="true"
