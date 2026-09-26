@@ -310,7 +310,8 @@
     "add": "Add your angle",
     "swipe": "Swipe ↔ for more angles",
     "by": "Started by {name}",
-    "visitorBar": "These are public moments on Zawmo. Sign in with Google to like, comment and add your angle."
+    "visitorBar": "These are public moments on Zawmo. Sign in with Google to like, comment and add your angle.",
+    "trending": "🔥 Trending this week"
   },
   "visibility": {
     "label": "Who can see it?",

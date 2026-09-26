@@ -4,7 +4,8 @@ import { GoogleButton } from "@/app/GoogleButton";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
-import { listDiscover } from "@/server/discover";
+import { listDiscover, trendingVideos } from "@/server/discover";
+import { Trending } from "./Trending";
 import { googleEnabled } from "@/server/google";
 import { DiscoverFeed } from "./DiscoverFeed";
 
@@ -17,7 +18,7 @@ export default async function DiscoverPage() {
   const dict = await getDictionary(locale);
   const t = dict.discover;
 
-  const moments = await listDiscover(user);
+  const [moments, trending] = await Promise.all([listDiscover(user), trendingVideos(user)]);
   return (
     <div className="flex flex-1 flex-col">
       <div className="px-4 sm:px-8">
@@ -29,6 +30,7 @@ export default async function DiscoverPage() {
           {googleEnabled() && <GoogleButton label={user?.isGuest ? dict.account.saveButton : dict.account.google} returnTo="/discover" />}
         </div>
       )}
+      <Trending videos={trending} title={t.trending} locale={locale} />
       {moments.length === 0 ? (
         <main className="mx-auto flex w-full max-w-md flex-col items-center gap-4 px-4 pb-12 text-center">
           <DemoWheel className="w-full max-w-[18rem] opacity-90" />

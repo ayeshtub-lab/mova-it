@@ -182,3 +182,54 @@ export async function publicShowcase(take = 12) {
     })),
   );
 }
+
+// «🔥 الأكثر رواجًا هذا الأسبوع»: public videos (checked, from the last 30 days) ranked by
+// what happened to them in the last 7 days — views, likes, comments and shares, weighted.
+// The home page «تحت الأضواء» spotlight will build on this later.
+export async function trendingVideos(viewer: User | null, take = 10) {
+  const now = Date.now();
+  const week = new Date(now - 7 * 24 * 60 * 60 * 1000);
+  const blocked = viewer ? [...(await blockedIdsFor(viewer.id))] : [];
+  const videos = await db.angle.findMany({
+    where: {
+      mediaType: "VIDEO",
+      status: "READY",
+      screening: "allowed",
+      uploadedAt: { gte: new Date(now - 30 * 24 * 60 * 60 * 1000) },
+      contributorId: { notIn: blocked },
+      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } },
+    },
+    select: { id: true, shares: true, uploadedAt: true, mediaPath: true, thumbPath: true, filter: true, moment: { select: { code: true, title: true } }, contributor: { select: { displayName: true } } },
+    take: 200,
+  });
+  if (!videos.length) return [];
+  const ids = videos.map((v) => v.id);
+  const recent = { angleId: { in: ids }, createdAt: { gte: week } };
+  const [views, likes, comments] = await Promise.all([
+    db.angleView.groupBy({ by: ["angleId"], where: recent, _count: { _all: true } }),
+    db.reaction.groupBy({ by: ["angleId"], where: recent, _count: { _all: true } }),
+    db.comment.groupBy({ by: ["angleId"], where: recent, _count: { _all: true } }),
+  ]);
+  const count = (rows: { angleId: string; _count: { _all: number } }[]) => new Map(rows.map((r) => [r.angleId, r._count._all]));
+  const [v, l, c] = [count(views), count(likes), count(comments)];
+  const ranked = videos
+    .map((a) => {
+      const stats = { views: v.get(a.id) ?? 0, likes: l.get(a.id) ?? 0, comments: c.get(a.id) ?? 0, shares: a.shares };
+      return { a, stats, score: stats.views + 3 * stats.likes + 4 * stats.comments + 5 * stats.shares };
+    })
+    .filter((x) => x.score > 0)
+    .sort((x, y) => y.score - x.score || y.a.uploadedAt.getTime() - x.a.uploadedAt.getTime())
+    .slice(0, take);
+  return Promise.all(
+    ranked.map(async ({ a, stats }) => ({
+      id: a.id,
+      momentCode: a.moment.code,
+      title: a.moment.title,
+      name: a.contributor.displayName,
+      filter: a.filter,
+      mediaUrl: await viewUrl(a.mediaPath),
+      posterUrl: await viewUrl(a.thumbPath),
+      ...stats,
+    })),
+  );
+}
