@@ -10,30 +10,12 @@ import { DiscoverFeed } from "./DiscoverFeed";
 
 export const metadata = { robots: { index: false } };
 
-// «اكتشف»: public moments, for official (Google) accounts. Visitors and guests get a
-// friendly invitation to sign in instead.
+// «اكتشف»: public moments, open to everyone to watch. Visitors and guests see a bar
+// inviting them to sign in with Google to like, comment and add their angle.
 export default async function DiscoverPage() {
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
   const dict = await getDictionary(locale);
   const t = dict.discover;
-
-  if (!user || user.isGuest) {
-    return (
-      <div className="flex flex-1 flex-col px-4 sm:px-8">
-        <SiteHeader locale={locale} dict={dict} />
-        <main className="mx-auto flex w-full max-w-md flex-col items-center gap-5 pb-12 text-center">
-          <DemoWheel className="w-full max-w-[20rem]" />
-          <h1 className="text-3xl font-extrabold">{t.gateTitle}</h1>
-          <p className="leading-relaxed text-muted">{user?.isGuest ? t.gateGuest : t.gateText}</p>
-          {googleEnabled() && (
-            <div className="w-full">
-              <GoogleButton label={user?.isGuest ? dict.account.saveButton : dict.account.google} returnTo="/discover" />
-            </div>
-          )}
-        </main>
-      </div>
-    );
-  }
 
   const moments = await listDiscover(user);
   return (
@@ -41,6 +23,12 @@ export default async function DiscoverPage() {
       <div className="px-4 sm:px-8">
         <SiteHeader locale={locale} dict={dict} />
       </div>
+      {(!user || user.isGuest) && (
+        <div className="mx-auto mb-3 flex w-full max-w-xl flex-col gap-2 px-4">
+          <p className="rounded-2xl bg-secondary-soft px-4 py-3 text-sm font-semibold leading-relaxed text-secondary">{user?.isGuest ? t.gateGuest : t.visitorBar}</p>
+          {googleEnabled() && <GoogleButton label={user?.isGuest ? dict.account.saveButton : dict.account.google} returnTo="/discover" />}
+        </div>
+      )}
       {moments.length === 0 ? (
         <main className="mx-auto flex w-full max-w-md flex-col items-center gap-4 px-4 pb-12 text-center">
           <DemoWheel className="w-full max-w-[18rem] opacity-90" />

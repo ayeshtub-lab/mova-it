@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { AutoVideo } from "@/app/AutoVideo";
 import { LocalTime } from "@/app/LocalTime";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { isQuran, soundByKey, soundFile, soundName } from "@/lib/sounds";
@@ -456,12 +457,17 @@ export function AngleGallery({
             <button type="button" onClick={() => open(i)} aria-label={`${labels.open}: ${a.contributorName}`} className="relative block w-full">
               {/* Loading shimmer behind the image; the opaque image simply covers it once loaded. */}
               <span aria-hidden="true" className="absolute inset-0 animate-pulse bg-gradient-to-br from-line via-surface to-line" />
-              {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable */}
-              <img src={(a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl) ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" />
+              {a.mediaType === "VIDEO" && a.mediaUrl ? (
+                // Videos play silently in the grid while on screen, so they stand out.
+                <AutoVideo src={a.mediaUrl} poster={a.thumbUrl} className="relative aspect-[3/4] w-full object-cover" />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
+                <img src={(a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl) ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" />
+              )}
               {a.isNew && <span className="pointer-events-none absolute end-2 top-2"><span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span></span>}
               {a.mediaType === "VIDEO" && (
-                <span aria-hidden="true" className="absolute left-1/2 top-1/2 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/45">
-                  <svg viewBox="0 0 24 24" className="size-6 fill-white">
+                <span aria-hidden="true" className="absolute bottom-9 end-2 flex size-7 items-center justify-center rounded-full bg-black/55">
+                  <svg viewBox="0 0 24 24" className="size-3.5 fill-white">
                     <path d="M8 5v14l11-7z" />
                   </svg>
                 </span>

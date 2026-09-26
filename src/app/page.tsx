@@ -1,4 +1,6 @@
 import { signOut } from "@/app/actions/session";
+import { Showcase } from "@/app/Showcase";
+import { publicShowcase } from "@/server/discover";
 import Link from "next/link";
 import { FriendsActivity } from "@/app/FriendsActivity";
 import { GoogleButton } from "@/app/GoogleButton";
@@ -68,7 +70,8 @@ const POINT_ICONS = [
 
 // Visitors: the idea at a glance (an angle wheel of four friends' angles, each with
 // their account photo and name), three short points, then sign in or try as a guest.
-function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean }) {
+async function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean }) {
+  const shots = await publicShowcase();
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 py-4 sm:py-10">
       <section className="flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-8 sm:text-start">
@@ -82,6 +85,7 @@ function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean }) {
         </div>
       </section>
 
+      <h2 className="-mb-5 text-xl font-extrabold">{dict.home.howTitle}</h2>
       <ul className="grid gap-3 sm:grid-cols-3">
         {dict.home.points.map((point, i) => (
           <li key={i} className="flex items-start gap-3 rounded-3xl bg-surface p-4 sm:flex-col">
@@ -92,6 +96,9 @@ function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean }) {
           </li>
         ))}
       </ul>
+
+      {/* What Zawmo looks like, for real: public shots, videos first. */}
+      <Showcase shots={shots} labels={{ title: dict.home.showcaseTitle, more: dict.home.showcaseMore }} />
 
       <div className="rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px] shadow-md">
         <section id="start" className="flex flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">

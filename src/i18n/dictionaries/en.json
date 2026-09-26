@@ -13,7 +13,10 @@
       "Send the link to anyone who was there, no app install needed"
     ],
     "status": "In the works — coming soon",
-    "createHint": "Capture it, and let your friends add their angles."
+    "createHint": "Capture it, and let your friends add their angles.",
+    "howTitle": "How Zawmo works",
+    "showcaseTitle": "👀 Moments on Zawmo",
+    "showcaseMore": "Discover more"
   },
   "lang": {
     "switchTo": "العربية",
@@ -302,7 +305,8 @@
     "open": "Open moment",
     "add": "Add your angle",
     "swipe": "Swipe ↔ for more angles",
-    "by": "Started by {name}"
+    "by": "Started by {name}",
+    "visitorBar": "These are public moments on Zawmo. Sign in with Google to like, comment and add your angle."
   },
   "visibility": {
     "label": "Who can see it?",
