@@ -1,5 +1,6 @@
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { captionView } from "@/server/caption";
 import { computeWhyNowScore } from "@/lib/movaEngine";
 import { viewUrl } from "@/server/media";
 import { commentCounts } from "@/server/comments";
@@ -15,6 +16,17 @@ import { hashtagsIn, normalizeTag } from "@/lib/hashtags";
 const CANDIDATES = 60;
 const PAGE = 20;
 const ANGLES_PER_MOMENT = 12;
+
+// All-time hearts (and whether the viewer gave one), comments and views of some angles.
+export async function engagementFor(ids: string[], viewer: User | null) {
+  const [likes, comments, views] = await Promise.all([
+    reactionsFor(ids, viewer),
+    commentCounts(ids),
+    db.angleView.groupBy({ by: ["angleId"], where: { angleId: { in: ids } }, _count: { _all: true } }),
+  ]);
+  const viewCount = new Map(views.map((v) => [v.angleId, v._count._all]));
+  return (id: string) => ({ likes: likes.get(id) ?? { count: 0, liked: false }, comments: comments.get(id) ?? 0, views: viewCount.get(id) ?? 0 });
+}
 
 export async function listDiscover(viewer: User | null) {
   const now = new Date();
@@ -90,14 +102,8 @@ export async function listDiscover(viewer: User | null) {
       : [],
   );
 
-  // What happened to each angle shown: hearts (and the viewer's), comments, shares, views.
-  const shownIds = ranked.flatMap((m) => m.angles.map((a) => a.id));
-  const [likes, comments, views] = await Promise.all([
-    reactionsFor(shownIds, viewer),
-    commentCounts(shownIds),
-    db.angleView.groupBy({ by: ["angleId"], where: { angleId: { in: shownIds } }, _count: { _all: true } }),
-  ]);
-  const viewCount = new Map(views.map((v) => [v.angleId, v._count._all]));
+  // What happened to each angle shown: hearts (and the viewer's), comments, views.
+  const stats = await engagementFor(ranked.flatMap((m) => m.angles.map((a) => a.id)), viewer);
 
   return Promise.all(
     ranked.map(async (m) => {
@@ -117,15 +123,16 @@ export async function listDiscover(viewer: User | null) {
             id: a.id,
             mediaType: a.mediaType,
             filter: a.filter,
+            caption: await captionView(a.caption),
+            soundKey: a.soundKey,
+            muteOriginal: a.muteOriginal,
             mediaUrl: await viewUrl(a.mediaPath),
             posterUrl: await viewUrl(a.thumbPath),
             name: a.contributor.displayName,
             avatarUrl: a.contributor.avatarUrl,
             profileId: a.contributor.isGuest ? null : a.contributor.id,
-            likes: likes.get(a.id) ?? { count: 0, liked: false },
-            comments: comments.get(a.id) ?? 0,
+            ...stats(a.id),
             shares: a.shares,
-            views: viewCount.get(a.id) ?? 0,
           })),
         ),
       };
@@ -216,7 +223,11 @@ export async function trendingVideos(viewer: User | null, take = 10) {
       contributorId: { notIn: blocked },
       moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } },
     },
-    select: { id: true, shares: true, uploadedAt: true, mediaPath: true, thumbPath: true, filter: true, moment: { select: { code: true, title: true } }, contributor: { select: { displayName: true } } },
+    select: {
+      id: true, shares: true, uploadedAt: true, mediaPath: true, thumbPath: true, filter: true, caption: true, soundKey: true, muteOriginal: true,
+      moment: { select: { code: true, title: true } },
+      contributor: { select: { id: true, displayName: true, avatarUrl: true, isGuest: true } },
+    },
     take: 200,
   });
   if (!videos.length) return [];
@@ -243,7 +254,12 @@ export async function trendingVideos(viewer: User | null, take = 10) {
       momentCode: a.moment.code,
       title: a.moment.title,
       name: a.contributor.displayName,
+      avatarUrl: a.contributor.avatarUrl,
+      profileId: a.contributor.isGuest ? null : a.contributor.id,
       filter: a.filter,
+      caption: await captionView(a.caption),
+      soundKey: a.soundKey,
+      muteOriginal: a.muteOriginal,
       mediaUrl: await viewUrl(a.mediaPath),
       posterUrl: await viewUrl(a.thumbPath),
       ...stats,

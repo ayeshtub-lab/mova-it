@@ -2,6 +2,7 @@ import { del } from "@vercel/blob";
 import { MediaType, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { parseCaption } from "@/lib/caption";
 import { blobExists } from "@/server/media";
 import { screenAngle, screeningEnabled, screenText } from "@/server/screening";
 
@@ -127,7 +128,7 @@ export async function deleteAngle(user: User, angleId: string) {
   if (!angle || (angle.contributorId !== user.id && angle.moment.creatorId !== user.id)) throw new AngleError("not_found");
 
   const montages = await db.montage.findMany({ where: { momentId: angle.momentId, angleIds: { has: angle.id } } });
-  const files = [angle.mediaPath, angle.thumbPath, ...montages.map((m) => m.videoUrl)].filter((p): p is string => !!p);
+  const files = [angle.mediaPath, angle.thumbPath, parseCaption(angle.caption)?.path, ...montages.map((m) => m.videoUrl)].filter((p): p is string => !!p);
 
   await db.$transaction([
     db.montage.deleteMany({ where: { id: { in: montages.map((m) => m.id) } } }),

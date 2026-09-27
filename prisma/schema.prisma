@@ -204,6 +204,10 @@ model Angle {
   // montages; the stored file is never changed. stamp = the retro date/time in a corner.
   filter        String?
   stamp         Boolean     @default(false)
+  // Writing (with emoji) on the shot: a transparent PNG drawn on the owner's phone (so the
+  // emoji look the same everywhere, montages included), placed on a 9:16 frame.
+  // { text, path, y (centre, 0–1 of height), w (0–1 of width) } — see src/lib/caption.ts.
+  caption       Json?
 
   moment          Moment           @relation(fields: [momentId], references: [id], onDelete: Cascade)
   contributor     User             @relation(fields: [contributorId], references: [id])

@@ -3,9 +3,11 @@
 import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useId, useState } from "react";
+import { CaptionEditor, type CaptionLabels } from "@/app/CaptionEditor";
 import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
+import type { CaptionView } from "@/lib/caption";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
-import { stampText } from "@/lib/filters";
+import { filterCss, stampText } from "@/lib/filters";
 import { PrepareError, prepareAngleFile } from "@/lib/media-client";
 import { PENDING_SOUND, soundByKey, soundName } from "@/lib/sounds";
 
@@ -35,6 +37,7 @@ type ItemState = {
   takenAt?: string;
   filter?: string | null;
   stamp?: boolean;
+  caption?: CaptionView | null;
 };
 type UploaderSoundLabels = SoundLabels & { add: string; failed: string; pending: string; pendingClear: string };
 
@@ -53,6 +56,7 @@ export function AngleUploader({
   locale,
   soundLabels,
   editLabels,
+  captionLabels,
 }: {
   code: string;
   labels: Labels;
@@ -60,6 +64,7 @@ export function AngleUploader({
   locale: string;
   soundLabels: UploaderSoundLabels;
   editLabels: ShotEditorLabels & { open: string; failed: string };
+  captionLabels?: CaptionLabels; // «✍️ كتابة على اللقطة» after upload
 }) {
   const [uploaded, setUploaded] = useState(false);
   const inputId = useId();
@@ -77,6 +82,7 @@ export function AngleUploader({
   }, []);
   const [picking, setPicking] = useState<number | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
+  const [captioning, setCaptioning] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [soundError, setSoundError] = useState(false);
 
@@ -276,7 +282,32 @@ export function AngleUploader({
             setPicking(editing);
             setEditing(null);
           }}
+          hasCaption={!!items[editing].caption}
+          onCaption={
+            captionLabels
+              ? () => {
+                  setCaptioning(editing);
+                  setEditing(null);
+                }
+              : undefined
+          }
           onClose={() => setEditing(null)}
+        />
+      )}
+      {captioning !== null && captionLabels && items[captioning]?.angleId && (
+        <CaptionEditor
+          angleId={items[captioning].angleId!}
+          imageUrl={items[captioning].preview ?? null}
+          filter={filterCss(items[captioning].filter)}
+          initial={items[captioning].caption ?? null}
+          labels={captionLabels}
+          onSaved={(caption) => {
+            const at = captioning;
+            setItems((list) => list.map((it, i) => (i === at ? { ...it, caption } : it)));
+            setCaptioning(null);
+            router.refresh();
+          }}
+          onClose={() => setCaptioning(null)}
         />
       )}
       {picking !== null && items[picking]?.angleId && (

@@ -6,6 +6,8 @@ import { useEffect, useRef, useState } from "react";
 import { AutoVideo } from "@/app/AutoVideo";
 import { LocalTime } from "@/app/LocalTime";
 import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
+import { CaptionEditor, CaptionOverlay, type CaptionLabels } from "@/app/CaptionEditor";
+import type { CaptionView } from "@/lib/caption";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { filterCss, stampText } from "@/lib/filters";
 import { isQuran, soundByKey, soundFile, soundName } from "@/lib/sounds";
@@ -38,6 +40,7 @@ export type GalleryAngle = {
   isMine: boolean;
   views: number;
   isNew: boolean; // first 24 hours
+  caption: CaptionView | null; // writing on the shot
 };
 
 type Labels = {
@@ -65,6 +68,7 @@ type Labels = {
   actionFailed: string;
   isNew: string;
   edit: ShotEditorLabels & { open: string; failed: string };
+  caption: CaptionLabels;
   sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
   delete: string;
   confirmDelete: string;
@@ -183,6 +187,10 @@ export function AngleGallery({
   const byId = new Map(angles.map((a) => [a.id, a]));
   const likesOf = (id: string): Likes => likes.get(id) ?? byId.get(id)?.likes ?? { count: 0, liked: false };
   const soundOf = (id: string) => sounds.get(id) ?? { key: byId.get(id)?.soundKey ?? null, mute: byId.get(id)?.muteOriginal ?? false };
+  // Writing on shots: as the server sent it, or as its owner just changed it here.
+  const [captions, setCaptions] = useState(() => new Map<string, CaptionView | null>());
+  const [captionFor, setCaptionFor] = useState<string | null>(null);
+  const captionOf = (id: string) => (captions.has(id) ? captions.get(id)! : (byId.get(id)?.caption ?? null));
 
   const slides = () => Array.from(trackRef.current?.children ?? []) as HTMLElement[];
   const goTo = (index: number, smooth = true) =>
@@ -573,6 +581,7 @@ export function AngleGallery({
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
                 <img src={(a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl) ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               )}
+              <CaptionOverlay caption={captionOf(a.id)} />
               {a.isNew && <span className="pointer-events-none absolute end-2 top-2"><span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span></span>}
               {a.mediaType === "VIDEO" && (
                 <span aria-hidden="true" className="absolute bottom-9 end-2 flex size-7 items-center justify-center rounded-full bg-black/55">
@@ -642,6 +651,7 @@ export function AngleGallery({
                 {lookOf(a.id).stamp && (
                   <span className="stamp absolute bottom-24 left-4 z-10 text-base">{stampText(new Date(a.takenAt), locale)}</span>
                 )}
+                <CaptionOverlay caption={captionOf(a.id)} framed />
 
                 {rain?.angleId === a.id && (
                   <div key={rain.key} aria-hidden="true" className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
@@ -1020,7 +1030,29 @@ export function AngleGallery({
               setSoundFor(editFor);
               setEditFor(null);
             }}
+            hasCaption={!!captionOf(editFor)}
+            onCaption={() => {
+              setCaptionFor(editFor);
+              setEditFor(null);
+            }}
             onClose={() => setEditFor(null)}
+          />
+        )}
+        {captionFor && (
+          <CaptionEditor
+            angleId={captionFor}
+            imageUrl={(() => {
+              const x = angles.find((y) => y.id === captionFor);
+              return (x?.mediaType === "VIDEO" ? x.thumbUrl : x?.mediaUrl) ?? null;
+            })()}
+            filter={filterCss(lookOf(captionFor).filter)}
+            initial={captionOf(captionFor)}
+            labels={labels.caption}
+            onSaved={(caption) => {
+              setCaptions((m) => new Map(m).set(captionFor, caption));
+              setCaptionFor(null);
+            }}
+            onClose={() => setCaptionFor(null)}
           />
         )}
         {soundFor && (

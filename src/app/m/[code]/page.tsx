@@ -221,9 +221,10 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 isMine: a.isMine,
                 views: a.views,
                 isNew: a.isNew,
+                caption: a.caption,
               }))}
               locale={locale}
-              labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds, edit: dict.editShot }}
+              labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds, edit: dict.editShot, caption: dict.caption }}
               canReact={!!user}
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}
@@ -261,6 +262,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 locale={locale}
                 soundLabels={dict.sounds}
                 editLabels={dict.editShot}
+                captionLabels={dict.caption}
                 code={view.code}
                 labels={dict.upload}
                 afterUpload={

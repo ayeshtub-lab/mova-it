@@ -7,6 +7,7 @@ import en from "@/i18n/dictionaries/en.json";
 import { plural } from "@/i18n/plural";
 import { db } from "@/lib/db";
 import { publicHost } from "@/lib/hosts";
+import { parseCaption } from "@/lib/caption";
 import { filterByKey, stampText } from "@/lib/filters";
 import { isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
@@ -42,12 +43,22 @@ const ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fm
 // The shot's look (src/lib/filters.ts) goes right after the crop, before the overlay.
 const look = (filter: string | null) => (filterByKey(filter) ? `,${filterByKey(filter)!.ffmpeg}` : "");
 
-async function photoSegment(input: string, overlay: string, out: string, filter: string | null) {
+// The shot's writing (a PNG drawn on the owner's phone), `w` of the frame wide and centred
+// across with its middle at `y` of the height — laid under the Zawmo frame.
+type CaptionFile = { file: string; y: number; w: number };
+const captionInput = (c?: CaptionFile) => (c ? ["-i", c.file] : []);
+const withCaption = (base: string, c: CaptionFile | undefined, input: number) =>
+  c
+    ? `${base}[pre];[${input}:v]scale=${Math.round(FRAME.width * c.w)}:-1[cap];[pre][cap]overlay=x=(main_w-overlay_w)/2:y=${c.y.toFixed(4)}*main_h-overlay_h/2`
+    : base;
+
+async function photoSegment(input: string, overlay: string, out: string, filter: string | null, caption?: CaptionFile) {
   await ffmpeg([
     "-loop", "1", "-t", String(PHOTO_SECONDS), "-i", input,
     "-i", overlay,
     "-f", "lavfi", "-t", String(PHOTO_SECONDS), "-i", "anullsrc=r=44100:cl=stereo",
-    "-filter_complex", `[0:v]${COVER}${look(filter)}[b];[b][1:v]overlay=0:0[v]`,
+    ...captionInput(caption),
+    "-filter_complex", `${withCaption(`[0:v]${COVER}${look(filter)}`, caption, 3)}[b];[b][1:v]overlay=0:0[v]`,
     "-map", "[v]", "-map", "2:a", ...ENCODE, "-shortest", out,
   ]);
   return PHOTO_SECONDS;
@@ -64,14 +75,15 @@ async function outroSegment(card: string, out: string) {
   return OUTRO_SECONDS;
 }
 
-async function videoSegment(input: string, overlay: string, out: string, filter: string | null) {
+async function videoSegment(input: string, overlay: string, out: string, filter: string | null, caption?: CaptionFile) {
   const { duration, hasAudio } = await probe(input);
   const seconds = Math.min(duration || VIDEO_MAX_SECONDS, VIDEO_MAX_SECONDS);
   await ffmpeg([
     "-t", String(seconds), "-i", input,
     "-i", overlay,
     "-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=44100:cl=stereo",
-    "-filter_complex", `[0:v]${COVER}${look(filter)}[b];[b][1:v]overlay=0:0[v]`,
+    ...captionInput(caption),
+    "-filter_complex", `${withCaption(`[0:v]${COVER}${look(filter)}`, caption, 3)}[b];[b][1:v]overlay=0:0[v]`,
     "-map", "[v]", "-map", hasAudio ? "0:a:0" : "2:a", ...ENCODE, "-shortest", out,
   ]);
   return seconds;
@@ -162,7 +174,16 @@ export async function renderMontage(montageId: string, siteHost: string) {
           stamp: angle.stamp ? stampText(angle.capturedAt ?? angle.uploadedAt, locale, "Asia/Riyadh") : undefined,
         }),
       );
-      let seconds = angle.mediaType === "VIDEO" ? await videoSegment(input, overlay, out, angle.filter) : await photoSegment(input, overlay, out, angle.filter);
+      // The shot's writing, fetched next to its picture.
+      const writing = parseCaption(angle.caption);
+      let caption: CaptionFile | undefined;
+      const writingUrl = writing ? await viewUrl(writing.path) : null;
+      if (writing && writingUrl) {
+        caption = { file: join(dir, `cap-${i}.png`), y: writing.y, w: writing.w };
+        await download(writingUrl, caption.file);
+      }
+      let seconds =
+        angle.mediaType === "VIDEO" ? await videoSegment(input, overlay, out, angle.filter, caption) : await photoSegment(input, overlay, out, angle.filter, caption);
       let segment = out;
       const shotSound = montage.soundKey ? null : soundByKey(angle.soundKey);
       if (shotSound) {

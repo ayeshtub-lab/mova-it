@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Montage, User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { parseCaption } from "@/lib/caption";
 import { soundByKey } from "@/lib/sounds";
 import { viewUrl } from "@/server/media";
 import { renderMontage } from "./render";
@@ -38,11 +39,11 @@ async function currentContent(momentId: string, soundKey: string | null) {
   const angles = await db.angle.findMany({
     where: { momentId, status: "READY", mediaPath: { not: null }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
     orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
-    select: { id: true, filter: true, stamp: true, soundKey: true, muteOriginal: true },
+    select: { id: true, filter: true, stamp: true, soundKey: true, muteOriginal: true, caption: true },
     take: MAX_ANGLES,
   });
   const signature = createHash("sha256")
-    .update(JSON.stringify([soundKey, angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal])]))
+    .update(JSON.stringify([soundKey, angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null])]))
     .digest("hex")
     .slice(0, 32);
   return { angleIds: angles.map((a) => a.id), signature };

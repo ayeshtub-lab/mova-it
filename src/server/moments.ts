@@ -2,6 +2,7 @@ import { randomInt } from "node:crypto";
 import { Visibility } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { captionView } from "@/server/caption";
 import { computeWhyNowScore } from "@/lib/movaEngine";
 import { viewUrl } from "@/server/media";
 import { commentCounts } from "@/server/comments";
@@ -163,6 +164,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         muteOriginal: a.muteOriginal,
         filter: a.filter,
         stamp: a.stamp,
+        caption: await captionView(a.caption),
         takenAt: a.capturedAt ?? a.uploadedAt,
         contributorName: a.contributor.displayName,
         contributorAvatar: a.contributor.avatarUrl,

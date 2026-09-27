@@ -465,6 +465,28 @@
     "noSound": "None",
     "save": "Save",
     "cancel": "Close",
-    "failed": "Couldn't save, try again."
+    "failed": "Couldn't save, try again.",
+    "caption": "Write on the shot",
+    "captionEdit": "Edit the writing"
+  },
+  "caption": {
+    "title": "✍️ Write on the shot",
+    "placeholder": "Write something… add an emoji 😍",
+    "emoji": "Emoji",
+    "color": "Colour",
+    "background": "Background",
+    "size": "Size",
+    "sizes": [
+      "Small",
+      "Medium",
+      "Large"
+    ],
+    "drag": "Drag the writing up or down",
+    "save": "Save the writing",
+    "remove": "Remove the writing",
+    "cancel": "Close",
+    "failed": "Couldn't save. Try again.",
+    "blocked": "This writing doesn't fit Zawmo's rules. Change it and try again.",
+    "checkFailed": "We couldn't check the writing right now. Try again shortly."
   }
 }

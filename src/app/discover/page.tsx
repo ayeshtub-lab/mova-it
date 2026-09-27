@@ -5,15 +5,15 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { plural } from "@/i18n/plural";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
-import { listDiscover, trendingVideos } from "@/server/discover";
+import { engagementFor, listDiscover, trendingVideos } from "@/server/discover";
 import { googleEnabled } from "@/server/google";
 import { DiscoverFeed } from "./DiscoverFeed";
-import { Trending } from "./Trending";
 
 export const metadata = { robots: { index: false } };
 
 // «اكتشف»: public moments, open to everyone to watch. The top (a title with live numbers,
-// the week's trending videos) scrolls away into the moments. Visitors and guests are
+// the week's trending videos) scrolls away into the moments; a trending video opens a
+// full-screen viewer that carries on through everything else. Visitors and guests are
 // invited to sign in with Google to like, comment and add their angle.
 export default async function DiscoverPage() {
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
@@ -22,6 +22,10 @@ export default async function DiscoverPage() {
   const official = !!user && !user.isGuest;
 
   const [moments, trending] = await Promise.all([listDiscover(user), trendingVideos(user)]);
+  const stats = await engagementFor(
+    trending.map((v) => v.id),
+    user,
+  );
   const angleTotal = moments.reduce((sum, m) => sum + m.angles.length + m.lockedCount, 0);
   const peopleTotal = moments.reduce((sum, m) => sum + m.people, 0);
 
@@ -48,10 +52,17 @@ export default async function DiscoverPage() {
           {googleEnabled() && <GoogleButton label={user?.isGuest ? dict.account.saveButton : dict.account.google} returnTo="/discover" />}
         </div>
       )}
+    </div>
+  );
 
-      <Trending videos={trending} title={t.trending} locale={locale} />
-
-      {moments.length > 0 && <p className="animate-pulse text-center text-sm font-bold text-muted">{t.scrollHint}</p>}
+  const empty = (
+    <div className="flex flex-col items-center gap-4 px-4 pb-12 text-center">
+      <DemoWheel className="w-full max-w-[18rem] opacity-90" />
+      <h2 className="text-2xl font-extrabold">{t.emptyTitle}</h2>
+      <p className="text-muted">{t.emptyText}</p>
+      <Link href="/new" className="min-h-12 rounded-full bg-accent px-6 py-3 font-bold text-white">
+        {t.start}
+      </Link>
     </div>
   );
 
@@ -60,48 +71,60 @@ export default async function DiscoverPage() {
       <div className="px-4 sm:px-8">
         <SiteHeader locale={locale} dict={dict} />
       </div>
-      {moments.length === 0 ? (
-        <main className="mx-auto flex w-full max-w-md flex-col items-center gap-4 pb-12 text-center">
-          {intro}
-          <DemoWheel className="w-full max-w-[18rem] opacity-90" />
-          <h2 className="text-2xl font-extrabold">{t.emptyTitle}</h2>
-          <p className="text-muted">{t.emptyText}</p>
-          <Link href="/new" className="min-h-12 rounded-full bg-accent px-6 py-3 font-bold text-white">
-            {t.start}
-          </Link>
-        </main>
-      ) : (
-        <main className="mx-auto w-full max-w-xl">
-          <DiscoverFeed
-            intro={intro}
-            moments={moments.map((m) => ({ ...m, lastActivityAt: m.lastActivityAt.toISOString() }))}
-            locale={locale}
-            canAct={official}
-            signInReturn="/discover"
-            uploader={{ locale, labels: dict.upload, soundLabels: dict.sounds, editLabels: dict.editShot }}
-            labels={{
-              open: t.open,
-              add: t.add,
-              swipe: t.swipe,
-              by: t.by,
-              people: dict.plurals.people,
-              daily: dict.daily.label,
-              locked: dict.daily.lockedDiscover,
-              like: t.like,
-              comments: dict.viewer.comments.open,
-              share: t.share,
-              views: t.views,
-              copied: t.copied,
-              addTitle: t.addTitle,
-              signInTitle: t.signInTitle,
-              signInText: user?.isGuest ? t.gateGuest : t.visitorBar,
-              signIn: user?.isGuest ? dict.account.saveButton : dict.account.google,
-              close: t.close,
-              commentsLabels: dict.viewer.comments,
-            }}
-          />
-        </main>
-      )}
+      <main className="mx-auto w-full max-w-xl">
+        <DiscoverFeed
+          intro={intro}
+          empty={empty}
+          trending={trending.map((v) => ({
+            id: v.id,
+            mediaType: "VIDEO",
+            filter: v.filter,
+            caption: v.caption,
+            soundKey: v.soundKey,
+            muteOriginal: v.muteOriginal,
+            mediaUrl: v.mediaUrl,
+            posterUrl: v.posterUrl,
+            name: v.name,
+            avatarUrl: v.avatarUrl,
+            profileId: v.profileId,
+            momentCode: v.momentCode,
+            title: v.title,
+            shares: v.shares,
+            weekViews: v.views,
+            weekLikes: v.likes,
+            ...stats(v.id),
+          }))}
+          moments={moments.map((m) => ({ ...m, lastActivityAt: m.lastActivityAt.toISOString() }))}
+          locale={locale}
+          canAct={official}
+          signInReturn="/discover"
+          uploader={{ locale, labels: dict.upload, soundLabels: dict.sounds, editLabels: dict.editShot, captionLabels: dict.caption }}
+          labels={{
+            open: t.open,
+            add: t.add,
+            swipe: t.swipe,
+            by: t.by,
+            people: dict.plurals.people,
+            daily: dict.daily.label,
+            locked: dict.daily.lockedDiscover,
+            like: t.like,
+            comments: dict.viewer.comments.open,
+            share: t.share,
+            views: t.views,
+            copied: t.copied,
+            addTitle: t.addTitle,
+            signInTitle: t.signInTitle,
+            signInText: user?.isGuest ? t.gateGuest : t.visitorBar,
+            signIn: user?.isGuest ? dict.account.saveButton : dict.account.google,
+            close: t.close,
+            trending: t.trending,
+            scrollHint: t.scrollHint,
+            mute: dict.sounds.mute,
+            unmute: dict.sounds.unmute,
+            commentsLabels: dict.viewer.comments,
+          }}
+        />
+      </main>
     </div>
   );
 }

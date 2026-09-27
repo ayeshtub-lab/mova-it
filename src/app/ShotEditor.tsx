@@ -11,6 +11,8 @@ export type ShotEditorLabels = {
   stampHint: string;
   sound: string;
   noSound: string;
+  caption: string;
+  captionEdit: string;
   save: string;
   cancel: string;
 };
@@ -30,6 +32,8 @@ export function ShotEditor({
   onSave,
   onSound,
   onClose,
+  onCaption,
+  hasCaption = false,
 }: {
   imageUrl: string | null;
   locale: string;
@@ -42,6 +46,9 @@ export function ShotEditor({
   onSave: (filter: string | null, stamp: boolean) => void;
   onSound: () => void;
   onClose: () => void;
+  // «✍️ كتابة على اللقطة» (only where the shot can take it)
+  onCaption?: () => void;
+  hasCaption?: boolean;
 }) {
   const [filter, setFilter] = useState(initialFilter);
   const [stamp, setStamp] = useState(initialStamp);
@@ -97,6 +104,13 @@ export function ShotEditor({
           </span>
           <input type="checkbox" checked={stamp} onChange={(e) => setStamp(e.target.checked)} className="size-5 accent-[var(--accent)]" />
         </label>
+
+        {onCaption && (
+          <button type="button" onClick={onCaption} className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-surface px-4 text-start font-bold">
+            <span>✍️ {labels.caption}</span>
+            <span className="truncate text-sm text-secondary">{hasCaption ? labels.captionEdit : "＋"} ‹</span>
+          </button>
+        )}
 
         <button type="button" onClick={onSound} className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-surface px-4 text-start font-bold">
           <span>🎵 {labels.sound}</span>
