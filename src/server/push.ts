@@ -70,9 +70,10 @@ export async function pushTo(userId: string, event: PushEvent) {
       try {
         await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: 24 * 60 * 60, urgency: "normal" });
       } catch (error) {
-        const status = (error as { statusCode?: number }).statusCode;
+        const { statusCode: status, body } = error as { statusCode?: number; body?: string };
+        // What the push service said (its reason, never our keys), to see why a send failed.
+        console.error("push rejected", status ?? error, String(body ?? "").slice(0, 300), new URL(d.endpoint).host);
         if (status === 404 || status === 410) await db.pushDevice.deleteMany({ where: { id: d.id } });
-        else console.error("push failed", status ?? error);
       }
     }),
   );
