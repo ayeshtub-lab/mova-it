@@ -23,8 +23,9 @@ export function LiveVisitors() {
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      if (document.visibilityState !== "visible") return;
+    // The first read happens right away; the refreshes only while the page is on screen.
+    const load = async (first = false) => {
+      if (!first && document.visibilityState !== "visible") return;
       const res = await fetch("/api/admin/online", { cache: "no-store" }).catch(() => null);
       if (cancelled) return;
       if (res?.ok) {
@@ -32,13 +33,14 @@ export function LiveVisitors() {
         setFailed(false);
       } else setFailed(true);
     };
-    load();
-    const timer = setInterval(load, EVERY_MS);
-    document.addEventListener("visibilitychange", load);
+    load(true);
+    const refresh = () => load();
+    const timer = setInterval(refresh, EVERY_MS);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
       cancelled = true;
       clearInterval(timer);
-      document.removeEventListener("visibilitychange", load);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, []);
 
