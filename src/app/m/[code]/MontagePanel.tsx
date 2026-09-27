@@ -126,7 +126,8 @@ export function MontagePanel({
   // Only the maker is offered to make (or remake, after a failure) the video.
   const offerMake = video.canMake && !busy && (video.failed || (video.outdated && (!video.videoUrl || waited)));
   const showBox = !!video.videoUrl || busy || waiting || video.failed;
-  const n = (x: number) => x.toLocaleString(locale === "ar" ? "ar-EG" : "en");
+  // Western digits, like the counts elsewhere on the moment page.
+  const n = (x: number) => x.toLocaleString("en");
   const fill = (t: string, values: Record<string, string>) => t.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? "");
   const railButton = "flex size-12 items-center justify-center rounded-full transition-transform active:scale-90 disabled:opacity-50 [filter:drop-shadow(0_1px_3px_rgb(0_0_0/0.6))]";
   const railCount = "-mt-1 min-h-4 text-xs font-bold text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.8)]";
