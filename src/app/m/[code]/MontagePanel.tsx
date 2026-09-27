@@ -18,16 +18,20 @@ type Labels = {
   like: string;
   unlike: string;
   shotSounds: string;
+  progress: string;
+  left: string;
+  makerOnly: string;
 };
 
 const HEART = "M12 20.5s-7.6-4.6-9.5-9.3C1.2 7.8 3.3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.4 0 5.5 3.3 4.2 6.7-1.9 4.7-9.5 9.3-9.5 9.3z";
-// After an upload the server waits a few seconds before it starts the new video; give it
-// that long before offering to make it by hand.
+// After a change the server waits a few seconds before it remakes a video; give it that
+// long before offering to make it by hand.
 const AUTO_GRACE_MS = 30_000;
 
-// The moment's ready video: made by itself from every angle (each with its look and its
-// sound) and remade when angles, looks or sounds change — with hearts, sharing straight
-// into WhatsApp / TikTok / Instagram, and a download.
+// The moment's ready video, from five angles up: until then, how many are missing.
+// The owner of the first angle makes it (and picks its sound); after that it remakes
+// itself when angles, looks or sounds change — with hearts, sharing straight into
+// WhatsApp / TikTok / Instagram, and a download.
 export function MontagePanel({
   code,
   initial,
@@ -47,7 +51,9 @@ export function MontagePanel({
   const [waited, setWaited] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const sound = soundByKey(video.soundKey);
-  const waiting = video.updating || (video.outdated && !waited);
+  const enough = video.angleCount >= video.minAngles;
+  // A made video that fell behind is about to be remade by itself: follow it for a while.
+  const waiting = video.updating || (video.outdated && !!video.videoUrl && !waited);
 
   useEffect(() => {
     const timer = setTimeout(() => setWaited(true), AUTO_GRACE_MS);
@@ -117,9 +123,29 @@ export function MontagePanel({
   }
 
   const busy = requesting || video.updating;
-  const offerMake = !busy && (video.failed || (video.outdated && waited));
+  // Only the maker is offered to make (or remake, after a failure) the video.
+  const offerMake = video.canMake && !busy && (video.failed || (video.outdated && (!video.videoUrl || waited)));
+  const showBox = !!video.videoUrl || busy || waiting || video.failed;
+  const n = (x: number) => x.toLocaleString(locale === "ar" ? "ar-EG" : "en");
+  const fill = (t: string, values: Record<string, string>) => t.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? "");
   const railButton = "flex size-12 items-center justify-center rounded-full transition-transform active:scale-90 disabled:opacity-50 [filter:drop-shadow(0_1px_3px_rgb(0_0_0/0.6))]";
   const railCount = "-mt-1 min-h-4 text-xs font-bold text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.8)]";
+
+  // Not enough angles yet: how far along the moment is.
+  if (!enough) {
+    return (
+      <section className="flex flex-col gap-3 rounded-3xl bg-surface p-5">
+        <h2 className="text-xl font-extrabold">🎬 {labels.title}</h2>
+        <div className="flex items-baseline justify-between gap-2 text-sm">
+          <span className="font-bold">{fill(labels.progress, { n: n(video.angleCount), min: n(video.minAngles) })}</span>
+          <span className="text-muted">{fill(labels.left, { left: n(video.minAngles - video.angleCount) })}</span>
+        </div>
+        <div className="h-2.5 overflow-hidden rounded-full bg-line" role="progressbar" aria-valuemin={0} aria-valuemax={video.minAngles} aria-valuenow={video.angleCount}>
+          <div className="h-full rounded-full bg-gradient-to-l from-brand-red via-moment to-brand-blue" style={{ width: `${(video.angleCount / video.minAngles) * 100}%` }} />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="flex flex-col gap-3 rounded-3xl bg-surface p-5">
@@ -128,61 +154,77 @@ export function MontagePanel({
         <p className="text-sm text-muted">{labels.hint}</p>
       </div>
 
-      <div className="relative mx-auto aspect-[9/16] w-full max-w-xs overflow-hidden rounded-2xl bg-black">
-        {video.videoUrl ? (
-          <video key={video.id} src={video.videoUrl} controls playsInline preload="metadata" className="size-full" />
-        ) : (
-          <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center text-sm font-semibold text-white/85">
-            {busy || waiting ? (
-              <>
-                <span aria-hidden="true" className="size-8 animate-spin rounded-full border-4 border-white/25 border-t-white" />
-                {labels.working}
-              </>
-            ) : video.failed ? (
-              labels.failed
-            ) : null}
-          </div>
-        )}
+      {showBox && (
+        <div className="relative mx-auto aspect-[9/16] w-full max-w-xs overflow-hidden rounded-2xl bg-black">
+          {video.videoUrl ? (
+            <video key={video.id} src={video.videoUrl} controls playsInline preload="metadata" className="size-full" />
+          ) : (
+            <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center text-sm font-semibold text-white/85">
+              {busy || waiting ? (
+                <>
+                  <span aria-hidden="true" className="size-8 animate-spin rounded-full border-4 border-white/25 border-t-white" />
+                  {labels.working}
+                </>
+              ) : (
+                labels.failed
+              )}
+            </div>
+          )}
 
-        {video.videoUrl && busy && (
-          <span className="absolute inset-x-0 top-3 mx-auto w-fit rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white">{labels.updating}</span>
-        )}
+          {video.videoUrl && busy && (
+            <span className="absolute inset-x-0 top-3 mx-auto w-fit rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white">{labels.updating}</span>
+          )}
 
-        {/* The rail, on the right like the shots' viewer, in the middle: clear of the title and
-            the invitation burnt into the bottom of the video, and of the video's controls. */}
-        {video.videoUrl && (
-          <div className="absolute right-1 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1">
-            <button type="button" aria-pressed={video.liked} aria-label={video.liked ? labels.unlike : labels.like} onClick={toggleLike} className={railButton}>
-              <svg viewBox="0 0 24 24" className={`size-9 ${video.liked ? "heart-pop fill-accent" : "fill-white"}`}>
-                <path d={HEART} />
-              </svg>
-            </button>
-            <span className={railCount}>{video.likes.toLocaleString(locale === "ar" ? "ar-EG" : "en")}</span>
-            <button type="button" aria-label={labels.share} onClick={share} disabled={!file} className={railButton}>
-              <svg viewBox="0 0 24 24" className="size-8 fill-white">
-                <path d="M14 4.5 21 11l-7 6.5V13.6c-5 0-8.2 1.5-11 5.4 1-5.4 4-10.3 11-11.3V4.5z" />
-              </svg>
-            </button>
-            <button type="button" aria-label={labels.download} onClick={save} disabled={!file} className={railButton}>
-              <svg viewBox="0 0 24 24" className="size-8 fill-none stroke-white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 4v11m-5-5 5 5 5-5M5 20h14" />
-              </svg>
-            </button>
-          </div>
-        )}
-      </div>
+          {/* The rail, on the right like the shots' viewer, in the middle: clear of the title and
+              the invitation burnt into the bottom of the video, and of the video's controls. */}
+          {video.videoUrl && (
+            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 flex-col items-center gap-1">
+              <button type="button" aria-pressed={video.liked} aria-label={video.liked ? labels.unlike : labels.like} onClick={toggleLike} className={railButton}>
+                <svg viewBox="0 0 24 24" className={`size-9 ${video.liked ? "heart-pop fill-accent" : "fill-white"}`}>
+                  <path d={HEART} />
+                </svg>
+              </button>
+              <span className={railCount}>{n(video.likes)}</span>
+              <button type="button" aria-label={labels.share} onClick={share} disabled={!file} className={railButton}>
+                <svg viewBox="0 0 24 24" className="size-8 fill-white">
+                  <path d="M14 4.5 21 11l-7 6.5V13.6c-5 0-8.2 1.5-11 5.4 1-5.4 4-10.3 11-11.3V4.5z" />
+                </svg>
+              </button>
+              <button type="button" aria-label={labels.download} onClick={save} disabled={!file} className={railButton}>
+                <svg viewBox="0 0 24 24" className="size-8 fill-none stroke-white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 4v11m-5-5 5 5 5-5M5 20h14" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {video.videoUrl && <p className="text-center text-xs text-muted">{labels.shareHint}</p>}
 
-      <button
-        type="button"
-        onClick={() => setPicking(true)}
-        disabled={busy}
-        className="flex min-h-11 items-center justify-between gap-2 rounded-2xl border border-line bg-background px-4 text-sm font-bold disabled:opacity-60"
-      >
-        <span>{soundLabels.montage}</span>
-        <span className="truncate text-secondary">🎵 {sound ? soundName(sound, locale) : labels.shotSounds}</span>
-      </button>
+      {offerMake && (
+        <button
+          type="button"
+          onClick={() => make(video.soundKey)}
+          className="min-h-12 rounded-full bg-gradient-to-l from-brand-red to-brand-blue px-5 font-extrabold text-white shadow-md transition-transform active:scale-95"
+        >
+          🎬 {labels.make}
+        </button>
+      )}
+      {!video.canMake && !showBox && <p className="rounded-2xl bg-background p-4 text-sm text-muted">{labels.makerOnly}</p>}
+
+      {/* The maker picks the video's sound; changing it remakes the video. */}
+      {video.canMake && (
+        <button
+          type="button"
+          onClick={() => setPicking(true)}
+          disabled={busy}
+          className="flex min-h-11 items-center justify-between gap-2 rounded-2xl border border-line bg-background px-4 text-sm font-bold disabled:opacity-60"
+        >
+          <span>{soundLabels.montage}</span>
+          <span className="truncate text-secondary">🎵 {sound ? soundName(sound, locale) : labels.shotSounds}</span>
+        </button>
+      )}
       {picking && (
         <SoundPicker
           locale={locale}
@@ -195,12 +237,6 @@ export function MontagePanel({
           }}
           onClose={() => setPicking(false)}
         />
-      )}
-
-      {offerMake && (
-        <button type="button" onClick={() => make(video.soundKey)} className="min-h-11 rounded-full bg-foreground px-5 text-sm font-bold text-background">
-          {labels.make}
-        </button>
       )}
     </section>
   );

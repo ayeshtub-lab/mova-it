@@ -25,7 +25,7 @@ export default async function InboxPage() {
   after(() => markNotificationsRead(user, unreadIds));
 
   const line = (n: NotificationView) =>
-    fill({ LIKE: t.liked, FOLLOW: t.followed, COMMENT: t.commented, REPLY: t.replied }[n.kind], { name: n.actorName });
+    fill({ LIKE: t.liked, FOLLOW: t.followed, COMMENT: t.commented, REPLY: t.replied, NEW_ANGLE: t.addedAngle }[n.kind], { name: n.actorName });
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">

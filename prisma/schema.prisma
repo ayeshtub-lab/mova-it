@@ -46,6 +46,10 @@ model User {
   notifications   Notification[]   @relation("NotificationsReceived")
   notified        Notification[]   @relation("NotificationsSent")
   presences       SitePresence[]
+  // The home page's «N members added M angles» counts from homeSinceAt: the start of
+  // the previous visit (a visit = home views less than 30 minutes apart).
+  homeSeenAt      DateTime?
+  homeSinceAt     DateTime?
   participations  Participant[]
   following       Follow[]         @relation("Follower")
   followers       Follow[]         @relation("Following")
@@ -405,6 +409,7 @@ enum NotificationKind {
   FOLLOW // someone started following you
   COMMENT // a comment on your shot
   REPLY // a reply to your comment
+  NEW_ANGLE // someone else added an angle to a moment you have an angle in
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.

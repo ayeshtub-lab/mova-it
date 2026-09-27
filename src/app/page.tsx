@@ -1,6 +1,9 @@
 import { signOut } from "@/app/actions/session";
 import { Showcase } from "@/app/Showcase";
 import { publicShowcase } from "@/server/discover";
+import { homeNews } from "@/server/home";
+import { blockedIdsFor } from "@/server/moderation";
+import { plural } from "@/i18n/plural";
 import Link from "next/link";
 import { FriendsActivity } from "@/app/FriendsActivity";
 import { GoogleButton } from "@/app/GoogleButton";
@@ -15,8 +18,37 @@ import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { googleEnabled } from "@/server/google";
 
-// Signed in: straight to their moments — no introduction to scroll past.
-function SignedInHome({ user, locale, dict, google }: { user: User; locale: Locale; dict: Dictionary; google: boolean }) {
+// «🔥 N members added M angles»: in the member's moments, and across Zawmo.
+function HomeNews({ news, locale, dict }: { news: Awaited<ReturnType<typeof homeNews>>; locale: Locale; dict: Dictionary }) {
+  const t = dict.home;
+  const line = (template: string, x: { people: number; angles: number }) =>
+    template
+      .replace("{people}", plural(locale, dict.plurals.members, x.people))
+      .replace("{added}", x.people === 1 ? t.addedOne : t.addedMany)
+      .replace("{angles}", plural(locale, dict.plurals.angles, x.angles));
+  if (!news.mine.angles && !news.everywhere.angles) return null;
+  return (
+    <section className="flex flex-col gap-1.5 rounded-3xl bg-gradient-to-l from-brand-red/10 via-moment/15 to-brand-blue/10 p-2">
+      {news.mine.angles > 0 && news.mine.latestCode && (
+        <Link href={`/m/${news.mine.latestCode}`} className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-background/80 px-4 py-2.5 font-bold transition-colors hover:bg-background">
+          <span>{line(t.newsMine, news.mine)}</span>
+          <span aria-hidden="true" className="text-muted">‹</span>
+        </Link>
+      )}
+      {news.everywhere.angles > 0 && (
+        <Link href="#people" className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-background/80 px-4 py-2.5 font-bold transition-colors hover:bg-background">
+          <span>{line(t.newsAll, news.everywhere)}</span>
+          <span aria-hidden="true" className="text-muted">‹</span>
+        </Link>
+      )}
+    </section>
+  );
+}
+
+// Signed in: what others added first, then their own moments.
+async function SignedInHome({ user, locale, dict, google }: { user: User; locale: Locale; dict: Dictionary; google: boolean }) {
+  const [news, blocked] = await Promise.all([homeNews(user), blockedIdsFor(user.id)]);
+  const shots = await publicShowcase(12, [user.id, ...blocked]);
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 pb-12">
       <div className="flex items-center justify-between gap-3">
@@ -40,6 +72,12 @@ function SignedInHome({ user, locale, dict, google }: { user: User; locale: Loca
           <GoogleButton label={dict.account.saveButton} returnTo="/" />
         </section>
       )}
+
+      <HomeNews news={news} locale={locale} dict={dict} />
+
+      <div id="people" className="scroll-mt-6">
+        <Showcase shots={shots} labels={{ title: dict.home.peopleTitle, more: dict.home.showcaseMore }} />
+      </div>
 
       <DailyCard user={user} locale={locale} dict={dict} />
 
@@ -71,7 +109,7 @@ const POINT_ICONS = [
 // Visitors: the idea at a glance (an angle wheel of four friends' angles, each with
 // their account photo and name), three short points, then sign in or try as a guest.
 async function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean }) {
-  const shots = await publicShowcase();
+  const shots = await publicShowcase(30);
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 py-4 sm:py-10">
       <section className="flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-8 sm:text-start">

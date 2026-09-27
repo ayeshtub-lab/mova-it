@@ -16,7 +16,12 @@
     "createHint": "Capture it, and let your friends add their angles.",
     "howTitle": "How Zawmo works",
     "showcaseTitle": "👀 Moments on Zawmo",
-    "showcaseMore": "Discover more"
+    "showcaseMore": "Discover more",
+    "newsMine": "🔥 In your moments: {people} {added} {angles}",
+    "newsAll": "🌍 On Zawmo: {people} {added} {angles}",
+    "addedOne": "added",
+    "addedMany": "added",
+    "peopleTitle": "✨ New from people"
   },
   "lang": {
     "switchTo": "العربية",
@@ -105,6 +110,10 @@
     "lockedAngles": {
       "one": "1 angle is locked",
       "other": "{n} angles are locked"
+    },
+    "members": {
+      "one": "{n} member",
+      "other": "{n} members"
     }
   },
   "mine": {
@@ -181,8 +190,8 @@
     "label": "Angle {i} of {n} · {name}",
     "cta": "Were you there? Add your angle",
     "title": "The moment's video",
-    "hint": "Made by itself from every angle — each with its look and sound — and updated with every new angle. Ready for TikTok, Reels and WhatsApp.",
-    "make": "Make the video",
+    "hint": "Every angle — each with its look and sound — kept up to date with every new angle. Ready for TikTok, Reels and WhatsApp.",
+    "make": "Make the moment's video",
     "working": "Making the video… this can take a minute.",
     "failed": "The video didn't work this time. Try again.",
     "share": "Share the video",
@@ -195,7 +204,10 @@
     "updating": "Updating…",
     "like": "Like",
     "unlike": "Unlike",
-    "shotSounds": "Each shot's own sound"
+    "shotSounds": "Each shot's own sound",
+    "progress": "{n} of {min} angles",
+    "left": "{left} more and the moment gets a video 🎬",
+    "makerOnly": "This moment is ready for a video 🎬 — the owner of its first angle can make it."
   },
   "afterUpload": {
     "title": "🔥 You’re in! Send the moment to someone who was with you?",
@@ -249,7 +261,8 @@
     "commented": "{name} commented on your shot:",
     "replied": "{name} replied to your comment:",
     "inMoment": "in “{title}”",
-    "noActivity": "When someone likes your shots, follows you or comments, you'll see it here."
+    "noActivity": "When someone likes your shots, follows you or comments, you'll see it here.",
+    "addedAngle": "{name} added a new angle 📸"
   },
   "account": {
     "google": "Continue with Google",

@@ -154,21 +154,23 @@ export async function listTag(viewer: User, rawTag: string) {
   );
 }
 
-// The visitor's home page: recent public shots that passed the check (not «لحظة اليوم»,
-// which is give-to-get), videos first so they lead the grid.
-export async function publicShowcase(take = 12) {
+// Recent public shots that passed the check (not «لحظة اليوم», which is give-to-get),
+// a few videos first so they lead the grid: the visitor's home page, and members' «جديد من
+// الناس» (without their own shots, nor those of anyone either side blocked).
+export async function publicShowcase(take = 12, exclude: string[] = []) {
   const angles = await db.angle.findMany({
     where: {
       status: "READY",
       screening: "allowed",
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } },
+      ...(exclude.length ? { contributorId: { notIn: exclude } } : {}),
     },
     orderBy: { uploadedAt: "desc" },
-    take: 40,
+    take: Math.max(40, take * 2),
     include: { moment: { select: { code: true, title: true } }, contributor: { select: { displayName: true } } },
   });
-  const picked = [...angles.filter((a) => a.mediaType === "VIDEO").slice(0, 4), ...angles.filter((a) => a.mediaType === "PHOTO")].slice(0, take);
+  const picked = [...angles.filter((a) => a.mediaType === "VIDEO").slice(0, 6), ...angles.filter((a) => a.mediaType === "PHOTO")].slice(0, take);
   return Promise.all(
     picked.map(async (a) => ({
       id: a.id,

@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { AngleError, completeAngle } from "@/server/angles";
 import { refreshMontageForAngle } from "@/server/montage";
+import { notifyNewAngle } from "@/server/notifications";
 
 // The automatic content check runs inside this request (a few seconds); the moment's
 // video is then remade after the response.
@@ -16,6 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const angle = await completeAngle(user, id);
     if (angle.status === "READY") {
+      after(() => notifyNewAngle(angle.id));
       const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;
       after(() => refreshMontageForAngle(angle.id, host).catch((error) => console.error("montage refresh failed", angle.id, error)));
     }

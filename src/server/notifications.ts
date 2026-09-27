@@ -28,6 +28,35 @@ export async function notify(event: Event) {
   }
 }
 
+// A new angle in a moment: its creator and everyone else with an angle there hear of it
+// (not for «لحظة اليوم», where that would be half the site). One unread notice per
+// person and moment is enough however many angles someone adds in a row.
+export async function notifyNewAngle(angleId: string) {
+  try {
+    const angle = await db.angle.findUnique({
+      where: { id: angleId },
+      select: { status: true, contributorId: true, momentId: true, moment: { select: { kind: true, creatorId: true } } },
+    });
+    if (!angle || angle.status !== "READY" || angle.moment.kind === "DAILY") return;
+    const others = await db.angle.findMany({
+      where: { momentId: angle.momentId, status: "READY" },
+      distinct: ["contributorId"],
+      select: { contributorId: true },
+    });
+    const told = new Set([angle.moment.creatorId, ...others.map((o) => o.contributorId)]);
+    told.delete(angle.contributorId);
+    for (const userId of told) {
+      const pending = await db.notification.findFirst({
+        where: { userId, actorId: angle.contributorId, kind: "NEW_ANGLE", readAt: null, angle: { momentId: angle.momentId } },
+        select: { id: true },
+      });
+      if (!pending) await notify({ userId, actorId: angle.contributorId, kind: "NEW_ANGLE", angleId });
+    }
+  } catch (error) {
+    console.error("notifyNewAngle failed", angleId, error);
+  }
+}
+
 export async function unreadNotifications(user: User) {
   const blocked = [...(await blockedIdsFor(user.id))];
   return db.notification.count({ where: { userId: user.id, readAt: null, actorId: { notIn: blocked } } });

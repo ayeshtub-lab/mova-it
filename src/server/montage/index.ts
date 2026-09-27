@@ -6,6 +6,9 @@ import { viewUrl } from "@/server/media";
 import { renderMontage } from "./render";
 
 const MAX_ANGLES = 12;
+// A moment's video needs this many angles; made by hand the first time, by the owner of
+// the moment's first angle, then kept up to date by itself.
+export const MIN_ANGLES = 5;
 // A render that has not finished in this time is treated as dead and may be retried.
 const STALE_RENDER_MS = 10 * 60 * 1000;
 // Changes come in bursts (upload, then a look, then a sound): wait for them to settle
@@ -13,7 +16,7 @@ const STALE_RENDER_MS = 10 * 60 * 1000;
 const SETTLE_MS = 8000;
 
 export class MontageError extends Error {
-  constructor(public code: "not_found" | "locked" | "no_angles") {
+  constructor(public code: "not_found" | "locked" | "no_angles" | "too_few" | "not_maker") {
     super(code);
   }
 }
@@ -66,19 +69,48 @@ async function chosenSound(momentId: string) {
   return latest?.soundKey ?? null;
 }
 
-// A person asks for the video (or picks a new sound for it).
+const liveAngles = (momentId: string) => ({
+  momentId,
+  status: "READY" as const,
+  mediaPath: { not: null },
+  OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+});
+
+// How many angles the moment has, and who may make its video: the owner of the angle
+// added first.
+async function videoRights(momentId: string) {
+  const [count, first] = await Promise.all([
+    db.angle.count({ where: liveAngles(momentId) }),
+    db.angle.findFirst({ where: liveAngles(momentId), orderBy: { uploadedAt: "asc" }, select: { contributorId: true } }),
+  ]);
+  return { count, makerId: first?.contributorId ?? null };
+}
+
+// A video was made by hand once the moment had enough angles: from then on it keeps
+// itself up to date.
+async function madeByHand(momentId: string) {
+  const made = await db.montage.findMany({ where: { momentId }, select: { angleIds: true } });
+  return made.some((m) => m.angleIds.length >= MIN_ANGLES);
+}
+
+// The maker asks for the video (or picks a new sound for it).
 export async function requestMontage(user: User, code: string, rawSound: unknown = null) {
   const soundKey = soundByKey(typeof rawSound === "string" ? rawSound : null)?.key ?? null;
   const moment = await unlockedMoment(user, code);
+  const rights = await videoRights(moment.id);
+  if (rights.count < MIN_ANGLES) throw new MontageError("too_few");
+  if (rights.makerId !== user.id) throw new MontageError("not_maker");
   const result = await montageFor(moment.id, soundKey);
   if (!result) throw new MontageError("no_angles");
   return result;
 }
 
 // The moment's video remakes itself after an upload, a look or sound change, or a
-// deletion. Runs after the response; `host` is the public host for the link in the video.
+// deletion — once it has been made by hand. Runs after the response; `host` is the
+// public host for the link in the video.
 export async function refreshMontage(momentId: string, host: string) {
   await new Promise((r) => setTimeout(r, SETTLE_MS));
+  if ((await videoRights(momentId)).count < MIN_ANGLES || !(await madeByHand(momentId))) return;
   const result = await montageFor(momentId, await chosenSound(momentId));
   if (result?.created) await renderMontage(result.montage.id, host);
 }
@@ -93,23 +125,30 @@ export type MontageView = Awaited<ReturnType<typeof momentVideo>>;
 // What the moment page shows: the latest finished video (kept on screen while a newer
 // one is being made), whether a newer one is on its way, and the moment's hearts.
 async function momentVideo(user: User, momentId: string) {
-  const [latest, ready, likes, liked, current] = await Promise.all([
+  const [latest, ready, likes, liked, current, rights] = await Promise.all([
     db.montage.findFirst({ where: { momentId }, orderBy: { createdAt: "desc" } }),
     db.montage.findFirst({ where: { momentId, status: "READY" }, orderBy: { createdAt: "desc" } }),
     db.momentLike.count({ where: { momentId } }),
     db.momentLike.count({ where: { momentId, userId: user.id } }),
     chosenSound(momentId).then((sound) => currentContent(momentId, sound)),
+    videoRights(momentId),
   ]);
+  // Below the minimum there is no video at all (an older one made with fewer angles
+  // stays hidden): the page shows how many angles are still missing.
+  const enough = rights.count >= MIN_ANGLES;
   return {
-    id: ready?.id ?? null,
-    durationSec: ready?.durationSec ?? null,
+    id: enough ? (ready?.id ?? null) : null,
+    durationSec: enough ? (ready?.durationSec ?? null) : null,
     soundKey: latest?.soundKey ?? null,
-    videoUrl: ready ? await viewUrl(ready.videoUrl) : null,
-    updating: !!latest && isWorking(latest),
-    failed: latest?.status === "FAILED",
-    // Nothing is making a video for the current content (an older moment, or a failed
-    // render): the page offers to make it.
-    outdated: current.angleIds.length > 0 && !(latest && isAlive(latest) && latest.signature === current.signature),
+    videoUrl: enough && ready ? await viewUrl(ready.videoUrl) : null,
+    updating: enough && !!latest && isWorking(latest),
+    failed: enough && latest?.status === "FAILED",
+    // Nothing is making a video for the current content (never made, or a failed
+    // render): the maker is offered the button.
+    outdated: enough && !(latest && isAlive(latest) && latest.signature === current.signature),
+    angleCount: rights.count,
+    minAngles: MIN_ANGLES,
+    canMake: rights.makerId === user.id,
     likes,
     liked: liked > 0,
   };
