@@ -48,3 +48,6 @@ next-env.d.ts
 
 # local tool logs and helpers
 /scripts/
+
+# Throwaway local scripts (never committed)
+tests/.tmp/
