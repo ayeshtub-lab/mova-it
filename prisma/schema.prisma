@@ -46,6 +46,7 @@ model User {
   notifications   Notification[]   @relation("NotificationsReceived")
   notified        Notification[]   @relation("NotificationsSent")
   presences       SitePresence[]
+  pushDevices     PushDevice[]
   // The home page's «N members added M angles» counts from homeSinceAt: the start of
   // the previous visit (a visit = home views less than 30 minutes apart).
   homeSeenAt      DateTime?
@@ -434,6 +435,22 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([actorId])
+}
+
+// A phone or browser that asked for notifications (Web Push). One person may have several;
+// a device the push service no longer knows (404/410) is removed when we next send.
+model PushDevice {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  locale    String   @default("ar") // the language notifications are written in
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // Who has the site open right now (the admin dashboard's live visitors): one row per

@@ -488,5 +488,22 @@
     "failed": "Couldn't save. Try again.",
     "blocked": "This writing doesn't fit Zawmo's rules. Change it and try again.",
     "checkFailed": "We couldn't check the writing right now. Try again shortly."
+  },
+  "push": {
+    "like": "❤️ {name} liked your shot",
+    "follow": "👤 {name} started following you",
+    "comment": "💬 {name} commented on your shot",
+    "reply": "↩️ {name} replied to your comment",
+    "newAngle": "📸 {name} added a new angle",
+    "open": "Open Zawmo",
+    "enableTitle": "🔔 Get notified",
+    "enableText": "A note on your phone when someone likes, comments or adds an angle to your moment — even with Zawmo closed.",
+    "enable": "Turn on notifications",
+    "enabled": "✅ Notifications are on for this device",
+    "disable": "Turn off",
+    "denied": "Notifications are blocked in your browser settings. Allow them for this site and come back.",
+    "iosInstall": "On iPhone: tap Share ⬆️ then “Add to Home Screen”, open Zawmo from its icon, then turn notifications on here.",
+    "unsupported": "This browser doesn't support notifications.",
+    "failed": "Couldn't turn them on. Try again."
   }
 }

@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import type { NotificationKind, User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { viewUrl } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
+import { pushTo } from "@/server/push";
 
 // «الوارد»'s activity: hearts on your shots, new followers, comments on your shots and
 // replies to your comments. Never for what you did yourself, never from someone either
@@ -21,7 +23,25 @@ export async function notify(event: Event) {
       });
       if (told) return;
     }
-    await db.notification.create({ data: event });
+    const created = await db.notification.create({
+      data: event,
+      include: { actor: { select: { displayName: true } }, angle: { select: { id: true, moment: { select: { code: true, title: true } } } }, comment: { select: { body: true } } },
+    });
+    // …and on the person's phone (after the response, so the like or comment never waits).
+    const push = () =>
+      pushTo(event.userId, {
+        kind: event.kind,
+        actorName: created.actor.displayName,
+        momentTitle: created.angle?.moment.title ?? null,
+        comment: created.comment?.body ?? null,
+        url: created.angle ? `/m/${created.angle.moment.code}#angle-${created.angle.id}` : `/u/${event.actorId}`,
+      }).catch((error) => console.error("push failed", error));
+    try {
+      after(push);
+    } catch {
+      // Already after the response (or a script): send now.
+      await push();
+    }
   } catch (error) {
     // A notification must never break the like, follow or comment itself.
     console.error("notify failed", event.kind, error);

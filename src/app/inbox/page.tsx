@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/session";
 import { relativeTime } from "@/lib/site";
 import { listThreads } from "@/server/inbox";
 import { listNotifications, markNotificationsRead, type NotificationView } from "@/server/notifications";
+import { PushToggle } from "@/app/PushToggle";
 import { RefreshOnFocus } from "./RefreshOnFocus";
 
 export const metadata = { title: "Zawmo · 📥", robots: { index: false } };
@@ -33,6 +34,7 @@ export default async function InboxPage() {
       <SiteHeader locale={locale} dict={dict} />
       <main className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-16">
         <h1 className="text-3xl font-extrabold">{t.title}</h1>
+        <PushToggle labels={dict.push} locale={locale} />
 
         <section className="flex flex-col gap-2" aria-labelledby="activity">
           <h2 id="activity" className="text-lg font-extrabold">

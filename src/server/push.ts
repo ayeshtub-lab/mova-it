@@ -1,0 +1,79 @@
+import webpush from "web-push";
+import type { NotificationKind, User } from "@/generated/prisma/client";
+import ar from "@/i18n/dictionaries/ar.json";
+import en from "@/i18n/dictionaries/en.json";
+import { db } from "@/lib/db";
+
+// Web Push: the same events as «الوارد»'s activity, sent to the phones and browsers that
+// asked for them — even with Zawmo closed. Keys come from the environment (VAPID); with
+// no keys the feature simply stays off.
+
+export const pushEnabled = () => !!(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
+
+let configured = false;
+function configure() {
+  if (configured) return;
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT || "https://zawmo.com", process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!, process.env.VAPID_PRIVATE_KEY!);
+  configured = true;
+}
+
+const PUSH_HOST = /^https:\/\/([a-z0-9-]+\.)+[a-z]{2,}(:\d+)?\//i;
+
+type RawSubscription = { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } };
+
+// A device asks for notifications (or asks again): kept once, for the person signed in.
+export async function savePushDevice(user: User, raw: unknown, locale: unknown) {
+  const sub = (raw ?? {}) as RawSubscription;
+  const endpoint = typeof sub.endpoint === "string" && sub.endpoint.length < 1000 && PUSH_HOST.test(sub.endpoint) ? sub.endpoint : null;
+  const p256dh = typeof sub.keys?.p256dh === "string" && sub.keys.p256dh.length < 200 ? sub.keys.p256dh : null;
+  const auth = typeof sub.keys?.auth === "string" && sub.keys.auth.length < 100 ? sub.keys.auth : null;
+  if (!endpoint || !p256dh || !auth) return false;
+  const lang = locale === "en" ? "en" : "ar";
+  await db.pushDevice.upsert({
+    where: { endpoint },
+    create: { userId: user.id, endpoint, p256dh, auth, locale: lang },
+    update: { userId: user.id, p256dh, auth, locale: lang },
+  });
+  return true;
+}
+
+export async function removePushDevice(user: User, endpoint: unknown) {
+  if (typeof endpoint !== "string") return;
+  await db.pushDevice.deleteMany({ where: { endpoint, userId: user.id } });
+}
+
+export async function hasPushDevice(user: User, endpoint: string) {
+  return (await db.pushDevice.count({ where: { endpoint, userId: user.id } })) > 0;
+}
+
+export type PushEvent = { kind: NotificationKind; actorName: string; momentTitle: string | null; comment: string | null; url: string };
+
+// The notification's words, in the device's language.
+export function pushMessage(e: PushEvent, locale: string) {
+  const t = (locale === "en" ? en : ar).push;
+  const fill = (s: string) => s.replace("{name}", e.actorName);
+  const title = fill({ LIKE: t.like, FOLLOW: t.follow, COMMENT: t.comment, REPLY: t.reply, NEW_ANGLE: t.newAngle }[e.kind]);
+  const body = (e.kind === "COMMENT" || e.kind === "REPLY" ? e.comment : e.momentTitle) ?? t.open;
+  return { title, body: body.length > 140 ? body.slice(0, 139) + "…" : body };
+}
+
+// Sends one event to every device of a person; devices the push service has forgotten
+// (the person turned notifications off, or reinstalled) are removed.
+export async function pushTo(userId: string, event: PushEvent) {
+  if (!pushEnabled()) return;
+  configure();
+  const devices = await db.pushDevice.findMany({ where: { userId } });
+  await Promise.all(
+    devices.map(async (d) => {
+      const message = pushMessage(event, d.locale);
+      const payload = JSON.stringify({ ...message, url: event.url, tag: `${event.kind}:${event.url}` });
+      try {
+        await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: 24 * 60 * 60, urgency: "normal" });
+      } catch (error) {
+        const status = (error as { statusCode?: number }).statusCode;
+        if (status === 404 || status === 410) await db.pushDevice.deleteMany({ where: { id: d.id } });
+        else console.error("push failed", status ?? error);
+      }
+    }),
+  );
+}
