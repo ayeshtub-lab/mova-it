@@ -8,7 +8,7 @@
     "motto": "Shot from all angles",
     "lead": "Every great moment is seen by more than one person. On Zawmo, all your angles meet in one place and become the whole moment.",
     "points": [
-      "Everyone adds their angle: a photo or a video up to 20 seconds",
+      "Everyone adds their angle: a photo or a video up to 40 seconds",
       "An automatic montage of every angle, ready to share",
       "Send the link to anyone who was there, no app install needed"
     ],
@@ -40,13 +40,13 @@
     "serverError": "Something went wrong on our side. Please try again in a moment."
   },
   "upload": {
-    "hint": "Shoot a photo or a video up to 20 seconds, or pick from your gallery (several files).",
+    "hint": "Shoot a photo or a video up to 40 seconds, or pick from your gallery (several files).",
     "preparing": "Preparing…",
     "uploading": "Uploading {pct}%",
     "done": "Added",
     "errors": {
       "unsupported": "This file type is not supported in this browser.",
-      "too_long": "The video is longer than 20 seconds.",
+      "too_long": "The video is longer than 40 seconds.",
       "too_many": "You reached the maximum number of angles for this moment.",
       "failed": "Upload failed. Please try again.",
       "blocked": "This shot doesn't meet Zawmo's rules and won't be shown.",
@@ -55,7 +55,20 @@
     "gallery": "Pick from gallery",
     "cameraPhoto": "Take a photo",
     "cameraVideo": "Record a video",
-    "checking": "Checking…"
+    "checking": "Checking…",
+    "longNotice": "The video is longer than 40 seconds — we'll send its first 40 seconds.",
+    "longAction": "OK, send the first 40 seconds",
+    "trimming": "Preparing the first {max} seconds… {s} of {max} (keep the screen on)",
+    "camera": {
+      "title": "Zawmo camera",
+      "record": "Start recording",
+      "stop": "Stop recording",
+      "switchCamera": "Switch camera",
+      "close": "Close",
+      "hint": "Video up to 40 seconds",
+      "denied": "We couldn't open the camera. Allow this site to use the camera and microphone in your browser settings, or record with your phone's camera.",
+      "useNative": "Use the phone's camera"
+    }
   },
   "moment": {
     "meta": "{angles} · {people}",
@@ -64,7 +77,7 @@
     "locked": "{lockedAngles}. Add yours to unlock them all.",
     "timeline": "Timeline",
     "ctaTitle": "Were you there? Got an angle?",
-    "ctaGuest": "Enter your name first, then add a photo or a video up to 20 seconds. No app to install.",
+    "ctaGuest": "Enter your name first, then add a photo or a video up to 40 seconds. No app to install.",
     "thereTag": "Was there",
     "remoteTag": "From afar",
     "share": "Share the moment",

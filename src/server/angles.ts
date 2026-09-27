@@ -6,8 +6,8 @@ import { parseCaption } from "@/lib/caption";
 import { blobExists } from "@/server/media";
 import { screenAngle, screeningEnabled, screenText } from "@/server/screening";
 
-export const MAX_VIDEO_SECONDS = 20;
-// A little slack: containers round durations, and a 20.3 s clip is still "20 seconds".
+export const MAX_VIDEO_SECONDS = 40;
+// A little slack: containers round durations, and a 40.3 s clip is still "40 seconds".
 const VIDEO_SECONDS_TOLERANCE = 0.5;
 const ANGLES_PER_USER_PER_MOMENT = 30;
 const UPLOAD_WINDOW_MS = 15 * 60 * 1000;
@@ -117,7 +117,8 @@ export async function uploadConstraintsFor(user: User, pathname: string) {
   if (angle.mediaType === MediaType.PHOTO) {
     return { angleId: angle.id, allowedContentTypes: ["image/jpeg"], maximumSizeInBytes: 12 * 1024 * 1024 };
   }
-  return { angleId: angle.id, allowedContentTypes: Object.keys(VIDEO_TYPES), maximumSizeInBytes: 150 * 1024 * 1024 };
+  // 40 s of 4K from a phone can pass 250 MB.
+  return { angleId: angle.id, allowedContentTypes: Object.keys(VIDEO_TYPES), maximumSizeInBytes: 300 * 1024 * 1024 };
 }
 
 // Deletes an angle for good: its files, its reactions, and every montage it appears in

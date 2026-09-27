@@ -9,7 +9,8 @@
     "generate": "prisma generate",
     "lint": "eslint",
     "db:migrate": "prisma migrate deploy",
-    "postinstall": "prisma generate && node scripts-build/fetch-ffmpeg.cjs"
+    "postinstall": "prisma generate && node scripts-build/fetch-ffmpeg.cjs",
+    "migrate:test-db": "node scripts/migrate-test-db.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

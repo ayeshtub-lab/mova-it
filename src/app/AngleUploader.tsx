@@ -2,13 +2,15 @@
 
 import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { CaptionEditor, type CaptionLabels } from "@/app/CaptionEditor";
 import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
 import type { CaptionView } from "@/lib/caption";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { filterCss, stampText } from "@/lib/filters";
-import { PrepareError, prepareAngleFile } from "@/lib/media-client";
+import { MAX_VIDEO_SECONDS, PrepareError, prepareAngleFile, type PreparedAngle } from "@/lib/media-client";
+import { canRecord, firstSeconds } from "@/lib/recording";
+import { CameraRecorder, type CameraLabels } from "@/app/CameraRecorder";
 import { PENDING_SOUND, soundByKey, soundName } from "@/lib/sounds";
 
 
@@ -22,11 +24,17 @@ type Labels = {
   checking: string;
   done: string;
   errors: { unsupported: string; too_long: string; too_many: string; failed: string; blocked: string; official_required: string };
+  longNotice: string;
+  longAction: string;
+  trimming: string;
+  camera: CameraLabels;
 };
 
 type ItemState = {
   name: string;
-  status: "preparing" | "uploading" | "checking" | "done" | "error";
+  // long: a gallery video past 40 s, waiting for "send its first 40 seconds";
+  // trimming: those seconds being taken (pct = seconds done).
+  status: "preparing" | "long" | "trimming" | "uploading" | "checking" | "done" | "error";
   pct: number;
   error?: keyof Labels["errors"];
   angleId?: string;
@@ -83,6 +91,8 @@ export function AngleUploader({
   const [picking, setPicking] = useState<number | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
   const [captioning, setCaptioning] = useState<number | null>(null);
+  const [camera, setCamera] = useState(false);
+  const longFiles = useRef(new Map<number, File>());
   const [saving, setSaving] = useState(false);
   const [soundError, setSoundError] = useState(false);
 
@@ -123,9 +133,9 @@ export function AngleUploader({
   const update = (index: number, patch: Partial<ItemState>) =>
     setItems((all) => all.map((item, i) => (i === index ? { ...item, ...patch } : item)));
 
-  async function send(file: File, index: number) {
+  async function send(input: File | PreparedAngle, index: number) {
     try {
-      const prepared = await prepareAngleFile(file);
+      const prepared = input instanceof File ? await prepareAngleFile(input) : input;
       const { angleId, mediaPath, thumbPath } = await postJson("/api/angles", {
         code,
         mediaType: prepared.mediaType,
@@ -169,6 +179,11 @@ export function AngleUploader({
       setUploaded(true);
       if (pending && (await saveSound(index, angleId, pending, false))) clearPending();
     } catch (error) {
+      // A gallery video past 40 s: offer to send its first 40 seconds instead.
+      if (error instanceof PrepareError && error.code === "too_long" && input instanceof File) {
+        longFiles.current.set(index, input);
+        return update(index, { status: "long" });
+      }
       const serverCode = (error as { code?: string }).code;
       const reason =
         error instanceof PrepareError
@@ -179,6 +194,31 @@ export function AngleUploader({
       update(index, { status: "error", error: reason });
     }
   }
+
+  async function sendFirstSeconds(index: number) {
+    const file = longFiles.current.get(index);
+    if (!file) return;
+    update(index, { status: "trimming", pct: 0 });
+    try {
+      const prepared = await firstSeconds(file, (seconds) => update(index, { pct: Math.floor(seconds) }));
+      longFiles.current.delete(index);
+      update(index, { status: "preparing" });
+      await send(prepared, index);
+    } catch {
+      update(index, { status: "long" });
+    }
+    router.refresh();
+  }
+
+  async function onRecorded(video: PreparedAngle) {
+    setCamera(false);
+    const index = items.length;
+    setItems((all) => [...all, { name: "🎥", status: "preparing", pct: 0 }]);
+    await send(video, index);
+    router.refresh();
+  }
+
+  const videoInput = useRef<HTMLInputElement>(null);
 
   async function onPick(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
@@ -208,8 +248,15 @@ export function AngleUploader({
           </svg>
           {labels.cameraPhoto}
         </label>
+        {/* Video: Zawmo's own camera (40-second countdown) where the browser can record,
+            the phone's camera app otherwise. */}
         <label
           htmlFor={`${inputId}-video`}
+          onClick={(e) => {
+            if (!canRecord() || !navigator.mediaDevices?.getUserMedia) return;
+            e.preventDefault();
+            setCamera(true);
+          }}
           className={`flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-accent px-4 text-base font-bold text-white ${disabled}`}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -226,7 +273,8 @@ export function AngleUploader({
         {labels.gallery}
       </label>
       <input id={`${inputId}-photo`} type="file" accept="image/*" capture="environment" onChange={onPick} className="sr-only" />
-      <input id={`${inputId}-video`} type="file" accept="video/*" capture="environment" onChange={onPick} className="sr-only" />
+      <input ref={videoInput} id={`${inputId}-video`} type="file" accept="video/*" capture="environment" onChange={onPick} className="sr-only" />
+      {camera && <CameraRecorder labels={labels.camera} onDone={onRecorded} onNative={() => videoInput.current?.click()} onClose={() => setCamera(false)} />}
       <input id={inputId} type="file" accept="image/*,video/mp4,video/quicktime,video/webm" multiple onChange={onPick} className="sr-only" />
       <p className="text-sm text-muted">{labels.hint}</p>
       {pending && (
@@ -247,11 +295,20 @@ export function AngleUploader({
               </span>
               <span className={`shrink-0 font-semibold ${item.status === "error" ? "text-accent-ink" : "text-muted"}`}>
                 {item.status === "preparing" && labels.preparing}
+                {item.status === "trimming" && labels.trimming.replace("{s}", String(item.pct)).replaceAll("{max}", String(MAX_VIDEO_SECONDS))}
                 {item.status === "uploading" && labels.uploading.replace("{pct}", String(item.pct))}
                 {item.status === "checking" && labels.checking}
                 {item.status === "done" && labels.done}
                 {item.status === "error" && labels.errors[item.error ?? "failed"]}
               </span>
+              {item.status === "long" && (
+                <span className="flex shrink-0 flex-col items-end gap-1">
+                  <span className="text-xs text-muted">{labels.longNotice}</span>
+                  <button type="button" onClick={() => sendFirstSeconds(i)} className="min-h-9 rounded-full bg-accent px-3 text-xs font-bold text-white">
+                    {labels.longAction}
+                  </button>
+                </span>
+              )}
               {item.status === "done" && item.angleId && (
                 <button type="button" onClick={() => setEditing(i)} className="min-h-9 shrink-0 rounded-full bg-background px-3 text-xs font-bold text-secondary shadow-sm">
                   {editLabels.open}

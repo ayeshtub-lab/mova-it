@@ -1,7 +1,7 @@
 // Browser-side preparation of an angle before upload. Import only from client components.
 import exifr from "exifr";
 
-export const MAX_VIDEO_SECONDS = 20;
+export const MAX_VIDEO_SECONDS = 40;
 const PHOTO_MAX_EDGE = 2048;
 const POSTER_MAX_EDGE = 720;
 
@@ -17,7 +17,11 @@ export type PreparedAngle = {
 };
 
 export class PrepareError extends Error {
-  constructor(public code: "unsupported" | "too_long") {
+  // too_long carries the file, so the page can offer to send its first seconds instead.
+  constructor(
+    public code: "unsupported" | "too_long",
+    public durationSec?: number,
+  ) {
     super(code);
   }
 }
@@ -29,7 +33,7 @@ function fitWithin(width: number, height: number, maxEdge: number) {
   return { width: Math.round(width * scale), height: Math.round(height * scale) };
 }
 
-function toJpeg(source: CanvasImageSource, width: number, height: number, quality: number) {
+export function toJpeg(source: CanvasImageSource, width: number, height: number, quality: number) {
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -88,7 +92,7 @@ async function prepareVideo(file: File): Promise<PreparedAngle> {
     });
     const durationSec = video.duration;
     if (!Number.isFinite(durationSec) || durationSec <= 0) throw new PrepareError("unsupported");
-    if (durationSec > MAX_VIDEO_SECONDS + 0.5) throw new PrepareError("too_long");
+    if (durationSec > MAX_VIDEO_SECONDS + 0.5) throw new PrepareError("too_long", durationSec);
 
     await new Promise<void>((resolve) => {
       video.onseeked = () => resolve();
