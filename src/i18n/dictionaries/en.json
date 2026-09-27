@@ -241,7 +241,15 @@
     "failed": "Your message didn't go through. Try again.",
     "tooMany": "Too many messages this hour. Take a short break.",
     "block": "Block {name}",
-    "confirmBlock": "Block {name}? You won't see each other anymore."
+    "confirmBlock": "Block {name}? You won't see each other anymore.",
+    "activity": "Activity",
+    "messages": "Messages",
+    "liked": "{name} liked your shot ❤️",
+    "followed": "{name} started following you",
+    "commented": "{name} commented on your shot:",
+    "replied": "{name} replied to your comment:",
+    "inMoment": "in “{title}”",
+    "noActivity": "When someone likes your shots, follows you or comments, you'll see it here."
   },
   "account": {
     "google": "Continue with Google",

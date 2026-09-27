@@ -43,6 +43,9 @@ model User {
   activeDays      ActiveDay[]
   commentLikes    CommentLike[]
   momentLikes     MomentLike[]
+  notifications   Notification[]   @relation("NotificationsReceived")
+  notified        Notification[]   @relation("NotificationsSent")
+  presences       SitePresence[]
   participations  Participant[]
   following       Follow[]         @relation("Follower")
   followers       Follow[]         @relation("Following")
@@ -203,6 +206,7 @@ model Angle {
   reactions       Reaction[]
   comments        Comment[]
   views           AngleView[]
+  notifications   Notification[]
   saves           SavedAngle[]
   reports         Report[]
   removalRequests RemovalRequest[]
@@ -286,12 +290,13 @@ model Comment {
   parentId  String?
   createdAt DateTime @default(now())
 
-  angle   Angle         @relation(fields: [angleId], references: [id], onDelete: Cascade)
-  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  reports Report[]
-  parent  Comment?      @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies Comment[]     @relation("Replies")
-  likes   CommentLike[]
+  angle         Angle          @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reports       Report[]
+  parent        Comment?       @relation("Replies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[]      @relation("Replies")
+  likes         CommentLike[]
+  notifications Notification[]
 
   @@index([angleId, createdAt])
   @@index([userId, createdAt])
@@ -391,6 +396,48 @@ model MomentLike {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([momentId, userId])
+}
+
+// ── Notifications and presence ────────────────────────────────────────────
+
+enum NotificationKind {
+  LIKE // a heart on your shot
+  FOLLOW // someone started following you
+  COMMENT // a comment on your shot
+  REPLY // a reply to your comment
+}
+
+// What shows at the top of «الوارد»: who did what to your shots, comments or profile.
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String // who is told
+  actorId   String // who did it
+  kind      NotificationKind
+  angleId   String?
+  commentId String?
+  createdAt DateTime         @default(now())
+  readAt    DateTime?
+
+  user    User     @relation("NotificationsReceived", fields: [userId], references: [id], onDelete: Cascade)
+  actor   User     @relation("NotificationsSent", fields: [actorId], references: [id], onDelete: Cascade)
+  angle   Angle?   @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([actorId])
+}
+
+// Who has the site open right now (the admin dashboard's live visitors): one row per
+// browser, keyed by a random id it keeps; signed in or not.
+model SitePresence {
+  key      String   @id
+  userId   String?
+  path     String?
+  lastSeen DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([lastSeen])
 }
 
 // ── Safety ────────────────────────────────────────────────────────────────

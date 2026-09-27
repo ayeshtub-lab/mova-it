@@ -6,6 +6,7 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { getStats, TARGET_RETURN } from "@/server/stats";
+import { LiveVisitors } from "./LiveVisitors";
 
 export const metadata = { title: "زاومو · لوحة القياس", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -65,6 +66,8 @@ export default async function StatsPage() {
             البلاغات
           </Link>
         </header>
+
+        <LiveVisitors />
 
         {/* The number the beta is judged by. */}
         <section className="flex flex-col gap-3 rounded-3xl border-2 border-line bg-background p-5">

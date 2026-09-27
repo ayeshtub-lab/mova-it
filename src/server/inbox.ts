@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { viewUrl } from "@/server/media";
 import { blockedIdsFor, blockUser } from "@/server/moderation";
+import { unreadNotifications } from "@/server/notifications";
 
 // The inbox 📥: every moment a friend sent you (or you sent a friend) is a small
 // two-person thread about that moment, with quick replies. No live polling — pages
@@ -164,5 +165,7 @@ export async function blockInThread(user: User, id: string) {
 // components (header, bottom bar) ask for it.
 export const currentUnread = cache(async () => {
   const user = await getCurrentUser();
-  return user ? unreadCount(user) : 0;
+  if (!user) return 0;
+  const [threads, activity] = await Promise.all([unreadCount(user), unreadNotifications(user)]);
+  return threads + activity;
 });

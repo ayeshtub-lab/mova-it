@@ -2,6 +2,7 @@ import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { visibleAngle } from "@/server/access";
 import { blockedIdsFor } from "@/server/moderation";
+import { notify } from "@/server/notifications";
 
 const MAX_LENGTH = 300;
 const MAX_PER_HOUR = 40;
@@ -65,13 +66,19 @@ export async function addComment(user: User, angleId: string, raw: unknown, rawP
   // A reply answers a top-level comment on the same angle (replies to a reply attach to
   // that thread's top comment, like TikTok).
   let parentId: string | null = null;
+  let parentAuthor: string | null = null;
   if (typeof rawParent === "string" && rawParent) {
-    const parent = await db.comment.findUnique({ where: { id: rawParent }, select: { angleId: true, parentId: true } });
+    const parent = await db.comment.findUnique({ where: { id: rawParent }, select: { angleId: true, parentId: true, userId: true } });
     if (!parent || parent.angleId !== angleId) throw new CommentError("invalid");
     parentId = parent.parentId ?? rawParent;
+    parentAuthor = parent.userId; // the person answered (who wrote the comment tapped)
   }
   const comment = await db.comment.create({ data: { angleId, userId: user.id, body, parentId }, include: { user: { select: { displayName: true } } } });
   await db.moment.update({ where: { id: angle.momentId }, data: { lastActivityAt: new Date() } });
+  // The person answered hears of the reply, and the shot's owner of the comment (only
+  // once when they are the one answered).
+  if (parentAuthor) await notify({ userId: parentAuthor, actorId: user.id, kind: "REPLY", angleId, commentId: comment.id });
+  if (angle.contributorId !== parentAuthor) await notify({ userId: angle.contributorId, actorId: user.id, kind: "COMMENT", angleId, commentId: comment.id });
   return toView(comment, user, angle.moment.creatorId);
 }
 

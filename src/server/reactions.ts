@@ -1,6 +1,7 @@
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { visibleAngle } from "@/server/access";
+import { notify } from "@/server/notifications";
 
 // Likes (❤️). Older rows may carry another kind; every reaction counts as a like.
 export type Likes = { count: number; liked: boolean };
@@ -27,7 +28,8 @@ export async function reactionsFor(angleIds: string[], viewer: User | null) {
 // has not added an angle may only like the one angle they can see.
 export async function setReaction(user: User, angleId: string, liked: unknown) {
   if (typeof liked !== "boolean") throw new ReactionError("invalid");
-  if (!(await visibleAngle(user, angleId))) throw new ReactionError("not_found");
+  const angle = await visibleAngle(user, angleId);
+  if (!angle) throw new ReactionError("not_found");
 
   if (!liked) await db.reaction.deleteMany({ where: { angleId, userId: user.id } });
   else
@@ -36,6 +38,7 @@ export async function setReaction(user: User, angleId: string, liked: unknown) {
       create: { angleId, userId: user.id, kind: "HEART" },
       update: { kind: "HEART" },
     });
+  if (liked) await notify({ userId: angle.contributorId, actorId: user.id, kind: "LIKE", angleId });
 
   return (await reactionsFor([angleId], user)).get(angleId)!;
 }

@@ -7,6 +7,7 @@ import { isNew } from "@/lib/site";
 import { visibleAngle } from "@/server/access";
 import { viewUrl } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
+import { notify } from "@/server/notifications";
 import { askGemini, screeningEnabled } from "@/server/screening";
 
 // Profiles (official accounts only). What a visitor sees follows the same rules as
@@ -208,6 +209,7 @@ export async function setFollow(viewer: User, targetId: string, on: boolean) {
     create: { followerId: viewer.id, followingId: targetId },
     update: {},
   });
+  await notify({ userId: targetId, actorId: viewer.id, kind: "FOLLOW" });
 }
 
 export async function setDisplayName(user: User, raw: unknown) {
