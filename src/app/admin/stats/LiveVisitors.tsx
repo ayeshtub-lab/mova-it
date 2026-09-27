@@ -14,7 +14,7 @@ const EVERY_MS = 10_000;
 const num = (n: number) => new Intl.NumberFormat("ar-EG").format(n);
 // Readable page names for the common paths.
 const pageName = (path: string) =>
-  path === "/" ? "الرئيسية" : path === "/discover" ? "اكتشف" : path === "/new" ? "لحظة جديدة" : path === "/inbox" ? "الوارد" : path.startsWith("/m/") ? `لحظة ${path.slice(3)}` : path.startsWith("/u/") ? "صفحة شخص" : path;
+  path === "/" ? "الرئيسية" : path === "/discover" ? "اكتشف" : path === "/new" ? "لحظة جديدة" : path === "/inbox" ? "الوارد" : path.startsWith("/m/") ? `لحظة ${path.slice(3)}` : path.startsWith("/u/") ? "صفحة شخص" : path.startsWith("/admin") ? "لوحة التحكم" : path;
 
 // «على الموقع الآن»: who has Zawmo open, refreshed every 10 seconds while this page is on screen.
 export function LiveVisitors() {
