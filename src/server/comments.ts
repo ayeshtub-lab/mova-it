@@ -24,7 +24,7 @@ function cleanBody(raw: unknown) {
 }
 
 type Row = { id: string; body: string; createdAt: Date; userId: string; parentId: string | null; user: { displayName: string } };
-const toView = (c: Row, viewer: User, creatorId: string, likes = { count: 0, liked: false }) => ({
+const toView = (c: Row, viewer: User | null, creatorId: string, likes = { count: 0, liked: false }) => ({
   id: c.id,
   body: c.body,
   createdAt: c.createdAt,
@@ -32,20 +32,27 @@ const toView = (c: Row, viewer: User, creatorId: string, likes = { count: 0, lik
   parentId: c.parentId,
   likes: likes.count,
   liked: likes.liked,
-  mine: c.userId === viewer.id,
-  canDelete: c.userId === viewer.id || creatorId === viewer.id,
+  mine: !!viewer && c.userId === viewer.id,
+  canDelete: !!viewer && (c.userId === viewer.id || creatorId === viewer.id),
 });
 
-export async function listComments(user: User, angleId: string) {
-  const angle = await visibleAngle(user, angleId);
+// A visitor (no account) may read the comments on a public moment's checked angle.
+const publicAngle = (angleId: string) =>
+  db.angle.findFirst({
+    where: { id: angleId, status: "READY", screening: "allowed", moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } } },
+    include: { moment: true },
+  });
+
+export async function listComments(user: User | null, angleId: string) {
+  const angle = user ? await visibleAngle(user, angleId) : await publicAngle(angleId);
   if (!angle) throw new CommentError("not_found");
   // Comments by people the viewer blocked (or who blocked them) are left out.
-  const blocked = [...(await blockedIdsFor(user.id))];
+  const blocked = user ? [...(await blockedIdsFor(user.id))] : [];
   const comments = await db.comment.findMany({
     where: { angleId, userId: { notIn: blocked } },
     orderBy: { createdAt: "asc" },
     take: 300,
-    include: { user: { select: { displayName: true } }, _count: { select: { likes: true } }, likes: { where: { userId: user.id }, select: { userId: true } } },
+    include: { user: { select: { displayName: true } }, _count: { select: { likes: true } }, likes: { where: { userId: user?.id ?? "" }, select: { userId: true } } },
   });
   // Top-level comments in order, each followed by its replies (a reply whose comment is
   // hidden from this viewer is left out too).

@@ -114,6 +114,10 @@
     "members": {
       "one": "{n} member",
       "other": "{n} members"
+    },
+    "moments": {
+      "one": "{n} moment",
+      "other": "{n} moments"
     }
   },
   "mine": {
@@ -335,7 +339,17 @@
     "swipe": "Swipe ↔ for more angles",
     "by": "Started by {name}",
     "visitorBar": "These are public moments on Zawmo. Sign in with Google to like, comment and add your angle.",
-    "trending": "🔥 Trending this week"
+    "trending": "🔥 Trending this week",
+    "heroTitle": "Discover 🧭",
+    "heroText": "Real moments from everywhere, from every angle.",
+    "scrollHint": "Scroll down 👇 to move between moments",
+    "like": "Like",
+    "share": "Share",
+    "views": "Views",
+    "copied": "Link copied ✅",
+    "addTitle": "Add your angle 📸",
+    "signInTitle": "Sign in 👋",
+    "close": "Close"
   },
   "visibility": {
     "label": "Who can see it?",

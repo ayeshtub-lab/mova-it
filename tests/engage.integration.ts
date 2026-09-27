@@ -69,6 +69,18 @@ async function main() {
       assert.ok(mine < theirs, "3 shares + a comment outrank one like");
       assert.equal(list[mine].shares, 3);
     });
+
+    await check("visitors read comments on public moments only — never friends' moments or «لحظة اليوم»", async () => {
+      await addComment(friend, angle.id, "visible to visitors");
+      const read = await listComments(null, angle.id);
+      assert.ok(read.some((c) => c.body === "visible to visitors"));
+      assert.ok(read.every((c) => !c.mine && !c.canDelete), "a visitor owns and deletes nothing");
+      await db.moment.update({ where: { id: m.id }, data: { visibility: "FRIENDS" } });
+      await assert.rejects(listComments(null, angle.id), CommentError);
+      await db.moment.update({ where: { id: m.id }, data: { visibility: "PUBLIC", kind: "DAILY" } });
+      await assert.rejects(listComments(null, angle.id), CommentError);
+      await db.moment.update({ where: { id: m.id }, data: { kind: "EVERYDAY" } });
+    });
   } finally {
     await db.moment.deleteMany({ where: { creatorId: { in: ids } } });
     await db.user.deleteMany({ where: { id: { in: ids } } });

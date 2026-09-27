@@ -2,7 +2,9 @@ import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { computeWhyNowScore } from "@/lib/movaEngine";
 import { viewUrl } from "@/server/media";
+import { commentCounts } from "@/server/comments";
 import { blockedIdsFor } from "@/server/moderation";
+import { reactionsFor } from "@/server/reactions";
 import { hashtagsIn, normalizeTag } from "@/lib/hashtags";
 
 // «اكتشف»: public moments — for everyone to watch (visitors too); interacting needs an
@@ -88,6 +90,15 @@ export async function listDiscover(viewer: User | null) {
       : [],
   );
 
+  // What happened to each angle shown: hearts (and the viewer's), comments, shares, views.
+  const shownIds = ranked.flatMap((m) => m.angles.map((a) => a.id));
+  const [likes, comments, views] = await Promise.all([
+    reactionsFor(shownIds, viewer),
+    commentCounts(shownIds),
+    db.angleView.groupBy({ by: ["angleId"], where: { angleId: { in: shownIds } }, _count: { _all: true } }),
+  ]);
+  const viewCount = new Map(views.map((v) => [v.angleId, v._count._all]));
+
   return Promise.all(
     ranked.map(async (m) => {
       const locked = m.kind === "DAILY" && !joined.has(m.id);
@@ -111,6 +122,10 @@ export async function listDiscover(viewer: User | null) {
             name: a.contributor.displayName,
             avatarUrl: a.contributor.avatarUrl,
             profileId: a.contributor.isGuest ? null : a.contributor.id,
+            likes: likes.get(a.id) ?? { count: 0, liked: false },
+            comments: comments.get(a.id) ?? 0,
+            shares: a.shares,
+            views: viewCount.get(a.id) ?? 0,
           })),
         ),
       };

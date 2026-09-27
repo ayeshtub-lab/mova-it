@@ -8,9 +8,9 @@ const failure = (error: unknown) => {
   return NextResponse.json({ error: error.code }, { status });
 };
 
+// Visitors may read the comments of public moments; writing needs an account.
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   try {
     return NextResponse.json({ comments: await listComments(user, (await params).id) });
   } catch (error) {
