@@ -3,8 +3,9 @@ import { nearestPlace } from "@/lib/places-client";
 
 // Where the request comes from, as Vercel guesses it from the connection (no permission is
 // asked; often only the nearest big town — in Palestine it can say Ramallah for half the
-// West Bank). It becomes a town id and the numbers are dropped. Never shown to anyone: it
-// only helps «صوّر معك» match, and pre-fills a new moment's place (which its creator can change).
+// West Bank — tested 2026-09-29: Artas came out as Jerusalem). It becomes a town id and the
+// numbers are dropped. Never shown to anyone, never used as a moment's place: it only backs up
+// «صوّر معك» matches that already share a name or a sign.
 export type Network = { country: string | null; placeId: string | null };
 
 type Raw = { id: string; kind: string; parent: string | null };

@@ -50,7 +50,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "تستطيع إزالة المكان من أي لقطة لك في أي وقت: «✨ عدّل» ← «شيل المكان».",
           "لقطات لحظات «أصحابي» و«فقط من معه الرابط» لا تظهر أبدًا في صفحات الأماكن.",
           "لا نعرض عدد الأشخاص في مكان فيه أقل من ٢٠ شخصًا، ولا نبيع أو نشارك بيانات الأماكن مع أي جهة. إن عرضنا يومًا إعلانات لمكان ما، فالمعلن يرى أرقامًا مجمّعة فقط، لا أسماء.",
-          "عند الرفع نعرف من شبكة الإنترنت اسم البلدة التقريبية (وغالبًا تكون أكبر مدينة قريبة)، ونحفظ اسم البلدة فقط مع اللقطة، لنقترح «صوّر معك». لا يظهر لأحد أبدًا، ولا نحفظ عنوان الشبكة. ونقترح نفس البلدة كمكان مبدئي عند إنشاء لحظة، وتستطيع تغييره.",
+          "عند الرفع نعرف من شبكة الإنترنت اسم البلدة التقريبية (وغالبًا تكون أكبر مدينة قريبة)، ونحفظ اسم البلدة فقط مع اللقطة، لنقترح «صوّر معك». لا يظهر لأحد أبدًا، ولا نحفظ عنوان الشبكة.",
         ],
       },
       {
@@ -150,7 +150,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "You can remove the place from any of your shots at any time: “✨ Edit” → “Remove place”.",
           "Shots in Friends and link-only moments never appear on place pages.",
           "We never show how many people are in a place with fewer than 20, and we never sell or share place data. If we ever show ads for a place, advertisers see totals only, never names.",
-          "When you upload, your internet connection tells us an approximate town (often just the nearest big city). We keep only that town's name with the shot, to suggest “Shoot together”. It is never shown to anyone, and your network address is not kept. We also offer that town as a starting place when you create a moment, and you can change it.",
+          "When you upload, your internet connection tells us an approximate town (often just the nearest big city). We keep only that town's name with the shot, to suggest “Shoot together”. It is never shown to anyone, and your network address is not kept.",
         ],
       },
       {

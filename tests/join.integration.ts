@@ -134,6 +134,14 @@ async function main() {
       assert.equal(await findJoinSuggestion(me.id, a.id), null);
     });
 
+    await check("the network town alone is too coarse: two weddings both «in Jerusalem» by network don't match", async () => {
+      const theirs = await moment(other.id, "PUBLIC");
+      await shot(theirs.id, other.id, "wedding", null, now, { networkPlaceId: bethlehem });
+      const mine = await moment(me.id, "PUBLIC");
+      const a = await shot(mine.id, me.id, "wedding", null, now, { networkPlaceId: bethlehem });
+      assert.equal(await findJoinSuggestion(me.id, a.id), null);
+    });
+
     await check("Discover's «اليوم حوالينا»: a scene 3+ shots by 2+ people in one place today", async () => {
       const pub = await moment(other.id, "PUBLIC", undefined, bethlehem);
       await shot(pub.id, other.id, "snow", bethlehem, now);

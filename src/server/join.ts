@@ -57,12 +57,17 @@ export function matchScore(
   // Both places known for sure and far apart: not the same moment, whatever the name says.
   const preciseDistances = them.precise.map((p) => dist(me.precise, p)).filter((d): d is number => d != null);
   if (preciseDistances.length && Math.min(...preciseDistances) > 2 * reach) return 0;
-  const near = [me.precise, me.network].some((x) => [...them.precise, ...them.network].some((y) => {
-    const d = dist(x, y);
-    return d != null && d <= reach;
-  }));
+  const within = (xs: (string | null)[], ys: (string | null)[]) =>
+    xs.some((x) => ys.some((y) => {
+      const d = dist(x, y);
+      return d != null && d <= reach;
+    }));
+  // The network's town is coarse (in the West Bank it often says Jerusalem for everyone), so it
+  // only backs up strong content; the same scene alone needs places known for sure.
+  const nearPrecise = within([me.precise], them.precise);
+  const near = nearPrecise || within([me.precise, me.network], [...them.precise, ...them.network]);
   // The same scene close by and close in time is itself the same moment (one sunset, one match).
-  const ok = (content >= 4 && (near || content >= 7)) || (sameScene && near);
+  const ok = (content >= 4 && (near || content >= 7)) || (sameScene && nearPrecise);
   return ok ? content + (near ? 2 : 0) : 0;
 }
 
