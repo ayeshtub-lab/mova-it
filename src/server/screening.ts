@@ -1,4 +1,5 @@
 import { mkdtemp, readFile, rm } from "node:fs/promises";
+import * as Sentry from "@sentry/nextjs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { viewUrl } from "@/server/media";
@@ -13,6 +14,14 @@ const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const TIMEOUT_MS = 25_000;
 
 export const screeningEnabled = () => !!process.env.GEMINI_API_KEY;
+
+// Gemini failing (a retired model name, a bad key, an outage) must never go unnoticed: uploads
+// keep working, but checks and «صوّر معك» quietly stop. So every failure is reported to error
+// monitoring (grouped by where and status), where the on-call check picks it up.
+function reportGemini(where: "screening" | "text" | "lens", detail: string) {
+  console.error(`gemini ${where} failed`, detail);
+  Sentry.captureMessage(`Gemini ${where} failed: ${detail.slice(0, 120)}`, { level: "error", fingerprint: ["gemini", where, detail.slice(0, 40)] });
+}
 
 export type Verdict =
   | { result: "allowed"; scene?: Scene; seen?: string }
@@ -78,7 +87,10 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
     candidates?: { finishReason?: string; content?: { parts?: { text?: string }[] } }[];
     error?: { message?: string };
   } | null;
-  if (!res.ok) return { result: "error", reason: `gemini ${res.status}: ${body?.error?.message ?? ""}`.slice(0, 300) };
+  if (!res.ok) {
+    reportGemini("screening", `${res.status} ${body?.error?.message ?? ""} (model ${MODEL})`);
+    return { result: "error", reason: `gemini ${res.status}: ${body?.error?.message ?? ""}`.slice(0, 300) };
+  }
 
   // Gemini refusing to even look at the input is itself a strong signal.
   const blockReason = body?.promptFeedback?.blockReason;
@@ -150,7 +162,10 @@ export async function screenText(text: string): Promise<Verdict> {
       }),
     });
     const body = (await res.json().catch(() => null)) as { candidates?: { content?: { parts?: { text?: string }[] } }[]; promptFeedback?: { blockReason?: string } } | null;
-    if (!res.ok) return { result: "error", reason: `gemini ${res.status}` };
+    if (!res.ok) {
+      reportGemini("text", `${res.status} (model ${MODEL})`);
+      return { result: "error", reason: `gemini ${res.status}` };
+    }
     if (body?.promptFeedback?.blockReason) return { result: "blocked", category: "other", reason: "input refused by Gemini" };
     const answer = body?.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     const parsed = JSON.parse(answer) as { verdict?: string; category?: string; reason?: string };
@@ -193,13 +208,20 @@ export async function likeness(mine: string, others: string[]): Promise<Likeness
         generationConfig: { temperature: 0, responseMimeType: "application/json" },
       }),
     });
-    if (!res.ok) return none;
+    if (!res.ok) {
+      reportGemini("lens", `${res.status} (model ${MODEL})`);
+      return none;
+    }
     const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     const got = (JSON.parse(text) as { likeness?: unknown }).likeness;
-    if (!Array.isArray(got) || got.length !== others.length) return none;
+    if (!Array.isArray(got) || got.length !== others.length) {
+      reportGemini("lens", `unreadable answer: ${text.slice(0, 80)}`);
+      return none;
+    }
     return got.map((x) => (x === "same" || x === "similar" ? x : "no"));
-  } catch {
+  } catch (error) {
+    reportGemini("lens", String((error as Error)?.message ?? error));
     return none;
   }
 }
