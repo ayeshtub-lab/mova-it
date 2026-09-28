@@ -9,8 +9,8 @@ type Props = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, "src"> & {
   ref?: React.Ref<HTMLVideoElement>;
 };
 
-// A video that plays Stream's adaptive HLS when there is one (Safari and most phones natively,
-// other browsers through hls.js, loaded only then), and the original file otherwise — or as
+// A video that plays Stream's adaptive HLS when there is one (through hls.js, loaded only then;
+// the browser's own HLS where hls.js can't run), and the original file otherwise — or as
 // soon as the stream fails, so a video never stays black.
 export function StreamVideo({ file, hls, load = true, ref, ...props }: Props) {
   const inner = useRef<HTMLVideoElement | null>(null);
@@ -27,18 +27,26 @@ export function StreamVideo({ file, hls, load = true, ref, ...props }: Props) {
       fallBackToFile();
       return;
     }
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+    const native = () => {
       video.src = hls;
       const onError = () => fallBackToFile();
       video.addEventListener("error", onError, { once: true });
       stop = () => video.removeEventListener("error", onError);
+    };
+    // hls.js wherever it can run (it picks a good first quality, below); the browser's own
+    // HLS only where it can't. Native players start at the lowest quality, and a short clip
+    // ends before they step up: a 2-second video stayed at 240p.
+    const w = window as unknown as { MediaSource?: unknown; ManagedMediaSource?: unknown };
+    if (!w.MediaSource && !w.ManagedMediaSource) {
+      if (video.canPlayType("application/vnd.apple.mpegurl")) native();
+      else fallBackToFile();
       return () => stop();
     }
     let cancelled = false;
     import("hls.js")
       .then(({ default: Hls }) => {
         if (cancelled) return;
-        if (!Hls.isSupported()) return fallBackToFile();
+        if (!Hls.isSupported()) return video.canPlayType("application/vnd.apple.mpegurl") ? native() : fallBackToFile();
         // preload="none" (feeds full of videos): nothing is fetched until it plays.
         const lazy = props.preload === "none";
         // The first quality is picked before any speed is known: guess a decent connection
