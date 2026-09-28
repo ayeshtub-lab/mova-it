@@ -6,7 +6,7 @@ import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { AngleError, publishAngle, purgeStaleUploads } from "../src/server/angles";
-import { getMomentView, MomentError, updateMomentDetails } from "../src/server/moments";
+import { createMoment, getMomentView, MomentError, updateMomentDetails } from "../src/server/moments";
 
 const TAG = "[pubtest]";
 const out: string[] = [];
@@ -64,6 +64,36 @@ async function main() {
       assert.equal(done.title, "شاي المغرب");
       assert.equal(done.description, "مع الجيران");
       assert.equal((await updateMomentDetails(owner, m.code, { title: "شاي", description: "" })).description, null);
+    });
+    await check("a moment may start without a name; its creator names it at the first «نشر»", async () => {
+      await assert.rejects(createMoment(owner, { title: "" }), (e) => e instanceof MomentError && e.code === "invalid_title");
+      const m = await createMoment(owner, { title: "  ", untitled: "لحظة جديدة" });
+      assert.equal(m.title, "لحظة جديدة");
+      assert.equal(m.named, false);
+      assert.equal((await createMoment(owner, { title: "غروب", untitled: "لحظة جديدة" })).named, true);
+      const a = await draft(m.id);
+      await assert.rejects(publishAngle(owner, a.id), (e) => e instanceof AngleError && e.code === "needs_title");
+      await assert.rejects(publishAngle(owner, a.id, "   "), (e) => e instanceof AngleError && e.code === "needs_title");
+      await publishAngle(owner, a.id, "  عنب   الدالية ");
+      const after = await db.moment.findUniqueOrThrow({ where: { id: m.id } });
+      assert.equal(after.title, "عنب الدالية");
+      assert.equal(after.named, true);
+      const b = await draft(m.id);
+      await publishAngle(owner, b.id, "اسم آخر");
+      assert.equal((await db.moment.findUniqueOrThrow({ where: { id: m.id } })).title, "عنب الدالية", "a later «نشر» keeps the name");
+    });
+
+    await check("someone else's shot in an unnamed moment goes up without naming it", async () => {
+      const m = await createMoment(owner, { title: "", untitled: "لحظة جديدة" });
+      const theirs = await db.angle.create({ data: { momentId: m.id, contributorId: other.id, mediaType: "PHOTO", status: "DRAFT", screening: "allowed", mediaPath: `pubtest/${Math.random()}.jpg` } });
+      assert.equal((await publishAngle(other, theirs.id)).status, "READY");
+      assert.equal((await db.moment.findUniqueOrThrow({ where: { id: m.id } })).named, false);
+    });
+
+    await check("«تعديل» names a moment too", async () => {
+      const m = await createMoment(owner, { title: "", untitled: "لحظة جديدة" });
+      await updateMomentDetails(owner, m.code, { title: "عشاء العيلة" });
+      assert.equal((await db.moment.findUniqueOrThrow({ where: { id: m.id } })).named, true);
     });
   } finally {
     await db.angle.deleteMany({ where: { contributorId: { in: ids } } });

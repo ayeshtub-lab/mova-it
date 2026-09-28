@@ -18,7 +18,7 @@ const VIDEO_TYPES: Record<string, string> = { "video/mp4": "mp4", "video/quickti
 
 export class AngleError extends Error {
   constructor(
-    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required",
+    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required" | "needs_title",
   ) {
     super(code);
   }
@@ -180,7 +180,7 @@ export async function completeAngle(user: User, angleId: string) {
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: true } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
   // Already done (a retry): report what happened the first time.
-  if (angle.status === "DRAFT" || angle.status === "READY" || (angle.status === "HIDDEN" && angle.screening === "blocked")) return angle;
+  if (angle.status === "DRAFT" || angle.status === "READY" || (angle.status === "HIDDEN" && angle.screening === "blocked")) return Object.assign(angle, { titleSuggestion: null as string | null });
   if (angle.status !== "PROCESSING") throw new AngleError("forbidden");
 
   const needed = [angle.mediaPath, angle.thumbPath].filter((p): p is string => !!p);
@@ -209,7 +209,9 @@ export async function completeAngle(user: User, angleId: string) {
   const blocked = verdict?.result === "blocked" || (isPublic && verdict?.result !== "allowed");
 
   const now = new Date();
-  return db.$transaction(async (tx) => {
+  // The lens's name for the shot, offered when the moment was started without one.
+  const titleSuggestion = verdict?.result === "allowed" ? (verdict.title ?? null) : null;
+  const saved = await db.$transaction(async (tx) => {
     const done = await tx.angle.update({
       where: { id: angle.id },
       data: {
@@ -229,6 +231,7 @@ export async function completeAngle(user: User, angleId: string) {
     }
     return done;
   });
+  return Object.assign(saved, { titleSuggestion });
 }
 
 // A moment just became public: angles added before (unchecked, or checked while the
@@ -255,16 +258,20 @@ export async function screenForPublic(momentId: string) {
   }
 }
 
-// «نشر»: the owner publishes a checked draft — from now on it shows in the moment.
-export async function publishAngle(user: User, angleId: string) {
-  const angle = await db.angle.findUnique({ where: { id: angleId } });
+// «نشر»: the owner publishes a checked draft — from now on it shows in the moment. A moment
+// started without a name gets its name here, from its creator: nothing goes up unnamed.
+export async function publishAngle(user: User, angleId: string, title?: unknown) {
+  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { named: true, creatorId: true } } } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
   if (angle.status === "READY") return angle; // a retry
   if (angle.status !== "DRAFT") throw new AngleError("forbidden");
+  const naming = !angle.moment.named && angle.moment.creatorId === user.id;
+  const name = naming && typeof title === "string" ? title.replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim().slice(0, 80) : "";
+  if (naming && !name) throw new AngleError("needs_title");
   const now = new Date();
   const [done] = await db.$transaction([
     db.angle.update({ where: { id: angle.id }, data: { status: "READY" } }),
-    db.moment.update({ where: { id: angle.momentId }, data: { lastActivityAt: now } }),
+    db.moment.update({ where: { id: angle.momentId }, data: { lastActivityAt: now, ...(naming ? { title: name, named: true } : {}) } }),
   ]);
   return done;
 }

@@ -27,6 +27,13 @@ async function main() {
     assert.equal(lastRequest?.body.contents[0].parts.length, 2, "prompt + one image");
   });
 
+  await check("the lens names the moment: plain words, no quotes or hashtags", async () => {
+    reply(200, answer('{"verdict":"allow","category":"none","reason":"grapes","scene":"nature","text":"","landmark":"","title":"«#عنب   الدالية»"}'));
+    assert.deepEqual(await askGemini(["a"]), { result: "allowed", scene: "nature", title: "عنب الدالية" });
+    reply(200, answer('{"verdict":"allow","category":"none","reason":"x","title":"  "}'));
+    assert.deepEqual(await askGemini(["a"]), { result: "allowed" }, "an empty name is left out");
+  });
+
   await check("block with category and reason", async () => {
     reply(200, answer('{"verdict":"block","category":"violence","reason":"graphic injury"}'));
     assert.deepEqual(await askGemini(["a", "b", "c"]), { result: "blocked", category: "violence", reason: "graphic injury" });

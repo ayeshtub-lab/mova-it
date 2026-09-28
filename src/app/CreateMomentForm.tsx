@@ -8,6 +8,7 @@ type Labels = {
   title: string;
   titleLabel: string;
   titlePlaceholder: string;
+  titleOptional: string;
   descriptionLabel: string;
   descriptionPlaceholder: string;
   descriptionHint: string;
@@ -42,8 +43,10 @@ export function CreateMomentForm({ labels, canPublic = false, initialPlace = nul
   return (
     <form action={action} className="flex flex-col gap-3">
       <label className="flex flex-col gap-1.5 text-sm font-bold">
-        {labels.titleLabel}
-        <input name="title" required maxLength={80} placeholder={labels.titlePlaceholder} className={`${inputClass} font-normal`} />
+        <span>
+          {labels.titleLabel} <span className="font-normal text-muted">{labels.titleOptional}</span>
+        </span>
+        <input name="title" maxLength={80} placeholder={labels.titlePlaceholder} className={`${inputClass} font-normal`} />
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-bold">
         {labels.descriptionLabel}

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { allowedFor } from "@/server/rate-limit";
 import { getCurrentUser } from "@/lib/session";
+import { getDictionary, getLocale } from "@/i18n/server";
 import { createMoment, MomentError } from "@/server/moments";
 
 export type CreateMomentState = { error?: "title" | "place" | "description" | "descriptionBlocked" | "server" } | undefined;
@@ -15,6 +16,7 @@ export async function createMomentAction(_prev: CreateMomentState, formData: For
 
   let code: string;
   try {
+    const dict = await getDictionary(await getLocale());
     const moment = await createMoment(user, {
       title: formData.get("title"),
       description: formData.get("description"),
@@ -23,6 +25,8 @@ export async function createMomentAction(_prev: CreateMomentState, formData: For
       // The form offers these three (PUBLIC to official accounts only — createMoment
       // refuses it for guests); anything else falls back to friends.
       visibility: ["LINK", "PUBLIC"].includes(String(formData.get("visibility"))) ? String(formData.get("visibility")) : "FRIENDS",
+      // No name yet is fine: it's asked for after the upload, with the lens's suggestion.
+      untitled: dict.create.untitled,
     });
     code = moment.code;
   } catch (error) {

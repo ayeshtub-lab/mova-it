@@ -11,13 +11,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await params;
   try {
-    const angle = await publishAngle(user, id);
+    // { title }: the name of a moment started without one (asked for at its first «نشر»).
+    const body = (await request.json().catch(() => null)) as { title?: unknown } | null;
+    const angle = await publishAngle(user, id, body?.title);
     after(() => notifyNewAngle(angle.id));
     const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;
     after(() => refreshMontageForAngle(angle.id, host).catch((error) => console.error("montage refresh failed", angle.id, error)));
     return NextResponse.json({ id: angle.id, status: angle.status });
   } catch (error) {
-    if (error instanceof AngleError) return NextResponse.json({ error: error.code }, { status: error.code === "not_found" ? 404 : 409 });
+    if (error instanceof AngleError) return NextResponse.json({ error: error.code }, { status: error.code === "not_found" ? 404 : error.code === "needs_title" ? 400 : 409 });
     throw error;
   }
 }

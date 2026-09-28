@@ -41,10 +41,14 @@ export type CreateMomentInput = {
   placeName?: unknown;
   placeId?: unknown; // picked from the suggestions (src/server/places.ts)
   visibility?: unknown;
+  // Starting without a name: this placeholder («لحظة جديدة») stands in until the creator names it at «نشر».
+  untitled?: string;
 };
 
 export async function createMoment(creator: User, input: CreateMomentInput) {
-  const title = clean(input.title, 80);
+  const typed = clean(input.title, 80);
+  const blank = typeof input.title !== "string" || !input.title.trim();
+  const title = typed ?? (blank ? clean(input.untitled, 80) : null);
   if (!title) throw new MomentError("invalid_title");
   const placeName = input.placeName == null || input.placeName === "" ? null : clean(input.placeName, 60);
   if (input.placeName && !placeName) throw new MomentError("invalid_place");
@@ -71,6 +75,7 @@ export async function createMoment(creator: User, input: CreateMomentInput) {
       data: {
         code,
         title,
+        named: !!typed,
         description,
         placeName: spot,
         placeId,
@@ -147,6 +152,7 @@ export async function getMomentView(code: string, viewer: User | null) {
     id: moment.id,
     code: moment.code,
     title: moment.title,
+    named: moment.named,
     description: moment.description,
     kind: moment.kind,
     visibility: moment.visibility,
@@ -319,5 +325,5 @@ export async function updateMomentDetails(user: User, code: string, input: { tit
   if (moment.visibility === Visibility.PUBLIC && description && description !== moment.description && (await screenText(description)).result !== "allowed") {
     throw new MomentError("description_blocked");
   }
-  return db.moment.update({ where: { id: moment.id }, data: { title, description } });
+  return db.moment.update({ where: { id: moment.id }, data: { title, named: true, description } });
 }

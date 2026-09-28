@@ -41,7 +41,10 @@ export function StreamVideo({ file, hls, load = true, ref, ...props }: Props) {
         if (!Hls.isSupported()) return fallBackToFile();
         // preload="none" (feeds full of videos): nothing is fetched until it plays.
         const lazy = props.preload === "none";
-        const player = new Hls({ capLevelToPlayerSize: true, maxBufferLength: 12, autoStartLoad: !lazy });
+        // The first quality is picked before any speed is known: guess a decent connection
+        // (~2.5 Mbps), not hls.js's 0.5, or a 2-second clip loops at 240p forever. It still
+        // steps down on a slow line, and never above the player's size.
+        const player = new Hls({ capLevelToPlayerSize: true, maxBufferLength: 12, autoStartLoad: !lazy, abrEwmaDefaultEstimate: 2_500_000 });
         player.on(Hls.Events.ERROR, (_event, data) => data.fatal && fallBackToFile());
         player.loadSource(hls);
         player.attachMedia(video);

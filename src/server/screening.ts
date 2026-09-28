@@ -24,7 +24,7 @@ function reportGemini(where: "screening" | "text" | "lens", detail: string) {
 }
 
 export type Verdict =
-  | { result: "allowed"; scene?: Scene; seen?: string }
+  | { result: "allowed"; scene?: Scene; seen?: string; title?: string }
   | { result: "blocked"; category: string; reason: string }
   | { result: "error"; reason: string };
 
@@ -44,7 +44,9 @@ Also name the main scene, one of: ${Object.keys(SCENES).join(", ")} ("sky" = the
 
 Also, like a lens: copy any clearly readable name shown (a shop or restaurant sign, a venue, a team, an event banner) exactly as written, and name a recognisable landmark or venue if there is one. Leave them empty when there is none — never guess.
 
-Answer only with JSON: {"verdict":"allow"|"block","category":"none"|"sexual"|"minor_safety"|"violence"|"hate"|"self_harm"|"drugs","reason":"short English reason","scene":"<one of the scenes>","text":"<visible names, or empty>","landmark":"<landmark or venue, or empty>"}`;
+Also suggest a name for this moment in Arabic, 2 to 4 words, the way the person who shot it would title it for friends (for example «عنب الدالية», «غروب على البحر», «عشاء العيلة»). Plain words only: no emoji, no hashtags, no quotation marks.
+
+Answer only with JSON: {"verdict":"allow"|"block","category":"none"|"sexual"|"minor_safety"|"violence"|"hate"|"self_harm"|"drugs","reason":"short English reason","scene":"<one of the scenes>","text":"<visible names, or empty>","landmark":"<landmark or venue, or empty>","title":"<the suggested Arabic name>"}`;
 
 async function jpegBase64(url: string) {
   const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
@@ -102,14 +104,16 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
 
   const text = candidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   try {
-    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string };
+    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string };
     if (parsed.verdict === "block") {
       return { result: "blocked", category: String(parsed.category ?? "other").slice(0, 40), reason: String(parsed.reason ?? "").slice(0, 300) };
     }
     if (parsed.verdict === "allow") {
       // What the "lens" read (signs, venue, landmark): matched between shots by «صوّر معك».
       const seen = [parsed.text, parsed.landmark].filter((x) => typeof x === "string" && x.trim()).join(" · ").slice(0, 160);
-      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}) };
+      // A name to offer when the moment was started without one (the creator may change it).
+      const title = typeof parsed.title === "string" ? parsed.title.replace(/["«»#]/g, "").replace(/\s+/g, " ").trim().slice(0, 40) : "";
+      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}) };
     }
   } catch {}
   return { result: "error", reason: `unreadable answer: ${text.slice(0, 200)}` };

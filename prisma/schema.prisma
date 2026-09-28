@@ -110,6 +110,8 @@ model Moment {
   id             String           @id @default(cuid())
   code           String           @unique // short share code: /m/K7M2Q4
   title          String
+  // false: started without a name (a placeholder title); its creator names it at «نشر».
+  named          Boolean          @default(true)
   // A short line under the title; may carry #hashtags (public ones link to /tag/…).
   description    String?
   kind           MomentKind       @default(EVERYDAY)

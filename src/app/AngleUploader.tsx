@@ -36,6 +36,10 @@ type Labels = {
   searching: string;
   waitUpload: string;
   publishFailed: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  nameSuggested: string;
+  nameNeeded: string;
 };
 
 type ItemState = {
@@ -75,8 +79,10 @@ export function AngleUploader({
   soundLabels,
   editLabels,
   captionLabels,
+  needsName = false,
 }: {
   code: string;
+  needsName?: boolean; // the viewer started this moment without a name: asked for before «نشر»
   labels: Labels;
   afterUpload?: React.ReactNode;
   locale: string;
@@ -92,16 +98,29 @@ export function AngleUploader({
   const drafts = items.map((it, i) => ({ it, i })).filter(({ it }) => it.status === "draft" && it.angleId);
   const [publishing, setPublishing] = useState(false);
   const [publishFailed, setPublishFailed] = useState(false);
+  // The moment's name, when it was started without one: the lens's suggestion until the
+  // person types their own, then theirs.
+  const [name, setName] = useState("");
+  const [typed, setTyped] = useState(false);
+  const [named, setNamed] = useState(!needsName);
+  const missingName = !named && !name.trim();
 
-  // «نشر»: every checked draft of this visit goes up.
+  // «نشر»: every checked draft of this visit goes up (the first one names the moment).
   async function publishAll() {
+    if (missingName) return;
     setPublishing(true);
     setPublishFailed(false);
     let failed = false;
     for (const { it, i } of drafts) {
-      const res = await fetch(`/api/angles/${it.angleId}/publish`, { method: "POST" }).catch(() => null);
-      if (res?.ok) update(i, { status: "done", suggestion: null });
-      else failed = true;
+      const res = await fetch(`/api/angles/${it.angleId}/publish`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: name.trim() }),
+      }).catch(() => null);
+      if (res?.ok) {
+        update(i, { status: "done", suggestion: null });
+        setNamed(true);
+      } else failed = true;
     }
     setPublishing(false);
     setPublishFailed(failed);
@@ -195,6 +214,9 @@ export function AngleUploader({
       const result = await postJson(`/api/angles/${angleId}/complete`);
       // Hidden by the automatic content check: it never shows up.
       if (result.status === "HIDDEN") return update(index, { status: "error", error: "blocked" });
+      // The lens's name for the first shot fills the name box, unless the person wrote one.
+      const lensName = typeof result.titleSuggestion === "string" ? result.titleSuggestion : "";
+      if (lensName && !typed) setName((current) => current.trim() || lensName);
       const picture = prepared.mediaType === "VIDEO" ? prepared.poster : prepared.file;
       update(index, {
         status: "draft",
@@ -373,10 +395,27 @@ export function AngleUploader({
       })()}
       {(drafts.length > 0 || (busy && items.length > 0)) && (
         <div className="flex flex-col gap-1.5">
+          {!named && (
+            <label className="flex flex-col gap-1.5 rounded-2xl bg-surface p-3 text-sm font-bold">
+              {labels.nameLabel}
+              <input
+                value={name}
+                maxLength={80}
+                placeholder={labels.namePlaceholder}
+                onChange={(e) => {
+                  setTyped(true);
+                  setName(e.target.value);
+                }}
+                aria-invalid={missingName && drafts.length > 0}
+                className="min-h-11 w-full rounded-full border border-line bg-background px-4 font-normal outline-none focus:border-accent"
+              />
+              <span className="text-xs font-normal text-muted">{name.trim() && !typed ? labels.nameSuggested : missingName && drafts.length > 0 ? labels.nameNeeded : " "}</span>
+            </label>
+          )}
           <button
             type="button"
             onClick={publishAll}
-            disabled={busy || publishing || drafts.length === 0}
+            disabled={busy || publishing || drafts.length === 0 || missingName}
             className="min-h-12 rounded-full bg-accent px-6 font-extrabold text-white shadow-sm transition-opacity disabled:opacity-50"
           >
             {publishing

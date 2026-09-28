@@ -295,6 +295,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 captionLabels={dict.caption}
                 code={view.code}
                 labels={dict.upload}
+                needsName={view.viewer.isCreator && !view.named}
                 afterUpload={
                   <ShareAfterUpload code={view.code} url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={{ ...dict.afterUpload, copied: t.copied }} />
                 }

@@ -64,6 +64,10 @@
     "searching": "🔍 Looking for a matching moment…",
     "waitUpload": "Wait for the upload to finish…",
     "publishFailed": "Not every shot was published — tap “Publish” again.",
+    "nameLabel": "What is this moment called?",
+    "namePlaceholder": "Give it a name",
+    "nameSuggested": "✨ Suggested by the lens. Change it if you like",
+    "nameNeeded": "Name the moment before publishing.",
     "errors": {
       "unsupported": "This file type is not supported in this browser.",
       "too_long": "The video is longer than 40 seconds.",
@@ -111,6 +115,8 @@
     "title": "Start a new moment",
     "titleLabel": "What is the moment?",
     "titlePlaceholder": "e.g. Sunset at the beach today",
+    "titleOptional": "(optional: you can name it after uploading)",
+    "untitled": "New moment",
     "placeLabel": "Where? (optional)",
     "placePlaceholder": "e.g. Bethlehem",
     "placeHere": {
