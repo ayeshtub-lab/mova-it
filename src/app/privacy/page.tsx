@@ -50,7 +50,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "تستطيع إزالة المكان من أي لقطة لك في أي وقت: «✨ عدّل» ← «شيل المكان».",
           "لقطات لحظات «أصحابي» و«فقط من معه الرابط» لا تظهر أبدًا في صفحات الأماكن.",
           "لا نعرض عدد الأشخاص في مكان فيه أقل من ٢٠ شخصًا، ولا نبيع أو نشارك بيانات الأماكن مع أي جهة. إن عرضنا يومًا إعلانات لمكان ما، فالمعلن يرى أرقامًا مجمّعة فقط، لا أسماء.",
-          "عند الرفع نقارن دولة شبكتك بدولة المكان، ونحفظ نتيجة المقارنة فقط (نعم/لا)، لا عنوان الشبكة.",
+          "عند الرفع نعرف من شبكة الإنترنت اسم البلدة التقريبية (وغالبًا تكون أكبر مدينة قريبة)، ونحفظ اسم البلدة فقط مع اللقطة، لنقترح «صوّر معك». لا يظهر لأحد أبدًا، ولا نحفظ عنوان الشبكة. ونقترح نفس البلدة كمكان مبدئي عند إنشاء لحظة، وتستطيع تغييره.",
         ],
       },
       {
@@ -70,7 +70,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "فقط لتشغيل زاومو: عرض لحظاتك لمن اخترتهم، وصنع المونتاج، وإرسال ما تشاركه لأصحابك.",
           "لحماية المستخدمين: مراجعة البلاغات وإخفاء المحتوى المخالف.",
           "كل صورة أو فيديو يُفحص تلقائيًا عند رفعه، وما يخالف القواعد (مثل المحتوى الجنسي أو العنف الدموي) يُخفى ويراجعه فريقنا.",
-          "الفحص نفسه يسمّي مشهد اللقطة بكلمة واحدة (غروب، مطر، عرس…). إذا صوّر غيرك نفس المشهد قريبًا منك وبنفس الوقت في لحظة عامة، نقترح عليك أن تضيف لقطتك إليها («صوّر معك»). الاقتراح لك وحدك، وأنت تقرّر. وتستطيع من صفحتك إيقاف انضمام الآخرين للحظاتك.",
+          "الفحص نفسه يسمّي مشهد اللقطة بكلمة واحدة (غروب، مطر، عرس…)، ويقرأ الأسماء الظاهرة فيها كيافطة محل أو اسم مكان معروف. إذا صوّر غيرك نفس المشهد قريبًا منك وبنفس الوقت في لحظة عامة، نقترح عليك أن تضيف لقطتك إليها («صوّر معك»). الاقتراح لك وحدك، وأنت تقرّر. وتستطيع من صفحتك إيقاف انضمام الآخرين للحظاتك.",
         ],
       },
       {
@@ -150,7 +150,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "You can remove the place from any of your shots at any time: “✨ Edit” → “Remove place”.",
           "Shots in Friends and link-only moments never appear on place pages.",
           "We never show how many people are in a place with fewer than 20, and we never sell or share place data. If we ever show ads for a place, advertisers see totals only, never names.",
-          "When you upload, we compare your network's country with the place's and keep only the result (yes/no), not your network address.",
+          "When you upload, your internet connection tells us an approximate town (often just the nearest big city). We keep only that town's name with the shot, to suggest “Shoot together”. It is never shown to anyone, and your network address is not kept. We also offer that town as a starting place when you create a moment, and you can change it.",
         ],
       },
       {
@@ -170,7 +170,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "Only to run Zawmo: showing your moments to the people you chose, making montages, and delivering what you share to your friends.",
           "To keep people safe: reviewing reports and hiding content that breaks the rules.",
           "Every photo and video is checked automatically when uploaded; anything that breaks the rules (such as sexual content or graphic violence) is hidden and reviewed by our team.",
-          "The same check names the shot's scene in one word (sunset, rain, wedding…). If someone else shot the same scene near you at the same time in a public moment, we suggest adding your shot to it (“Shoot together”). Only you see the suggestion, and you decide. From your page you can stop others joining your moments.",
+          "The same check names the shot's scene in one word (sunset, rain, wedding…) and reads names visible in it, such as a shop sign or a well-known place. If someone else shot the same scene near you at the same time in a public moment, we suggest adding your shot to it (“Shoot together”). Only you see the suggestion, and you decide. From your page you can stop others joining your moments.",
         ],
       },
       {
