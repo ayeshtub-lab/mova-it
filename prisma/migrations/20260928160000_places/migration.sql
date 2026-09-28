@@ -11,9 +11,7 @@ ADD COLUMN     "placeId" TEXT,
 ADD COLUMN     "placeVerified" BOOLEAN NOT NULL DEFAULT false;
 
 -- AlterTable
-ALTER TABLE "Moment" DROP COLUMN "latApprox",
-DROP COLUMN "lngApprox",
-ADD COLUMN     "placeId" TEXT;
+ALTER TABLE "Moment" ADD COLUMN     "placeId" TEXT;
 
 -- CreateTable
 CREATE TABLE "Place" (
