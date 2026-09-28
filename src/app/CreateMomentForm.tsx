@@ -15,6 +15,7 @@ type Labels = {
   descriptionBlocked: string;
   placeLabel: string;
   placePlaceholder: string;
+  placeHere: { label: string; finding: string; denied: string; outside: string };
   visibilityLabel: string;
   visibilityFriends: string;
   visibilityFriendsHint: string;
@@ -57,7 +58,7 @@ export function CreateMomentForm({ labels, canPublic = false, initialPlace = nul
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-bold">
         {labels.placeLabel}
-        <PlaceField placeholder={labels.placePlaceholder} className={`${inputClass} font-normal`} initial={initialPlace} />
+        <PlaceField placeholder={labels.placePlaceholder} className={`${inputClass} font-normal`} initial={initialPlace} here={labels.placeHere} />
       </label>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1.5 text-sm font-bold">{labels.visibilityLabel}</legend>

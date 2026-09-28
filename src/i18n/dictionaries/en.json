@@ -102,6 +102,12 @@
     "titlePlaceholder": "e.g. Sunset at the beach today",
     "placeLabel": "Where? (optional)",
     "placePlaceholder": "e.g. Bethlehem",
+    "placeHere": {
+      "label": "📍 Where I am",
+      "finding": "Finding…",
+      "denied": "We couldn't tell where you are. Allow location on your phone, or type the place.",
+      "outside": "Your area isn't in our list yet — type it in."
+    },
     "submit": "Start the moment",
     "titleError": "Enter a title of 1 to 80 characters.",
     "placeError": "Place names are up to 60 characters.",

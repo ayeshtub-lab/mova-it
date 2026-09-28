@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { placeAt } from "@/lib/places-client";
 
 export type PlaceOption = { id: string; name: string; context: string | null };
 
@@ -14,6 +15,7 @@ export function PlaceField({
   className,
   onPick,
   initial = null,
+  here,
 }: {
   textName?: string;
   idName?: string;
@@ -21,6 +23,8 @@ export function PlaceField({
   className: string;
   onPick?: (place: PlaceOption | null) => void;
   initial?: PlaceOption | null; // a pre-filled guess, changed or cleared freely
+  // «📍 مكاني»: the phone's position, asked only when tapped, turned into a town on the phone.
+  here?: { label: string; finding: string; denied: string; outside: string };
 }) {
   const [text, setText] = useState(initial?.name ?? "");
   const [picked, setPicked] = useState<PlaceOption | null>(initial);
@@ -28,6 +32,24 @@ export function PlaceField({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const listId = useId();
+  const [locating, setLocating] = useState(false);
+  const [hereNote, setHereNote] = useState<string | null>(null);
+
+  async function useHere() {
+    if (!here || !navigator.geolocation) return setHereNote(here?.denied ?? null);
+    setLocating(true);
+    setHereNote(null);
+    const pos = await new Promise<GeolocationPosition | null>((resolve) =>
+      navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), { enableHighAccuracy: false, timeout: 12_000, maximumAge: 5 * 60_000 }),
+    );
+    // The coordinates stay here: only the place id they point to is looked up.
+    const id = pos ? await placeAt(pos.coords.latitude, pos.coords.longitude) : null;
+    const res = id ? await fetch(`/api/places?id=${encodeURIComponent(id)}`).catch(() => null) : null;
+    const found = res?.ok ? ((await res.json()) as { places: PlaceOption[] }).places[0] : null;
+    setLocating(false);
+    if (found) pick(found);
+    else setHereNote(pos ? here.outside : here.denied);
+  }
   const seq = useRef(0);
 
   useEffect(() => {
@@ -91,6 +113,19 @@ export function PlaceField({
         }}
       />
       <input type="hidden" name={idName} value={picked?.id ?? ""} />
+      {here && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={useHere}
+            disabled={locating}
+            className="min-h-9 rounded-full bg-secondary-soft px-3 text-sm font-bold text-secondary disabled:opacity-60"
+          >
+            {locating ? here.finding : here.label}
+          </button>
+          {hereNote && <span className="text-xs font-normal text-muted">{hereNote}</span>}
+        </div>
+      )}
       {shown && (
         <ul id={listId} role="listbox" className="absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-2xl border border-line bg-background shadow-lg">
           {options.map((p, i) => (

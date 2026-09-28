@@ -30,7 +30,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       {
         title: "ما لا نجمعه",
         items: [
-          "لا نطلب إذن الموقع من جوالك، ولا نتتبّع مكانك، ولا نطلب جهات الاتصال ولا رقم هاتفك.",
+          "لا نتتبّع مكانك، ولا نطلب جهات الاتصال ولا رقم هاتفك. لا نطلب إذن الموقع إلا إذا ضغطت أنت «📍 مكاني»، وحتى وقتها يحوّل جوالك الموقع لاسم البلدة، والإحداثيات لا تصلنا.",
           "لا نستخدم إعلانات، ولا أدوات تتبّع، ولا نبيع بياناتك لأي جهة.",
         ],
       },
@@ -130,7 +130,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       {
         title: "What we don't collect",
         items: [
-          "We never ask for your phone's location permission or track where you are, and we don't ask for your contacts or phone number.",
+          "We don't track where you are, and we don't ask for your contacts or phone number. We ask for location only when you tap “📍 Where I am”, and even then your phone turns it into a town name; the coordinates never reach us.",
           "No ads, no tracking tools, and we never sell your data.",
         ],
       },
