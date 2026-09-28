@@ -76,6 +76,7 @@ async function main() {
       const mine = await moment(me.id, "FRIENDS", "غروبي انا");
       const a = await shot(mine.id, me.id, "sunset", artas, now);
       const random = await moment(other.id, "PUBLIC");
+      assert.equal((await findJoinSuggestion(me.id, a.id))?.momentCode, hostSunset.code, "offered first");
       await assert.rejects(joinMoment(me.id, a.id, random.code), (e) => e instanceof JoinError && e.code === "not_suggested");
       await assert.rejects(joinMoment(other.id, a.id, hostSunset.code), (e) => e instanceof JoinError, "not your shot");
       assert.deepEqual(await joinMoment(me.id, a.id, hostSunset.code), { code: hostSunset.code });

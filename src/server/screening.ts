@@ -161,3 +161,48 @@ export async function screenText(text: string): Promise<Verdict> {
     return { result: "error", reason: String((error as Error)?.message ?? error).slice(0, 300) };
   }
 }
+
+// «صوّر معك», like a lens: does each of these other shots show the SAME specific subject as
+// the new one (image 1)? One call for all of them. Fine-grained on purpose: the same lily
+// yes, a rose and a lily no; the same dish yes, two different dishes no; the same building,
+// view or event yes. On any failure: no matches (a suggestion is never worth a wrong one).
+const SAME_PROMPT = `You match photos for Zawmo's "shoot together": people who photographed the SAME thing at about the same time can join one shared moment.
+
+Image 1 is a new photo. Each following image is from someone else's moment. For each following image, decide if it shows the SAME specific subject as image 1:
+- YES: the same kind of flower/plant (same species and look), the same dish or food item, the same animal, the same building, monument, view or landscape, the same event or gathering, the same object — even from another angle, distance or light.
+- NO: only the same general category (two different flowers, two different dishes, two different buildings), or anything you are unsure about.
+
+Answer only with JSON: {"same":[<true|false for image 2>, <for image 3>, ...]}`;
+
+export async function sameSubject(mine: string, others: string[]): Promise<boolean[]> {
+  const none = others.map(() => false);
+  if (!screeningEnabled() || !others.length) return none;
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: SAME_PROMPT }, ...[mine, ...others].map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
+        generationConfig: { temperature: 0, responseMimeType: "application/json" },
+      }),
+    });
+    if (!res.ok) return none;
+    const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+    const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    const same = (JSON.parse(text) as { same?: unknown }).same;
+    return Array.isArray(same) && same.length === others.length ? same.map((x) => x === true) : none;
+  } catch {
+    return none;
+  }
+}
+
+// A picture as base64 JPEG for Gemini, from a short-lived signed URL.
+export async function pictureBase64(url: string | null) {
+  if (!url) return null;
+  try {
+    return await jpegBase64(url);
+  } catch {
+    return null;
+  }
+}

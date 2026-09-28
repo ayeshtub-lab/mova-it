@@ -235,6 +235,8 @@ model Angle {
   // moment was, so the host's «شيلها» can give the shot back a moment of its own.
   // { momentId, title, visibility, placeId }
   joinedFrom     Json?
+  // The moment «صوّر معك» offered this shot (so «ضيف» joins exactly what was shown).
+  joinOffer      String?
 
   moment          Moment           @relation(fields: [momentId], references: [id], onDelete: Cascade)
   place           Place?           @relation(fields: [placeId], references: [id])

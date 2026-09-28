@@ -6,6 +6,7 @@ import { blockedIdsFor } from "@/server/moderation";
 import { newCode } from "@/server/moments";
 import { notify } from "@/server/notifications";
 import { placeViews } from "@/server/places";
+import { pictureBase64, sameSubject } from "@/server/screening";
 import placesData from "@/data/places.json";
 import { normalize } from "@/lib/arabic";
 
@@ -17,8 +18,11 @@ import { normalize } from "@/lib/arabic";
 // How far «the same moment» reaches depends on what it is: one sunset is seen from a whole
 // region, a wedding happens in one place.
 export const reachKm = (scene: Scene | null) => (scene && SKY_SCENES.includes(scene) ? 40 : scene && EVENT_SCENES.includes(scene) ? 5 : 15);
-const WINDOW_MS = 6 * 60 * 60 * 1000; // a named moment («كلير», «عرس أحمد») can last an evening
-const SCENE_WINDOW_MS = 3 * 60 * 60 * 1000; // «the same sunset» is a matter of hours
+const HOUR = 60 * 60 * 1000;
+const VISUAL_WINDOW_MS = 24 * HOUR; // the same lily, dish or view, seen by the lens, within a day
+const NAME_WINDOW_MS = 6 * HOUR; // a named moment («كلير», «عرس أحمد») can last an evening
+const SCENE_WINDOW_MS = 3 * HOUR; // «the same sunset» is a matter of hours
+const VISUAL_CHECKS = 6; // moments compared picture-to-picture per upload (one Gemini call)
 
 // Place centres from the bundled list (no database trip): precise places and network towns.
 const centre = new Map(
@@ -31,24 +35,35 @@ function km(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
 }
 const words = (s: string | null | undefined) => new Set((s ?? "").split(/[\s·,،.\-–—/|]+/).map(normalize).filter((w) => w.length >= 3));
 
-// How strongly two shots look like the same moment. Content says WHAT (the moment's name,
-// what the lens read, the scene); place says WHERE. A suggestion needs the same scene nearby,
-// or strong content (a shared name or sign) that is either nearby or backed by more content.
+// How strongly two shots look like the same moment. Content says WHAT: the pictures themselves
+// (compared by the lens: the same lily, not just «a flower»), the moment's name, a sign the lens
+// read, the scene; place says WHERE. «excluded» = both places known for sure and far apart.
 export function matchScore(
   me: { title: string; seen: string | null; scene: string | null; at: number; precise: string | null; network: string | null },
-  them: { title: string; seen: (string | null)[]; scenes: { scene: string | null; at: number }[]; precise: (string | null)[]; network: (string | null)[] },
+  them: {
+    title: string;
+    seen: (string | null)[];
+    scenes: { scene: string | null; at: number }[];
+    precise: (string | null)[];
+    network: (string | null)[];
+    visual?: boolean; // the lens says: the same subject
+  },
 ) {
+  const closeIn = (ms: number) => them.scenes.some((s) => Math.abs(s.at - me.at) <= ms);
   let content = 0;
+  if (them.visual) content += 7;
   const [a, b] = [normalize(me.title), normalize(them.title)];
-  if (a.length >= 2 && a === b) content += 5;
-  else if (Math.min(a.length, b.length) >= 4 && (a.includes(b) || b.includes(a))) content += 4;
-  else {
-    const [wa, wb] = [words(me.title), words(them.title)];
-    const shared = [...wa].filter((w) => wb.has(w)).length;
-    if (shared && shared / Math.max(1, Math.min(wa.size, wb.size)) >= 0.5) content += 3;
+  if (closeIn(NAME_WINDOW_MS)) {
+    if (a.length >= 2 && a === b) content += 5;
+    else if (Math.min(a.length, b.length) >= 4 && (a.includes(b) || b.includes(a))) content += 4;
+    else {
+      const [wa, wb] = [words(me.title), words(them.title)];
+      const shared = [...wa].filter((w) => wb.has(w)).length;
+      if (shared && shared / Math.max(1, Math.min(wa.size, wb.size)) >= 0.5) content += 3;
+    }
+    const mine = words(me.seen);
+    if (mine.size && them.seen.some((t) => [...words(t)].some((w) => mine.has(w)))) content += 4;
   }
-  const mine = words(me.seen);
-  if (mine.size && them.seen.some((t) => [...words(t)].some((w) => mine.has(w)))) content += 4;
   const sameScene = matchable(me.scene) && them.scenes.some((s) => s.scene === me.scene && Math.abs(s.at - me.at) <= SCENE_WINDOW_MS);
   if (sameScene) content += 2;
 
@@ -56,7 +71,7 @@ export function matchScore(
   const dist = (x: string | null, y: string | null) => (x && y && centre.has(x) && centre.has(y) ? km(centre.get(x)!, centre.get(y)!) : null);
   // Both places known for sure and far apart: not the same moment, whatever the name says.
   const preciseDistances = them.precise.map((p) => dist(me.precise, p)).filter((d): d is number => d != null);
-  if (preciseDistances.length && Math.min(...preciseDistances) > 2 * reach) return 0;
+  if (preciseDistances.length && Math.min(...preciseDistances) > 2 * reach) return { score: 0, excluded: true, content };
   const within = (xs: (string | null)[], ys: (string | null)[]) =>
     xs.some((x) => ys.some((y) => {
       const d = dist(x, y);
@@ -67,8 +82,9 @@ export function matchScore(
   const nearPrecise = within([me.precise], them.precise);
   const near = nearPrecise || within([me.precise, me.network], [...them.precise, ...them.network]);
   // The same scene close by and close in time is itself the same moment (one sunset, one match).
+  // The same subject seen by the lens (7) is enough on its own.
   const ok = (content >= 4 && (near || content >= 7)) || (sameScene && nearPrecise);
-  return ok ? content + (near ? 2 : 0) : 0;
+  return { score: ok ? content + (near ? 2 : 0) : 0, excluded: false, content };
 }
 
 // The public moments this shot could join, best first.
@@ -90,12 +106,17 @@ async function candidates(userId: string, angleId: string) {
       contributorId: { notIn: [userId, ...blocked] },
       momentId: { not: angle.momentId },
       OR: [
-        { capturedAt: { gte: new Date(at - WINDOW_MS), lte: new Date(at + WINDOW_MS) } },
-        { capturedAt: null, uploadedAt: { gte: new Date(at - WINDOW_MS), lte: new Date(at + WINDOW_MS) } },
+        { capturedAt: { gte: new Date(at - VISUAL_WINDOW_MS), lte: new Date(at + VISUAL_WINDOW_MS) } },
+        { capturedAt: null, uploadedAt: { gte: new Date(at - VISUAL_WINDOW_MS), lte: new Date(at + VISUAL_WINDOW_MS) } },
       ],
       moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, creator: { allowJoins: true, id: { notIn: blocked } } },
     },
-    select: { momentId: true, scene: true, seenText: true, placeId: true, networkPlaceId: true, capturedAt: true, uploadedAt: true, moment: { select: { title: true, placeId: true } } },
+    select: {
+      momentId: true, scene: true, seenText: true, placeId: true, networkPlaceId: true, capturedAt: true, uploadedAt: true,
+      mediaType: true, mediaPath: true, thumbPath: true, smallPath: true,
+      moment: { select: { title: true, placeId: true } },
+    },
+    orderBy: { uploadedAt: "desc" },
     take: 500,
   });
   const byMoment = new Map<string, typeof recent>();
@@ -105,18 +126,33 @@ async function candidates(userId: string, angleId: string) {
     (await db.angle.findMany({ where: { momentId: { in: [...byMoment.keys()] }, contributorId: userId }, select: { momentId: true } })).map((a) => a.momentId),
   );
   const me = { title: angle.moment.title, seen: angle.seenText, scene: angle.scene, at, precise: angle.placeId ?? angle.moment.placeId, network: angle.networkPlaceId };
-  const scored = [...byMoment.entries()]
-    .filter(([id]) => !already.has(id))
-    .map(([id, shots]) => ({
-      id,
-      score: matchScore(me, {
-        title: shots[0].moment.title,
-        seen: shots.map((s) => s.seenText),
-        scenes: shots.map((s) => ({ scene: s.scene, at: (s.capturedAt ?? s.uploadedAt).getTime() })),
-        precise: [...shots.map((s) => s.placeId), shots[0].moment.placeId],
-        network: shots.map((s) => s.networkPlaceId),
-      }),
-    }))
+  const them = (shots: typeof recent, visual = false) => ({
+    title: shots[0].moment.title,
+    seen: shots.map((s) => s.seenText),
+    scenes: shots.map((s) => ({ scene: s.scene, at: (s.capturedAt ?? s.uploadedAt).getTime() })),
+    precise: [...shots.map((s) => s.placeId), shots[0].moment.placeId],
+    network: shots.map((s) => s.networkPlaceId),
+    visual,
+  });
+  const open = [...byMoment.entries()].filter(([id]) => !already.has(id));
+
+  // The lens: the new picture next to the most likely moments' latest pictures, in one call.
+  const first = open
+    .map(([id, shots]) => ({ id, shots, m: matchScore(me, them(shots)) }))
+    .filter((x) => !x.m.excluded)
+    .sort((x, y) => y.m.content - x.m.content || y.shots[0].uploadedAt.getTime() - x.shots[0].uploadedAt.getTime())
+    .slice(0, VISUAL_CHECKS);
+  const visual = new Set<string>();
+  const mine = first.length ? await pictureBase64(await coverOf(angle)) : null;
+  if (mine) {
+    const pictures = await Promise.all(first.map(async (x) => pictureBase64(await coverOf(x.shots[0]))));
+    const withPicture = first.filter((_, i) => pictures[i]);
+    const same = await sameSubject(mine, pictures.filter((p): p is string => !!p));
+    withPicture.forEach((x, i) => same[i] && visual.add(x.id));
+  }
+
+  const scored = open
+    .map(([id, shots]) => ({ id, score: matchScore(me, them(shots, visual.has(id))).score }))
     .filter((x) => x.score > 0);
   if (!scored.length) return { angle, moments: [] };
   const score = new Map(scored.map((x) => [x.id, x.score]));
@@ -147,6 +183,7 @@ export async function findJoinSuggestion(userId: string, angleId: string): Promi
     const found = await candidates(userId, angleId);
     const best = found?.moments[0];
     if (!found || !best) return null;
+    await db.angle.update({ where: { id: angleId }, data: { joinOffer: best.id } });
     const place = best.placeId ? (await placeViews([best.placeId])).get(best.placeId) : null;
     const scene = found.angle.scene;
     const sharedScene = matchable(scene) && (await db.angle.count({ where: { momentId: best.id, scene } })) > 0 ? scene : null;
@@ -175,11 +212,18 @@ export class JoinError extends Error {
 // The shot's owner accepted: the shot moves into that moment (it becomes public there). Its
 // old moment goes away if it's now empty and was the owner's own; the host is told.
 export async function joinMoment(userId: string, angleId: string, code: string) {
-  const found = await candidates(userId, angleId);
-  if (!found) throw new JoinError("not_found");
-  const target = found.moments.find((m) => m.code === code.toUpperCase());
-  if (!target) throw new JoinError("not_suggested"); // re-checked: no joining just any moment
-  const source = await db.moment.findUniqueOrThrow({ where: { id: found.angle.momentId } });
+  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { contributor: { select: { isGuest: true } }, moment: { select: { kind: true } } } });
+  if (!angle || angle.contributorId !== userId || angle.contributor.isGuest) throw new JoinError("not_found");
+  if (!["DRAFT", "READY"].includes(angle.status) || angle.screening !== "allowed" || angle.moment.kind === "DAILY") throw new JoinError("not_found");
+  // Only the moment that was offered, and only while it still takes joins.
+  const target = await db.moment.findUnique({ where: { code: code.toUpperCase() }, include: { creator: { select: { allowJoins: true } } } });
+  if (!target || target.id !== angle.joinOffer) throw new JoinError("not_suggested");
+  const blocked = await blockedIdsFor(userId);
+  const stillOpen =
+    target.visibility === "PUBLIC" && target.status === "ACTIVE" && target.kind !== "DAILY" && target.creator.allowJoins && !blocked.has(target.creatorId) &&
+    (await db.angle.count({ where: { momentId: target.id, contributorId: userId } })) === 0;
+  if (!stillOpen) throw new JoinError("not_suggested");
+  const source = await db.moment.findUniqueOrThrow({ where: { id: angle.momentId } });
 
   await db.$transaction(async (tx) => {
     // Montages of the old moment that include this shot are out of date.
@@ -191,6 +235,7 @@ export async function joinMoment(userId: string, angleId: string, code: string) 
         status: "READY", // joining publishes it there
         expiresAt: null,
         joinedFrom: { momentId: source.id, title: source.title, visibility: source.visibility, placeId: source.placeId },
+        joinOffer: null,
       },
     });
     await tx.participant.upsert({
