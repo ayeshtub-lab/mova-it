@@ -8,6 +8,9 @@ export async function siteOrigin() {
   return `${proto}://${host}`;
 }
 
+// Where people reach Zawmo (privacy page, footer).
+export const CONTACT_EMAIL = "info@zawmo.com";
+
 // A shot counts as new for its first 24 hours (the «جديد» badge).
 export const NEW_FOR_MS = 24 * 60 * 60 * 1000;
 export const isNew = (uploadedAt: Date, now = new Date()) => now.getTime() - uploadedAt.getTime() < NEW_FOR_MS;

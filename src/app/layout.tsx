@@ -5,6 +5,7 @@ import { dirOf } from "@/i18n/config";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { CANONICAL_HOST } from "@/lib/hosts";
+import { CONTACT_EMAIL } from "@/lib/site";
 import { currentUnread } from "@/server/inbox";
 import { ActivityPing } from "./ActivityPing";
 import { PresencePing } from "./PresencePing";
@@ -47,6 +48,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <Link href="/privacy" className="underline-offset-4 hover:underline">
             {dict.footer.privacy}
           </Link>
+          <span className="mx-2" aria-hidden>·</span>
+          <a href={`mailto:${CONTACT_EMAIL}`} className="underline-offset-4 hover:underline">
+            {dict.footer.contact}
+          </a>
         </footer>
         {user && (
           <BottomNav

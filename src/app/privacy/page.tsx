@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
+import { CONTACT_EMAIL } from "@/lib/site";
 
 // Privacy policy. Every statement here must match what the code actually does —
 // update this page (and UPDATED) whenever data handling changes.
 
-const CONTACT_EMAIL = "ayeshcom44@gmail.com";
 const UPDATED = { ar: "٢٥ سبتمبر ٢٠٢٦", en: "September 25, 2026" };
 
 type Section = { title: string; items: string[] };
