@@ -18,17 +18,28 @@ const them = (o: Partial<Parameters<typeof matchScore>[1]> = {}) => ({ title: "�
 
 check("the same lily from a third account (different name, network-only place): matches when the lens sees it", () => {
   assert.equal(matchScore(me(), them()).score, 0, "without the lens: only a broad scene, no match");
-  assert.ok(matchScore(me(), them({ visual: true })).score > 0, "with the lens: match");
+  assert.ok(matchScore(me(), them({ visual: "same" })).score > 0, "with the lens: match");
 });
 
 check("the lens alone is enough, even with no place at all and hours apart", () => {
-  assert.ok(matchScore(me({ network: null }), them({ precise: [], network: [], visual: true, scenes: [{ scene: null, at: now - 20 * H }] })).score > 0);
+  assert.ok(matchScore(me({ network: null }), them({ precise: [], network: [], visual: "same", scenes: [{ scene: null, at: now - 20 * H }] })).score > 0);
 });
 
 check("but never when both places are known for sure and far apart (Jenin vs Bethlehem)", () => {
-  const r = matchScore(me({ precise: "ps-452240" }), them({ precise: ["ps-10180"], visual: true }));
+  const r = matchScore(me({ precise: "ps-452240" }), them({ precise: ["ps-10180"], visual: "same" }));
   assert.equal(r.score, 0);
   assert.equal(r.excluded, true);
+});
+
+check("broad on purpose: two DIFFERENT flowers nearby match («مش لازم 100»); a flower and a car don't", () => {
+  assert.ok(matchScore(me(), them({ visual: "similar" })).score > 0, "similar + same region");
+  assert.equal(matchScore(me({ scene: "street" }), them({ visual: "no", scenes: [{ scene: "street", at: now }] , precise: [], network: [] })).score, 0, "different kinds");
+});
+
+check("…but «similar» stays within one region: a flower in Riyadh is not Artas's lily", () => {
+  const riyadh = "gn-108410";
+  assert.equal(matchScore(me({ network: riyadh }), them({ visual: "similar", precise: [], network: ["ps-452300"] })).score, 0);
+  assert.ok(matchScore(me({ network: riyadh }), them({ visual: "same", precise: [], network: ["ps-452300"] })).score > 0, "the exact same thing still matches");
 });
 
 check("a name only counts within hours, not a day later", () => {

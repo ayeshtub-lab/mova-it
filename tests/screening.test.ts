@@ -1,7 +1,7 @@
 // Unit test for how Gemini's answers become a verdict (src/server/screening.ts).
 // Run: npx tsx tests/screening.test.ts — no network, no database: fetch is simulated.
 import assert from "node:assert/strict";
-import { askGemini, sameSubject } from "../src/server/screening";
+import { askGemini, likeness } from "../src/server/screening";
 
 process.env.GEMINI_API_KEY = "test-key";
 const out: string[] = [];
@@ -49,15 +49,17 @@ async function main() {
     assert.equal((await askGemini(["a"])).result, "error");
   });
 
-  await check("the lens compares pictures: one answer per other picture; anything odd = no match", async () => {
-    reply(200, answer('{"same":[true,false]}'));
-    assert.deepEqual(await sameSubject("mine", ["a", "b"]), [true, false]);
-    assert.equal(lastRequest?.body.contents[0].parts.length, 4, "prompt + 3 pictures in one call");
-    assert.match(JSON.stringify(lastRequest?.body), /two different flowers/, "fine-grained: a category is not enough");
-    reply(200, answer('{"same":[true]}'));
-    assert.deepEqual(await sameSubject("mine", ["a", "b"]), [false, false], "wrong length");
+  await check("the lens compares pictures in three levels (same / similar / no); anything odd = no", async () => {
+    reply(200, answer('{"likeness":["same","similar","no"]}'));
+    assert.deepEqual(await likeness("mine", ["a", "b", "c"]), ["same", "similar", "no"]);
+    assert.equal(lastRequest?.body.contents[0].parts.length, 5, "prompt + 4 pictures in one call");
+    assert.match(JSON.stringify(lastRequest?.body), /two different flowers/, "the prompt explains «similar»");
+    reply(200, answer('{"likeness":["same","maybe"]}'));
+    assert.deepEqual(await likeness("mine", ["a", "b"]), ["same", "no"], "unknown words = no");
+    reply(200, answer('{"likeness":["same"]}'));
+    assert.deepEqual(await likeness("mine", ["a", "b"]), ["no", "no"], "wrong length");
     reply(500, { error: { message: "down" } });
-    assert.deepEqual(await sameSubject("mine", ["a"]), [false]);
+    assert.deepEqual(await likeness("mine", ["a"]), ["no"]);
   });
 
   await check("the same call names the scene (for «صوّر معك»); unknown scenes are dropped", async () => {

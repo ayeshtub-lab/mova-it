@@ -6,7 +6,7 @@ import { blockedIdsFor } from "@/server/moderation";
 import { newCode } from "@/server/moments";
 import { notify } from "@/server/notifications";
 import { placeViews } from "@/server/places";
-import { pictureBase64, sameSubject } from "@/server/screening";
+import { likeness, pictureBase64, type Likeness } from "@/server/screening";
 import placesData from "@/data/places.json";
 import { normalize } from "@/lib/arabic";
 
@@ -23,6 +23,7 @@ const VISUAL_WINDOW_MS = 24 * HOUR; // the same lily, dish or view, seen by the 
 const NAME_WINDOW_MS = 6 * HOUR; // a named moment («كلير», «عرس أحمد») can last an evening
 const SCENE_WINDOW_MS = 3 * HOUR; // «the same sunset» is a matter of hours
 const VISUAL_CHECKS = 6; // moments compared picture-to-picture per upload (one Gemini call)
+const SIMILAR_REGION_KM = 100; // «similar» pictures match within one region
 
 // Place centres from the bundled list (no database trip): precise places and network towns.
 const centre = new Map(
@@ -36,7 +37,7 @@ function km(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
 const words = (s: string | null | undefined) => new Set((s ?? "").split(/[\s·,،.\-–—/|]+/).map(normalize).filter((w) => w.length >= 3));
 
 // How strongly two shots look like the same moment. Content says WHAT: the pictures themselves
-// (compared by the lens: the same lily, not just «a flower»), the moment's name, a sign the lens
+// (compared by the lens: the same lily, or just a similar flower nearby), the moment's name, a sign the lens
 // read, the scene; place says WHERE. «excluded» = both places known for sure and far apart.
 export function matchScore(
   me: { title: string; seen: string | null; scene: string | null; at: number; precise: string | null; network: string | null },
@@ -46,12 +47,12 @@ export function matchScore(
     scenes: { scene: string | null; at: number }[];
     precise: (string | null)[];
     network: (string | null)[];
-    visual?: boolean; // the lens says: the same subject
+    visual?: Likeness; // what the lens says about the pictures
   },
 ) {
   const closeIn = (ms: number) => them.scenes.some((s) => Math.abs(s.at - me.at) <= ms);
   let content = 0;
-  if (them.visual) content += 7;
+  if (them.visual === "same") content += 7;
   const [a, b] = [normalize(me.title), normalize(them.title)];
   if (closeIn(NAME_WINDOW_MS)) {
     if (a.length >= 2 && a === b) content += 5;
@@ -69,6 +70,11 @@ export function matchScore(
 
   const reach = reachKm(matchable(me.scene) ? me.scene : null);
   const dist = (x: string | null, y: string | null) => (x && y && centre.has(x) && centre.has(y) ? km(centre.get(x)!, centre.get(y)!) : null);
+  // «Similar» (two different flowers) is one moment only in one region: not Riyadh and Artas.
+  if (them.visual === "similar") {
+    const known = [me.precise, me.network].flatMap((x) => [...them.precise, ...them.network].map((y) => dist(x, y))).filter((d): d is number => d != null);
+    if (!known.length || Math.min(...known) <= SIMILAR_REGION_KM) content += 6;
+  }
   // Both places known for sure and far apart: not the same moment, whatever the name says.
   const preciseDistances = them.precise.map((p) => dist(me.precise, p)).filter((d): d is number => d != null);
   if (preciseDistances.length && Math.min(...preciseDistances) > 2 * reach) return { score: 0, excluded: true, content };
@@ -126,7 +132,7 @@ async function candidates(userId: string, angleId: string) {
     (await db.angle.findMany({ where: { momentId: { in: [...byMoment.keys()] }, contributorId: userId }, select: { momentId: true } })).map((a) => a.momentId),
   );
   const me = { title: angle.moment.title, seen: angle.seenText, scene: angle.scene, at, precise: angle.placeId ?? angle.moment.placeId, network: angle.networkPlaceId };
-  const them = (shots: typeof recent, visual = false) => ({
+  const them = (shots: typeof recent, visual?: Likeness) => ({
     title: shots[0].moment.title,
     seen: shots.map((s) => s.seenText),
     scenes: shots.map((s) => ({ scene: s.scene, at: (s.capturedAt ?? s.uploadedAt).getTime() })),
@@ -142,17 +148,17 @@ async function candidates(userId: string, angleId: string) {
     .filter((x) => !x.m.excluded)
     .sort((x, y) => y.m.content - x.m.content || y.shots[0].uploadedAt.getTime() - x.shots[0].uploadedAt.getTime())
     .slice(0, VISUAL_CHECKS);
-  const visual = new Set<string>();
+  const visual = new Map<string, Likeness>();
   const mine = first.length ? await pictureBase64(await coverOf(angle)) : null;
   if (mine) {
     const pictures = await Promise.all(first.map(async (x) => pictureBase64(await coverOf(x.shots[0]))));
     const withPicture = first.filter((_, i) => pictures[i]);
-    const same = await sameSubject(mine, pictures.filter((p): p is string => !!p));
-    withPicture.forEach((x, i) => same[i] && visual.add(x.id));
+    const seen = await likeness(mine, pictures.filter((p): p is string => !!p));
+    withPicture.forEach((x, i) => visual.set(x.id, seen[i]));
   }
 
   const scored = open
-    .map(([id, shots]) => ({ id, score: matchScore(me, them(shots, visual.has(id))).score }))
+    .map(([id, shots]) => ({ id, score: matchScore(me, them(shots, visual.get(id))).score }))
     .filter((x) => x.score > 0);
   if (!scored.length) return { angle, moments: [] };
   const score = new Map(scored.map((x) => [x.id, x.score]));

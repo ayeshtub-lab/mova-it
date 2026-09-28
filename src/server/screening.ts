@@ -162,20 +162,26 @@ export async function screenText(text: string): Promise<Verdict> {
   }
 }
 
-// «صوّر معك», like a lens: does each of these other shots show the SAME specific subject as
-// the new one (image 1)? One call for all of them. Fine-grained on purpose: the same lily
-// yes, a rose and a lily no; the same dish yes, two different dishes no; the same building,
-// view or event yes. On any failure: no matches (a suggestion is never worth a wrong one).
-const SAME_PROMPT = `You match photos for Zawmo's "shoot together": people who photographed the SAME thing at about the same time can join one shared moment.
+// «صوّر معك», like a lens: how close is each of these other shots to the new one (image 1)?
+// One call for all of them. Three levels (the owner of the site asked for broad matching,
+// «مش لازم تكون المطابقة 100»):
+//   same    — the same subject: the same lily, the same dish, the same building, view or event;
+//   similar — the same kind of thing with a similar look: two different flowers, two plates of
+//             food, two green gardens, two sunsets;
+//   no      — different kinds (a flower and a car), or unsure.
+// On any failure: all «no» (a suggestion is never worth a wrong one).
+export type Likeness = "same" | "similar" | "no";
+const LIKENESS_PROMPT = `You match photos for Zawmo's "shoot together": people who photographed the same or a similar thing at about the same time can join one shared moment.
 
-Image 1 is a new photo. Each following image is from someone else's moment. For each following image, decide if it shows the SAME specific subject as image 1:
-- YES: the same kind of flower/plant (same species and look), the same dish or food item, the same animal, the same building, monument, view or landscape, the same event or gathering, the same object — even from another angle, distance or light.
-- NO: only the same general category (two different flowers, two different dishes, two different buildings), or anything you are unsure about.
+Image 1 is a new photo. Each following image is from someone else's moment. For each following image, compare it with image 1:
+- "same": the same specific subject — the same flower or plant, the same dish, the same animal, the same building, monument, view or landscape, the same event or gathering, the same object — even from another angle, distance or light.
+- "similar": the same kind of thing with a similar look, but not the same one — e.g. two different flowers, two plates of food, two green gardens or fields, two sunsets, two city streets, two cups of coffee.
+- "no": different kinds of things (a flower and a car, food and the sea, a selfie and a building), or anything you are unsure about.
 
-Answer only with JSON: {"same":[<true|false for image 2>, <for image 3>, ...]}`;
+Answer only with JSON: {"likeness":["same"|"similar"|"no" for image 2, ... one per following image]}`;
 
-export async function sameSubject(mine: string, others: string[]): Promise<boolean[]> {
-  const none = others.map(() => false);
+export async function likeness(mine: string, others: string[]): Promise<Likeness[]> {
+  const none: Likeness[] = others.map(() => "no");
   if (!screeningEnabled() || !others.length) return none;
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
@@ -183,15 +189,16 @@ export async function sameSubject(mine: string, others: string[]): Promise<boole
       headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: SAME_PROMPT }, ...[mine, ...others].map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
+        contents: [{ role: "user", parts: [{ text: LIKENESS_PROMPT }, ...[mine, ...others].map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
         generationConfig: { temperature: 0, responseMimeType: "application/json" },
       }),
     });
     if (!res.ok) return none;
     const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-    const same = (JSON.parse(text) as { same?: unknown }).same;
-    return Array.isArray(same) && same.length === others.length ? same.map((x) => x === true) : none;
+    const got = (JSON.parse(text) as { likeness?: unknown }).likeness;
+    if (!Array.isArray(got) || got.length !== others.length) return none;
+    return got.map((x) => (x === "same" || x === "similar" ? x : "no"));
   } catch {
     return none;
   }
