@@ -14,7 +14,9 @@ import { ProfileTabs } from "./ProfileTabs";
 
 export async function generateMetadata({ params }: PageProps<"/u/[id]">): Promise<Metadata> {
   const profile = await getProfile(await getCurrentUser(), (await params).id);
-  return profile ? { title: `${profile.displayName} · Zawmo`, robots: { index: false } } : {};
+  if (!profile) return {};
+  const dict = await getDictionary(await getLocale());
+  return { title: `${profile.displayName} · ${dict.meta.brand}`, robots: { index: false } };
 }
 
 async function rename(_prev: RenameState, formData: FormData): Promise<RenameState> {

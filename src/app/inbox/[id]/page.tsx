@@ -9,7 +9,7 @@ import { RefreshOnFocus } from "../RefreshOnFocus";
 import { ConfirmButton } from "./ConfirmButton";
 import { Thread } from "./Thread";
 
-export const metadata = { title: "Zawmo · 📥", robots: { index: false } };
+export const metadata = { title: "زاومو · 📥", robots: { index: false } };
 
 const fill = (template: string, values: Record<string, string>) => template.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? "");
 

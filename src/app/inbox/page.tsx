@@ -12,7 +12,7 @@ import { PushToggle } from "@/app/PushToggle";
 import { GiveBack } from "./GiveBack";
 import { RefreshOnFocus } from "./RefreshOnFocus";
 
-export const metadata = { title: "Zawmo · 📥", robots: { index: false } };
+export const metadata = { title: "زاومو · 📥", robots: { index: false } };
 
 const fill = (template: string, values: Record<string, string>) => template.replace(/\{(\w+)\}/g, (_, k) => values[k] ?? "");
 

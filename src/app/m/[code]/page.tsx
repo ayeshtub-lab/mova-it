@@ -20,6 +20,7 @@ import { screenForPublic } from "@/server/angles";
 import { dailyFor, tomorrowVote } from "@/server/daily";
 import { themeHint, themeText } from "@/lib/dailyThemes";
 import { getMomentView, MomentError, setMomentVisibility } from "@/server/moments";
+import { momentIndexable } from "@/server/seo";
 import { AngleGallery } from "./AngleGallery";
 import { AngleWheel } from "./AngleWheel";
 import { MontagePanel } from "./MontagePanel";
@@ -44,12 +45,26 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
   if (!view) return {};
   const locale = await getLocale();
   const dict = await getDictionary(locale);
-  const description = countsLine(dict, locale, view.angleCount, view.participantCount);
+  const title = `${view.title} · ${dict.meta.brand}`;
+  const description = momentDescription(view, dict, locale);
   return {
-    title: `${view.title} · Zawmo`,
+    title,
     description,
-    openGraph: { title: view.title, description, type: "website" },
+    alternates: { canonical: `/m/${view.code}` },
+    // Friends-only moments are for the people holding the link, never for search results.
+    robots: momentIndexable(view) ? undefined : { index: false, follow: false },
+    openGraph: { title: view.title, description, type: "website", siteName: dict.meta.brand },
   };
+}
+
+// «طبخة اليوم في بيت لحم. أحلى مقلوبة — 3 زوايا · شخصين». A public description is
+// added (it has passed the text check); a friends-only one stays off link previews.
+function momentDescription(view: NonNullable<Awaited<ReturnType<typeof loadMoment>>>, dict: Dictionary, locale: string) {
+  const where = view.place?.name ?? view.placeName;
+  const counts = countsLine(dict, locale, view.angleCount, view.participantCount);
+  const head = where && !view.title.includes(where) ? `${view.title} ${dict.moment.metaIn} ${where}` : view.title;
+  const text = view.visibility === "PUBLIC" && view.description ? `${head}. ${view.description.slice(0, 120)}` : head;
+  return `${text} — ${counts}`;
 }
 
 // Group angles into 5-minute steps so the strip reads like "6:41 · 3 angles".

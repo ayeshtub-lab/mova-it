@@ -195,7 +195,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  return { title: `${CONTENT[locale].title} · ${locale === "ar" ? "زاومو" : "Zawmo"}` };
+  return { title: `${CONTENT[locale].title} · ${locale === "ar" ? "زاومو" : "Zawmo"}`, description: CONTENT[locale].intro.slice(0, 160), alternates: { canonical: "/terms" } };
 }
 
 export default async function TermsPage() {

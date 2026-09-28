@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
+import { CANONICAL_HOST } from "@/lib/hosts";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { filterCss } from "@/lib/filters";
 import { matchable, SCENES } from "@/lib/scenes";
@@ -19,6 +21,8 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]">): Prom
     description: fill(dict.place.metaDescription, data.place.name),
     // An empty place page says nothing: keep it out of search results until it has shots.
     robots: data.shots.length ? undefined : { index: false },
+    // «?scene=sunset» views are slices of the same page.
+    alternates: { canonical: `/p/${encodeURIComponent(data.place.slug)}` },
   };
 }
 
@@ -35,9 +39,17 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/p/
   if (!data) notFound();
   const t = dict.place;
   const name = data.place.name;
+  // The trail as search engines read it: فلسطين › محافظة بيت لحم › بيت لحم.
+  const crumbs = [...data.trail, { slug: data.place.slug, name }].map((p, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    name: p.name,
+    item: `https://${CANONICAL_HOST}/p/${encodeURIComponent(p.slug)}`,
+  }));
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
+      {crumbs.length > 1 && <JsonLd data={{ "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: crumbs }} />}
       <SiteHeader locale={locale} dict={dict} />
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-16">
         <header className="flex flex-col gap-1">

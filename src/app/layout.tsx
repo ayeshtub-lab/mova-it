@@ -27,7 +27,12 @@ const syne = Syne({
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary(await getLocale());
   // Absolute links in previews (WhatsApp, social) always point at zawmo.com.
-  return { metadataBase: new URL(`https://${CANONICAL_HOST}`), title: dict.meta.title, description: dict.meta.description };
+  return {
+    metadataBase: new URL(`https://${CANONICAL_HOST}`),
+    title: dict.meta.title,
+    description: dict.meta.description,
+    openGraph: { siteName: dict.meta.brand, type: "website" },
+  };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

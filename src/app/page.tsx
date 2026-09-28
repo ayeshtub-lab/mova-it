@@ -16,6 +16,9 @@ import type { User } from "@/generated/prisma/client";
 import type { Locale } from "@/i18n/config";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
+import { CANONICAL_HOST } from "@/lib/hosts";
+import { CONTACT_EMAIL } from "@/lib/site";
+import { JsonLd } from "@/app/JsonLd";
 import { googleEnabled } from "@/server/google";
 
 // «🔥 N members added M angles»: in the member's moments, and across Zawmo.
@@ -157,6 +160,18 @@ async function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean
   );
 }
 
+export const metadata = { alternates: { canonical: "/" } };
+
+// Who Zawmo is, for search engines: the site and the organization behind it.
+const site = `https://${CANONICAL_HOST}`;
+const structured = {
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "WebSite", "@id": `${site}/#website`, url: site, name: "زاومو", alternateName: "Zawmo", inLanguage: ["ar", "en"], publisher: { "@id": `${site}/#org` } },
+    { "@type": "Organization", "@id": `${site}/#org`, name: "زاومو", alternateName: "Zawmo", url: site, logo: `${site}/icons/icon-512.png`, email: CONTACT_EMAIL },
+  ],
+};
+
 export default async function Home({ searchParams }: PageProps<"/">) {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
@@ -166,6 +181,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
+      <JsonLd data={structured} />
       <SiteHeader locale={locale} dict={dict} />
       {failed && (
         <p role="alert" className="mx-auto mb-4 w-full max-w-3xl rounded-2xl bg-accent-soft p-3 text-sm font-semibold text-accent-ink">

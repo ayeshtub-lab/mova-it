@@ -1,5 +1,6 @@
 {
   "meta": {
+    "brand": "Zawmo",
     "title": "Zawmo — Shot from all angles",
     "description": "Capture your moment and see it through the eyes of everyone who was there."
   },
@@ -91,6 +92,7 @@
   },
   "moment": {
     "meta": "{angles} · {people}",
+    "metaIn": "in",
     "lastAdded": "Last added {when}",
     "noAngles": "No angles yet. Be the first to add yours.",
     "locked": "{lockedAngles}. Add yours to unlock them all.",
