@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { placeViews, searchPlaces } from "@/server/places";
+import { limited } from "@/server/rate-limit";
 
 // Place suggestions while typing («بيتل» → بيت لحم…), or one place by id (?id=ps-452300, for
 // «📍 مكاني», which finds the id on the phone). Public data, the same for everyone.
 export async function GET(request: Request) {
+  const slow = await limited("places", request);
+  if (slow) return slow;
   const params = new URL(request.url).searchParams;
   const cache = { "Cache-Control": "public, max-age=3600, s-maxage=86400" };
   const id = params.get("id")?.slice(0, 40);

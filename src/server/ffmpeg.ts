@@ -23,3 +23,30 @@ export function ffmpeg(args: string[], timeoutMs = 120_000) {
     });
   });
 }
+
+// A video's real length in seconds, read by ffmpeg from the file itself (over HTTP range
+// requests: only the header is fetched). null when it can't be read. ffmpeg with no output
+// exits with an error on purpose; the length is in what it prints before that.
+export function probeDuration(input: string, timeoutMs = 20_000) {
+  return new Promise<number | null>((resolve) => {
+    let stderr = "";
+    let proc;
+    try {
+      proc = spawn(FFMPEG, ["-hide_banner", "-i", input], { stdio: ["ignore", "ignore", "pipe"] });
+    } catch {
+      return resolve(null);
+    }
+    proc.stderr.on("data", (chunk) => (stderr = (stderr + chunk).slice(-8000)));
+    const timer = setTimeout(() => proc.kill("SIGKILL"), timeoutMs);
+    const done = () => {
+      clearTimeout(timer);
+      const m = /Duration:\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/.exec(stderr);
+      resolve(m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : null);
+    };
+    proc.on("error", () => {
+      clearTimeout(timer);
+      resolve(null);
+    });
+    proc.on("close", done);
+  });
+}

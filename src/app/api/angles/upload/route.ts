@@ -1,6 +1,7 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
+import { allowedFor } from "@/server/rate-limit";
 import { uploadConstraintsFor } from "@/server/angles";
 
 // Step 2: issues a one-off client token for exactly one prepared path. Completion is
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
       onBeforeGenerateToken: async (pathname) => {
         const user = await getCurrentUser();
         if (!user) throw new Error("unauthorized");
+        if (!(await allowedFor("uploadToken", request.headers, user.id))) throw new Error("rate_limited");
         const { angleId, ...constraints } = await uploadConstraintsFor(user, pathname);
         return { ...constraints, addRandomSuffix: false, allowOverwrite: true, tokenPayload: angleId };
       },

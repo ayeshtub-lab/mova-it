@@ -627,3 +627,15 @@ model DailyVote {
   @@id([day, userId])
   @@index([day, themeKey])
 }
+
+// ── Rate limits ───────────────────────────────────────────────────────────
+
+// How many times a person (or a network, hashed) did one kind of action in the current
+// window (src/server/rate-limit.ts). Old rows are removed by the daily clean-up.
+model RateLimit {
+  key     String   @id // "<action>:<user id>" or "<action>:ip:<hash>"
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}

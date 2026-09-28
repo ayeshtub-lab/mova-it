@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { MontageError, momentVideoFor, requestMontage } from "@/server/montage";
 import { renderMontage } from "@/server/montage/render";
+import { limited } from "@/server/rate-limit";
 
 // Rendering continues after the response (Fluid compute keeps the function alive);
 // the page polls GET until the video is ready.
@@ -27,6 +28,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ cod
 export async function POST(request: Request, { params }: { params: Promise<{ code: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const slow = await limited("montage", request, user.id);
+  if (slow) return slow;
 
   const { code } = await params;
   try {

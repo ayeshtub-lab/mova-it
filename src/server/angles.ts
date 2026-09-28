@@ -3,7 +3,8 @@ import { MediaType, PlaceSource, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
-import { blobExists } from "@/server/media";
+import { blobExists, viewUrl } from "@/server/media";
+import { probeDuration } from "@/server/ffmpeg";
 import { screenAngle, screeningEnabled, screenText } from "@/server/screening";
 import { deleteFromStream } from "@/server/stream";
 
@@ -186,6 +187,19 @@ export async function completeAngle(user: User, angleId: string) {
   const present = await Promise.all(needed.map(blobExists));
   if (present.includes(false)) throw new AngleError("not_uploaded");
 
+  // The phone said how long the video is; the server measures it itself (a tampered upload
+  // can't slip a 10-minute video past the 40-second limit). Too long → gone, files and all.
+  if (angle.mediaType === MediaType.VIDEO && angle.mediaPath) {
+    const measured = await probeDuration((await viewUrl(angle.mediaPath))!);
+    if (measured != null && measured > MAX_VIDEO_SECONDS + VIDEO_SECONDS_TOLERANCE) {
+      await db.angle.delete({ where: { id: angle.id } });
+      await del(needed).catch((error) => console.error("too long: blob cleanup failed", angle.id, error));
+      throw new AngleError("too_long");
+    }
+    if (measured == null) console.error("could not measure video length", angle.id);
+    else angle.durationSec = Math.round(measured * 10) / 10;
+  }
+
   // Automatic check before anyone sees it. Blocked → hidden and queued for the admins.
   // If the check itself fails: friends/link moments still go up (and it's logged), but
   // in a public moment the angle waits for an admin — public content is always checked.
@@ -203,6 +217,7 @@ export async function completeAngle(user: User, angleId: string) {
         status: blocked ? "HIDDEN" : "DRAFT",
         expiresAt: null, // shots are kept until their owner deletes them
         screening: verdict?.result ?? null,
+        durationSec: angle.durationSec,
         scene: verdict?.result === "allowed" ? (verdict.scene ?? null) : null,
         seenText: verdict?.result === "allowed" ? (verdict.seen ?? null) : null,
         screenedAt: verdict ? now : null,

@@ -4,6 +4,7 @@ import { AngleError, completeAngle } from "@/server/angles";
 import { findJoinSuggestion } from "@/server/join";
 import { makeSmall } from "@/server/small";
 import { sendToStream } from "@/server/stream";
+import { limited } from "@/server/rate-limit";
 
 // The automatic content check runs inside this request (a few seconds). A fine shot becomes
 // a draft; «صوّر معك» looks for a matching moment; the owner then publishes (./publish).
@@ -13,6 +14,8 @@ export const maxDuration = 300;
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const slow = await limited("complete", request, user.id);
+  if (slow) return slow;
 
   const { id } = await params;
   try {

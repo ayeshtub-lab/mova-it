@@ -1,6 +1,8 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { allowedFor } from "@/server/rate-limit";
 import { getCurrentUser } from "@/lib/session";
 import { createMoment, MomentError } from "@/server/moments";
 
@@ -9,6 +11,7 @@ export type CreateMomentState = { error?: "title" | "place" | "description" | "d
 export async function createMomentAction(_prev: CreateMomentState, formData: FormData): Promise<CreateMomentState> {
   const user = await getCurrentUser();
   if (!user) return { error: "server" };
+  if (!(await allowedFor("moment", await headers(), user.id))) return { error: "server" };
 
   let code: string;
   try {

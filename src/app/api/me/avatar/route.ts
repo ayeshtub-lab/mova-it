@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { ProfileError, setAvatar } from "@/server/profile";
+import { limited } from "@/server/rate-limit";
 
 export const maxDuration = 60;
 
@@ -8,6 +9,8 @@ export const maxDuration = 60;
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const slow = await limited("avatar", request, user.id);
+  if (slow) return slow;
   const bytes = Buffer.from(await request.arrayBuffer());
   try {
     return NextResponse.json({ avatarUrl: await setAvatar(user, bytes) });

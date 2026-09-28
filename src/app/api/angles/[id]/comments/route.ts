@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { addComment, CommentError, listComments } from "@/server/comments";
+import { limited } from "@/server/rate-limit";
 
 const failure = (error: unknown) => {
   if (!(error instanceof CommentError)) throw error;
@@ -22,6 +23,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const slow = await limited("comment", request, user.id);
+  if (slow) return slow;
   const payload = await request.json().catch(() => null);
   try {
     return NextResponse.json(await addComment(user, (await params).id, payload?.body, payload?.parentId ?? null), { status: 201 });

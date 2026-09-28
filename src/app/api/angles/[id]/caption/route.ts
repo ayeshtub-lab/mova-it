@@ -2,6 +2,7 @@ import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { CaptionError, clearCaption, setCaption } from "@/server/caption";
 import { refreshMontageForAngle } from "@/server/montage";
+import { limited } from "@/server/rate-limit";
 
 // The moment's video is remade with the new writing after the response.
 export const maxDuration = 300;
@@ -21,6 +22,8 @@ const remake = (request: Request, id: string) => {
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const slow = await limited("caption", request, user.id);
+  if (slow) return slow;
   const { id } = await params;
   const form = await request.formData().catch(() => null);
   const image = form?.get("image");

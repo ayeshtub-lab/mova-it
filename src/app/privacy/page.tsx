@@ -25,6 +25,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "إذا دخلت بحساب Google: رقم حسابك في Google، وإيميلك، واسمك وصورتك في Google. الإيميل لا يظهر لأي مستخدم آخر.",
           "ما تضيفه أنت: الصور والفيديوهات ووقت التقاطها، وعناوين اللحظات، والتعليقات، والإعجابات، ورسائل الوارد، ومن تتابعه.",
           "ما يُسجَّل أثناء الاستخدام: من شاهد لقطاتك (العدد يظهر لك وحدك)، والبلاغات، ومن حظرتهم.",
+          "لحماية الموقع من الإغراق: عدّاد مؤقت لعدد بعض الطلبات (كالرفع والتعليق)، يُحذف خلال يوم. لغير المسجّلين يُحفظ عنوان الشبكة مشفّرًا باتجاه واحد فقط، لا العنوان نفسه.",
         ],
       },
       {
@@ -126,6 +127,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "If you sign in with Google: your Google account ID, your email, and your Google name and photo. Your email is never shown to other users.",
           "What you add: photos and videos and when they were taken, moment titles, comments, likes, inbox messages, and who you follow.",
           "What is recorded as you use it: who viewed your shots (only you see the count), reports, and who you blocked.",
+          "To protect the site from floods: a temporary count of some actions (like uploads and comments), deleted within a day. For visitors who aren't signed in, the network address is kept only as a one-way hash, never the address itself.",
         ],
       },
       {

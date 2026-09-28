@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { createMoment, MomentError } from "@/server/moments";
+import { limited } from "@/server/rate-limit";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const slow = await limited("moment", request, user.id);
+  if (slow) return slow;
 
   const body = await request.json().catch(() => null);
   if (!body || typeof body !== "object") return NextResponse.json({ error: "invalid_body" }, { status: 400 });

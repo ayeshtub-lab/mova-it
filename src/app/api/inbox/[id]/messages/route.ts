@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { InboxError, sendMessage } from "@/server/inbox";
+import { limited } from "@/server/rate-limit";
 
 // Body: { body: "text" } — a quick reply in an inbox thread.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const slow = await limited("message", request, user.id);
+  if (slow) return slow;
   const payload = await request.json().catch(() => null);
   try {
     return NextResponse.json(await sendMessage(user, (await params).id, payload?.body), { status: 201 });
