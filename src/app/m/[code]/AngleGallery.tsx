@@ -663,7 +663,9 @@ export function AngleGallery({
                       setPaused((s) => new Set(s).add(a.id));
                       if (angles[current]?.id === a.id) player.current?.pause();
                     }}
-                    className="max-h-full max-w-full"
+                    // Full size, not the stream's own: adaptive streams start at a small
+                    // quality, and a video sized by it shows up small in a black frame.
+                    className="size-full object-contain"
                     style={{ filter: filterCss(lookOf(a.id).filter) }}
                   />
                 ) : (
