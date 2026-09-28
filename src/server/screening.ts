@@ -15,7 +15,7 @@ const TIMEOUT_MS = 25_000;
 export const screeningEnabled = () => !!process.env.GEMINI_API_KEY;
 
 export type Verdict =
-  | { result: "allowed"; scene?: Scene }
+  | { result: "allowed"; scene?: Scene; seen?: string }
   | { result: "blocked"; category: string; reason: string }
   | { result: "error"; reason: string };
 
@@ -33,7 +33,9 @@ ALLOW everything normal: people and faces, children in ordinary non-sexual situa
 
 Also name the main scene, one of: ${Object.keys(SCENES).join(", ")} ("sky" = the moon, stars or a striking sky; "gathering" = family or friends together; "other" when none fits clearly).
 
-Answer only with JSON: {"verdict":"allow"|"block","category":"none"|"sexual"|"minor_safety"|"violence"|"hate"|"self_harm"|"drugs","reason":"short English reason","scene":"<one of the scenes>"}`;
+Also, like a lens: copy any clearly readable name shown (a shop or restaurant sign, a venue, a team, an event banner) exactly as written, and name a recognisable landmark or venue if there is one. Leave them empty when there is none — never guess.
+
+Answer only with JSON: {"verdict":"allow"|"block","category":"none"|"sexual"|"minor_safety"|"violence"|"hate"|"self_harm"|"drugs","reason":"short English reason","scene":"<one of the scenes>","text":"<visible names, or empty>","landmark":"<landmark or venue, or empty>"}`;
 
 async function jpegBase64(url: string) {
   const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
@@ -88,11 +90,15 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
 
   const text = candidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   try {
-    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string };
+    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string };
     if (parsed.verdict === "block") {
       return { result: "blocked", category: String(parsed.category ?? "other").slice(0, 40), reason: String(parsed.reason ?? "").slice(0, 300) };
     }
-    if (parsed.verdict === "allow") return isScene(parsed.scene) ? { result: "allowed", scene: parsed.scene } : { result: "allowed" };
+    if (parsed.verdict === "allow") {
+      // What the "lens" read (signs, venue, landmark): matched between shots by «صوّر معك».
+      const seen = [parsed.text, parsed.landmark].filter((x) => typeof x === "string" && x.trim()).join(" · ").slice(0, 160);
+      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}) };
+    }
   } catch {}
   return { result: "error", reason: `unreadable answer: ${text.slice(0, 200)}` };
 }

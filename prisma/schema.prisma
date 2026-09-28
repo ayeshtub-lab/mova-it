@@ -224,6 +224,12 @@ model Angle {
   ipCountryMatch Boolean?
   // What it shows (src/lib/scenes.ts), from the content check: «غروب», «مطر»… Drives «صوّر معك».
   scene          String?
+  // What the check read on the picture, like a lens: visible names (a sign, a venue) and a
+  // landmark. Matched between shots by «صوّر معك».
+  seenText       String?
+  // The town the uploader's network is in (Vercel's guess from the connection, often coarse):
+  // used ONLY to match «صوّر معك», never shown anywhere. The address itself is not kept.
+  networkPlaceId String?
   // «صوّر معك»: the shot joined someone else's moment from one of its owner's. What that
   // moment was, so the host's «شيلها» can give the shot back a moment of its own.
   // { momentId, title, visibility, placeId }

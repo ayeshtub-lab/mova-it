@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import data from "../src/data/places.json";
 import { normalize, slugOf, withoutAl } from "../src/lib/arabic";
 import { nearestPlace } from "../src/lib/places-client";
+import { networkFrom } from "../src/server/network-place";
 
 type P = { id: string; ar: string; parent: string | null; kind: string; cc: string };
 const places = (data as unknown as { places: P[] }).places;
@@ -79,6 +80,14 @@ check("names match however they're written", () => {
   assert.equal(withoutAl(normalize("الخضر")), normalize("خضر"));
   assert.equal(slugOf("بيت لحم"), "بيت-لحم");
   assert.equal(slugOf("رام الله والبيرة"), "رام-الله-والبيرة");
+});
+
+check("the network's town (Vercel's guess): a town id, a neighbourhood counts as its city, nothing without numbers", () => {
+  const h = (o: Record<string, string>) => new Headers(o);
+  assert.deepEqual(networkFrom(h({ "x-vercel-ip-country": "ps", "x-vercel-ip-latitude": "31.7043", "x-vercel-ip-longitude": "35.2078" })), { country: "PS", placeId: "ps-452240" });
+  const beirut = places.find((p) => p.ar === "بيروت")!;
+  assert.equal(networkFrom(h({ "x-vercel-ip-latitude": "33.8938", "x-vercel-ip-longitude": "35.5018" })).placeId, beirut.id, "Ras Beirut → Beirut");
+  assert.deepEqual(networkFrom(h({})), { country: null, placeId: null });
 });
 
 console.log(out.join("\n"));

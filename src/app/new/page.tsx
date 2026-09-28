@@ -1,4 +1,7 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { networkFrom } from "@/server/network-place";
+import { placeViews } from "@/server/places";
 import { CreateMomentForm } from "@/app/CreateMomentForm";
 import { ZMark } from "@/app/Logo";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -13,6 +16,9 @@ export default async function NewMomentPage() {
   if (!user) redirect("/");
   const locale = await getLocale();
   const dict = await getDictionary(locale);
+  // A starting guess for «وين؟» from the connection's town; the creator changes it if wrong.
+  const guess = networkFrom(await headers()).placeId;
+  const initialPlace = guess ? ((await placeViews([guess])).get(guess) ?? null) : null;
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
@@ -26,7 +32,7 @@ export default async function NewMomentPage() {
           </div>
         </header>
         <div className="rounded-3xl border border-line bg-surface/60 p-5">
-          <CreateMomentForm labels={dict.create} canPublic={!user.isGuest} />
+          <CreateMomentForm labels={dict.create} canPublic={!user.isGuest} initialPlace={initialPlace ? { id: initialPlace.id, name: initialPlace.name, context: initialPlace.context } : null} />
         </div>
       </main>
     </div>

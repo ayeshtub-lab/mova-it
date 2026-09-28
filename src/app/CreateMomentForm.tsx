@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { createMomentAction } from "@/app/actions/moments";
-import { PlaceField } from "@/app/PlaceField";
+import { PlaceField, type PlaceOption } from "@/app/PlaceField";
 
 type Labels = {
   title: string;
@@ -32,7 +32,7 @@ const inputClass =
   "min-h-11 w-full rounded-full border border-line bg-background px-4 outline-none focus:border-accent";
 
 // «للكل» is offered to official (Google) accounts only; the server enforces it too.
-export function CreateMomentForm({ labels, canPublic = false }: { labels: Labels; canPublic?: boolean }) {
+export function CreateMomentForm({ labels, canPublic = false, initialPlace = null }: { labels: Labels; canPublic?: boolean; initialPlace?: PlaceOption | null }) {
   const [state, action, pending] = useActionState(createMomentAction, undefined);
   const error = state?.error
     ? ({ title: labels.titleError, place: labels.placeError, description: labels.descriptionError, descriptionBlocked: labels.descriptionBlocked, server: labels.serverError } as const)[state.error]
@@ -57,7 +57,7 @@ export function CreateMomentForm({ labels, canPublic = false }: { labels: Labels
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-bold">
         {labels.placeLabel}
-        <PlaceField placeholder={labels.placePlaceholder} className={`${inputClass} font-normal`} />
+        <PlaceField placeholder={labels.placePlaceholder} className={`${inputClass} font-normal`} initial={initialPlace} />
       </label>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1.5 text-sm font-bold">{labels.visibilityLabel}</legend>

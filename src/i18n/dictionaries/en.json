@@ -42,6 +42,7 @@
   "upload": {
     "join": {
       "headline": "{emoji} {name} just shot the same {scene} {place}!",
+      "headlineNamed": "📸 {name} also shot “{title}” {place} just now!",
       "inPlace": "in {place}",
       "angles": "{n} angles",
       "join": "🤝 Add your shot to their moment",

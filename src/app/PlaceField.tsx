@@ -13,15 +13,17 @@ export function PlaceField({
   placeholder,
   className,
   onPick,
+  initial = null,
 }: {
   textName?: string;
   idName?: string;
   placeholder: string;
   className: string;
   onPick?: (place: PlaceOption | null) => void;
+  initial?: PlaceOption | null; // a pre-filled guess, changed or cleared freely
 }) {
-  const [text, setText] = useState("");
-  const [picked, setPicked] = useState<PlaceOption | null>(null);
+  const [text, setText] = useState(initial?.name ?? "");
+  const [picked, setPicked] = useState<PlaceOption | null>(initial);
   const [options, setOptions] = useState<PlaceOption[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);

@@ -42,6 +42,7 @@
   "upload": {
     "join": {
       "headline": "{emoji} {name} كمان صوّر {scene} {place} بنفس الوقت!",
+      "headlineNamed": "📸 {name} كمان صوّر «{title}» {place} قبل شوي!",
       "inPlace": "في {place}",
       "angles": "{n} زوايا",
       "join": "🤝 ضيف لقطتك للحظته",

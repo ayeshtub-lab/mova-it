@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { AngleError, prepareAngle } from "@/server/angles";
+import { networkFrom } from "@/server/network-place";
 
 // Step 1 of an upload: reserve the angle and get the Blob paths to upload to.
 export async function POST(request: Request) {
@@ -12,8 +13,8 @@ export async function POST(request: Request) {
 
   try {
     // Vercel's guess of the uploader's country: compared with the shot's place, never stored.
-    const ipCountry = request.headers.get("x-vercel-ip-country");
-    return NextResponse.json(await prepareAngle(user, body, ipCountry), { status: 201 });
+    const network = networkFrom(request.headers);
+    return NextResponse.json(await prepareAngle(user, body, network.country, network.placeId), { status: 201 });
   } catch (error) {
     if (error instanceof AngleError) {
       return NextResponse.json({ error: error.code }, { status: error.code === "not_found" ? 404 : 400 });

@@ -68,7 +68,9 @@ async function placeFor(input: PrepareAngleInput, momentPlaceId: string | null, 
 }
 
 // Step 1: reserve an angle and the exact Blob paths this user may upload to.
-export async function prepareAngle(user: User, input: PrepareAngleInput, ipCountry: string | null = null) {
+// networkPlaceId: the town the connection comes from (src/server/network-place.ts) — kept
+// only for «صوّر معك» matching, never shown.
+export async function prepareAngle(user: User, input: PrepareAngleInput, ipCountry: string | null = null, networkPlaceId: string | null = null) {
   const code = typeof input.code === "string" ? input.code.toUpperCase() : "";
   const moment = await db.moment.findUnique({ where: { code } });
   if (!moment || moment.status === "HIDDEN") throw new AngleError("not_found");
@@ -106,6 +108,7 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
       height: positiveInt(input.height),
       capturedAt,
       ...place,
+      networkPlaceId,
     },
   });
   // A moment without a place takes the first one a photo brings (silently, like the shot's).
@@ -198,6 +201,7 @@ export async function completeAngle(user: User, angleId: string) {
         expiresAt: null, // shots are kept until their owner deletes them
         screening: verdict?.result ?? null,
         scene: verdict?.result === "allowed" ? (verdict.scene ?? null) : null,
+        seenText: verdict?.result === "allowed" ? (verdict.seen ?? null) : null,
         screenedAt: verdict ? now : null,
       },
     });
@@ -224,7 +228,7 @@ export async function screenForPublic(momentId: string) {
     const verdict = screeningEnabled() ? await screenAngle(angle) : null;
     const now = new Date();
     if (verdict?.result === "allowed") {
-      await db.angle.update({ where: { id: angle.id }, data: { screening: "allowed", screenedAt: now, scene: verdict.scene ?? null } });
+      await db.angle.update({ where: { id: angle.id }, data: { screening: "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null } });
       continue;
     }
     const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : `public, not checked: ${verdict?.result === "error" ? verdict.reason : "screening off"}`;

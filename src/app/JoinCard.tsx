@@ -7,14 +7,15 @@ export type JoinSuggestion = {
   momentCode: string;
   title: string;
   hostName: string;
-  scene: Scene;
+  scene: Scene | null; // null: matched by the moment's name or what the lens read
   placeName: string | null;
   angleCount: number;
   coverUrl: string | null;
 };
 
 export type JoinLabels = {
-  headline: string; // «{emoji} {name} صوّر نفس ال{scene} {place}»
+  headline: string; // «{emoji} {name} كمان صوّر {scene} {place} بنفس الوقت!»
+  headlineNamed: string; // «📸 {name} كمان صوّر «{title}» {place} قبل شوي!»
   inPlace: string; // «في {place}»
   angles: string; // «{n} زوايا»
   join: string;
@@ -42,10 +43,11 @@ export function JoinCard({
 }) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-  const scene = SCENES[suggestion.scene];
-  const headline = labels.headline
+  const scene = SCENES[suggestion.scene ?? "other"];
+  const headline = (suggestion.scene ? labels.headline : labels.headlineNamed)
     .replace("{emoji}", scene.emoji)
     .replace("{name}", suggestion.hostName)
+    .replace("{title}", suggestion.title)
     .replace("{scene}", locale === "ar" ? scene.ar : scene.en.toLowerCase())
     .replace("{place}", suggestion.placeName ? labels.inPlace.replace("{place}", suggestion.placeName) : "")
     .replace(/\s+/g, " ")
