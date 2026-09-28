@@ -24,7 +24,7 @@ export function PlaceField({
   onPick?: (place: PlaceOption | null) => void;
   initial?: PlaceOption | null; // a pre-filled guess, changed or cleared freely
   // «📍 مكاني»: the phone's position, asked only when tapped, turned into a town on the phone.
-  here?: { label: string; finding: string; denied: string; outside: string };
+  here?: { label: string; finding: string; denied: string; outside: string; approx: string };
 }) {
   const [text, setText] = useState(initial?.name ?? "");
   const [picked, setPicked] = useState<PlaceOption | null>(initial);
@@ -47,8 +47,10 @@ export function PlaceField({
     const res = id ? await fetch(`/api/places?id=${encodeURIComponent(id)}`).catch(() => null) : null;
     const found = res?.ok ? ((await res.json()) as { places: PlaceOption[] }).places[0] : null;
     setLocating(false);
-    if (found) pick(found);
-    else setHereNote(pos ? here.outside : here.denied);
+    if (!found) return setHereNote(pos ? here.outside : here.denied);
+    pick(found);
+    // "Approximate location" on the phone (km-wide): the village may be a neighbour's.
+    if (pos && pos.coords.accuracy > 1500) setHereNote(here.approx);
   }
   const seq = useRef(0);
 

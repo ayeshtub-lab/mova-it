@@ -106,7 +106,8 @@
       "label": "📍 Where I am",
       "finding": "Finding…",
       "denied": "We couldn't tell where you are. Allow location on your phone, or type the place.",
-      "outside": "Your area isn't in our list yet — type it in."
+      "outside": "Your area isn't in our list yet — type it in.",
+      "approx": "Your phone gave an approximate location — check the town is right (or choose “Precise” when asked)."
     },
     "submit": "Start the moment",
     "titleError": "Enter a title of 1 to 80 characters.",

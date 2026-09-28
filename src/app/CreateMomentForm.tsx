@@ -15,7 +15,7 @@ type Labels = {
   descriptionBlocked: string;
   placeLabel: string;
   placePlaceholder: string;
-  placeHere: { label: string; finding: string; denied: string; outside: string };
+  placeHere: { label: string; finding: string; denied: string; outside: string; approx: string };
   visibilityLabel: string;
   visibilityFriends: string;
   visibilityFriendsHint: string;
