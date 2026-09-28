@@ -3,6 +3,7 @@ import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
 import { systemUser } from "@/server/daily";
+import { deleteFromStream } from "@/server/stream";
 
 // Deleting your account (self-service, immediate). Gone: the account and everything that
 // is yours — shots with their files, comments, likes, saves, messages, follows, the
@@ -20,7 +21,7 @@ export async function deleteAccount(user: User) {
   if (user.isSystem) throw new AccountError("forbidden");
 
   const [myAngles, created] = await Promise.all([
-    db.angle.findMany({ where: { contributorId: user.id }, select: { id: true, mediaPath: true, thumbPath: true, smallPath: true, caption: true } }),
+    db.angle.findMany({ where: { contributorId: user.id }, select: { id: true, mediaPath: true, thumbPath: true, smallPath: true, caption: true, streamUid: true } }),
     db.moment.findMany({
       where: { creatorId: user.id },
       select: { id: true, angles: { where: { contributorId: { not: user.id } }, select: { id: true }, take: 1 } },
@@ -52,5 +53,6 @@ export async function deleteAccount(user: User) {
   // Files last: the rows are already gone, so a failure here only leaves unused files,
   // which scripts/cleanup.ts removes.
   for (let i = 0; i < files.length; i += 100) await del(files.slice(i, i + 100)).catch(() => {});
+  for (const a of myAngles) await deleteFromStream(a.streamUid);
   return { shots: myAngleIds.length, moments: drop.length, handedOver: handOver.length };
 }

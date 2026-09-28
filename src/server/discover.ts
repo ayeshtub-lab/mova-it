@@ -4,6 +4,7 @@ import { captionView } from "@/server/caption";
 import { computeWhyNowScore } from "@/lib/movaEngine";
 import { coverOf, viewUrl } from "@/server/media";
 import { placeViews } from "@/server/places";
+import { hlsUrl } from "@/server/stream";
 import { commentCounts } from "@/server/comments";
 import { blockedIdsFor } from "@/server/moderation";
 import { reactionsFor } from "@/server/reactions";
@@ -129,6 +130,7 @@ export async function listDiscover(viewer: User | null) {
             soundKey: a.soundKey,
             muteOriginal: a.muteOriginal,
             mediaUrl: await viewUrl(a.mediaPath),
+            hlsUrl: a.mediaType === "VIDEO" ? hlsUrl(a) : null,
             posterUrl: await viewUrl(a.thumbPath),
             name: a.contributor.displayName,
             avatarUrl: a.contributor.avatarUrl,
@@ -201,6 +203,7 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
       video: a.mediaType === "VIDEO",
       filter: a.filter,
       mediaUrl: a.mediaType === "VIDEO" ? await viewUrl(a.mediaPath) : null,
+      hlsUrl: a.mediaType === "VIDEO" ? hlsUrl(a) : null,
       imageUrl: await coverOf(a),
       momentCode: a.moment.code,
       title: a.moment.title,
@@ -226,7 +229,7 @@ export async function trendingVideos(viewer: User | null, take = 10) {
       moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } },
     },
     select: {
-      id: true, shares: true, uploadedAt: true, mediaPath: true, thumbPath: true, filter: true, caption: true, soundKey: true, muteOriginal: true,
+      id: true, shares: true, uploadedAt: true, mediaPath: true, thumbPath: true, filter: true, caption: true, soundKey: true, muteOriginal: true, streamUid: true, streamReady: true,
       moment: { select: { code: true, title: true } },
       contributor: { select: { id: true, displayName: true, avatarUrl: true, isGuest: true } },
     },
@@ -263,6 +266,7 @@ export async function trendingVideos(viewer: User | null, take = 10) {
       soundKey: a.soundKey,
       muteOriginal: a.muteOriginal,
       mediaUrl: await viewUrl(a.mediaPath),
+      hlsUrl: hlsUrl(a),
       posterUrl: await viewUrl(a.thumbPath),
       ...stats,
     })),

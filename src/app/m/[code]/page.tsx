@@ -225,6 +225,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 capturedAt: a.capturedAt?.toISOString() ?? null,
                 mediaUrl: a.mediaUrl,
                 thumbUrl: a.thumbUrl,
+                hlsUrl: a.hlsUrl,
                 gridUrl: a.gridUrl,
                 place: a.place ? { slug: a.place.slug, name: a.place.name } : null,
                 placeVerified: a.placeVerified,

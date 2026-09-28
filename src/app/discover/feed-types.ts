@@ -14,6 +14,7 @@ export type FeedAngle = {
   soundKey: string | null;
   muteOriginal: boolean;
   mediaUrl: string | null;
+  hlsUrl?: string | null; // videos: Cloudflare Stream's adaptive stream, once ready
   posterUrl: string | null;
   name: string;
   avatarUrl: string | null;

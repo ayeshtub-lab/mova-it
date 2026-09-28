@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
 import { blobExists } from "@/server/media";
 import { screenAngle, screeningEnabled, screenText } from "@/server/screening";
+import { deleteFromStream } from "@/server/stream";
 
 export const MAX_VIDEO_SECONDS = 40;
 // A little slack: containers round durations, and a 40.3 s clip is still "40 seconds".
@@ -170,6 +171,7 @@ export async function deleteAngle(user: User, angleId: string) {
   ]);
   // After the rows are gone, so a failed storage call can never leave a visible angle without its file.
   if (files.length) await del(files).catch((error) => console.error("deleteAngle: blob cleanup failed", angle.id, error));
+  await deleteFromStream(angle.streamUid);
 }
 
 // Step 3: the device reports the upload finished; trust it only after the files exist.
@@ -262,12 +264,13 @@ export async function purgeStaleUploads(now = new Date(), emptyMomentsFrom = EMP
   const before = new Date(now.getTime() - STALE_UPLOAD_MS);
   const stale = await db.angle.findMany({
     where: { status: { in: ["DRAFT", "PROCESSING"] }, uploadedAt: { lt: before } },
-    select: { id: true, mediaPath: true, thumbPath: true, smallPath: true, caption: true },
+    select: { id: true, mediaPath: true, thumbPath: true, smallPath: true, caption: true, streamUid: true },
   });
   if (stale.length) {
     await db.angle.deleteMany({ where: { id: { in: stale.map((a) => a.id) } } });
     const files = stale.flatMap((a) => [a.mediaPath, a.thumbPath, a.smallPath, parseCaption(a.caption)?.path]).filter((p): p is string => !!p);
     if (files.length) await del(files).catch((error) => console.error("purge: blob cleanup failed", error));
+    for (const a of stale) await deleteFromStream(a.streamUid);
   }
   const empty = await db.moment.findMany({
     where: { kind: { not: "DAILY" }, createdAt: { lt: before, gte: emptyMomentsFrom }, angles: { none: {} } },

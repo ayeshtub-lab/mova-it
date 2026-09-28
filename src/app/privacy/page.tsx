@@ -78,6 +78,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
         items: [
           "Vercel: استضافة الموقع وتخزين الصور والفيديوهات.",
           "Neon: قاعدة البيانات.",
+          "Cloudflare Stream: تجهيز الفيديوهات وعرضها بجودة تناسب سرعة الإنترنت على كل جهاز. الفيديوهات خاصة هناك أيضًا، وتُعرض فقط عبر روابط مؤقتة لمن يحق له رؤيتها.",
           "Google: تسجيل الدخول، إذا اخترته.",
           "Google Gemini: الفحص التلقائي للصور والفيديوهات. تُرسل الصورة (أو لقطات من الفيديو) للفحص فقط، ولا يستخدمها Google لتدريب نماذجه.",
           "Sentry (خوادمه في ألمانيا): تنبيهنا بالأعطال لنصلحها. يصله نوع الخطأ والصفحة ونوع المتصفح فقط، بلا أسماء ولا عناوين شبكة ولا كوكيز.",
@@ -178,6 +179,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
         items: [
           "Vercel: hosting, and storage for photos and videos.",
           "Neon: the database.",
+          "Cloudflare Stream: preparing videos and playing them at a quality that suits each device's connection. Videos are private there too, shown only through temporary links to people allowed to see them.",
           "Google: sign-in, if you choose it.",
           "Google Gemini: the automatic check of photos and videos. The image (or a few frames of a video) is sent only to be checked, and Google does not use it to train its models.",
           "Sentry (servers in Germany): alerts us to errors so we can fix them. It receives the error, the page and the browser type only: no names, network addresses or cookies.",

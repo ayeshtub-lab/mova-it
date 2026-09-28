@@ -11,6 +11,7 @@ import { CommentsSheet } from "./Comments";
 import { compact, Rail } from "./Rail";
 import { Viewer } from "./Viewer";
 import type { DiscoverLabels, FeedAngle, FeedItem, FeedMoment, Likes, TrendingItem } from "./feed-types";
+import { StreamVideo } from "@/app/StreamVideo";
 
 type UploaderProps = Omit<React.ComponentProps<typeof AngleUploader>, "code" | "afterUpload">;
 type Sheet = { kind: "comments"; angleId: string } | { kind: "add"; code: string } | { kind: "signin" } | null;
@@ -252,7 +253,7 @@ function TrendingRow({ items, title, locale, onOpen }: { items: TrendingItem[]; 
               aria-label={`${i + 1}. ${v.title}`}
               className="relative block aspect-[9/16] w-full overflow-hidden rounded-2xl bg-black text-start shadow-md ring-2 ring-transparent transition hover:ring-accent active:scale-[0.98]"
             >
-              {v.mediaUrl && <AutoVideo src={v.mediaUrl} poster={v.posterUrl} className="size-full object-cover" style={{ filter: filterCss(v.filter) }} />}
+              {v.mediaUrl && <AutoVideo src={v.mediaUrl} hls={v.hlsUrl} poster={v.posterUrl} className="size-full object-cover" style={{ filter: filterCss(v.filter) }} />}
               <CaptionOverlay caption={v.caption} />
               <span className="absolute start-2 top-0 z-[2] bg-gradient-to-b from-moment to-accent bg-clip-text text-5xl font-extrabold text-transparent [filter:drop-shadow(0_2px_4px_rgb(0_0_0/0.6))]">
                 {compact(i + 1, locale)}
@@ -336,7 +337,7 @@ function MomentSlide({
         {m.angles.map((a) => (
           <div key={a.id} className="relative h-full w-full shrink-0 snap-center">
             {a.mediaType === "VIDEO" ? (
-              <video src={a.mediaUrl ?? undefined} poster={a.posterUrl ?? undefined} muted loop playsInline preload="none" className="size-full object-cover" style={{ filter: filterCss(a.filter) }} />
+              <StreamVideo file={a.mediaUrl} hls={a.hlsUrl} poster={a.posterUrl ?? undefined} muted loop playsInline preload="none" className="size-full object-cover" style={{ filter: filterCss(a.filter) }} />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
               <img src={a.mediaUrl ?? ""} alt="" loading="lazy" className="size-full object-cover" style={{ filter: filterCss(a.filter) }} />

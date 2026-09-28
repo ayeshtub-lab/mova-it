@@ -191,7 +191,8 @@ model Angle {
   mediaPath     String? // the photo (JPEG) or the video file
   thumbPath     String? // video poster frame (JPEG)
   smallPath     String? // small JPEG for grids and covers (made on the server after upload)
-  streamUid     String? // Cloudflare Stream id, once videos move there
+  streamUid     String? // Cloudflare Stream copy of a video (src/server/stream.ts)
+  streamReady   Boolean     @default(false) // Stream finished encoding: play it from there (HLS)
   durationSec   Float? // videos only; the upload flow enforces ≤ 40
   width         Int?
   height        Int?

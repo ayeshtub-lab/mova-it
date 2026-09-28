@@ -4,6 +4,7 @@ import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { normalize } from "@/lib/arabic";
 import { placeViews, resolvePlaceText, validPlaceId } from "@/server/places";
+import { hlsUrl } from "@/server/stream";
 import { captionView } from "@/server/caption";
 import { computeWhyNowScore } from "@/lib/movaEngine";
 import { coverOf, viewUrl } from "@/server/media";
@@ -180,6 +181,8 @@ export async function getMomentView(code: string, viewer: User | null) {
         width: a.width,
         height: a.height,
         mediaUrl: await viewUrl(a.mediaPath),
+        // Videos: the adaptive stream once Cloudflare has it (the file above stays the fallback).
+        hlsUrl: a.mediaType === "VIDEO" ? hlsUrl(a) : null,
         thumbUrl: await viewUrl(a.thumbPath),
         gridUrl: await coverOf(a),
         // Where it was taken («📍 بيت لحم ✓»); its owner may remove or change it.

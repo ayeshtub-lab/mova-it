@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AutoVideo } from "@/app/AutoVideo";
 import { filterCss } from "@/lib/filters";
 
-type Shot = { id: string; video: boolean; mediaUrl: string | null; imageUrl: string | null; momentCode: string; title: string; name: string; filter: string | null };
+type Shot = { id: string; video: boolean; mediaUrl: string | null; hlsUrl?: string | null; imageUrl: string | null; momentCode: string; title: string; name: string; filter: string | null };
 
 // Real public shots on the visitor's home page. Videos take a double-height tile and play
 // silently while on screen; everything opens the moment it belongs to.
@@ -16,7 +16,7 @@ export function Showcase({ shots, labels }: { shots: Shot[]; labels: { title: st
           <li key={s.id} className={s.video ? "row-span-2" : ""}>
             <Link href={`/m/${s.momentCode}#angle-${s.id}`} className="group relative block size-full overflow-hidden rounded-2xl bg-surface">
               {s.video && s.mediaUrl ? (
-                <AutoVideo src={s.mediaUrl} poster={s.imageUrl} className="size-full object-cover" style={{ filter: filterCss(s.filter) }} />
+                <AutoVideo src={s.mediaUrl} hls={s.hlsUrl} poster={s.imageUrl} className="size-full object-cover" style={{ filter: filterCss(s.filter) }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
                 s.imageUrl && <img src={s.imageUrl} alt="" loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(s.filter) }} />

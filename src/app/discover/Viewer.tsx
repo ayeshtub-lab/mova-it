@@ -7,6 +7,7 @@ import { filterCss } from "@/lib/filters";
 import { isQuran, soundByKey, soundFile } from "@/lib/sounds";
 import { Rail } from "./Rail";
 import type { DiscoverLabels, FeedItem, Likes } from "./feed-types";
+import { StreamVideo } from "@/app/StreamVideo";
 
 // Full-screen, one shot at a time, swipe up for the next — like TikTok. Opens on the
 // trending video that was tapped and carries on through the rest of the trending row,
@@ -150,9 +151,11 @@ export function Viewer({
           return (
             <section key={item.id} data-index={i} className="relative h-[100dvh] w-full snap-start snap-always overflow-hidden" aria-label={item.title}>
               {item.mediaType === "VIDEO" ? (
-                <video
+                <StreamVideo
                   data-index={i}
-                  src={near ? (item.mediaUrl ?? undefined) : undefined}
+                  file={item.mediaUrl}
+                  hls={item.hlsUrl}
+                  load={near}
                   poster={item.posterUrl ?? undefined}
                   loop
                   playsInline

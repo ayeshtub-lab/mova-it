@@ -109,6 +109,7 @@ export default async function DiscoverPage() {
             soundKey: v.soundKey,
             muteOriginal: v.muteOriginal,
             mediaUrl: v.mediaUrl,
+            hlsUrl: v.hlsUrl,
             posterUrl: v.posterUrl,
             name: v.name,
             avatarUrl: v.avatarUrl,

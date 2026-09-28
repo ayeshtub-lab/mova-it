@@ -7,6 +7,7 @@ import { AutoVideo } from "@/app/AutoVideo";
 import { LocalTime } from "@/app/LocalTime";
 import type { MomentDetailsLabels } from "@/app/MomentDetails";
 import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
+import { StreamVideo } from "@/app/StreamVideo";
 import { CaptionEditor, CaptionOverlay, type CaptionLabels } from "@/app/CaptionEditor";
 import type { CaptionView } from "@/lib/caption";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
@@ -35,6 +36,7 @@ export type GalleryAngle = {
   capturedAt: string | null;
   mediaUrl: string | null;
   thumbUrl: string | null;
+  hlsUrl?: string | null; // videos: Cloudflare Stream's adaptive stream, once ready
   gridUrl: string | null; // small copy for the grid
   place: { slug: string; name: string } | null; // where it was taken
   placeVerified: boolean; // the place came from the (recent) photo itself
@@ -595,7 +597,7 @@ export function AngleGallery({
               <span aria-hidden="true" className="absolute inset-0 animate-pulse bg-gradient-to-br from-line via-surface to-line" />
               {a.mediaType === "VIDEO" && a.mediaUrl ? (
                 // Videos play silently in the grid while on screen, so they stand out.
-                <AutoVideo src={a.mediaUrl} poster={a.thumbUrl} className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
+                <AutoVideo src={a.mediaUrl} hls={a.hlsUrl} poster={a.thumbUrl} className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
                 <img src={a.gridUrl ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
@@ -646,8 +648,9 @@ export function AngleGallery({
             return (
               <figure key={a.id} className="relative flex h-full w-screen shrink-0 snap-center items-center justify-center">
                 {a.mediaType === "VIDEO" ? (
-                  <video
-                    src={a.mediaUrl ?? undefined}
+                  <StreamVideo
+                    file={a.mediaUrl}
+                    hls={a.hlsUrl}
                     poster={a.thumbUrl ?? undefined}
                     playsInline
                     loop
