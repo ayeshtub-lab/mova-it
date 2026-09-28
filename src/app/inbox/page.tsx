@@ -9,6 +9,7 @@ import { relativeTime } from "@/lib/site";
 import { listThreads } from "@/server/inbox";
 import { listNotifications, markNotificationsRead, type NotificationView } from "@/server/notifications";
 import { PushToggle } from "@/app/PushToggle";
+import { GiveBack } from "./GiveBack";
 import { RefreshOnFocus } from "./RefreshOnFocus";
 
 export const metadata = { title: "Zawmo · 📥", robots: { index: false } };
@@ -26,7 +27,7 @@ export default async function InboxPage() {
   after(() => markNotificationsRead(user, unreadIds));
 
   const line = (n: NotificationView) =>
-    fill({ LIKE: t.liked, FOLLOW: t.followed, COMMENT: t.commented, REPLY: t.replied, NEW_ANGLE: t.addedAngle }[n.kind], { name: n.actorName });
+    fill({ LIKE: t.liked, FOLLOW: t.followed, COMMENT: t.commented, REPLY: t.replied, NEW_ANGLE: t.addedAngle, JOINED: t.joined }[n.kind], { name: n.actorName });
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
@@ -72,6 +73,7 @@ export default async function InboxPage() {
                     )}
                     {n.unread && <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full bg-accent" />}
                   </Link>
+                  {n.kind === "JOINED" && n.angleId && <GiveBack angleId={n.angleId} labels={{ action: t.giveBack, hint: t.giveBackHint, done: t.givenBack, failed: t.giveBackFailed }} />}
                 </li>
               ))}
             </ul>

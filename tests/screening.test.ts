@@ -48,6 +48,14 @@ async function main() {
     reply(200, answer("I think it's fine"));
     assert.equal((await askGemini(["a"])).result, "error");
   });
+
+  await check("the same call names the scene (for «صوّر معك»); unknown scenes are dropped", async () => {
+    reply(200, answer('{"verdict":"allow","category":"none","reason":"a sunset","scene":"sunset"}'));
+    assert.deepEqual(await askGemini(["a"]), { result: "allowed", scene: "sunset" });
+    reply(200, answer('{"verdict":"allow","category":"none","reason":"x","scene":"volcano"}'));
+    assert.deepEqual(await askGemini(["a"]), { result: "allowed" });
+    assert.match(JSON.stringify(lastRequest?.body), /sunset, sunrise/, "the prompt lists the scenes");
+  });
 }
 
 main()

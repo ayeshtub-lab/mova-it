@@ -7,6 +7,8 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { engagementFor, listDiscover, trendingVideos } from "@/server/discover";
 import { googleEnabled } from "@/server/google";
+import { sceneCards } from "@/server/places";
+import { SCENES, type Scene } from "@/lib/scenes";
 import { DiscoverFeed } from "./DiscoverFeed";
 
 export const metadata = { robots: { index: false } };
@@ -21,7 +23,7 @@ export default async function DiscoverPage() {
   const t = dict.discover;
   const official = !!user && !user.isGuest;
 
-  const [moments, trending] = await Promise.all([listDiscover(user), trendingVideos(user)]);
+  const [moments, trending, scenes] = await Promise.all([listDiscover(user), trendingVideos(user), sceneCards(user?.id ?? null)]);
   const stats = await engagementFor(
     trending.map((v) => v.id),
     user,
@@ -45,6 +47,30 @@ export default async function DiscoverPage() {
           </ul>
         )}
       </section>
+
+      {scenes.length > 0 && (
+        <section aria-label={dict.place.aroundTitle} className="flex flex-col gap-2">
+          <h2 className="text-lg font-extrabold">{dict.place.aroundTitle}</h2>
+          <ul className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
+            {scenes.map((c) => (
+              <li key={`${c.scene}-${c.slug}`} className="shrink-0 snap-start">
+                <Link href={`/p/${encodeURIComponent(c.slug)}?scene=${c.scene}`} className="relative block h-40 w-32 overflow-hidden rounded-2xl bg-surface">
+                  {c.coverUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL
+                    <img src={c.coverUrl} alt="" loading="lazy" className="size-full object-cover" />
+                  )}
+                  <span className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 to-transparent p-2 pt-8 text-white">
+                    <span className="text-sm font-extrabold leading-tight">
+                      {SCENES[c.scene as Scene]?.emoji} {locale === "ar" ? SCENES[c.scene as Scene]?.ar : SCENES[c.scene as Scene]?.en} {c.placeName}
+                    </span>
+                    <span className="text-xs text-white/85">{dict.place.angles.replace("{n}", String(c.count))}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {!official && (
         <div className="flex flex-col gap-2">

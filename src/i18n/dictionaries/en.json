@@ -40,6 +40,15 @@
     "serverError": "Something went wrong on our side. Please try again in a moment."
   },
   "upload": {
+    "join": {
+      "headline": "{emoji} {name} just shot the same {scene} {place}!",
+      "inPlace": "in {place}",
+      "angles": "{n} angles",
+      "join": "🤝 Add your shot to their moment",
+      "keep": "Keep it in mine",
+      "publicNote": "Their moment is public, so everyone will see your shot there. They'll get a friendly notification.",
+      "failed": "That didn't work, try again."
+    },
     "hint": "Shoot a photo or a video up to 40 seconds, or pick from your gallery (several files).",
     "preparing": "Preparing…",
     "uploading": "Uploading {pct}%",
@@ -138,12 +147,21 @@
     "empty": "No moments yet. Start one above, or open a moment link someone sent you.",
     "host": "You started it"
   },
+  "allowJoins": {
+    "title": "Let people who shot the same moment join my moments",
+    "hint": "If someone nearby shot the same sunset or the same wedding, they can add their shot to your public moment. You'll be told, and you can remove it.",
+    "failed": "Couldn't save, try again."
+  },
   "place": {
     "hint": "People's public shots from {name}",
     "people": "{n} people shot here",
     "inside": "Places in {name} with shots",
     "empty": "No public shots from {name} yet. Be the first! 📸",
     "verified": "Verified from the photo",
+    "today": "today",
+    "allShots": "All shots here",
+    "aroundTitle": "📍 Around today",
+    "angles": "{n} angles",
     "metaTitle": "📍 {name} — shots on Zawmo",
     "metaDescription": "Real moments people captured in {name}, from every angle."
   },
@@ -289,7 +307,12 @@
     "replied": "{name} replied to your comment:",
     "inMoment": "in “{title}”",
     "noActivity": "When someone likes your shots, follows you or comments, you'll see it here.",
-    "addedAngle": "{name} added a new angle 📸"
+    "addedAngle": "{name} added a new angle 📸",
+    "joined": "🤝 {name} shot the same moment and added their angle to yours",
+    "giveBack": "Remove it",
+    "giveBackHint": "It goes back to its own moment; nothing is deleted",
+    "givenBack": "Done, their shot is back in its own moment 🤍",
+    "giveBackFailed": "That didn't work, try again."
   },
   "account": {
     "google": "Continue with Google",
@@ -521,6 +544,7 @@
     "comment": "💬 {name} commented on your shot",
     "reply": "↩️ {name} replied to your comment",
     "newAngle": "📸 {name} added a new angle",
+    "joined": "🤝 {name} shot the same moment and joined yours",
     "open": "Open Zawmo",
     "enableTitle": "🔔 Get notified",
     "enableText": "A note on your phone when someone likes, comments or adds an angle to your moment — even with Zawmo closed.",

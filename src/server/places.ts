@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { normalize, withoutAl } from "@/lib/arabic";
+import { SKY_SCENES } from "@/lib/scenes";
 import { blockedIdsFor } from "@/server/moderation";
 import { coverOf } from "@/server/media";
 
@@ -106,7 +107,8 @@ async function withDescendants(id: string) {
 
 // A place's public page: its public shots (checked, not «لحظة اليوم»), the places inside it
 // that have shots, and — only from PEOPLE_SHOWN_FROM people up — how many people shot there.
-export async function placePage(slug: string, viewerId: string | null, take = 60) {
+// With a scene («?scene=sunset», from a Discover card): only that scene, from the last 24 hours.
+export async function placePage(slug: string, viewerId: string | null, take = 60, scene: string | null = null) {
   const place = await db.place.findUnique({ where: { slug } });
   if (!place) return null;
   const ids = await withDescendants(place.id);
@@ -118,6 +120,7 @@ export async function placePage(slug: string, viewerId: string | null, take = 60
     OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     moment: { visibility: "PUBLIC" as const, status: "ACTIVE" as const, kind: { not: "DAILY" as const } },
     contributorId: { notIn: blocked },
+    ...(scene ? { scene, uploadedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } : {}),
   };
   const [angles, people, childCounts] = await Promise.all([
     db.angle.findMany({
@@ -178,4 +181,55 @@ export async function setAnglePlace(user: { id: string }, angleId: string, place
     data: { placeId: id, placeFrom: id ? "OWNER" : null, placeVerified: false, ipCountryMatch: null },
   });
   return { place: id ? ((await placeViews([id])).get(id) ?? null) : null };
+}
+
+// «🌅 غروب بيت لحم اليوم · 7 زوايا»: today's scenes that several people shot in one place
+// (public, checked shots of the last 24 hours; a neighbourhood counts for its city).
+export async function sceneCards(viewerId: string | null, take = 8) {
+  const blocked = viewerId ? [...(await blockedIdsFor(viewerId))] : [];
+  const angles = await db.angle.findMany({
+    where: {
+      status: "READY",
+      screening: "allowed",
+      scene: { not: null, notIn: ["other"] },
+      placeId: { not: null },
+      uploadedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      contributorId: { notIn: blocked },
+      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } },
+    },
+    orderBy: { uploadedAt: "desc" },
+    include: { place: { select: { id: true, kind: true, parentId: true } } },
+    take: 500,
+  });
+  // The area a card is about: a sky scene (one sunset, one snowfall) covers the governorate,
+  // anything else its town — a neighbourhood always counts for its city.
+  const parentIds = [...new Set(angles.map((a) => a.place!.parentId).filter((x): x is string => !!x))];
+  const parents = new Map((await db.place.findMany({ where: { id: { in: parentIds } }, select: { id: true, kind: true, parentId: true } })).map((p) => [p.id, p]));
+  const areaOf = (place: { id: string; kind: string; parentId: string | null }, scene: string) => {
+    const town = place.kind === "NEIGHBOURHOOD" && place.parentId ? (parents.get(place.parentId) ?? place) : place;
+    if (!SKY_SCENES.includes(scene)) return town.id;
+    const up = town.parentId ? (parents.get(town.parentId) ?? null) : null;
+    return up?.kind === "GOVERNORATE" ? up.id : town.id;
+  };
+  const groups = new Map<string, { scene: string; areaId: string; angles: typeof angles; people: Set<string> }>();
+  for (const a of angles) {
+    const areaId = areaOf(a.place!, a.scene!);
+    const key = `${a.scene}|${areaId}`;
+    const g = groups.get(key) ?? { scene: a.scene!, areaId, angles: [], people: new Set<string>() };
+    g.angles.push(a);
+    g.people.add(a.contributorId);
+    groups.set(key, g);
+  }
+  // A card needs a real shared moment: at least 3 shots by at least 2 people.
+  const top = [...groups.values()].filter((g) => g.angles.length >= 3 && g.people.size >= 2).sort((a, b) => b.angles.length - a.angles.length).slice(0, take);
+  const places = await placeViews(top.map((g) => g.areaId));
+  return Promise.all(
+    top.map(async (g) => ({
+      scene: g.scene,
+      slug: places.get(g.areaId)?.slug ?? "",
+      placeName: places.get(g.areaId)?.name ?? "",
+      count: g.angles.length,
+      coverUrl: await coverOf(g.angles[0]),
+    })),
+  );
 }

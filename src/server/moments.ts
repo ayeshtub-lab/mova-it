@@ -25,7 +25,7 @@ export class MomentError extends Error {
 
 export const DESCRIPTION_MAX = 150;
 
-const newCode = () =>
+export const newCode = () =>
   Array.from({ length: CODE_LENGTH }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
 
 const clean = (value: unknown, max: number) => {

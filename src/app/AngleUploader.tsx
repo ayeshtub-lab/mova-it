@@ -2,6 +2,7 @@
 
 import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
+import { JoinCard, type JoinLabels, type JoinSuggestion } from "@/app/JoinCard";
 import { useEffect, useId, useRef, useState } from "react";
 import { CaptionEditor, type CaptionLabels } from "@/app/CaptionEditor";
 import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
@@ -28,6 +29,7 @@ type Labels = {
   longAction: string;
   trimming: string;
   camera: CameraLabels;
+  join: JoinLabels;
 };
 
 type ItemState = {
@@ -46,6 +48,7 @@ type ItemState = {
   filter?: string | null;
   stamp?: boolean;
   caption?: CaptionView | null;
+  suggestion?: JoinSuggestion | null; // «صوّر معك», offered once right after upload
 };
 type UploaderSoundLabels = SoundLabels & { add: string; failed: string; pending: string; pendingClear: string };
 
@@ -176,6 +179,7 @@ export function AngleUploader({
         takenAt: prepared.capturedAt ?? new Date().toISOString(),
         filter: null,
         stamp: false,
+        suggestion: result.suggestion ?? null,
       });
       setUploaded(true);
       if (pending && (await saveSound(index, angleId, pending, false))) clearPending();
@@ -320,6 +324,25 @@ export function AngleUploader({
           ))}
         </ul>
       )}
+      {(() => {
+        // One suggestion at a time, for the first shot that has one.
+        const i = items.findIndex((it) => it.status === "done" && it.angleId && it.suggestion);
+        if (i < 0) return null;
+        const it = items[i];
+        return (
+          <JoinCard
+            angleId={it.angleId!}
+            suggestion={it.suggestion!}
+            locale={locale}
+            labels={labels.join}
+            onKeep={() => update(i, { suggestion: null })}
+            onJoined={(momentCode) => {
+              update(i, { suggestion: null });
+              router.push(`/m/${momentCode}#angle-${it.angleId}`);
+            }}
+          />
+        );
+      })()}
       {soundError && (
         <p role="alert" className="text-sm font-semibold text-accent-ink">
           {soundLabels.failed}

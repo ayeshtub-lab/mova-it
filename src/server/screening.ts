@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { viewUrl } from "@/server/media";
 import { ffmpeg } from "@/server/ffmpeg";
+import { isScene, SCENES, type Scene } from "@/lib/scenes";
 
 // Automatic content check with Gemini, run when an upload completes. Photos are sent
 // as they are (already ≤2048 px JPEG); for videos, four frames spread over the clip
@@ -14,7 +15,7 @@ const TIMEOUT_MS = 25_000;
 export const screeningEnabled = () => !!process.env.GEMINI_API_KEY;
 
 export type Verdict =
-  | { result: "allowed" }
+  | { result: "allowed"; scene?: Scene }
   | { result: "blocked"; category: string; reason: string }
   | { result: "error"; reason: string };
 
@@ -30,7 +31,9 @@ Decide whether this content may be shown. BLOCK only when it clearly contains:
 
 ALLOW everything normal: people and faces, children in ordinary non-sexual situations, swimwear at a beach or pool, sports, crowds, protests without gore, food, pets, cartoons, text and memes without the problems above. When unsure and nothing sexual is involved, allow.
 
-Answer only with JSON: {"verdict":"allow"|"block","category":"none"|"sexual"|"minor_safety"|"violence"|"hate"|"self_harm"|"drugs","reason":"short English reason"}`;
+Also name the main scene, one of: ${Object.keys(SCENES).join(", ")} ("sky" = the moon, stars or a striking sky; "gathering" = family or friends together; "other" when none fits clearly).
+
+Answer only with JSON: {"verdict":"allow"|"block","category":"none"|"sexual"|"minor_safety"|"violence"|"hate"|"self_harm"|"drugs","reason":"short English reason","scene":"<one of the scenes>"}`;
 
 async function jpegBase64(url: string) {
   const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
@@ -85,11 +88,11 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
 
   const text = candidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   try {
-    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string };
+    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string };
     if (parsed.verdict === "block") {
       return { result: "blocked", category: String(parsed.category ?? "other").slice(0, 40), reason: String(parsed.reason ?? "").slice(0, 300) };
     }
-    if (parsed.verdict === "allow") return { result: "allowed" };
+    if (parsed.verdict === "allow") return isScene(parsed.scene) ? { result: "allowed", scene: parsed.scene } : { result: "allowed" };
   } catch {}
   return { result: "error", reason: `unreadable answer: ${text.slice(0, 200)}` };
 }

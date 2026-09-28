@@ -197,6 +197,7 @@ export async function completeAngle(user: User, angleId: string) {
         status: blocked ? "HIDDEN" : "READY",
         expiresAt: null, // shots are kept until their owner deletes them
         screening: verdict?.result ?? null,
+        scene: verdict?.result === "allowed" ? (verdict.scene ?? null) : null,
         screenedAt: verdict ? now : null,
       },
     });
@@ -223,7 +224,7 @@ export async function screenForPublic(momentId: string) {
     const verdict = screeningEnabled() ? await screenAngle(angle) : null;
     const now = new Date();
     if (verdict?.result === "allowed") {
-      await db.angle.update({ where: { id: angle.id }, data: { screening: "allowed", screenedAt: now } });
+      await db.angle.update({ where: { id: angle.id }, data: { screening: "allowed", screenedAt: now, scene: verdict.scene ?? null } });
       continue;
     }
     const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : `public, not checked: ${verdict?.result === "error" ? verdict.reason : "screening off"}`;

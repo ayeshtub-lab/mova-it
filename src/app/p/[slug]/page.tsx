@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { filterCss } from "@/lib/filters";
+import { matchable, SCENES } from "@/lib/scenes";
 import { getCurrentUser } from "@/lib/session";
 import { placePage } from "@/server/places";
 
@@ -24,10 +25,13 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]">): Prom
 // «📍 بيت لحم»: the public shots taken there (and in the places inside it). Open to
 // everyone. Friends-only moments never appear, and people counts only show from 20 people
 // (Zawmo's place rules, src/server/places.ts).
-export default async function PlacePage({ params }: PageProps<"/p/[slug]">) {
+export default async function PlacePage({ params, searchParams }: PageProps<"/p/[slug]">) {
   const slug = decodeURIComponent((await params).slug);
+  const raw = (await searchParams).scene;
+  // «?scene=sunset» (a Discover card): today's shots of that scene only.
+  const scene = matchable(raw) ? raw : null;
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
-  const [dict, data] = await Promise.all([getDictionary(locale), placePage(slug, user?.id ?? null)]);
+  const [dict, data] = await Promise.all([getDictionary(locale), placePage(slug, user?.id ?? null, 60, scene)]);
   if (!data) notFound();
   const t = dict.place;
   const name = data.place.name;
@@ -50,6 +54,16 @@ export default async function PlacePage({ params }: PageProps<"/p/[slug]">) {
             </nav>
           )}
           <h1 className="text-3xl font-extrabold text-secondary">📍 {name}</h1>
+          {scene && (
+            <p className="flex flex-wrap items-center gap-2 text-sm font-bold">
+              <span className="rounded-full bg-moment/25 px-3 py-1">
+                {SCENES[scene].emoji} {locale === "ar" ? SCENES[scene].ar : SCENES[scene].en} · {t.today}
+              </span>
+              <Link href={`/p/${encodeURIComponent(data.place.slug)}`} className="text-muted underline underline-offset-4">
+                {t.allShots}
+              </Link>
+            </p>
+          )}
           <p className="text-sm text-muted">
             {fill(t.hint, name)}
             {data.people != null && <> · {t.people.replace("{n}", String(data.people))}</>}

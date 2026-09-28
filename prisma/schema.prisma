@@ -20,6 +20,9 @@ model User {
   isGuest     Boolean  @default(true)
   isAdmin     Boolean  @default(false) // may open /admin to review reports
   isSystem    Boolean  @default(false) // the «زاومو» account that starts «لحظة اليوم»
+  // «اسمح للي صوّروا نفس اللحظة ينضمّوا للحظاتي»: when off, this person's moments are never
+  // suggested to others (src/server/join.ts).
+  allowJoins  Boolean  @default(true)
   // Official account: Google's stable user id. A guest who signs in with Google keeps
   // the same row (and everything they made); isGuest becomes false.
   googleSub   String?  @unique
@@ -219,6 +222,12 @@ model Angle {
   placeFrom      PlaceSource?
   placeVerified  Boolean     @default(false)
   ipCountryMatch Boolean?
+  // What it shows (src/lib/scenes.ts), from the content check: «غروب», «مطر»… Drives «صوّر معك».
+  scene          String?
+  // «صوّر معك»: the shot joined someone else's moment from one of its owner's. What that
+  // moment was, so the host's «شيلها» can give the shot back a moment of its own.
+  // { momentId, title, visibility, placeId }
+  joinedFrom     Json?
 
   moment          Moment           @relation(fields: [momentId], references: [id], onDelete: Cascade)
   place           Place?           @relation(fields: [placeId], references: [id])
@@ -236,6 +245,7 @@ model Angle {
   @@index([expiresAt])
   @@index([soundKey])
   @@index([placeId])
+  @@index([scene, capturedAt])
 }
 
 // ── Places ────────────────────────────────────────────────────────────────
@@ -471,6 +481,7 @@ enum NotificationKind {
   COMMENT // a comment on your shot
   REPLY // a reply to your comment
   NEW_ANGLE // someone else added an angle to a moment you have an angle in
+  JOINED // «صوّر معك»: someone who shot the same moment added their shot to your moment
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.

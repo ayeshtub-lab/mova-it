@@ -111,6 +111,8 @@ export async function listNotifications(user: User, take = 40) {
       href: n.angle ? `/m/${n.angle.moment.code}#angle-${n.angle.id}` : `/u/${n.actor.id}`,
       momentTitle: n.angle?.moment.title ?? null,
       thumbUrl: n.angle ? await coverOf(n.angle) : null,
+      // «صوّر معك»: the host may give the joined shot back («شيلها»).
+      angleId: n.angle?.id ?? null,
     })),
   );
 }

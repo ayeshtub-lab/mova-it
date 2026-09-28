@@ -70,6 +70,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "فقط لتشغيل زاومو: عرض لحظاتك لمن اخترتهم، وصنع المونتاج، وإرسال ما تشاركه لأصحابك.",
           "لحماية المستخدمين: مراجعة البلاغات وإخفاء المحتوى المخالف.",
           "كل صورة أو فيديو يُفحص تلقائيًا عند رفعه، وما يخالف القواعد (مثل المحتوى الجنسي أو العنف الدموي) يُخفى ويراجعه فريقنا.",
+          "الفحص نفسه يسمّي مشهد اللقطة بكلمة واحدة (غروب، مطر، عرس…). إذا صوّر غيرك نفس المشهد قريبًا منك وبنفس الوقت في لحظة عامة، نقترح عليك أن تضيف لقطتك إليها («صوّر معك»). الاقتراح لك وحدك، وأنت تقرّر. وتستطيع من صفحتك إيقاف انضمام الآخرين للحظاتك.",
         ],
       },
       {
@@ -169,6 +170,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "Only to run Zawmo: showing your moments to the people you chose, making montages, and delivering what you share to your friends.",
           "To keep people safe: reviewing reports and hiding content that breaks the rules.",
           "Every photo and video is checked automatically when uploaded; anything that breaks the rules (such as sexual content or graphic violence) is hidden and reviewed by our team.",
+          "The same check names the shot's scene in one word (sunset, rain, wedding…). If someone else shot the same scene near you at the same time in a public moment, we suggest adding your shot to it (“Shoot together”). Only you see the suggestion, and you decide. From your page you can stop others joining your moments.",
         ],
       },
       {
