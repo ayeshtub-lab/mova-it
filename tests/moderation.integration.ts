@@ -1,6 +1,6 @@
 // Integration test for src/server/moderation.ts against the real database.
 // Run: npx tsx tests/moderation.integration.ts — every row it creates is deleted at the end.
-import "dotenv/config";
+import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { addComment, listComments } from "../src/server/comments";

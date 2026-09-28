@@ -29,6 +29,13 @@ export async function viewUrl(pathname: string | null) {
   return presignedUrl;
 }
 
+// The picture for a grid cell or a cover: the small copy when there is one, else a
+// video's poster or the photo itself.
+type Coverable = { mediaType: string; mediaPath: string | null; thumbPath: string | null; smallPath?: string | null };
+export function coverOf(a: Coverable) {
+  return viewUrl(a.smallPath ?? (a.mediaType === "VIDEO" ? a.thumbPath : a.mediaPath));
+}
+
 export async function blobExists(pathname: string) {
   try {
     await head(pathname);

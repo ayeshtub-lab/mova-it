@@ -1,7 +1,7 @@
 import { after } from "next/server";
 import type { NotificationKind, User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { viewUrl } from "@/server/media";
+import { coverOf } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
 import { pushTo } from "@/server/push";
 
@@ -92,7 +92,7 @@ export async function listNotifications(user: User, take = 40) {
     take,
     include: {
       actor: { select: { id: true, displayName: true, avatarUrl: true, isGuest: true } },
-      angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, moment: { select: { code: true, title: true } } } },
+      angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, moment: { select: { code: true, title: true } } } },
       comment: { select: { body: true } },
     },
   });
@@ -110,7 +110,7 @@ export async function listNotifications(user: User, take = 40) {
       comment: n.comment?.body ?? null,
       href: n.angle ? `/m/${n.angle.moment.code}#angle-${n.angle.id}` : `/u/${n.actor.id}`,
       momentTitle: n.angle?.moment.title ?? null,
-      thumbUrl: n.angle ? await viewUrl(n.angle.mediaType === "VIDEO" ? n.angle.thumbPath : n.angle.mediaPath) : null,
+      thumbUrl: n.angle ? await coverOf(n.angle) : null,
     })),
   );
 }

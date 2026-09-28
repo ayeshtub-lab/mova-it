@@ -1,6 +1,6 @@
 // Integration test for src/server/profile.ts against the real database.
 // Run: npx tsx tests/profile.integration.ts — every row it creates is deleted at the end.
-import "dotenv/config";
+import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { accountForGoogle } from "../src/server/google";

@@ -1,6 +1,6 @@
 // Integration test for the account side of "Continue with Google" (src/server/google.ts).
 // Run: npx tsx tests/accounts.integration.ts — every row it creates is deleted at the end.
-import "dotenv/config";
+import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { accountForGoogle, safeReturnTo } from "../src/server/google";

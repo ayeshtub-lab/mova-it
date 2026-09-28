@@ -1,7 +1,7 @@
 import type { User } from "@/generated/prisma/client";
 import { DAILY_THEMES, themeByKey } from "@/lib/dailyThemes";
 import { db } from "@/lib/db";
-import { viewUrl } from "@/server/media";
+import { coverOf } from "@/server/media";
 import { assertAdmin } from "@/server/moderation";
 import { createDailyMoment } from "@/server/moments";
 
@@ -156,7 +156,7 @@ export async function todayCard(viewer: User | null) {
   const [angleCount, joined, first, vote] = await Promise.all([
     db.angle.count({ where: live }),
     viewer ? db.angle.count({ where: { ...live, contributorId: viewer.id } }).then((n) => n > 0) : false,
-    db.angle.findFirst({ where: live, orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true } }),
+    db.angle.findFirst({ where: live, orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } }),
     viewer ? db.dailyVote.findUnique({ where: { day_userId: { day: tomorrow, userId: viewer.id } } }) : null,
   ]);
   return {
@@ -167,7 +167,7 @@ export async function todayCard(viewer: User | null) {
     joined,
     // The viewer's vote for tomorrow, to remind them on the home card.
     myVote: vote ? themeByKey(vote.themeKey) : null,
-    coverUrl: first ? await viewUrl(first.mediaType === "VIDEO" ? first.thumbPath : first.mediaPath) : null,
+    coverUrl: first ? await coverOf(first) : null,
   };
 }
 

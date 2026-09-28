@@ -2,7 +2,7 @@ import type { User } from "@/generated/prisma/client";
 import { cache } from "react";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
-import { viewUrl } from "@/server/media";
+import { coverOf } from "@/server/media";
 import { blockedIdsFor, blockUser } from "@/server/moderation";
 import { unreadNotifications } from "@/server/notifications";
 
@@ -33,11 +33,11 @@ const liveCover = () => ({
   where: { status: "READY" as const, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
   orderBy: [{ capturedAt: "asc" as const }, { uploadedAt: "asc" as const }],
   take: 1,
-  select: { mediaType: true, mediaPath: true, thumbPath: true },
+  select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true },
 });
 
-const coverUrl = (angles: { mediaType: string; mediaPath: string | null; thumbPath: string | null }[]) =>
-  angles[0] ? viewUrl(angles[0].mediaType === "VIDEO" ? angles[0].thumbPath : angles[0].mediaPath) : null;
+const coverUrl = (angles: { mediaType: string; mediaPath: string | null; thumbPath: string | null; smallPath: string | null }[]) =>
+  angles[0] ? coverOf(angles[0]) : null;
 
 // Threads the user may see: they are one of the two sides, the other side is not
 // blocked either way, and the moment is still up.

@@ -1,7 +1,7 @@
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { visibleAngle } from "@/server/access";
-import { viewUrl } from "@/server/media";
+import { coverOf } from "@/server/media";
 
 export const REPORT_REASONS = ["OFFENSIVE", "SPAM", "PRIVACY", "OTHER"] as const;
 type Reason = (typeof REPORT_REASONS)[number];
@@ -111,7 +111,7 @@ export async function openReports(admin: User) {
         authorName: isComment ? first.comment?.user.displayName : first.angle?.contributor.displayName,
         commentBody: isComment ? first.comment?.body ?? null : null,
         angleStatus: first.angle?.status ?? null,
-        previewUrl: !isComment && first.angle ? await viewUrl(first.angle.mediaType === "VIDEO" ? first.angle.thumbPath : first.angle.mediaPath) : null,
+        previewUrl: !isComment && first.angle ? await coverOf(first.angle) : null,
         mediaType: first.angle?.mediaType ?? null,
       };
     }),

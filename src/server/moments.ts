@@ -4,7 +4,7 @@ import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { captionView } from "@/server/caption";
 import { computeWhyNowScore } from "@/lib/movaEngine";
-import { viewUrl } from "@/server/media";
+import { coverOf, viewUrl } from "@/server/media";
 import { commentCounts } from "@/server/comments";
 import { viewCounts } from "@/server/profile";
 import { reactionsFor, savedFor } from "@/server/reactions";
@@ -178,6 +178,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         height: a.height,
         mediaUrl: await viewUrl(a.mediaPath),
         thumbUrl: await viewUrl(a.thumbPath),
+        gridUrl: await coverOf(a),
         likes: reactions.get(a.id)!,
         saved: saved.has(a.id),
         // Follow straight from the viewer (official accounts, not yourself).
@@ -207,7 +208,7 @@ export async function listMyMoments(user: User, limit = 20) {
       angles: {
         where: { status: "READY", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
         orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
-        select: { mediaType: true, mediaPath: true, thumbPath: true },
+        select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true },
       },
     },
   });
@@ -223,7 +224,7 @@ export async function listMyMoments(user: User, limit = 20) {
         isCreator: m.creatorId === user.id,
         angleCount: m.angles.length,
         participantCount: m._count.participants,
-        coverUrl: cover ? await viewUrl(cover.mediaType === "VIDEO" ? cover.thumbPath : cover.mediaPath) : null,
+        coverUrl: cover ? await coverOf(cover) : null,
       };
     }),
   );

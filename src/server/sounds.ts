@@ -2,7 +2,7 @@ import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { filterByKey } from "@/lib/filters";
 import { isSolemn, soundByKey } from "@/lib/sounds";
-import { viewUrl } from "@/server/media";
+import { coverOf } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
 
 // Sounds on angles: the contributor picks one from the library (or removes it), and
@@ -58,7 +58,7 @@ export async function soundShots(viewer: User | null, key: string, take = 30) {
       id: a.id,
       mediaType: a.mediaType,
       momentCode: a.moment.code,
-      coverUrl: await viewUrl(a.mediaType === "VIDEO" ? a.thumbPath : a.mediaPath),
+      coverUrl: await coverOf(a),
     })),
   );
 }

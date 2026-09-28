@@ -185,6 +185,7 @@ model Angle {
   // Pathnames in the private Blob store; viewers get short-lived signed URLs.
   mediaPath     String? // the photo (JPEG) or the video file
   thumbPath     String? // video poster frame (JPEG)
+  smallPath     String? // small JPEG for grids and covers (made on the server after upload)
   streamUid     String? // Cloudflare Stream id, once videos move there
   durationSec   Float? // videos only; the upload flow enforces ≤ 20
   width         Int?

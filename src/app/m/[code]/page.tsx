@@ -215,6 +215,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 capturedAt: a.capturedAt?.toISOString() ?? null,
                 mediaUrl: a.mediaUrl,
                 thumbUrl: a.thumbUrl,
+                gridUrl: a.gridUrl,
                 likes: a.likes,
                 commentCount: a.commentCount,
                 canDelete: a.canDelete,

@@ -1,6 +1,6 @@
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
-import { viewUrl } from "@/server/media";
+import { coverOf } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
 
 // "Friends" on Zawmo are people you have already shared a moment with. No phone
@@ -81,7 +81,7 @@ export async function friendsActivity(user: User, limit = 10): Promise<ActivityI
   const since = new Date(Date.now() - DAY_MS);
   const now = new Date();
   const liveAngles = { where: { status: "READY" as const, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } };
-  const firstAngle = { ...liveAngles, orderBy: [{ capturedAt: "asc" as const }, { uploadedAt: "asc" as const }], select: { mediaType: true, mediaPath: true, thumbPath: true } };
+  const firstAngle = { ...liveAngles, orderBy: [{ capturedAt: "asc" as const }, { uploadedAt: "asc" as const }], select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } };
 
   const blocked = [...(await blockedIdsFor(user.id))];
   const [invites, friendIds] = await Promise.all([
@@ -109,10 +109,10 @@ export async function friendsActivity(user: User, limit = 10): Promise<ActivityI
       })
     : [];
 
-  type Source = { code: string; title: string; angles: { mediaType: string; mediaPath: string | null; thumbPath: string | null }[] };
+  type Source = { code: string; title: string; angles: { mediaType: string; mediaPath: string | null; thumbPath: string | null; smallPath: string | null }[] };
   const cover = async (m: Source) => {
     const a = m.angles[0];
-    return a ? viewUrl(a.mediaType === "VIDEO" ? a.thumbPath : a.mediaPath) : null;
+    return a ? coverOf(a) : null;
   };
 
   const items = new Map<string, ActivityItem>();

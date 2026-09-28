@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { cleanDisplayName } from "@/lib/session";
 import { isNew } from "@/lib/site";
 import { visibleAngle } from "@/server/access";
-import { viewUrl } from "@/server/media";
+import { coverOf } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
 import { notify } from "@/server/notifications";
 import { askGemini, screeningEnabled } from "@/server/screening";
@@ -27,8 +27,7 @@ export class ProfileError extends Error {
 }
 
 const live = () => ({ status: "READY" as const, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] });
-const cover = (a: { mediaType: string; mediaPath: string | null; thumbPath: string | null }) =>
-  viewUrl(a.mediaType === "VIDEO" ? a.thumbPath : a.mediaPath);
+const cover = coverOf;
 
 type MomentLite = { id: string; visibility: string; creatorId: string; kind: string };
 
@@ -98,7 +97,7 @@ export async function getProfile(viewer: User | null, userId: string) {
             creatorId: true,
             kind: true,
             lastActivityAt: true,
-            angles: { where: live(), orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true } },
+            angles: { where: live(), orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } },
           },
         },
       },

@@ -2,7 +2,7 @@ import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { captionView } from "@/server/caption";
 import { computeWhyNowScore } from "@/lib/movaEngine";
-import { viewUrl } from "@/server/media";
+import { coverOf, viewUrl } from "@/server/media";
 import { commentCounts } from "@/server/comments";
 import { blockedIdsFor } from "@/server/moderation";
 import { reactionsFor } from "@/server/reactions";
@@ -170,7 +170,7 @@ export async function listTag(viewer: User, rawTag: string) {
           code: m.code,
           title: m.title,
           angleCount: m._count.angles,
-          coverUrl: a ? await viewUrl(a.mediaType === "VIDEO" ? a.thumbPath : a.mediaPath) : null,
+          coverUrl: a ? await coverOf(a) : null,
         };
       }),
   );
@@ -199,7 +199,7 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
       video: a.mediaType === "VIDEO",
       filter: a.filter,
       mediaUrl: a.mediaType === "VIDEO" ? await viewUrl(a.mediaPath) : null,
-      imageUrl: await viewUrl(a.mediaType === "VIDEO" ? a.thumbPath : a.mediaPath),
+      imageUrl: await coverOf(a),
       momentCode: a.moment.code,
       title: a.moment.title,
       name: a.contributor.displayName,

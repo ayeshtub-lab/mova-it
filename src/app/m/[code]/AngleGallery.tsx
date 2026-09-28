@@ -34,6 +34,7 @@ export type GalleryAngle = {
   capturedAt: string | null;
   mediaUrl: string | null;
   thumbUrl: string | null;
+  gridUrl: string | null; // small copy for the grid
   likes: Likes;
   commentCount: number;
   canDelete: boolean;
@@ -579,7 +580,7 @@ export function AngleGallery({
                 <AutoVideo src={a.mediaUrl} poster={a.thumbUrl} className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
-                <img src={(a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl) ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
+                <img src={a.gridUrl ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               )}
               <CaptionOverlay caption={captionOf(a.id)} />
               {a.isNew && <span className="pointer-events-none absolute end-2 top-2"><span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span></span>}

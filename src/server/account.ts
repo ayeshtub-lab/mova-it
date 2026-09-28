@@ -20,7 +20,7 @@ export async function deleteAccount(user: User) {
   if (user.isSystem) throw new AccountError("forbidden");
 
   const [myAngles, created] = await Promise.all([
-    db.angle.findMany({ where: { contributorId: user.id }, select: { id: true, mediaPath: true, thumbPath: true, caption: true } }),
+    db.angle.findMany({ where: { contributorId: user.id }, select: { id: true, mediaPath: true, thumbPath: true, smallPath: true, caption: true } }),
     db.moment.findMany({
       where: { creatorId: user.id },
       select: { id: true, angles: { where: { contributorId: { not: user.id } }, select: { id: true }, take: 1 } },
@@ -36,7 +36,7 @@ export async function deleteAccount(user: User) {
   const system = handOver.length ? await systemUser() : null;
 
   const files = [
-    ...myAngles.flatMap((a) => [a.mediaPath, a.thumbPath, parseCaption(a.caption)?.path]),
+    ...myAngles.flatMap((a) => [a.mediaPath, a.thumbPath, a.smallPath, parseCaption(a.caption)?.path]),
     ...montages.map((m) => m.videoUrl),
     user.avatarUrl?.startsWith("/api/avatars/") ? `avatars/${user.avatarUrl.slice("/api/avatars/".length)}` : null,
   ].filter((p): p is string => !!p);
