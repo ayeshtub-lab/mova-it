@@ -35,6 +35,8 @@ export type GalleryAngle = {
   mediaUrl: string | null;
   thumbUrl: string | null;
   gridUrl: string | null; // small copy for the grid
+  place: { slug: string; name: string } | null; // where it was taken
+  placeVerified: boolean; // the place came from the (recent) photo itself
   likes: Likes;
   commentCount: number;
   canDelete: boolean;
@@ -45,6 +47,7 @@ export type GalleryAngle = {
 };
 
 type Labels = {
+  placeVerified: string;
   open: string;
   close: string;
   prev: string;
@@ -192,6 +195,9 @@ export function AngleGallery({
   const [captions, setCaptions] = useState(() => new Map<string, CaptionView | null>());
   const [captionFor, setCaptionFor] = useState<string | null>(null);
   const captionOf = (id: string) => (captions.has(id) ? captions.get(id)! : (byId.get(id)?.caption ?? null));
+  // Places the owner removed in this visit.
+  const [placeRemoved, setPlaceRemoved] = useState(() => new Set<string>());
+  const placeOf = (id: string) => (placeRemoved.has(id) ? null : (byId.get(id)?.place ?? null));
 
   const slides = () => Array.from(trackRef.current?.children ?? []) as HTMLElement[];
   const goTo = (index: number, smooth = true) =>
@@ -306,6 +312,14 @@ export function AngleGallery({
     if (!res?.ok) return flash(labels.edit.failed);
     setLooks((m) => new Map(m).set(angleId, { filter, stamp }));
     setEditFor(null);
+  }
+
+  async function removePlace(angleId: string) {
+    setSavingSound(true);
+    const res = await fetch(`/api/angles/${angleId}/place`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ placeId: null }) }).catch(() => null);
+    setSavingSound(false);
+    if (!res?.ok) return flash(labels.edit.failed);
+    setPlaceRemoved((s) => new Set(s).add(angleId));
   }
 
   function toggleMute() {
@@ -717,6 +731,17 @@ export function AngleGallery({
                       <span className="truncate">{soundName(soundByKey(soundOf(a.id)!.key)!, locale)}</span>
                     </Link>
                   )}
+                  {placeOf(a.id) && (
+                    <Link href={`/p/${encodeURIComponent(placeOf(a.id)!.slug)}`} className="pointer-events-auto flex min-w-0 shrink items-center gap-1 truncate rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">
+                      <span aria-hidden="true">📍</span>
+                      <span className="truncate">{placeOf(a.id)!.name}</span>
+                      {a.placeVerified && (
+                        <span title={labels.placeVerified} aria-label={labels.placeVerified} className="text-secondary">
+                          ✓
+                        </span>
+                      )}
+                    </Link>
+                  )}
                   {a.capturedAt && (
                     <span className="ms-auto font-normal text-white/80">
                       <LocalTime iso={a.capturedAt} locale={locale} />
@@ -1032,6 +1057,8 @@ export function AngleGallery({
               setEditFor(null);
             }}
             hasCaption={!!captionOf(editFor)}
+            placeName={placeOf(editFor)?.name ?? null}
+            onRemovePlace={() => removePlace(editFor)}
             onCaption={() => {
               setCaptionFor(editFor);
               setEditFor(null);

@@ -125,9 +125,19 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           {daily && <p className="leading-relaxed text-muted">{themeHint(daily.theme, locale)}</p>}
           {view.description && <Description text={view.description} className="text-lg" />}
           {daily?.theme.tip && <p className="rounded-2xl bg-secondary-soft px-3 py-2 text-sm font-semibold text-secondary">🤍 {locale === "ar" ? daily.theme.tip.ar : daily.theme.tip.en}</p>}
+          {(view.place || view.placeName) && (
+            <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">
+              <span aria-hidden="true">📍</span>
+              {view.place && (
+                <Link href={`/p/${encodeURIComponent(view.place.slug)}`} className="text-secondary underline-offset-4 hover:underline">
+                  {view.place.name}
+                </Link>
+              )}
+              {view.placeName && <span className="text-muted">{view.place ? `· ${view.placeName}` : view.placeName}</span>}
+            </p>
+          )}
           <p className="text-sm text-muted">
             {[
-              view.placeName,
               countsLine(dict, locale, view.angleCount, view.participantCount),
               view.angleCount > 0 ? fill(t.lastAdded, { when: relativeTime(view.lastActivityAt, locale) }) : null,
             ]
@@ -216,6 +226,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 mediaUrl: a.mediaUrl,
                 thumbUrl: a.thumbUrl,
                 gridUrl: a.gridUrl,
+                place: a.place ? { slug: a.place.slug, name: a.place.name } : null,
+                placeVerified: a.placeVerified,
                 likes: a.likes,
                 commentCount: a.commentCount,
                 canDelete: a.canDelete,

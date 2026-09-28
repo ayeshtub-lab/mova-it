@@ -13,6 +13,8 @@ export type ShotEditorLabels = {
   noSound: string;
   caption: string;
   captionEdit: string;
+  place: string;
+  removePlace: string;
   save: string;
   cancel: string;
 };
@@ -34,6 +36,8 @@ export function ShotEditor({
   onClose,
   onCaption,
   hasCaption = false,
+  placeName = null,
+  onRemovePlace,
 }: {
   imageUrl: string | null;
   locale: string;
@@ -49,6 +53,9 @@ export function ShotEditor({
   // «✍️ كتابة على اللقطة» (only where the shot can take it)
   onCaption?: () => void;
   hasCaption?: boolean;
+  // Where the shot was taken (found by itself); only its owner sees this, and may remove it.
+  placeName?: string | null;
+  onRemovePlace?: () => void;
 }) {
   const [filter, setFilter] = useState(initialFilter);
   const [stamp, setStamp] = useState(initialStamp);
@@ -110,6 +117,17 @@ export function ShotEditor({
             <span>✍️ {labels.caption}</span>
             <span className="truncate text-sm text-secondary">{hasCaption ? labels.captionEdit : "＋"} ‹</span>
           </button>
+        )}
+
+        {placeName && onRemovePlace && (
+          <div className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-surface px-4">
+            <span className="flex min-w-0 items-center gap-1 font-bold">
+              📍 {labels.place}: <span className="truncate font-semibold text-secondary">{placeName}</span>
+            </span>
+            <button type="button" disabled={busy} onClick={onRemovePlace} className="shrink-0 text-sm font-semibold text-muted underline underline-offset-4 disabled:opacity-60">
+              {labels.removePlace}
+            </button>
+          </div>
         )}
 
         <button type="button" onClick={onSound} className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-surface px-4 text-start font-bold">

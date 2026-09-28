@@ -7,7 +7,7 @@ import { CONTACT_EMAIL } from "@/lib/site";
 // Privacy policy. Every statement here must match what the code actually does —
 // update this page (and UPDATED) whenever data handling changes.
 
-const UPDATED = { ar: "٢٥ سبتمبر ٢٠٢٦", en: "September 25, 2026" };
+const UPDATED = { ar: "٢٨ سبتمبر ٢٠٢٦", en: "September 28, 2026" };
 
 type Section = { title: string; items: string[] };
 
@@ -30,16 +30,27 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       {
         title: "ما لا نجمعه",
         items: [
-          "لا نطلب موقعك الجغرافي، ولا جهات الاتصال في جوالك، ولا رقم هاتفك.",
+          "لا نطلب إذن الموقع من جوالك، ولا نتتبّع مكانك، ولا نطلب جهات الاتصال ولا رقم هاتفك.",
           "لا نستخدم إعلانات، ولا أدوات تتبّع، ولا نبيع بياناتك لأي جهة.",
         ],
       },
       {
         title: "صورك وفيديوهاتك",
         items: [
-          "الصور يُعاد تجهيزها على جهازك قبل الرفع، فتُزال منها البيانات المخفية مثل مكان التصوير.",
+          "الصور يُعاد تجهيزها على جهازك قبل الرفع، فتُزال منها كل البيانات المخفية، ومنها إحداثيات مكان التصوير.",
           "الفيديو يُحفظ كما هو، وقد يحتوي بيانات من جهازك. نحن لا نقرؤها ولا نعرضها.",
           "الملفات محفوظة بشكل خاص وغير منشورة على الإنترنت. تُعرض فقط لمن يحق له رؤيتها، عبر روابط مؤقتة تنتهي خلال ٣٠ دقيقة.",
+        ],
+      },
+      {
+        title: "مكان اللقطة 📍",
+        items: [
+          "إذا كانت صورتك تحمل مكان تصويرها، يعرف جوالك منه اسم المدينة أو القرية أو الحي (مثل «بيت لحم»)، وهذا الاسم فقط يُرسل إلينا. الإحداثيات نفسها لا تغادر جوالك أبدًا ولا نحفظها.",
+          "يظهر اسم المكان على لقطاتك في اللحظات العامة، وفي صفحة ذلك المكان (مثل zawmo.com/p/بيت-لحم). علامة «✓ موثّق» تعني أن المكان جاء من الصورة نفسها.",
+          "تستطيع إزالة المكان من أي لقطة لك في أي وقت: «✨ عدّل» ← «شيل المكان».",
+          "لقطات لحظات «أصحابي» و«فقط من معه الرابط» لا تظهر أبدًا في صفحات الأماكن.",
+          "لا نعرض عدد الأشخاص في مكان فيه أقل من ٢٠ شخصًا، ولا نبيع أو نشارك بيانات الأماكن مع أي جهة. إن عرضنا يومًا إعلانات لمكان ما، فالمعلن يرى أرقامًا مجمّعة فقط، لا أسماء.",
+          "عند الرفع نقارن دولة شبكتك بدولة المكان، ونحفظ نتيجة المقارنة فقط (نعم/لا)، لا عنوان الشبكة.",
         ],
       },
       {
@@ -68,6 +79,8 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "Neon: قاعدة البيانات.",
           "Google: تسجيل الدخول، إذا اخترته.",
           "Google Gemini: الفحص التلقائي للصور والفيديوهات. تُرسل الصورة (أو لقطات من الفيديو) للفحص فقط، ولا يستخدمها Google لتدريب نماذجه.",
+          "Sentry (خوادمه في ألمانيا): تنبيهنا بالأعطال لنصلحها. يصله نوع الخطأ والصفحة ونوع المتصفح فقط، بلا أسماء ولا عناوين شبكة ولا كوكيز.",
+          "قائمة الأماكن من بيانات مفتوحة: Wikidata، و GeoNames، و© مساهمو OpenStreetMap.",
           "هذه الخدمات تحفظ البيانات نيابة عنا، ولا يحق لها استخدامها لأغراضها الخاصة.",
         ],
       },
@@ -116,16 +129,27 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
       {
         title: "What we don't collect",
         items: [
-          "We don't ask for your location, your phone contacts, or your phone number.",
+          "We never ask for your phone's location permission or track where you are, and we don't ask for your contacts or phone number.",
           "No ads, no tracking tools, and we never sell your data.",
         ],
       },
       {
         title: "Your photos and videos",
         items: [
-          "Photos are re-processed on your device before upload, which removes hidden data such as where they were taken.",
+          "Photos are re-processed on your device before upload, which removes all hidden data, including the coordinates of where they were taken.",
           "Videos are stored as uploaded and may contain data from your device. We don't read or display it.",
           "Files are stored privately, not published on the web. They are shown only to people allowed to see them, through temporary links that expire within 30 minutes.",
+        ],
+      },
+      {
+        title: "Where a shot was taken 📍",
+        items: [
+          "If your photo carries where it was taken, your phone turns that into the name of the city, village or neighbourhood (e.g. “Bethlehem”), and only that name is sent to us. The coordinates themselves never leave your phone and are never stored.",
+          "The place name shows on your shots in public moments and on that place's page (e.g. zawmo.com/p/بيت-لحم). “✓ Verified” means the place came from the photo itself.",
+          "You can remove the place from any of your shots at any time: “✨ Edit” → “Remove place”.",
+          "Shots in Friends and link-only moments never appear on place pages.",
+          "We never show how many people are in a place with fewer than 20, and we never sell or share place data. If we ever show ads for a place, advertisers see totals only, never names.",
+          "When you upload, we compare your network's country with the place's and keep only the result (yes/no), not your network address.",
         ],
       },
       {
@@ -154,6 +178,8 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "Neon: the database.",
           "Google: sign-in, if you choose it.",
           "Google Gemini: the automatic check of photos and videos. The image (or a few frames of a video) is sent only to be checked, and Google does not use it to train its models.",
+          "Sentry (servers in Germany): alerts us to errors so we can fix them. It receives the error, the page and the browser type only: no names, network addresses or cookies.",
+          "The list of places comes from open data: Wikidata, GeoNames, and © OpenStreetMap contributors.",
           "These services store data on our behalf and may not use it for their own purposes.",
         ],
       },

@@ -21,14 +21,13 @@ async function main() {
   try {
     let code = "";
 
-    await check("create: short unambiguous code, host participant, ~1 km rounding", async () => {
-      const m = await createMoment(host, { title: "  غروب   اليوم ", placeName: "بيت لحم", lat: 31.70547, lng: 35.20231 });
+    await check("create: short unambiguous code, host participant, never any coordinates", async () => {
+      const m = await createMoment(host, { title: "  غروب   اليوم ", placeName: "بيت لحم", lat: 31.70547, lng: 35.20231 } as never);
       code = m.code;
       assert.match(m.code, /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/);
       assert.equal(m.title, "غروب اليوم");
       assert.equal(m.visibility, "FRIENDS");
-      assert.equal(m.latApprox, 31.71);
-      assert.equal(m.lngApprox, 35.2);
+      assert.ok(!("latApprox" in m) && !("lngApprox" in m), "no coordinate columns");
       const p = await db.participant.findUnique({ where: { momentId_userId: { momentId: m.id, userId: host.id } } });
       assert.equal(p?.role, "HOST");
     });

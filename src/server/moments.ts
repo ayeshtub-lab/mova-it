@@ -2,6 +2,8 @@ import { randomInt } from "node:crypto";
 import { Visibility } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { normalize } from "@/lib/arabic";
+import { placeViews, resolvePlaceText, validPlaceId } from "@/server/places";
 import { captionView } from "@/server/caption";
 import { computeWhyNowScore } from "@/lib/movaEngine";
 import { coverOf, viewUrl } from "@/server/media";
@@ -32,17 +34,12 @@ const clean = (value: unknown, max: number) => {
   return text.length >= 1 && text.length <= max ? text : null;
 };
 
-// ~1 km: enough to group a moment's area, never enough to find a house.
-const approx = (value: unknown) =>
-  typeof value === "number" && Number.isFinite(value) ? Math.round(value * 100) / 100 : null;
-
 export type CreateMomentInput = {
   title: unknown;
   description?: unknown;
   placeName?: unknown;
+  placeId?: unknown; // picked from the suggestions (src/server/places.ts)
   visibility?: unknown;
-  lat?: unknown;
-  lng?: unknown;
 };
 
 export async function createMoment(creator: User, input: CreateMomentInput) {
@@ -50,6 +47,11 @@ export async function createMoment(creator: User, input: CreateMomentInput) {
   if (!title) throw new MomentError("invalid_title");
   const placeName = input.placeName == null || input.placeName === "" ? null : clean(input.placeName, 60);
   if (input.placeName && !placeName) throw new MomentError("invalid_place");
+  // The standard place: the one picked, else the one the text names («ارطاس» → أرطاس). The
+  // text stays only when it says more than the place («برك سليمان»).
+  const placeId = (await validPlaceId(input.placeId)) ?? (await resolvePlaceText(placeName));
+  const place = placeId ? await db.place.findUnique({ where: { id: placeId }, select: { nameAr: true } }) : null;
+  const spot = place && placeName && normalize(placeName) === normalize(place.nameAr) ? null : placeName;
   const description = input.description == null || input.description === "" ? null : clean(input.description, DESCRIPTION_MAX);
   if (input.description && !description) throw new MomentError("invalid_description");
   const visibility = Object.values(Visibility).includes(input.visibility as Visibility)
@@ -69,10 +71,9 @@ export async function createMoment(creator: User, input: CreateMomentInput) {
         code,
         title,
         description,
-        placeName,
+        placeName: spot,
+        placeId,
         visibility,
-        latApprox: approx(input.lat),
-        lngApprox: approx(input.lng),
         creatorId: creator.id,
         participants: { create: { userId: creator.id, role: "HOST" } },
       },
@@ -139,6 +140,7 @@ export async function getMomentView(code: string, viewer: User | null) {
     viewer ? db.follow.findMany({ where: { followerId: viewer.id, followingId: { in: contributorIds } }, select: { followingId: true } }) : [],
   ]);
   const following = new Set(follows.map((f) => f.followingId));
+  const places = await placeViews([moment.placeId, ...visible.map((a) => a.placeId)]);
 
   return {
     id: moment.id,
@@ -148,6 +150,7 @@ export async function getMomentView(code: string, viewer: User | null) {
     kind: moment.kind,
     visibility: moment.visibility,
     placeName: moment.placeName,
+    place: moment.placeId ? (places.get(moment.placeId) ?? null) : null,
     createdAt: moment.createdAt,
     lastActivityAt: moment.lastActivityAt,
     creatorName: creator?.displayName ?? null,
@@ -179,6 +182,9 @@ export async function getMomentView(code: string, viewer: User | null) {
         mediaUrl: await viewUrl(a.mediaPath),
         thumbUrl: await viewUrl(a.thumbPath),
         gridUrl: await coverOf(a),
+        // Where it was taken («📍 بيت لحم ✓»); its owner may remove or change it.
+        place: a.placeId ? (places.get(a.placeId) ?? null) : null,
+        placeVerified: a.placeVerified,
         likes: reactions.get(a.id)!,
         saved: saved.has(a.id),
         // Follow straight from the viewer (official accounts, not yourself).
@@ -213,13 +219,15 @@ export async function listMyMoments(user: User, limit = 20) {
     },
   });
 
+  const places = await placeViews(moments.map((m) => m.placeId));
   return Promise.all(
     moments.map(async (m) => {
       const cover = m.angles[0];
       return {
         code: m.code,
         title: m.title,
-        placeName: m.placeName,
+        // The standard place's name when there is one («بيت لحم»), else what was typed.
+        placeName: (m.placeId && places.get(m.placeId)?.name) || m.placeName,
         lastActivityAt: m.lastActivityAt,
         isCreator: m.creatorId === user.id,
         angleCount: m.angles.length,
@@ -248,12 +256,13 @@ export async function listFeed(viewer: User | null, limit = 20) {
     },
   });
 
+  const places = await placeViews(candidates.map((m) => m.placeId));
   return candidates
     .map((m) => ({
       code: m.code,
       title: m.title,
       kind: m.kind,
-      placeName: m.placeName,
+      placeName: (m.placeId && places.get(m.placeId)?.name) || m.placeName,
       lastActivityAt: m.lastActivityAt,
       angleCount: m._count.angles,
       participantCount: m._count.participants,

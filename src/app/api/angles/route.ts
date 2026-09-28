@@ -11,7 +11,9 @@ export async function POST(request: Request) {
   if (!body || typeof body !== "object") return NextResponse.json({ error: "invalid_body" }, { status: 400 });
 
   try {
-    return NextResponse.json(await prepareAngle(user, body), { status: 201 });
+    // Vercel's guess of the uploader's country: compared with the shot's place, never stored.
+    const ipCountry = request.headers.get("x-vercel-ip-country");
+    return NextResponse.json(await prepareAngle(user, body, ipCountry), { status: 201 });
   } catch (error) {
     if (error instanceof AngleError) {
       return NextResponse.json({ error: error.code }, { status: error.code === "not_found" ? 404 : 400 });

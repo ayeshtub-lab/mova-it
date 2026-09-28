@@ -16,6 +16,7 @@ export async function createMomentAction(_prev: CreateMomentState, formData: For
       title: formData.get("title"),
       description: formData.get("description"),
       placeName: formData.get("placeName"),
+      placeId: formData.get("placeId"),
       // The form offers these three (PUBLIC to official accounts only — createMoment
       // refuses it for guests); anything else falls back to friends.
       visibility: ["LINK", "PUBLIC"].includes(String(formData.get("visibility"))) ? String(formData.get("visibility")) : "FRIENDS",

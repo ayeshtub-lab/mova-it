@@ -138,7 +138,17 @@
     "empty": "No moments yet. Start one above, or open a moment link someone sent you.",
     "host": "You started it"
   },
+  "place": {
+    "hint": "People's public shots from {name}",
+    "people": "{n} people shot here",
+    "inside": "Places in {name} with shots",
+    "empty": "No public shots from {name} yet. Be the first! 📸",
+    "verified": "Verified from the photo",
+    "metaTitle": "📍 {name} — shots on Zawmo",
+    "metaDescription": "Real moments people captured in {name}, from every angle."
+  },
   "viewer": {
+    "placeVerified": "Verified from the photo",
     "open": "Open this angle full screen",
     "close": "Close",
     "prev": "Previous angle",
@@ -481,6 +491,8 @@
     "cancel": "Close",
     "failed": "Couldn't save, try again.",
     "caption": "Write on the shot",
+    "place": "Place",
+    "removePlace": "Remove place",
     "captionEdit": "Edit the writing"
   },
   "caption": {

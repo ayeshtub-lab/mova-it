@@ -1,5 +1,6 @@
 // Browser-side preparation of an angle before upload. Import only from client components.
 import exifr from "exifr";
+import { placeAt } from "@/lib/places-client";
 
 export const MAX_VIDEO_SECONDS = 40;
 const PHOTO_MAX_EDGE = 2048;
@@ -11,6 +12,8 @@ export type PreparedAngle = {
   contentType: string;
   poster?: Blob;
   capturedAt: string | null;
+  // Where it was taken, as a Zawmo place id worked out on the phone (never coordinates).
+  placeId?: string | null;
   durationSec?: number;
   width: number;
   height: number;
@@ -56,8 +59,19 @@ async function readCaptureTime(file: File) {
   return file.lastModified ? new Date(file.lastModified).toISOString() : null;
 }
 
+// The photo's GPS position, if it has one, becomes a place id right here; the numbers
+// themselves are dropped (and the re-encoded JPEG carries no metadata at all).
+async function readPlace(file: File) {
+  try {
+    const gps = await exifr.gps(file);
+    return gps ? await placeAt(gps.latitude, gps.longitude) : null;
+  } catch {
+    return null;
+  }
+}
+
 async function preparePhoto(file: File): Promise<PreparedAngle> {
-  const capturedAt = await readCaptureTime(file);
+  const [capturedAt, placeId] = await Promise.all([readCaptureTime(file), readPlace(file)]);
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
@@ -71,7 +85,7 @@ async function preparePhoto(file: File): Promise<PreparedAngle> {
     });
     const { width, height } = fitWithin(img.naturalWidth, img.naturalHeight, PHOTO_MAX_EDGE);
     const jpeg = await toJpeg(img, width, height, 0.85);
-    return { mediaType: "PHOTO", file: jpeg, contentType: "image/jpeg", capturedAt, width, height };
+    return { mediaType: "PHOTO", file: jpeg, contentType: "image/jpeg", capturedAt, placeId, width, height };
   } finally {
     URL.revokeObjectURL(url);
   }

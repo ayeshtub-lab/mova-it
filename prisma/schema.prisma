@@ -112,10 +112,10 @@ model Moment {
   kind           MomentKind       @default(EVERYDAY)
   visibility     Visibility       @default(FRIENDS)
   status         ModerationStatus @default(ACTIVE)
-  // Approximate place only: a name, and coordinates rounded to 2 decimals (~1 km).
+  // Where it happened: a standard place (city, village, neighbourhood — see Place), and
+  // optionally a spot typed by the creator («برك سليمان»). Never coordinates.
+  placeId        String?
   placeName      String?
-  latApprox      Float?
-  lngApprox      Float?
   // Angles hide until this time ("reveal"); "give to get" lives in app logic.
   revealAt       DateTime?
   // A moment that gathered enough angles is kept ("لحظة خالدة"); its angles stop expiring.
@@ -125,6 +125,7 @@ model Moment {
   lastActivityAt DateTime         @default(now()) // drives "why now" ranking
 
   creator      User           @relation("MomentCreator", fields: [creatorId], references: [id])
+  place        Place?         @relation(fields: [placeId], references: [id])
   angles       Angle[]
   participants Participant[]
   invites      MomentInvite[]
@@ -187,7 +188,7 @@ model Angle {
   thumbPath     String? // video poster frame (JPEG)
   smallPath     String? // small JPEG for grids and covers (made on the server after upload)
   streamUid     String? // Cloudflare Stream id, once videos move there
-  durationSec   Float? // videos only; the upload flow enforces ≤ 20
+  durationSec   Float? // videos only; the upload flow enforces ≤ 40
   width         Int?
   height        Int?
   capturedAt    DateTime? // read from the file on the device before upload
@@ -210,8 +211,17 @@ model Angle {
   // emoji look the same everywhere, montages included), placed on a 9:16 frame.
   // { text, path, y (centre, 0–1 of height), w (0–1 of width) } — see src/lib/caption.ts.
   caption       Json?
+  // Where the shot was taken (Place), found silently: from the photo's own location on the
+  // phone (the coordinates never leave it), else the moment's place. placeVerified = it came
+  // from the photo and the photo is recent («موثّق ✓»). ipCountryMatch = the uploader's
+  // network country matched the place's (the IP itself is not kept).
+  placeId        String?
+  placeFrom      PlaceSource?
+  placeVerified  Boolean     @default(false)
+  ipCountryMatch Boolean?
 
   moment          Moment           @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  place           Place?           @relation(fields: [placeId], references: [id])
   contributor     User             @relation(fields: [contributorId], references: [id])
   reactions       Reaction[]
   comments        Comment[]
@@ -225,6 +235,51 @@ model Angle {
   @@index([contributorId])
   @@index([expiresAt])
   @@index([soundKey])
+  @@index([placeId])
+}
+
+// ── Places ────────────────────────────────────────────────────────────────
+
+// The Arab world's places, from open data (tools/places): countries, Palestine's
+// governorates and every locality, other countries' big cities, and neighbourhoods.
+// Ids are stable ("ps-452240" = PCBS code, "gn-…" = GeoNames, "osm-…" = OpenStreetMap).
+enum PlaceKind {
+  COUNTRY
+  GOVERNORATE
+  CITY
+  TOWN
+  VILLAGE
+  CAMP
+  NEIGHBOURHOOD
+}
+
+// How a shot got its place.
+enum PlaceSource {
+  PHOTO // the photo's own location, matched on the phone
+  MOMENT // the moment's place
+  OWNER // chosen by the shot's owner
+}
+
+model Place {
+  id          String    @id
+  kind        PlaceKind
+  parentId    String?
+  countryCode String
+  nameAr      String
+  nameEn      String?
+  slug        String    @unique // the page address: /p/بيت-لحم
+  search      String // normalized names for matching (src/lib/arabic.ts)
+  lat         Float // the place's centre (public), never a person's position
+  lng         Float
+  population  Int?
+
+  parent   Place?   @relation("PlaceTree", fields: [parentId], references: [id])
+  children Place[]  @relation("PlaceTree")
+  moments  Moment[]
+  angles   Angle[]
+
+  @@index([parentId])
+  @@index([countryCode])
 }
 
 // ── Reactions ─────────────────────────────────────────────────────────────

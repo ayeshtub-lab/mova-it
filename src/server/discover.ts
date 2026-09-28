@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { captionView } from "@/server/caption";
 import { computeWhyNowScore } from "@/lib/movaEngine";
 import { coverOf, viewUrl } from "@/server/media";
+import { placeViews } from "@/server/places";
 import { commentCounts } from "@/server/comments";
 import { blockedIdsFor } from "@/server/moderation";
 import { reactionsFor } from "@/server/reactions";
@@ -105,6 +106,7 @@ export async function listDiscover(viewer: User | null) {
   // What happened to each angle shown: hearts (and the viewer's), comments, views.
   const stats = await engagementFor(ranked.flatMap((m) => m.angles.map((a) => a.id)), viewer);
 
+  const places = await placeViews(ranked.map((m) => m.placeId));
   return Promise.all(
     ranked.map(async (m) => {
       const locked = m.kind === "DAILY" && !joined.has(m.id);
@@ -114,7 +116,7 @@ export async function listDiscover(viewer: User | null) {
         daily: m.kind === "DAILY",
         lockedCount: m.angles.length - angles.length,
         title: m.title,
-        placeName: m.placeName,
+        placeName: (m.placeId && places.get(m.placeId)?.name) || m.placeName,
         creatorName: m.creator.displayName,
         people: m._count.participants,
         lastActivityAt: m.lastActivityAt,

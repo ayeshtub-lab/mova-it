@@ -1,5 +1,5 @@
 import { del } from "@vercel/blob";
-import { MediaType, Presence } from "@/generated/prisma/enums";
+import { MediaType, PlaceSource, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
@@ -27,6 +27,7 @@ export type PrepareAngleInput = {
   mediaType: unknown;
   contentType?: unknown;
   capturedAt?: unknown;
+  placeId?: unknown; // worked out on the phone from the photo's own location
   durationSec?: unknown;
   width?: unknown;
   height?: unknown;
@@ -44,8 +45,30 @@ function captureDate(v: unknown) {
   return date;
 }
 
+// A photo taken within this long before upload counts as «موثّق» when its place came from it.
+const VERIFIED_WITHIN_MS = 3 * 24 * 60 * 60 * 1000;
+
+// Where the shot was taken: the photo's own place (sent by the phone), else the moment's.
+// ipCountry is the uploader's network country (a request header); only the match is kept.
+async function placeFor(input: PrepareAngleInput, momentPlaceId: string | null, capturedAt: Date | null, ipCountry: string | null) {
+  const fromPhoto =
+    typeof input.placeId === "string" && input.placeId.length <= 40
+      ? await db.place.findUnique({ where: { id: input.placeId }, select: { id: true, countryCode: true, kind: true } })
+      : null;
+  if (fromPhoto && fromPhoto.kind !== "COUNTRY" && fromPhoto.kind !== "GOVERNORATE") {
+    return {
+      placeId: fromPhoto.id,
+      placeFrom: PlaceSource.PHOTO,
+      placeVerified: !!capturedAt && Date.now() - capturedAt.getTime() <= VERIFIED_WITHIN_MS,
+      ipCountryMatch: ipCountry ? ipCountry.toUpperCase() === fromPhoto.countryCode : null,
+    };
+  }
+  if (momentPlaceId) return { placeId: momentPlaceId, placeFrom: PlaceSource.MOMENT, placeVerified: false, ipCountryMatch: null };
+  return {};
+}
+
 // Step 1: reserve an angle and the exact Blob paths this user may upload to.
-export async function prepareAngle(user: User, input: PrepareAngleInput) {
+export async function prepareAngle(user: User, input: PrepareAngleInput, ipCountry: string | null = null) {
   const code = typeof input.code === "string" ? input.code.toUpperCase() : "";
   const moment = await db.moment.findUnique({ where: { code } });
   if (!moment || moment.status === "HIDDEN") throw new AngleError("not_found");
@@ -70,6 +93,8 @@ export async function prepareAngle(user: User, input: PrepareAngleInput) {
   });
   if (existing >= ANGLES_PER_USER_PER_MOMENT) throw new AngleError("too_many");
 
+  const capturedAt = captureDate(input.capturedAt);
+  const place = await placeFor(input, moment.placeId, capturedAt, ipCountry);
   const angle = await db.angle.create({
     data: {
       momentId: moment.id,
@@ -79,9 +104,14 @@ export async function prepareAngle(user: User, input: PrepareAngleInput) {
       durationSec,
       width: positiveInt(input.width),
       height: positiveInt(input.height),
-      capturedAt: captureDate(input.capturedAt),
+      capturedAt,
+      ...place,
     },
   });
+  // A moment without a place takes the first one a photo brings (silently, like the shot's).
+  if (!moment.placeId && place.placeFrom === PlaceSource.PHOTO) {
+    await db.moment.updateMany({ where: { id: moment.id, placeId: null }, data: { placeId: place.placeId } });
+  }
 
   const base = `m/${moment.id}/${angle.id}`;
   const paths = {

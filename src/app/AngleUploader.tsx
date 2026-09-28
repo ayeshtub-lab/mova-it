@@ -141,6 +141,7 @@ export function AngleUploader({
         mediaType: prepared.mediaType,
         contentType: prepared.contentType,
         capturedAt: prepared.capturedAt,
+        placeId: prepared.placeId ?? null,
         durationSec: prepared.durationSec,
         width: prepared.width,
         height: prepared.height,

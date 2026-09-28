@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { createMomentAction } from "@/app/actions/moments";
+import { PlaceField } from "@/app/PlaceField";
 
 type Labels = {
   title: string;
@@ -56,7 +57,7 @@ export function CreateMomentForm({ labels, canPublic = false }: { labels: Labels
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-bold">
         {labels.placeLabel}
-        <input name="placeName" maxLength={60} placeholder={labels.placePlaceholder} className={`${inputClass} font-normal`} />
+        <PlaceField placeholder={labels.placePlaceholder} className={`${inputClass} font-normal`} />
       </label>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1.5 text-sm font-bold">{labels.visibilityLabel}</legend>
