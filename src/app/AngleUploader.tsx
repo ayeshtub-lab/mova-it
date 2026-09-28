@@ -30,13 +30,20 @@ type Labels = {
   trimming: string;
   camera: CameraLabels;
   join: JoinLabels;
+  draft: string;
+  publish: string;
+  publishing: string;
+  searching: string;
+  waitUpload: string;
+  publishFailed: string;
 };
 
 type ItemState = {
   name: string;
   // long: a gallery video past 40 s, waiting for "send its first 40 seconds";
   // trimming: those seconds being taken (pct = seconds done).
-  status: "preparing" | "long" | "trimming" | "uploading" | "checking" | "done" | "error";
+  // draft: checked and fine, waiting for «نشر»; done: published.
+  status: "preparing" | "long" | "trimming" | "uploading" | "checking" | "draft" | "done" | "error";
   pct: number;
   error?: keyof Labels["errors"];
   angleId?: string;
@@ -82,6 +89,25 @@ export function AngleUploader({
   const router = useRouter();
   const [items, setItems] = useState<ItemState[]>([]);
   const busy = items.some((i) => i.status === "preparing" || i.status === "uploading" || i.status === "checking");
+  const drafts = items.map((it, i) => ({ it, i })).filter(({ it }) => it.status === "draft" && it.angleId);
+  const [publishing, setPublishing] = useState(false);
+  const [publishFailed, setPublishFailed] = useState(false);
+
+  // «نشر»: every checked draft of this visit goes up.
+  async function publishAll() {
+    setPublishing(true);
+    setPublishFailed(false);
+    let failed = false;
+    for (const { it, i } of drafts) {
+      const res = await fetch(`/api/angles/${it.angleId}/publish`, { method: "POST" }).catch(() => null);
+      if (res?.ok) update(i, { status: "done", suggestion: null });
+      else failed = true;
+    }
+    setPublishing(false);
+    setPublishFailed(failed);
+    setUploaded(true);
+    router.refresh();
+  }
   // A sound chosen on a sound's page, waiting for the next shot.
   const [pending, setPending] = useState<string | null>(null);
   useEffect(() => {
@@ -171,7 +197,7 @@ export function AngleUploader({
       if (result.status === "HIDDEN") return update(index, { status: "error", error: "blocked" });
       const picture = prepared.mediaType === "VIDEO" ? prepared.poster : prepared.file;
       update(index, {
-        status: "done",
+        status: "draft",
         angleId,
         isVideo: prepared.mediaType === "VIDEO",
         soundKey: null,
@@ -181,7 +207,6 @@ export function AngleUploader({
         stamp: false,
         suggestion: result.suggestion ?? null,
       });
-      setUploaded(true);
       if (pending && (await saveSound(index, angleId, pending, false))) clearPending();
     } catch (error) {
       // A gallery video past 40 s: offer to send its first 40 seconds instead.
@@ -303,6 +328,7 @@ export function AngleUploader({
                 {item.status === "trimming" && labels.trimming.replace("{s}", String(item.pct)).replaceAll("{max}", String(MAX_VIDEO_SECONDS))}
                 {item.status === "uploading" && labels.uploading.replace("{pct}", String(item.pct))}
                 {item.status === "checking" && labels.checking}
+                {item.status === "draft" && labels.draft}
                 {item.status === "done" && labels.done}
                 {item.status === "error" && labels.errors[item.error ?? "failed"]}
               </span>
@@ -314,7 +340,7 @@ export function AngleUploader({
                   </button>
                 </span>
               )}
-              {item.status === "done" && item.angleId && (
+              {(item.status === "done" || item.status === "draft") && item.angleId && (
                 <button type="button" onClick={() => setEditing(i)} className="min-h-9 shrink-0 rounded-full bg-background px-3 text-xs font-bold text-secondary shadow-sm">
                   {editLabels.open}
                   {soundByKey(item.soundKey) ? ` · 🎵 ${soundName(soundByKey(item.soundKey)!, locale)}` : ""}
@@ -326,7 +352,7 @@ export function AngleUploader({
       )}
       {(() => {
         // One suggestion at a time, for the first shot that has one.
-        const i = items.findIndex((it) => it.status === "done" && it.angleId && it.suggestion);
+        const i = items.findIndex((it) => it.status === "draft" && it.angleId && it.suggestion);
         if (i < 0) return null;
         const it = items[i];
         return (
@@ -337,12 +363,37 @@ export function AngleUploader({
             labels={labels.join}
             onKeep={() => update(i, { suggestion: null })}
             onJoined={(momentCode) => {
-              update(i, { suggestion: null });
-              router.push(`/m/${momentCode}#angle-${it.angleId}`);
+              // Joining publishes it there; go there unless other shots still wait for «نشر».
+              update(i, { status: "done", suggestion: null });
+              setUploaded(true);
+              if (drafts.length <= 1) router.push(`/m/${momentCode}#angle-${it.angleId}`);
             }}
           />
         );
       })()}
+      {(drafts.length > 0 || (busy && items.length > 0)) && (
+        <div className="flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={publishAll}
+            disabled={busy || publishing || drafts.length === 0}
+            className="min-h-12 rounded-full bg-accent px-6 font-extrabold text-white shadow-sm transition-opacity disabled:opacity-50"
+          >
+            {publishing
+              ? labels.publishing
+              : busy
+                ? items.some((it) => it.status === "checking")
+                  ? labels.searching
+                  : labels.waitUpload
+                : labels.publish.replace("{n}", drafts.length > 1 ? `(${drafts.length})` : "")}
+          </button>
+          {publishFailed && (
+            <p role="alert" className="text-sm font-semibold text-accent-ink">
+              {labels.publishFailed}
+            </p>
+          )}
+        </div>
+      )}
       {soundError && (
         <p role="alert" className="text-sm font-semibold text-accent-ink">
           {soundLabels.failed}

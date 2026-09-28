@@ -302,3 +302,19 @@ export async function createDailyMoment(system: User, title: string) {
   }
   throw new MomentError("code_exhausted");
 }
+
+// «تعديل»: the moment's creator changes its title and description (a public description is
+// checked first, like at creation).
+export async function updateMomentDetails(user: User, code: string, input: { title?: unknown; description?: unknown }) {
+  const moment = await db.moment.findUnique({ where: { code: code.toUpperCase() } });
+  if (!moment) throw new MomentError("not_found");
+  if (moment.creatorId !== user.id || moment.kind === "DAILY") throw new MomentError("forbidden");
+  const title = clean(input.title, 80);
+  if (!title) throw new MomentError("invalid_title");
+  const description = input.description == null || input.description === "" ? null : clean(input.description, DESCRIPTION_MAX);
+  if (input.description && !description) throw new MomentError("invalid_description");
+  if (moment.visibility === Visibility.PUBLIC && description && description !== moment.description && (await screenText(description)).result !== "allowed") {
+    throw new MomentError("description_blocked");
+  }
+  return db.moment.update({ where: { id: moment.id }, data: { title, description } });
+}

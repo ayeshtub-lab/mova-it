@@ -24,7 +24,8 @@ function cleanText(raw: unknown) {
 
 async function ownAngle(user: User, angleId: string) {
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { visibility: true } } } });
-  if (!angle || angle.status !== "READY") throw new CaptionError("not_found");
+  // A draft can be written on before it's published.
+  if (!angle || (angle.status !== "READY" && angle.status !== "DRAFT")) throw new CaptionError("not_found");
   if (angle.contributorId !== user.id) throw new CaptionError("forbidden");
   return angle;
 }

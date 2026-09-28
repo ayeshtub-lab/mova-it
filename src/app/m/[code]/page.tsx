@@ -241,6 +241,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               canReact={!!user}
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}
+              momentEdit={view.viewer.isCreator && view.kind !== "DAILY" ? { code: view.code, title: view.title, description: view.description, labels: dict.momentDetails } : undefined}
             />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (
               <div

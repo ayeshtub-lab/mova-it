@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AutoVideo } from "@/app/AutoVideo";
 import { LocalTime } from "@/app/LocalTime";
+import type { MomentDetailsLabels } from "@/app/MomentDetails";
 import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
 import { CaptionEditor, CaptionOverlay, type CaptionLabels } from "@/app/CaptionEditor";
 import type { CaptionView } from "@/lib/caption";
@@ -123,6 +124,7 @@ export function AngleGallery({
   canReact,
   viewerId,
   share,
+  momentEdit,
 }: {
   angles: GalleryAngle[];
   locale: string;
@@ -130,6 +132,8 @@ export function AngleGallery({
   canReact: boolean;
   viewerId: string | null;
   share: { url: string; title: string };
+  // The moment's creator edits its title and description from «تعديل» too.
+  momentEdit?: { code: string; title: string; description: string | null; labels: MomentDetailsLabels };
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -867,10 +871,9 @@ export function AngleGallery({
               <button
                 type="button"
                 onClick={() => setEditFor(angles[current].id)}
-                aria-label={labels.edit.title}
-                className="pointer-events-auto flex size-11 items-center justify-center rounded-full bg-black/50 text-lg"
+                className="pointer-events-auto flex min-h-11 items-center gap-1 rounded-full bg-black/55 px-3 text-sm font-bold"
               >
-                <span aria-hidden="true">✨</span>
+                {labels.edit.open}
               </button>
             )}
             {canReact && angles[current] && !angles[current].isMine && (
@@ -1058,6 +1061,7 @@ export function AngleGallery({
             }}
             hasCaption={!!captionOf(editFor)}
             placeName={placeOf(editFor)?.name ?? null}
+            moment={momentEdit}
             onRemovePlace={() => removePlace(editFor)}
             onCaption={() => {
               setCaptionFor(editFor);

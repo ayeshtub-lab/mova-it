@@ -79,7 +79,7 @@ async function candidates(userId: string, angleId: string) {
   });
   // Only an official account's checked shot, outside «لحظة اليوم».
   if (!angle || angle.contributorId !== userId || angle.contributor.isGuest) return null;
-  if (angle.status !== "READY" || angle.screening !== "allowed" || angle.moment.kind === "DAILY") return null;
+  if (!["DRAFT", "READY"].includes(angle.status) || angle.screening !== "allowed" || angle.moment.kind === "DAILY") return null;
   const at = (angle.capturedAt ?? angle.uploadedAt).getTime();
   const blocked = [...(await blockedIdsFor(userId))];
 
@@ -188,6 +188,7 @@ export async function joinMoment(userId: string, angleId: string, code: string) 
       where: { id: angleId },
       data: {
         momentId: target.id,
+        status: "READY", // joining publishes it there
         expiresAt: null,
         joinedFrom: { momentId: source.id, title: source.title, visibility: source.visibility, placeId: source.placeId },
       },

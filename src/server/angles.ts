@@ -177,7 +177,7 @@ export async function completeAngle(user: User, angleId: string) {
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: true } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
   // Already done (a retry): report what happened the first time.
-  if (angle.status === "READY" || (angle.status === "HIDDEN" && angle.screening === "blocked")) return angle;
+  if (angle.status === "DRAFT" || angle.status === "READY" || (angle.status === "HIDDEN" && angle.screening === "blocked")) return angle;
   if (angle.status !== "PROCESSING") throw new AngleError("forbidden");
 
   const needed = [angle.mediaPath, angle.thumbPath].filter((p): p is string => !!p);
@@ -197,7 +197,8 @@ export async function completeAngle(user: User, angleId: string) {
     const done = await tx.angle.update({
       where: { id: angle.id },
       data: {
-        status: blocked ? "HIDDEN" : "READY",
+        // Fine → a draft only its owner sees, until they press «نشر» (after «صوّر معك» looked).
+        status: blocked ? "HIDDEN" : "DRAFT",
         expiresAt: null, // shots are kept until their owner deletes them
         screening: verdict?.result ?? null,
         scene: verdict?.result === "allowed" ? (verdict.scene ?? null) : null,
@@ -208,8 +209,6 @@ export async function completeAngle(user: User, angleId: string) {
     if (blocked) {
       const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : `public, not checked: ${verdict?.result === "error" ? verdict.reason : "screening off"}`;
       await tx.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "AI", note: note.slice(0, 500) } });
-    } else {
-      await tx.moment.update({ where: { id: angle.momentId }, data: { lastActivityAt: now } });
     }
     return done;
   });
@@ -237,4 +236,47 @@ export async function screenForPublic(momentId: string) {
       db.report.create({ data: { momentId, angleId: angle.id, reason: "AI", note: note.slice(0, 500) } }),
     ]);
   }
+}
+
+// «نشر»: the owner publishes a checked draft — from now on it shows in the moment.
+export async function publishAngle(user: User, angleId: string) {
+  const angle = await db.angle.findUnique({ where: { id: angleId } });
+  if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
+  if (angle.status === "READY") return angle; // a retry
+  if (angle.status !== "DRAFT") throw new AngleError("forbidden");
+  const now = new Date();
+  const [done] = await db.$transaction([
+    db.angle.update({ where: { id: angle.id }, data: { status: "READY" } }),
+    db.moment.update({ where: { id: angle.momentId }, data: { lastActivityAt: now } }),
+  ]);
+  return done;
+}
+
+// Uploads nobody published: drafts (and uploads that never finished) older than a day are
+// deleted with their files; moments left with no shot at all go too («لا لقطة فارغة»).
+// Run daily by /api/cron/cleanup. Never «لحظة اليوم», never anything published.
+const STALE_UPLOAD_MS = 24 * 60 * 60 * 1000;
+// Empty moments from before «نشر» existed are left for the owner of the site to decide on.
+const EMPTY_MOMENTS_FROM = new Date("2026-09-28T12:00:00Z");
+export async function purgeStaleUploads(now = new Date(), emptyMomentsFrom = EMPTY_MOMENTS_FROM) {
+  const before = new Date(now.getTime() - STALE_UPLOAD_MS);
+  const stale = await db.angle.findMany({
+    where: { status: { in: ["DRAFT", "PROCESSING"] }, uploadedAt: { lt: before } },
+    select: { id: true, mediaPath: true, thumbPath: true, smallPath: true, caption: true },
+  });
+  if (stale.length) {
+    await db.angle.deleteMany({ where: { id: { in: stale.map((a) => a.id) } } });
+    const files = stale.flatMap((a) => [a.mediaPath, a.thumbPath, a.smallPath, parseCaption(a.caption)?.path]).filter((p): p is string => !!p);
+    if (files.length) await del(files).catch((error) => console.error("purge: blob cleanup failed", error));
+  }
+  const empty = await db.moment.findMany({
+    where: { kind: { not: "DAILY" }, createdAt: { lt: before, gte: emptyMomentsFrom }, angles: { none: {} } },
+    select: { id: true },
+  });
+  let moments = 0;
+  for (const m of empty) {
+    // One that something still refers to (a report, say) stays.
+    if (await db.moment.delete({ where: { id: m.id } }).then(() => true, () => false)) moments++;
+  }
+  return { shots: stale.length, moments };
 }

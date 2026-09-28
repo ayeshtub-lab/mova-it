@@ -24,7 +24,7 @@ export function PlaceField({
   onPick?: (place: PlaceOption | null) => void;
   initial?: PlaceOption | null; // a pre-filled guess, changed or cleared freely
   // «📍 مكاني»: the phone's position, asked only when tapped, turned into a town on the phone.
-  here?: { label: string; finding: string; denied: string; outside: string; approx: string };
+  here?: { label: string; why: string; finding: string; denied: string; outside: string; approx: string };
 }) {
   const [text, setText] = useState(initial?.name ?? "");
   const [picked, setPicked] = useState<PlaceOption | null>(initial);
@@ -125,7 +125,7 @@ export function PlaceField({
           >
             {locating ? here.finding : here.label}
           </button>
-          {hereNote && <span className="text-xs font-normal text-muted">{hereNote}</span>}
+          <span className="text-xs font-normal text-muted">{hereNote ?? here.why}</span>
         </div>
       )}
       {shown && (

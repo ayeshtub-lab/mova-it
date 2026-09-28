@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { FILTERS, filterName } from "@/lib/filters";
+import { MomentDetails, type MomentDetailsLabels } from "@/app/MomentDetails";
 
 export type ShotEditorLabels = {
   title: string;
@@ -38,6 +39,7 @@ export function ShotEditor({
   hasCaption = false,
   placeName = null,
   onRemovePlace,
+  moment,
 }: {
   imageUrl: string | null;
   locale: string;
@@ -56,6 +58,8 @@ export function ShotEditor({
   // Where the shot was taken (found by itself); only its owner sees this, and may remove it.
   placeName?: string | null;
   onRemovePlace?: () => void;
+  // The moment's title and description, for its creator.
+  moment?: { code: string; title: string; description: string | null; labels: MomentDetailsLabels };
 }) {
   const [filter, setFilter] = useState(initialFilter);
   const [stamp, setStamp] = useState(initialStamp);
@@ -103,6 +107,8 @@ export function ShotEditor({
             </li>
           ))}
         </ul>
+
+        {moment && <MomentDetails code={moment.code} initial={{ title: moment.title, description: moment.description }} labels={moment.labels} />}
 
         <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-2xl bg-surface px-4">
           <span className="flex flex-col">
