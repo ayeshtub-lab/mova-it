@@ -34,6 +34,9 @@
     "placeholder": "e.g. Salma",
     "submit": "Start",
     "nameError": "Enter a name of 1 to 40 characters.",
+    "consent": "By continuing you agree to the {terms} and {privacy}.",
+    "terms": "Terms of Use",
+    "privacy": "Privacy Policy",
     "welcome": "Welcome, {name}",
     "badge": "Guest",
     "signOut": "Sign out",
@@ -386,6 +389,7 @@
   },
   "footer": {
     "privacy": "Privacy",
+    "terms": "Terms",
     "contact": "Contact us"
   },
   "nav": {

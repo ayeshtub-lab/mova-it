@@ -49,6 +49,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             {dict.footer.privacy}
           </Link>
           <span className="mx-2" aria-hidden>·</span>
+          <Link href="/terms" className="underline-offset-4 hover:underline">
+            {dict.footer.terms}
+          </Link>
+          <span className="mx-2" aria-hidden>·</span>
           <a href={`mailto:${CONTACT_EMAIL}`} className="underline-offset-4 hover:underline">
             {dict.footer.contact}
           </a>

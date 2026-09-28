@@ -34,6 +34,9 @@
     "placeholder": "مثلًا: سلمى",
     "submit": "ابدأ",
     "nameError": "اكتب اسمًا من حرف إلى 40 حرفًا.",
+    "consent": "بالمتابعة أنت توافق على {terms} و{privacy}.",
+    "terms": "شروط الاستخدام",
+    "privacy": "سياسة الخصوصية",
     "welcome": "أهلًا، {name}",
     "badge": "ضيف",
     "signOut": "خروج",
@@ -404,6 +407,7 @@
   },
   "footer": {
     "privacy": "الخصوصية",
+    "terms": "الشروط",
     "contact": "تواصل معنا"
   },
   "nav": {
