@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
   // Required at runtime from node_modules (it locates its binary relative to itself).
@@ -13,4 +14,14 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry: readable stack traces (source maps uploaded at build time when SENTRY_AUTH_TOKEN
+// is set on Vercel, then removed from the public files). Without the token the build
+// still works; errors are reported with minified code.
+export default withSentryConfig(nextConfig, {
+  org: "zawmo",
+  project: "zawmo-web",
+  sentryUrl: "https://de.sentry.io/",
+  silent: !process.env.CI,
+  sourcemaps: { deleteSourcemapsAfterUpload: true },
+  telemetry: false,
+});

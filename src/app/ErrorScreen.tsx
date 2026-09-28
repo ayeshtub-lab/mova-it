@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 // After a new deploy, a page left open may ask for script files that no longer exist
@@ -8,6 +9,11 @@ const isStaleBuild = (error: Error) =>
   error.name === "ChunkLoadError" || /Loading (CSS )?chunk|dynamically imported module|Failed to fetch/i.test(error.message);
 
 export function ErrorScreen({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  // A page that failed to render is reported (a stale build after a deploy is not a bug).
+  useEffect(() => {
+    if (!isStaleBuild(error)) Sentry.captureException(error);
+  }, [error]);
+
   useEffect(() => {
     if (!isStaleBuild(error)) return;
     try {
