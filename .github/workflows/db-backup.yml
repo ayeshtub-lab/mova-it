@@ -1,0 +1,89 @@
+# Nightly backup of the production database, kept outside Neon.
+#
+# Neon's own restore window only reaches back a few hours; this keeps 30 days of
+# daily copies. Each copy is restored into a throwaway Postgres before it is kept,
+# so a broken dump fails the run (and GitHub emails the failure) instead of
+# silently piling up. Copies are encrypted, since artifacts live on GitHub.
+#
+# Secrets (repo → Settings → Secrets and variables → Actions):
+#   BACKUP_DATABASE_URL  the production DATABASE_URL (the pooler host is swapped
+#                        for the direct one below; pg_dump needs a real session)
+#   BACKUP_PASSPHRASE    encryption passphrase; without it a copy can't be opened
+#
+# Restoring: see docs/backup.md.
+name: DB backup
+
+on:
+  schedule:
+    - cron: "15 1 * * *" # 01:15 UTC, before the 02:30 cleanup cron
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check secrets
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          [ -n "$DATABASE_URL" ] || { echo "::error::BACKUP_DATABASE_URL is not set"; exit 1; }
+          [ ${#PASSPHRASE} -ge 20 ] || { echo "::error::BACKUP_PASSPHRASE is missing or too short"; exit 1; }
+
+      - name: Dump
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          url="${DATABASE_URL/-pooler./.}"
+          # Client matches the server's major version (Neon runs Postgres 18).
+          docker run --rm -e URL="$url" -v "$PWD:/out" postgres:18 \
+            sh -c 'pg_dump --format=custom --no-owner --no-privileges --file=/out/db.dump "$URL"'
+          ls -l db.dump
+
+      - name: Verify by restoring into a throwaway database
+        run: |
+          set -euo pipefail
+          docker run -d --name scratch -e POSTGRES_PASSWORD=scratch postgres:18
+          for i in $(seq 1 30); do
+            docker exec scratch pg_isready -U postgres -q && break
+            sleep 1
+          done
+          docker cp db.dump scratch:/db.dump
+          docker exec scratch pg_restore -U postgres -d postgres --no-owner --exit-on-error /db.dump
+          q() { docker exec scratch psql -U postgres -d postgres -tAc "$1"; }
+          tables=$(q "select count(*) from information_schema.tables where table_schema = 'public'")
+          users=$(q 'select count(*) from "User"')
+          moments=$(q 'select count(*) from "Moment"')
+          angles=$(q 'select count(*) from "Angle"')
+          echo "tables=$tables users=$users moments=$moments angles=$angles"
+          [ "$tables" -ge 20 ] || { echo "::error::only $tables tables restored"; exit 1; }
+          [ "$users" -ge 1 ] || { echo "::error::no users in the dump"; exit 1; }
+          echo "Restored $tables tables — $users users, $moments moments, $angles angles." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Encrypt
+        env:
+          PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          name="zawmo-db-$(date -u +%Y-%m-%d).dump.enc"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -in db.dump -out "$name" -pass env:PASSPHRASE
+          rm db.dump
+          echo "NAME=$name" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NAME }}
+          path: ${{ env.NAME }}
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
