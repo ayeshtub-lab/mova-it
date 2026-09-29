@@ -24,7 +24,7 @@ export function PlaceField({
   onPick?: (place: PlaceOption | null) => void;
   initial?: PlaceOption | null; // a pre-filled guess, changed or cleared freely
   // «📍 مكاني»: the phone's position, asked only when tapped, turned into a town on the phone.
-  here?: { label: string; why: string; finding: string; denied: string; outside: string; approx: string };
+  here?: { label: string; why: string; finding: string; denied: string; blocked: string; outside: string; approx: string };
 }) {
   const [text, setText] = useState(initial?.name ?? "");
   const [picked, setPicked] = useState<PlaceOption | null>(initial);
@@ -39,15 +39,25 @@ export function PlaceField({
     if (!here || !navigator.geolocation) return setHereNote(here?.denied ?? null);
     setLocating(true);
     setHereNote(null);
+    // Blocked in the browser (asked before and refused, or turned off in its settings): the
+    // phone won't ask again, so the note says where to turn it back on.
+    let blocked = false;
     const pos = await new Promise<GeolocationPosition | null>((resolve) =>
-      navigator.geolocation.getCurrentPosition(resolve, () => resolve(null), { enableHighAccuracy: false, timeout: 12_000, maximumAge: 5 * 60_000 }),
+      navigator.geolocation.getCurrentPosition(
+        resolve,
+        (error) => {
+          blocked = error.code === error.PERMISSION_DENIED;
+          resolve(null);
+        },
+        { enableHighAccuracy: false, timeout: 12_000, maximumAge: 5 * 60_000 },
+      ),
     );
     // The coordinates stay here: only the place id they point to is looked up.
     const id = pos ? await placeAt(pos.coords.latitude, pos.coords.longitude) : null;
     const res = id ? await fetch(`/api/places?id=${encodeURIComponent(id)}`).catch(() => null) : null;
     const found = res?.ok ? ((await res.json()) as { places: PlaceOption[] }).places[0] : null;
     setLocating(false);
-    if (!found) return setHereNote(pos ? here.outside : here.denied);
+    if (!found) return setHereNote(pos ? here.outside : blocked ? here.blocked : here.denied);
     pick(found);
     // "Approximate location" on the phone (km-wide): the village may be a neighbour's.
     if (pos && pos.coords.accuracy > 1500) setHereNote(here.approx);

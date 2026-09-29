@@ -22,7 +22,7 @@ type Labels = {
   descriptionBlocked: string;
   placeLabel: string;
   placePlaceholder: string;
-  placeHere: { label: string; why: string; finding: string; denied: string; outside: string; approx: string };
+  placeHere: { label: string; why: string; finding: string; denied: string; blocked: string; outside: string; approx: string };
   visibilityLabel: string;
   visibilityFriends: string;
   visibilityFriendsHint: string;

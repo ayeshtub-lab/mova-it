@@ -128,6 +128,7 @@
       "why": "So we can show you shots and angles near you 🤍",
       "finding": "One moment, finding where you are…",
       "denied": "We couldn't find you — no worries, just type the town 🙂",
+      "blocked": "Your browser is blocking location for Zawmo. To allow it: tap 🔒 next to the address ← Permissions ← Location ← Allow. Or just type the town 🙂",
       "outside": "Your area isn't in our list yet — type it in.",
       "approx": "Your phone gave an approximate location — check the town is right (or choose “Precise” when asked)."
     },
