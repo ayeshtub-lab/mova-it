@@ -40,6 +40,15 @@ export async function recordLanding(source: string, at = new Date()) {
   await db.sourceVisit.upsert({ where: { day_source: { day, source } }, create: { day, source, visits: 1 }, update: { visits: { increment: 1 } } });
 }
 
+// A step on the ad landing page (src/app/GuestForm.tsx): started typing a name, or pressed
+// «ابدأ». Counted per campaign and day, once per browser and step (the page makes sure).
+export const FUNNEL_STEPS = ["typed", "tried"] as const;
+export type FunnelStep = (typeof FUNNEL_STEPS)[number];
+export async function recordFunnel(source: string, step: FunnelStep, at = new Date()) {
+  const day = activityDay(at);
+  await db.sourceVisit.upsert({ where: { day_source: { day, source } }, create: { day, source, [step]: 1 }, update: { [step]: { increment: 1 } } });
+}
+
 // Per campaign / source (User.source, src/lib/source.ts), for people who joined since `since`:
 // how many joined, how many published a shot, and how many came back on a later day.
 export async function sourceStats(since: Date) {
@@ -52,12 +61,13 @@ export async function sourceStats(since: Date) {
   const shot = new Set(shooters.map((s) => s.contributorId));
   const joinedDay = new Map(people.map((p) => [p.id, activityDay(p.createdAt)]));
   const cameBack = new Set(days.filter((d) => d.day > joinedDay.get(d.userId)!).map((d) => d.userId));
-  const landed = await db.sourceVisit.groupBy({ by: ["source"], where: { day: { gte: activityDay(since) } }, _sum: { visits: true } });
-  const rows = new Map<string, { source: string; landed: number; joined: number; shot: number; returned: number }>();
-  for (const l of landed) rows.set(l.source, { source: l.source, landed: l._sum.visits ?? 0, joined: 0, shot: 0, returned: 0 });
+  const landed = await db.sourceVisit.groupBy({ by: ["source"], where: { day: { gte: activityDay(since) } }, _sum: { visits: true, typed: true, tried: true } });
+  const rows = new Map<string, { source: string; landed: number; typed: number; tried: number; joined: number; shot: number; returned: number }>();
+  for (const l of landed)
+    rows.set(l.source, { source: l.source, landed: l._sum.visits ?? 0, typed: l._sum.typed ?? 0, tried: l._sum.tried ?? 0, joined: 0, shot: 0, returned: 0 });
   for (const p of people) {
     const key = p.source ?? "direct";
-    const row = rows.get(key) ?? { source: key, landed: 0, joined: 0, shot: 0, returned: 0 };
+    const row = rows.get(key) ?? { source: key, landed: 0, typed: 0, tried: 0, joined: 0, shot: 0, returned: 0 };
     row.joined++;
     if (shot.has(p.id)) row.shot++;
     if (cameBack.has(p.id)) row.returned++;

@@ -125,6 +125,8 @@ export default async function StatsPage() {
                 <tr>
                   <th className="py-1 text-start font-bold">المصدر</th>
                   <th className="py-1 font-bold">وصلوا</th>
+                  <th className="py-1 font-bold">كتبوا اسم</th>
+                  <th className="py-1 font-bold">كبسوا ابدأ</th>
                   <th className="py-1 font-bold">انضموا</th>
                   <th className="py-1 font-bold">نشروا لقطة</th>
                   <th className="py-1 font-bold">رجعوا</th>
@@ -135,6 +137,8 @@ export default async function StatsPage() {
                   <tr key={r.source} className="border-t border-line">
                     <td className="py-2 font-bold" dir="ltr">{r.source === "direct" ? "مباشر" : r.source}</td>
                     <td className="py-2 text-center tabular-nums">{r.landed ? num(r.landed) : "—"}</td>
+                    <td className="py-2 text-center tabular-nums">{r.landed ? num(r.typed) : "—"}</td>
+                    <td className="py-2 text-center tabular-nums">{r.landed ? num(r.tried) : "—"}</td>
                     <td className="py-2 text-center tabular-nums">
                       {num(r.joined)} {r.landed > 0 && <span className="text-xs text-muted">({pct(r.joined / r.landed)})</span>}
                     </td>

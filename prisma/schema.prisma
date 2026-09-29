@@ -662,6 +662,10 @@ model SourceVisit {
   day    String // "2026-10-01"
   source String
   visits Int    @default(0)
+  // Of those, how many started typing their name, and how many pressed «ابدأ» (the funnel
+  // before «انضموا»: where ad visitors leave).
+  typed  Int    @default(0)
+  tried  Int    @default(0)
 
   @@id([day, source])
 }

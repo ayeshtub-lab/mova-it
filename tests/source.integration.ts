@@ -4,7 +4,7 @@
 import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
-import { activityDay, recordLanding, sourceStats } from "../src/server/stats";
+import { activityDay, recordFunnel, recordLanding, sourceStats } from "../src/server/stats";
 
 const TAG = "[srctest]";
 async function main() {
@@ -21,10 +21,14 @@ async function main() {
     await recordLanding("srctest-house");
     await recordLanding("srctest-house");
     await recordLanding("srctest-lonely");
+    await recordFunnel("srctest-house", "typed");
+    await recordFunnel("srctest-house", "typed");
+    await recordFunnel("srctest-house", "tried");
     const rows = await sourceStats(since);
     const house = rows.find((r) => r.source === "srctest-house")!;
     const plant = rows.find((r) => r.source === "srctest-plant")!;
     assert.deepEqual([house.landed, house.joined, house.shot, house.returned], [2, 2, 1, 1]);
+    assert.deepEqual([house.typed, house.tried], [2, 1], "the landing funnel: typed a name, pressed «ابدأ»");
     const lonely = rows.find((r) => r.source === "srctest-lonely")!;
     assert.deepEqual([lonely.landed, lonely.joined], [1, 0], "arrivals who never joined still show");
     assert.deepEqual([plant.joined, plant.shot, plant.returned], [1, 0, 0]);

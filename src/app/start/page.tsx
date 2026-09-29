@@ -30,16 +30,48 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const t = dict.start;
+  // «مع الوقت»: show at once what their story becomes — the one from the ad they tapped.
+  const demo = typeof params.src === "string" && params.src.includes("house") ? "house" : "plant";
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
       <SiteHeader locale={locale} dict={dict} />
-      <main className="mx-auto flex w-full max-w-xl flex-col gap-5 pb-12">
+      <main className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-12">
         <header className="flex flex-col items-center gap-3 text-center">
-          <HeroWheel className="w-full max-w-[15rem]" openLabel={dict.home.wheelOpen} />
+          {story ? (
+            <figure className="flex flex-col items-center gap-2">
+              <video
+                src={`/start/story-${demo}.mp4`}
+                poster={`/start/story-${demo}.jpg`}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="auto"
+                aria-label={t.demoLabel}
+                className="h-72 w-auto rounded-3xl bg-surface shadow-md"
+              />
+              <figcaption className="text-sm font-bold text-secondary">{t.demoLabel}</figcaption>
+            </figure>
+          ) : (
+            <HeroWheel className="w-full max-w-[15rem]" openLabel={dict.home.wheelOpen} />
+          )}
           <h1 className="text-3xl font-extrabold leading-tight">{story ? t.storyTitle : t.momentTitle}</h1>
           <p className="leading-relaxed text-muted">{story ? t.storyText : t.momentText}</p>
         </header>
+        {/* Straight after the promise: one field and «ابدأ» (the steps come after, for the curious). */}
+        <section className="flex flex-col gap-3 rounded-3xl border-2 border-accent/40 bg-surface/60 p-5">
+          <p className="text-sm font-bold">{t.how}</p>
+          {/* Inside TikTok's (or any app's) browser Google refuses to sign in: the guest start only. */}
+          {googleEnabled() && !inApp && (
+            <>
+              <GoogleButton label={dict.account.google} returnTo={next} />
+              <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
+            </>
+          )}
+          <GuestForm labels={dict.guest} next={next} track />
+          {googleEnabled() && inApp && <p className="text-xs leading-relaxed text-muted">{dict.account.inAppHint}</p>}
+        </section>
         {story && (
           <ol className="flex flex-col gap-2">
             {t.storySteps.map((step) => (
@@ -49,18 +81,6 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
             ))}
           </ol>
         )}
-        <section className="flex flex-col gap-3 rounded-3xl border border-line bg-surface/60 p-5">
-          <p className="text-sm font-bold">{t.how}</p>
-          {/* Inside TikTok's (or any app's) browser Google refuses to sign in: the guest start only. */}
-          {googleEnabled() && !inApp && (
-            <>
-              <GoogleButton label={dict.account.google} returnTo={next} />
-              <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
-            </>
-          )}
-          <GuestForm labels={dict.guest} next={next} />
-          {googleEnabled() && inApp && <p className="text-xs leading-relaxed text-muted">{dict.account.inAppHint}</p>}
-        </section>
       </main>
     </div>
   );

@@ -31,11 +31,12 @@
   },
   "start": {
     "storyTitle": "🌱 Start your story over time",
+    "demoLabel": "👆 This is what your story becomes, shot by shot",
     "storyText": "Shoot anything you care about, shot by shot: a house going up, a plant, a project, a child growing. Zawmo keeps every shot with its date, and turns them into a polished video in one tap.",
     "storySteps": ["📸 Take the first shot today", "🗓️ Add one every few days, from the same angle", "🎬 Watch the whole story as a video"],
     "momentTitle": "📸 Start your moment",
     "momentText": "Capture your moment and see it through the eyes of everyone who was there.",
-    "how": "In a second, no app to install:"
+    "how": "Try it free: just your name, nothing to install 👇"
   },
   "guest": {
     "title": "Try it as a guest",

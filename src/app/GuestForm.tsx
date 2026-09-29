@@ -6,12 +6,25 @@ import { continueAsGuest } from "@/app/actions/session";
 
 type Labels = { nameLabel: string; placeholder: string; submit: string; nameError: string; serverError: string; consent: string; terms: string; privacy: string };
 
+// On an ad's landing page: tell /api/funnel once per browser that this visitor started
+// typing, or pressed «ابدأ» (nothing is sent but the step; the campaign comes from a cookie).
+function funnel(step: "typed" | "tried") {
+  try {
+    const key = `zw_funnel_${step}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+  } catch {}
+  const url = `/api/funnel?step=${step}`;
+  if (!navigator.sendBeacon?.(url)) fetch(url, { method: "POST", keepalive: true }).catch(() => {});
+}
+
 // `next`: where to go once the guest account exists (an ad's landing page sends people on).
-export function GuestForm({ labels, next }: { labels: Labels; next?: string }) {
+// `track`: count the landing funnel (typing, pressing «ابدأ») for the admin's numbers.
+export function GuestForm({ labels, next, track = false }: { labels: Labels; next?: string; track?: boolean }) {
   const [state, action, pending] = useActionState(continueAsGuest, undefined);
 
   return (
-    <form action={action} className="flex flex-col gap-2">
+    <form action={action} onSubmit={track ? () => funnel("tried") : undefined} className="flex flex-col gap-2">
       {next && <input type="hidden" name="next" value={next} />}
       <label htmlFor="displayName" className="text-sm font-bold">
         {labels.nameLabel}
@@ -23,6 +36,7 @@ export function GuestForm({ labels, next }: { labels: Labels; next?: string }) {
           required
           maxLength={40}
           autoComplete="nickname"
+          onInput={track ? () => funnel("typed") : undefined}
           placeholder={labels.placeholder}
           aria-invalid={state?.error === "name"}
           aria-describedby={state?.error ? "displayName-error" : undefined}
