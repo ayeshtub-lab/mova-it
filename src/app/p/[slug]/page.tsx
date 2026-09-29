@@ -117,7 +117,7 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/p/
                       </svg>
                     </span>
                   )}
-                  <span className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/75 to-transparent p-2 pt-8 text-white">
+                  <span className="absolute inset-x-0 bottom-0 z-[2] flex flex-col bg-gradient-to-t from-black/75 to-transparent p-2 pt-8 text-white">
                     <span className="truncate text-sm font-bold">{s.title}</span>
                     <span className="flex items-center gap-1 truncate text-xs text-white/80">
                       {s.name}
