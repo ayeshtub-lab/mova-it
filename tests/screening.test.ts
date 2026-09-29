@@ -57,9 +57,14 @@ async function main() {
   });
 
   await check("the lens compares pictures in three levels (same / similar / no); anything odd = no", async () => {
-    reply(200, answer('{"likeness":["same","similar","no"]}'));
+    reply(200, answer('{"likeness":{"2":"same","3":"similar","4":"no"}}'));
     assert.deepEqual(await likeness("mine", ["a", "b", "c"]), ["same", "similar", "no"]);
-    assert.equal(lastRequest?.body.contents[0].parts.length, 5, "prompt + 4 pictures in one call");
+    assert.match(JSON.stringify(lastRequest?.body), /Image 4:/, "every picture is labelled with its number");
+    reply(200, answer('{"likeness":{"2":"same","4":"similar"}}'));
+    assert.deepEqual(await likeness("mine", ["a", "b", "c"]), ["same", "no", "similar"], "a missing number counts as no, the others still count");
+    reply(200, answer('{"likeness":["same","similar","no"]}'));
+    assert.deepEqual(await likeness("mine", ["a", "b", "c"]), ["same", "similar", "no"], "a complete plain list still works");
+    assert.equal(lastRequest?.body.contents[0].parts.length, 9, "prompt + 4 labelled pictures in one call");
     assert.match(JSON.stringify(lastRequest?.body), /two different flowers/, "the prompt explains «similar»");
     reply(200, answer('{"likeness":["same","maybe"]}'));
     assert.deepEqual(await likeness("mine", ["a", "b"]), ["same", "no"], "unknown words = no");

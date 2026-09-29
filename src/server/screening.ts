@@ -197,7 +197,7 @@ Image 1 is a new photo. Each following image is from someone else's moment. For 
 - "similar": the same kind of thing with a similar look, but not the same one — e.g. two different flowers, two plates of food, two green gardens or fields, two sunsets, two city streets, two cups of coffee.
 - "no": different kinds of things (a flower and a car, food and the sea, a selfie and a building), or anything you are unsure about.
 
-Answer only with JSON: {"likeness":["same"|"similar"|"no" for image 2, ... one per following image]}`;
+Each image is labelled just before it ("Image 2:", "Image 3:", …). Answer only with JSON, one entry per labelled image after image 1, keyed by its number: {"likeness":{"2":"same"|"similar"|"no","3":…}}`;
 
 export async function likeness(mine: string, others: string[]): Promise<Likeness[]> {
   const none: Likeness[] = others.map(() => "no");
@@ -208,7 +208,14 @@ export async function likeness(mine: string, others: string[]): Promise<Likeness
       headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: LIKENESS_PROMPT }, ...[mine, ...others].map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
+        // Every picture labelled with its number: counting unlabelled pictures, the model
+        // sometimes answered one short (5 answers for 6 pictures) and the whole check was lost.
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: LIKENESS_PROMPT }, ...[mine, ...others].flatMap((data, i) => [{ text: `Image ${i + 1}:` }, { inline_data: { mime_type: "image/jpeg", data } }])],
+          },
+        ],
         generationConfig: { temperature: 0, responseMimeType: "application/json" },
       }),
     });
@@ -219,11 +226,12 @@ export async function likeness(mine: string, others: string[]): Promise<Likeness
     const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     const got = (JSON.parse(text) as { likeness?: unknown }).likeness;
-    if (!Array.isArray(got) || got.length !== others.length) {
-      reportGemini("lens", `unreadable answer: ${text.slice(0, 80)}`);
-      return none;
-    }
-    return got.map((x) => (x === "same" || x === "similar" ? x : "no"));
+    const level = (x: unknown): Likeness => (x === "same" || x === "similar" ? x : "no");
+    // Keyed by image number (a missing one counts as «no»); a plain list only when it's complete.
+    if (got && typeof got === "object" && !Array.isArray(got)) return others.map((_, i) => level((got as Record<string, unknown>)[String(i + 2)]));
+    if (Array.isArray(got) && got.length === others.length) return got.map(level);
+    reportGemini("lens", `unreadable answer: ${text.slice(0, 80)}`);
+    return none;
   } catch (error) {
     reportGemini("lens", String((error as Error)?.message ?? error));
     return none;
