@@ -222,6 +222,9 @@ export async function listMyMoments(user: User, limit = 20) {
     where: {
       participants: { some: { userId: user.id } },
       OR: [{ status: "ACTIVE" }, { creatorId: user.id }],
+      // Only moments with a published shot: one started and never published doesn't show
+      // (the hourly clean-up deletes it, src/server/angles.ts).
+      angles: { some: { status: "READY" } },
     },
     orderBy: { lastActivityAt: "desc" },
     take: limit,

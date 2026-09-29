@@ -6,7 +6,7 @@ import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { AngleError, publishAngle, purgeStaleUploads } from "../src/server/angles";
-import { createMoment, getMomentView, MomentError, updateMomentDetails } from "../src/server/moments";
+import { createMoment, getMomentView, listMyMoments, MomentError, updateMomentDetails } from "../src/server/moments";
 
 const TAG = "[pubtest]";
 const out: string[] = [];
@@ -36,7 +36,14 @@ async function main() {
       assert.equal((await publishAngle(owner, a.id)).status, "READY", "a retry is fine");
     });
 
-    await check("the daily clean-up: day-old drafts and empty new moments go; published and fresh ones stay", async () => {
+    await check("a moment never published doesn't show in «لحظاتي»", async () => {
+      const m = await moment();
+      await draft(m.id);
+      const mine = await listMyMoments(owner);
+      assert.ok(!mine.some((x) => x.code === m.code));
+    });
+
+    await check("the hourly clean-up: old drafts and empty moments go; published and fresh ones stay", async () => {
       const old = await moment(new Date(Date.now() - 2 * DAY));
       const oldDraft = await draft(old.id, new Date(Date.now() - 2 * DAY));
       const kept = await moment(new Date(Date.now() - 2 * DAY));

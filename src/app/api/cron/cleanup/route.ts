@@ -5,7 +5,7 @@ import { syncStream } from "@/server/stream";
 
 export const maxDuration = 300;
 
-// Daily (vercel.json): unpublished drafts and empty moments older than a day, the Stream
+// Hourly (vercel.json): unpublished drafts and empty moments older than 3 hours, the Stream
 // safety net (videos without a copy, copies still encoding), and old rate-limit counts.
 // Vercel's scheduler sends the secret; nobody else can run it.
 export async function GET(request: Request) {

@@ -95,6 +95,22 @@ export function ShotEditor({
           </div>
         )}
 
+        {/* The moment's title and description (its creator only): right under the shot, folded
+            to one line so it never pushes the filters away — it opens on a tap. */}
+        {moment &&
+          (details ? (
+            <MomentDetails code={moment.code} initial={{ title: moment.title, description: moment.description }} labels={moment.labels} />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setDetails(true)}
+              className="flex min-h-12 items-center justify-between gap-3 rounded-2xl border border-dashed border-secondary/40 bg-secondary-soft/60 px-4 text-start font-bold"
+            >
+              <span className="shrink-0">📝 {moment.labels.section}</span>
+              <span className="min-w-0 truncate text-sm text-secondary">{moment.title} ✏️</span>
+            </button>
+          ))}
+
         <h3 className="text-sm font-extrabold">{labels.filters}</h3>
         <ul className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">
           {options.map((o) => (
@@ -140,18 +156,6 @@ export function ShotEditor({
           <span>🎵 {labels.sound}</span>
           <span className="truncate text-sm text-secondary">{soundName ?? labels.noSound} ‹</span>
         </button>
-
-        {/* The moment's title and description (its creator only): folded last, so the
-            shot's own look stays on top and the keyboard never hides the filters. */}
-        {moment &&
-          (details ? (
-            <MomentDetails code={moment.code} initial={{ title: moment.title, description: moment.description }} labels={moment.labels} />
-          ) : (
-            <button type="button" onClick={() => setDetails(true)} className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-surface px-4 text-start font-bold">
-              <span>📝 {moment.labels.section}</span>
-              <span className="min-w-0 truncate text-sm text-secondary">{moment.title} ‹</span>
-            </button>
-          ))}
 
         <button type="button" disabled={busy} onClick={() => onSave(filter, stamp)} className="min-h-12 rounded-full bg-accent px-5 font-extrabold text-white disabled:opacity-60">
           {labels.save}

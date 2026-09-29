@@ -284,12 +284,12 @@ export async function publishAngle(user: User, angleId: string, title?: unknown)
   return done;
 }
 
-// Uploads nobody published: drafts (and uploads that never finished) older than a day are
-// deleted with their files; moments left with no shot at all go too («لا لقطة فارغة»).
-// Run daily by /api/cron/cleanup. Never «لحظة اليوم», never anything published.
-const STALE_UPLOAD_MS = 24 * 60 * 60 * 1000;
-// Empty moments from before «نشر» existed are left for the owner of the site to decide on.
-const EMPTY_MOMENTS_FROM = new Date("2026-09-28T12:00:00Z");
+// Uploads nobody published: drafts (and uploads that never finished) older than 3 hours are
+// deleted with their files; moments left with no shot at all go too («لا لقطة فارغة» — the
+// owner of the site asked that a moment never published never stays). Run hourly by
+// /api/cron/cleanup. Never «لحظة اليوم», never anything published. (Home already hides them.)
+const STALE_UPLOAD_MS = 3 * 60 * 60 * 1000;
+const EMPTY_MOMENTS_FROM = new Date(0);
 export async function purgeStaleUploads(now = new Date(), emptyMomentsFrom = EMPTY_MOMENTS_FROM) {
   const before = new Date(now.getTime() - STALE_UPLOAD_MS);
   const stale = await db.angle.findMany({
