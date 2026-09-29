@@ -1,4 +1,6 @@
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
 import { ZMark } from "@/app/Logo";
@@ -6,6 +8,8 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { googleEnabled } from "@/server/google";
+import { SOURCE_COOKIE, sourceOf } from "@/lib/source";
+import { recordLanding } from "@/server/stats";
 
 export const metadata = { robots: { index: false } };
 
@@ -13,7 +17,15 @@ export const metadata = { robots: { index: false } };
 // src/proxy.ts). «مع الوقت» by default, «?kind=moment» for a moment. One step — a name or
 // Google — then straight to starting it; someone already signed in goes there at once.
 export default async function StartPage({ searchParams }: PageProps<"/start">) {
-  const story = (await searchParams).kind !== "moment";
+  const params = await searchParams;
+  const story = params.kind !== "moment";
+  // A new arrival from an ad (no source remembered yet): counted, to set against the ad's clicks.
+  if (!(await cookies()).has(SOURCE_COOKIE)) {
+    const url = new URL("https://zawmo.com/start");
+    for (const [k, v] of Object.entries(params)) if (typeof v === "string") url.searchParams.set(k, v);
+    const source = sourceOf(url, (await headers()).get("referer"), "zawmo.com");
+    if (source) after(() => recordLanding(source).catch((error) => console.error("landing count failed", error)));
+  }
   const next = story ? "/new?kind=story" : "/new";
   if (await getCurrentUser()) redirect(next);
   const locale = await getLocale();

@@ -650,3 +650,14 @@ model RateLimit {
 
   @@index([resetAt])
 }
+
+// Ad landings: how many new visitors reached /start from each campaign each day (Mecca day).
+// With the ad platform's clicks on one side and sign-ups on the other, it tells a bad
+// campaign (clicks that never arrive) from a weak page or app (arrivals who don't join).
+model SourceVisit {
+  day    String // "2026-10-01"
+  source String
+  visits Int    @default(0)
+
+  @@id([day, source])
+}
