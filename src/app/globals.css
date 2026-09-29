@@ -205,3 +205,20 @@ body {
   pointer-events: none;
   white-space: nowrap;
 }
+
+/* Phones (iPhone above all) zoom into a field whose text is under 16px when it's tapped,
+   and leave the page zoomed, wider than the screen. Fields stay at 16px on small screens. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em);
+  }
+}
+
+/* Nothing may push the page sideways on a phone (a long unbroken word, a wide strip). */
+html,
+body {
+  overflow-x: clip;
+  overflow-wrap: break-word;
+}

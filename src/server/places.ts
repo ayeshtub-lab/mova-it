@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { normalize, withoutAl } from "@/lib/arabic";
 import { SKY_SCENES } from "@/lib/scenes";
 import { blockedIdsFor } from "@/server/moderation";
+import { captionView } from "@/server/caption";
 import { coverOf } from "@/server/media";
 
 // Zawmo law for places (see the privacy page): a city/village/neighbourhood name only, never
@@ -161,6 +162,7 @@ export async function placePage(slug: string, viewerId: string | null, take = 60
         video: a.mediaType === "VIDEO",
         filter: a.filter,
         imageUrl: await coverOf(a),
+        caption: await captionView(a.caption), // the words written on the shot
         verified: a.placeVerified,
         momentCode: a.moment.code,
         title: a.moment.title,

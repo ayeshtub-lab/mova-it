@@ -5,9 +5,12 @@
 // opens that angle in the viewer. Locked angles ("give to get") show as frosted
 // slices with a lock that jump to "add your angle".
 
+import type { CaptionView } from "@/lib/caption";
 import { arcPath, bbox, pt, R_IN, R_OUT, R_RING, slicePath } from "@/lib/wheel";
 
-type WheelAngle = { id: string; imageUrl: string | null; name: string; avatarUrl: string | null };
+type WheelAngle = { id: string; imageUrl: string | null; name: string; avatarUrl: string | null; caption?: CaptionView | null };
+// The words written on a shot show in its slice while slices are big enough to read them.
+const CAPTIONS_UP_TO = 4;
 type Labels = { open: string; locked: string };
 
 const MAX_SLICES = 8;
@@ -76,6 +79,18 @@ export function AngleWheel({ angles, locked, labels }: { angles: WheelAngle[]; l
               <g clipPath={`url(#wheel-slice-${i})`}>
                 <rect x={box.x} y={box.y} width={box.w} height={box.h} fill="var(--surface)" />
                 {a.imageUrl && <image href={a.imageUrl} x={box.x} y={box.y} width={box.w} height={box.h} preserveAspectRatio="xMidYMid slice" />}
+                {a.caption && total <= CAPTIONS_UP_TO && (
+                  // Where it sits on the shot (y: its centre, w: its width), within the slice.
+                  <image
+                    href={a.caption.url}
+                    x={box.x + (box.w * (1 - a.caption.w)) / 2}
+                    y={box.y + box.h * a.caption.y - box.h * 0.15}
+                    width={box.w * a.caption.w}
+                    height={box.h * 0.3}
+                    preserveAspectRatio="xMidYMid meet"
+                    aria-label={a.caption.text}
+                  />
+                )}
               </g>
               <path d={slicePath(i * step, (i + 1) * step)} fill="none" className="wheel-outline" strokeWidth="3" />
               {/* Whose angle: their account photo on the ring (initial if they have none). */}

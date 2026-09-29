@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CaptionOverlay } from "@/app/CaptionEditor";
 import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
 import { CANONICAL_HOST } from "@/lib/hosts";
@@ -108,6 +109,7 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/p/
                   ) : (
                     <span aria-hidden="true" className="block size-full bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
                   )}
+                  <CaptionOverlay caption={s.caption} />
                   {s.video && (
                     <span aria-hidden="true" className="absolute end-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/55">
                       <svg viewBox="0 0 24 24" className="size-3.5 fill-white">
