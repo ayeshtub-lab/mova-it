@@ -14,10 +14,12 @@ export const activityDay = (at = new Date()) => new Date(at.getTime() + MECCA_MS
 const shift = (day: string, n: number) => new Date(Date.parse(`${day}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
 const dayStart = (day: string) => new Date(Date.parse(`${day}T00:00:00Z`) - MECCA_MS);
 
-// "This person used Zawmo today" — at most one row per person per day.
-export async function recordActivity(user: User, at = new Date()) {
+// "This person used Zawmo today" — at most one row per person per day. Someone who joined
+// before places were kept gets theirs from today's visit (src/lib/geo.ts), once.
+export async function recordActivity(user: User, at = new Date(), place?: { country: string | null; city: string | null }) {
   if (user.isSystem) return;
   await db.activeDay.createMany({ data: [{ userId: user.id, day: activityDay(at) }], skipDuplicates: true });
+  if (!user.country && place?.country) await db.user.updateMany({ where: { id: user.id, country: null }, data: place });
 }
 
 // Of the people who joined on `day`, the share active `after` days later (null: nobody joined).
@@ -64,6 +66,30 @@ export async function sourceStats(since: Date) {
   return [...rows.values()].sort((a, b) => b.joined - a.joined || b.landed - a.landed);
 }
 
+// Per country (User.country): members in all, and of those who joined since `since`, how many
+// joined and how many published a shot — where Zawmo is growing, for per-country plans.
+export async function countryStats(since: Date) {
+  const [all, recent] = await Promise.all([
+    db.user.groupBy({ by: ["country"], where: { isSystem: false }, _count: { _all: true } }),
+    db.user.findMany({ where: { isSystem: false, createdAt: { gte: since } }, select: { id: true, country: true } }),
+  ]);
+  const shooters = await db.angle.groupBy({ by: ["contributorId"], where: { contributorId: { in: recent.map((p) => p.id) }, status: "READY" } });
+  const shot = new Set(shooters.map((s) => s.contributorId));
+  const rows = new Map<string, { country: string; members: number; joined: number; shot: number }>();
+  const row = (key: string | null) => {
+    const k = key ?? "??";
+    if (!rows.has(k)) rows.set(k, { country: k, members: 0, joined: 0, shot: 0 });
+    return rows.get(k)!;
+  };
+  for (const a of all) row(a.country).members = a._count._all;
+  for (const p of recent) {
+    const r = row(p.country);
+    r.joined++;
+    if (shot.has(p.id)) r.shot++;
+  }
+  return [...rows.values()].sort((a, b) => b.joined - a.joined || b.members - a.members);
+}
+
 export async function getStats(viewer: User | null, now = new Date(), days = 14) {
   assertAdmin(viewer);
   const today = activityDay(now);
@@ -101,7 +127,7 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
   const joinedSum = cohorts.reduce((s, c) => s + c.joined, 0);
   const [yesterday, week] = await Promise.all([returnRate(shift(today, -1), 1), returnRate(shift(today, -7), 7)]);
 
-  const sources = await sourceStats(since);
+  const [sources, countries] = await Promise.all([sourceStats(since), countryStats(since)]);
   const top = await db.moment.findMany({ where: { id: { in: weekAngles.map((w) => w.momentId) } }, select: { id: true, code: true, title: true } });
   return {
     today,
@@ -120,6 +146,7 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
     },
     series,
     sources,
+    countries,
     topMoments: weekAngles.map((w) => ({ ...top.find((m) => m.id === w.momentId)!, shots: w._count._all })).filter((m) => m.code),
   };
 }

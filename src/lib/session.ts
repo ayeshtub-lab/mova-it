@@ -1,10 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { cache } from "react";
 import { db } from "@/lib/db";
 
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 import { SOURCE_COOKIE } from "@/lib/source";
+import { placeFromHeaders } from "@/lib/geo";
 
 export { SESSION_COOKIE };
 const SESSION_DAYS = 180;
@@ -35,6 +36,11 @@ export async function visitSource() {
   return (await cookies()).get(SOURCE_COOKIE)?.value?.slice(0, 40) || null;
 }
 
+// Roughly where this request comes from (src/lib/geo.ts), for a new account.
+export async function visitPlace() {
+  return placeFromHeaders(await headers());
+}
+
 // Must be called from a Server Function or Route Handler (it sets a cookie).
 export async function startGuestSession(displayName: string, locale: string) {
   const token = randomBytes(32).toString("base64url");
@@ -46,6 +52,7 @@ export async function startGuestSession(displayName: string, locale: string) {
       locale,
       isGuest: true,
       source: await visitSource(),
+      ...(await visitPlace()),
       sessions: { create: { tokenHash: hashToken(token), expiresAt } },
     },
   });

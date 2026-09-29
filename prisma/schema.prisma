@@ -31,6 +31,10 @@ model User {
   // Where this person first came from (an ad's «?src=tiktok-house», a UTM source, or the referring
   // site: google, whatsapp…), for the admin's per-campaign numbers. Never shown to anyone else.
   source      String?
+  // Roughly where they are, from their connection when they joined (Vercel's IP location:
+  // "SA", "Riyadh"), for per-country Zawmo and local ads later. Never shown to anyone else.
+  country     String?
+  city        String?
   createdAt   DateTime @default(now())
 
   sessions        Session[]

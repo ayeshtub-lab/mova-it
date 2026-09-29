@@ -7,7 +7,7 @@ import { CONTACT_EMAIL } from "@/lib/site";
 // Privacy policy. Every statement here must match what the code actually does —
 // update this page (and UPDATED) whenever data handling changes.
 
-const UPDATED = { ar: "١ أكتوبر ٢٠٢٦", en: "October 1, 2026" };
+const UPDATED = { ar: "٢٩ سبتمبر ٢٠٢٦", en: "September 29, 2026" };
 
 type Section = { title: string; items: string[] };
 
@@ -27,12 +27,13 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "ما يُسجَّل أثناء الاستخدام: من شاهد لقطاتك (العدد يظهر لك وحدك)، والبلاغات، ومن حظرتهم.",
           "لحماية الموقع من الإغراق: عدّاد مؤقت لعدد بعض الطلبات (كالرفع والتعليق)، يُحذف خلال يوم. لغير المسجّلين يُحفظ عنوان الشبكة مشفّرًا باتجاه واحد فقط، لا العنوان نفسه.",
           "من وين وصلت لزاومو أول مرة: اسم عام فقط، كاسم حملة إعلانية أو «تيك توك» أو «جوجل»، لنعرف أي إعلان يفيد. لا نحفظ الرابط الكامل، ولا يظهر لأي مستخدم.",
+          "دولتك ومدينتك التقريبية، كما يقدّرها اتصال الإنترنت لما تنضم (بدون GPS وبدون أي إذن، وقد تكون غير دقيقة)، لنجهّز زاومو ومحتوى يناسب بلدك. لا تظهر لأي مستخدم.",
         ],
       },
       {
         title: "ما لا نجمعه",
         items: [
-          "لا نتتبّع مكانك، ولا نطلب جهات الاتصال ولا رقم هاتفك. لا نطلب إذن الموقع إلا إذا ضغطت أنت «📍 مكاني»، وحتى وقتها يحوّل جوالك الموقع لاسم البلدة، والإحداثيات لا تصلنا.",
+          "لا نتتبّع مكانك الدقيق ولا تنقّلاتك، ولا نطلب جهات الاتصال ولا رقم هاتفك. لا نطلب إذن الموقع إلا إذا ضغطت أنت «📍 مكاني»، وحتى وقتها يحوّل جوالك الموقع لاسم البلدة، والإحداثيات لا تصلنا.",
           "لا نستخدم إعلانات، ولا أدوات تتبّع، ولا نبيع بياناتك لأي جهة.",
         ],
       },
@@ -130,12 +131,13 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "What is recorded as you use it: who viewed your shots (only you see the count), reports, and who you blocked.",
           "To protect the site from floods: a temporary count of some actions (like uploads and comments), deleted within a day. For visitors who aren't signed in, the network address is kept only as a one-way hash, never the address itself.",
           "Where you first came to Zawmo from: a general name only, like an ad campaign's name, \"TikTok\" or \"Google\", so we know which ads help. We never keep the full link, and no other user sees it.",
+          "Your rough country and city, as your internet connection suggests when you join (no GPS, no permission, and it can be wrong), to shape Zawmo and content for your country. No other user sees it.",
         ],
       },
       {
         title: "What we don't collect",
         items: [
-          "We don't track where you are, and we don't ask for your contacts or phone number. We ask for location only when you tap “📍 Where I am”, and even then your phone turns it into a town name; the coordinates never reach us.",
+          "We don't track your exact location or movements, and we don't ask for your contacts or phone number. We ask for location only when you tap “📍 Where I am”, and even then your phone turns it into a town name; the coordinates never reach us.",
           "No ads, no tracking tools, and we never sell your data.",
         ],
       },

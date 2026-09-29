@@ -13,6 +13,8 @@ export const dynamic = "force-dynamic";
 
 // Arabic-Indic digits everywhere, like the rest of the page text.
 const num = (n: number) => new Intl.NumberFormat("ar-EG").format(n);
+const regions = new Intl.DisplayNames(["ar"], { type: "region" });
+const countryName = (code: string) => (code === "??" ? "غير معروف" : (regions.of(code) ?? code));
 const dateAr = (day: string) => new Intl.DateTimeFormat("ar-EG", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${day}T00:00:00Z`));
 const pct = (r: number | null) => (r === null ? "—" : `${new Intl.NumberFormat("ar-EG", { maximumFractionDigits: 0 }).format(r * 100)}٪`);
 // Green at or above target, amber within half of it, red below.
@@ -150,6 +152,34 @@ export default async function StatsPage() {
             <p className="text-sm text-muted">ما انضم أحد بعد.</p>
           )}
           <p className="text-xs text-muted">رابط كل إعلان: zawmo.com/start?src=اسم-الحملة · «وصلوا» = زوار جدد لصفحة الإعلان (قارنها بكبسات الإعلان: الفرق الكبير = كبسات وهمية) · «رجعوا» = فتحوا زاومو بيوم بعد يوم انضمامهم. التسجيل بدأ ١ أكتوبر ٢٠٢٦.</p>
+        </section>
+
+        {/* Per country (from the connection when they joined), for per-country plans and local ads. */}
+        <section className="flex flex-col gap-2 rounded-3xl bg-surface p-4">
+          <h2 className="font-extrabold">🌍 من أي دولة</h2>
+          <table className="w-full text-sm">
+            <thead className="text-xs text-muted">
+              <tr>
+                <th className="py-1 text-start font-bold">الدولة</th>
+                <th className="py-1 font-bold">كل الأعضاء</th>
+                <th className="py-1 font-bold">انضموا (١٤ يوم)</th>
+                <th className="py-1 font-bold">نشروا لقطة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {s.countries.map((r) => (
+                <tr key={r.country} className="border-t border-line">
+                  <td className="py-2 font-bold">{countryName(r.country)}</td>
+                  <td className="py-2 text-center tabular-nums">{num(r.members)}</td>
+                  <td className="py-2 text-center tabular-nums">{num(r.joined)}</td>
+                  <td className="py-2 text-center tabular-nums">
+                    {num(r.shot)} <span className="text-xs text-muted">({pct(r.joined ? r.shot / r.joined : null)})</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-muted">من اتصال الشخص لما انضم (تقريبي، بدون GPS) · «غير معروف» = انضموا قبل ما نبلّش نسجّل الدولة، وبتتعبّى لحالها أول ما يفتحوا زاومو. البداية ٢٩ أيلول ٢٠٢٦.</p>
         </section>
 
         <section className="flex flex-col gap-2 rounded-3xl bg-surface p-4">
