@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 import { CANONICAL_HOST, OLD_HOSTS } from "@/lib/hosts";
-import { SOURCE_COOKIE, SOURCE_DAYS, sourceOf } from "@/lib/source";
+import { NEW_VISIT_HEADER, SOURCE_COOKIE, SOURCE_DAYS, sourceOf } from "@/lib/source";
 
 // Moment codes (src/server/moments.ts): no 0/O, 1/I/L. Upper case only, so no page
 // (all lower case) can be mistaken for one.
@@ -31,11 +31,17 @@ export function proxy(request: NextRequest) {
   }
 
   const short = SHORT_LINK.exec(pathname);
-  const response = short ? NextResponse.redirect(new URL(`/m/${short[1]}${search}`, request.url), 308) : NextResponse.next();
+  if (short) return NextResponse.redirect(new URL(`/m/${short[1]}${search}`, request.url), 308);
 
-  if (request.method === "GET" && !request.cookies.has(SOURCE_COOKIE)) {
-    const source = sourceOf(request.nextUrl, request.headers.get("referer"), host);
-    if (source) response.cookies.set(SOURCE_COOKIE, source, { maxAge: SOURCE_DAYS * 24 * 3600, httpOnly: true, sameSite: "lax", secure: host !== "localhost" && !host.startsWith("localhost:"), path: "/" });
+  const source = request.method === "GET" && !request.cookies.has(SOURCE_COOKIE) ? sourceOf(request.nextUrl, request.headers.get("referer"), host) : null;
+  // The page is told this is a first arrival (the cookie set below is already visible to it,
+  // so it can't tell by the cookie): the ad landing page counts it (src/app/start/page.tsx).
+  const forward = new Headers(request.headers);
+  forward.delete(NEW_VISIT_HEADER); // never taken from the visitor
+  if (source) forward.set(NEW_VISIT_HEADER, source);
+  const response = NextResponse.next({ request: { headers: forward } });
+  if (source) {
+    response.cookies.set(SOURCE_COOKIE, source, { maxAge: SOURCE_DAYS * 24 * 3600, httpOnly: true, sameSite: "lax", secure: host !== "localhost" && !host.startsWith("localhost:"), path: "/" });
   }
   return response;
 }

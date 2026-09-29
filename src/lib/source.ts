@@ -4,6 +4,8 @@
 
 export const SOURCE_COOKIE = "zw_src";
 export const SOURCE_DAYS = 30;
+// Set by src/proxy.ts on a first arrival that has a source (never trusted from the visitor).
+export const NEW_VISIT_HEADER = "x-zawmo-new-visit";
 
 const clean = (v: string | null | undefined) =>
   (v ?? "")
