@@ -579,6 +579,7 @@
     "natural": "Natural",
     "stamp": "Date & time stamp",
     "stampHint": "Like old film cameras, from when it was taken",
+    "stampSuggest": "Add the date & time stamp?",
     "sound": "Sound",
     "noSound": "None",
     "save": "Save",

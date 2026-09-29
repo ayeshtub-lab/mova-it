@@ -175,6 +175,21 @@ export function AngleUploader({
     return true;
   }
 
+  // «🕐 ختم الساعة» offered before «نشر»: on (or off) for every shot waiting, keeping each one's look.
+  const stampAll = drafts.length > 0 && drafts.every(({ it }) => it.stamp);
+  async function setStampAll(on: boolean) {
+    setSaving(true);
+    setSoundError(false);
+    let failed = false;
+    for (const { it, i } of drafts) {
+      const res = await fetch(`/api/angles/${it.angleId}/look`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ filter: it.filter ?? null, stamp: on }) }).catch(() => null);
+      if (res?.ok) update(i, { stamp: on });
+      else failed = true;
+    }
+    setSaving(false);
+    setSoundError(failed);
+  }
+
   const update = (index: number, patch: Partial<ItemState>) =>
     setItems((all) => all.map((item, i) => (i === index ? { ...item, ...patch } : item)));
 
@@ -394,10 +409,19 @@ export function AngleUploader({
               <span className="text-xs font-normal text-muted">{name.trim() && !typed ? labels.nameSuggested : missingName && drafts.length > 0 ? labels.nameNeeded : " "}</span>
             </label>
           )}
+          {drafts.length > 0 && !busy && (
+            <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-2">
+              <span className="flex flex-col">
+                <span className="text-sm font-bold">🕐 {editLabels.stampSuggest}</span>
+                <span className="stamp mt-1 self-start text-[10px]">{stampText(new Date(drafts[0].it.takenAt!), locale)}</span>
+              </span>
+              <input type="checkbox" checked={stampAll} disabled={saving || publishing} onChange={(e) => setStampAll(e.target.checked)} className="size-5 accent-[var(--accent)]" />
+            </label>
+          )}
           <button
             type="button"
             onClick={publishAll}
-            disabled={busy || publishing || drafts.length === 0 || missingName}
+            disabled={busy || publishing || saving || drafts.length === 0 || missingName}
             className="min-h-12 rounded-full bg-accent px-6 font-extrabold text-white shadow-sm transition-opacity disabled:opacity-50"
           >
             {publishing

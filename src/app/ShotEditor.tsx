@@ -10,6 +10,7 @@ export type ShotEditorLabels = {
   natural: string;
   stamp: string;
   stampHint: string;
+  stampSuggest: string;
   sound: string;
   noSound: string;
   caption: string;
@@ -63,6 +64,7 @@ export function ShotEditor({
 }) {
   const [filter, setFilter] = useState(initialFilter);
   const [stamp, setStamp] = useState(initialStamp);
+  const [details, setDetails] = useState(false);
   const css = FILTERS.find((f) => f.key === filter)?.css;
   const options = [{ key: null, name: labels.natural, css: undefined as string | undefined }, ...FILTERS.map((f) => ({ key: f.key as string | null, name: filterName(f, locale), css: f.css }))];
 
@@ -108,8 +110,6 @@ export function ShotEditor({
           ))}
         </ul>
 
-        {moment && <MomentDetails code={moment.code} initial={{ title: moment.title, description: moment.description }} labels={moment.labels} />}
-
         <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-2xl bg-surface px-4">
           <span className="flex flex-col">
             <span className="font-bold">🕐 {labels.stamp}</span>
@@ -140,6 +140,18 @@ export function ShotEditor({
           <span>🎵 {labels.sound}</span>
           <span className="truncate text-sm text-secondary">{soundName ?? labels.noSound} ‹</span>
         </button>
+
+        {/* The moment's title and description (its creator only): folded last, so the
+            shot's own look stays on top and the keyboard never hides the filters. */}
+        {moment &&
+          (details ? (
+            <MomentDetails code={moment.code} initial={{ title: moment.title, description: moment.description }} labels={moment.labels} />
+          ) : (
+            <button type="button" onClick={() => setDetails(true)} className="flex min-h-12 items-center justify-between gap-3 rounded-2xl bg-surface px-4 text-start font-bold">
+              <span>📝 {moment.labels.section}</span>
+              <span className="min-w-0 truncate text-sm text-secondary">{moment.title} ‹</span>
+            </button>
+          ))}
 
         <button type="button" disabled={busy} onClick={() => onSave(filter, stamp)} className="min-h-12 rounded-full bg-accent px-5 font-extrabold text-white disabled:opacity-60">
           {labels.save}
