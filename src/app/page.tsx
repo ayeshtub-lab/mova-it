@@ -16,6 +16,8 @@ import type { User } from "@/generated/prisma/client";
 import type { Locale } from "@/i18n/config";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
+import { isInAppBrowser } from "@/lib/inapp";
+import { headers } from "next/headers";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { CONTACT_EMAIL } from "@/lib/site";
 import { JsonLd } from "@/app/JsonLd";
@@ -111,7 +113,7 @@ const POINT_ICONS = [
 
 // Visitors: the idea at a glance (a wheel of real public shots, each with its owner's
 // photo and first name), three short points, sign in or try as a guest, then more shots.
-async function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean }) {
+async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; google: boolean; inAppHint: string | null }) {
   const shots = await publicShowcase(30);
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 py-4 sm:py-10">
@@ -151,6 +153,7 @@ async function VisitorHome({ dict, google }: { dict: Dictionary; google: boolean
             <p className="text-sm leading-relaxed text-muted">{dict.guest.hint}</p>
           </div>
           <GuestForm labels={dict.guest} />
+          {inAppHint && <p className="text-xs leading-relaxed text-muted">{inAppHint}</p>}
         </section>
       </div>
 
@@ -176,7 +179,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const user = await getCurrentUser();
-  const google = googleEnabled();
+  // Inside TikTok's (or any app's) browser Google refuses to sign in: no Google button there.
+  const inApp = isInAppBrowser((await headers()).get("user-agent"));
+  const google = googleEnabled() && !inApp;
+  const inAppHint = googleEnabled() && inApp ? dict.account.inAppHint : null;
   const failed = (await searchParams).signin === "failed";
 
   return (
@@ -188,7 +194,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           {dict.account.failed}
         </p>
       )}
-      {user ? <SignedInHome user={user} locale={locale} dict={dict} google={google} /> : <VisitorHome dict={dict} google={google} />}
+      {user ? <SignedInHome user={user} locale={locale} dict={dict} google={google} /> : <VisitorHome dict={dict} google={google} inAppHint={inAppHint} />}
     </div>
   );
 }

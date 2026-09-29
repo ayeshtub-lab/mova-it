@@ -388,6 +388,7 @@
     "google": "Continue with Google",
     "or": "or",
     "guestOption": "Try as a guest with just a name",
+    "inAppHint": "Want to sign in with Google? Google doesn’t allow it inside TikTok or Instagram. Tap ⋯ at the top and choose “Open in browser”, or start now with your name 👆",
     "saveTitle": "Keep your account 🔒",
     "saveHint": "You're a guest: if you sign out or switch phones, your moments are lost. Link Google and all your moments, photos and chats stay with you.",
     "saveButton": "Link with Google",

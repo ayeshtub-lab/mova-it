@@ -1,4 +1,6 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { isInAppBrowser } from "@/lib/inapp";
 import { CreateMomentForm } from "@/app/CreateMomentForm";
 import { GoogleButton } from "@/app/GoogleButton";
 import { googleEnabled } from "@/server/google";
@@ -16,6 +18,7 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const { kind } = await searchParams;
+  const inApp = isInAppBrowser((await headers()).get("user-agent"));
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
@@ -45,7 +48,12 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
                     </span>
                     <span className="text-xs leading-relaxed text-muted">{dict.create.publicLockedHint}</span>
                   </span>
-                  <GoogleButton label={dict.account.google} returnTo={kind === "story" ? "/new?kind=story" : "/new"} />
+                  {/* Inside TikTok's (or any app's) browser Google refuses to sign in: say how instead. */}
+                  {inApp ? (
+                    <span className="text-xs leading-relaxed text-muted">{dict.account.inAppHint}</span>
+                  ) : (
+                    <GoogleButton label={dict.account.google} returnTo={kind === "story" ? "/new?kind=story" : "/new"} />
+                  )}
                 </div>
               ) : null
             }

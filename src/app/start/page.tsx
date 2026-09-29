@@ -9,6 +9,7 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { googleEnabled } from "@/server/google";
 import { NEW_VISIT_HEADER } from "@/lib/source";
+import { isInAppBrowser } from "@/lib/inapp";
 import { recordLanding } from "@/server/stats";
 
 export const metadata = { robots: { index: false } };
@@ -20,7 +21,9 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
   const params = await searchParams;
   const story = params.kind !== "moment";
   // A new arrival from an ad (src/proxy.ts marks it): counted, to set against the ad's clicks.
-  const arrival = (await headers()).get(NEW_VISIT_HEADER);
+  const requestHeaders = await headers();
+  const arrival = requestHeaders.get(NEW_VISIT_HEADER);
+  const inApp = isInAppBrowser(requestHeaders.get("user-agent"));
   if (arrival) after(() => recordLanding(arrival.slice(0, 40)).catch((error) => console.error("landing count failed", error)));
   const next = story ? "/new?kind=story" : "/new";
   if (await getCurrentUser()) redirect(next);
@@ -48,13 +51,15 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
         )}
         <section className="flex flex-col gap-3 rounded-3xl border border-line bg-surface/60 p-5">
           <p className="text-sm font-bold">{t.how}</p>
-          {googleEnabled() && (
+          {/* Inside TikTok's (or any app's) browser Google refuses to sign in: the guest start only. */}
+          {googleEnabled() && !inApp && (
             <>
               <GoogleButton label={dict.account.google} returnTo={next} />
               <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
             </>
           )}
           <GuestForm labels={dict.guest} next={next} />
+          {googleEnabled() && inApp && <p className="text-xs leading-relaxed text-muted">{dict.account.inAppHint}</p>}
         </section>
       </main>
     </div>
