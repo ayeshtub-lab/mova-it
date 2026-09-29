@@ -82,17 +82,7 @@
     "checking": "Checking…",
     "longNotice": "The video is longer than 40 seconds — we'll send its first 40 seconds.",
     "longAction": "OK, send the first 40 seconds",
-    "trimming": "Preparing the first {max} seconds… {s} of {max} (keep the screen on)",
-    "camera": {
-      "title": "Zawmo camera",
-      "record": "Start recording",
-      "stop": "Stop recording",
-      "switchCamera": "Switch camera",
-      "close": "Close",
-      "hint": "Video up to 40 seconds",
-      "denied": "We couldn't open the camera. Allow this site to use the camera and microphone in your browser settings, or record with your phone's camera.",
-      "useNative": "Use the phone's camera"
-    }
+    "trimming": "Preparing the first {max} seconds… {s} of {max} (keep the screen on)"
   },
   "moment": {
     "meta": "{angles} · {people}",

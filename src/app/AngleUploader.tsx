@@ -10,8 +10,7 @@ import type { CaptionView } from "@/lib/caption";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { filterCss, stampText } from "@/lib/filters";
 import { MAX_VIDEO_SECONDS, PrepareError, prepareAngleFile, type PreparedAngle } from "@/lib/media-client";
-import { canRecord, firstSeconds } from "@/lib/recording";
-import { CameraRecorder, type CameraLabels } from "@/app/CameraRecorder";
+import { firstSeconds } from "@/lib/recording";
 import { PENDING_SOUND, soundByKey, soundName } from "@/lib/sounds";
 
 
@@ -28,7 +27,6 @@ type Labels = {
   longNotice: string;
   longAction: string;
   trimming: string;
-  camera: CameraLabels;
   join: JoinLabels;
   draft: string;
   publish: string;
@@ -139,7 +137,6 @@ export function AngleUploader({
   const [picking, setPicking] = useState<number | null>(null);
   const [editing, setEditing] = useState<number | null>(null);
   const [captioning, setCaptioning] = useState<number | null>(null);
-  const [camera, setCamera] = useState(false);
   const longFiles = useRef(new Map<number, File>());
   const [saving, setSaving] = useState(false);
   const [soundError, setSoundError] = useState(false);
@@ -262,15 +259,6 @@ export function AngleUploader({
     router.refresh();
   }
 
-  async function onRecorded(video: PreparedAngle) {
-    setCamera(false);
-    const index = items.length;
-    setItems((all) => [...all, { name: "🎥", status: "preparing", pct: 0 }]);
-    await send(video, index);
-    router.refresh();
-  }
-
-  const videoInput = useRef<HTMLInputElement>(null);
 
   async function onPick(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
@@ -300,15 +288,10 @@ export function AngleUploader({
           </svg>
           {labels.cameraPhoto}
         </label>
-        {/* Video: Zawmo's own camera (40-second countdown) where the browser can record,
-            the phone's camera app otherwise. */}
+        {/* Video: the phone's own camera app. Recording in the browser had no stabilisation
+            and poor quality; a video past 40 seconds is offered its first 40 afterwards. */}
         <label
           htmlFor={`${inputId}-video`}
-          onClick={(e) => {
-            if (!canRecord() || !navigator.mediaDevices?.getUserMedia) return;
-            e.preventDefault();
-            setCamera(true);
-          }}
           className={`flex min-h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-accent px-4 text-base font-bold text-white ${disabled}`}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true" className="size-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -325,8 +308,7 @@ export function AngleUploader({
         {labels.gallery}
       </label>
       <input id={`${inputId}-photo`} type="file" accept="image/*" capture="environment" onChange={onPick} className="sr-only" />
-      <input ref={videoInput} id={`${inputId}-video`} type="file" accept="video/*" capture="environment" onChange={onPick} className="sr-only" />
-      {camera && <CameraRecorder labels={labels.camera} onDone={onRecorded} onNative={() => videoInput.current?.click()} onClose={() => setCamera(false)} />}
+      <input id={`${inputId}-video`} type="file" accept="video/*" capture="environment" onChange={onPick} className="sr-only" />
       <input id={inputId} type="file" accept="image/*,video/mp4,video/quicktime,video/webm" multiple onChange={onPick} className="sr-only" />
       <p className="text-sm text-muted">{labels.hint}</p>
       {pending && (

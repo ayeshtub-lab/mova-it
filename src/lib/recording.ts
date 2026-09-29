@@ -1,12 +1,10 @@
-// Recording video in the browser (MediaRecorder), for Zawmo's own camera and for sending
-// the first 40 seconds of a longer gallery video. Import only from client components.
+// Recording video in the browser (MediaRecorder), for sending the first 40 seconds of a
+// longer video. Import only from client components.
 import { MAX_VIDEO_SECONDS, PrepareError, toJpeg, type PreparedAngle } from "@/lib/media-client";
 
 const POSTER_MAX_EDGE = 720;
 // MP4 first: it plays everywhere (iPhones included); WebM where MP4 can't be recorded.
 const TYPES = ["video/mp4;codecs=avc1,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
-
-export const canRecord = () => typeof window !== "undefined" && "MediaRecorder" in window && TYPES.some((t) => MediaRecorder.isTypeSupported(t));
 
 export function recordingType() {
   const type = TYPES.find((t) => MediaRecorder.isTypeSupported(t));
