@@ -18,6 +18,9 @@ import { FRAME, renderOutro, renderOverlay } from "./overlay";
 const PHOTO_SECONDS = 2.5;
 const OUTRO_SECONDS = 2;
 const VIDEO_MAX_SECONDS = 6;
+// «مع الوقت»: quick, like time passing — a month in a few seconds.
+const STORY_PHOTO_SECONDS = 1.2;
+const STORY_VIDEO_SECONDS = 2.5;
 const FPS = 30;
 
 // ffmpeg-static has no ffprobe, so read what we need from `ffmpeg -i`'s banner.
@@ -52,16 +55,16 @@ const withCaption = (base: string, c: CaptionFile | undefined, input: number) =>
     ? `${base}[pre];[${input}:v]scale=${Math.round(FRAME.width * c.w)}:-1[cap];[pre][cap]overlay=x=(main_w-overlay_w)/2:y=${c.y.toFixed(4)}*main_h-overlay_h/2`
     : base;
 
-async function photoSegment(input: string, overlay: string, out: string, filter: string | null, caption?: CaptionFile) {
+async function photoSegment(input: string, overlay: string, out: string, filter: string | null, caption?: CaptionFile, seconds = PHOTO_SECONDS) {
   await ffmpeg([
-    "-loop", "1", "-t", String(PHOTO_SECONDS), "-i", input,
+    "-loop", "1", "-t", String(seconds), "-i", input,
     "-i", overlay,
-    "-f", "lavfi", "-t", String(PHOTO_SECONDS), "-i", "anullsrc=r=44100:cl=stereo",
+    "-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=44100:cl=stereo",
     ...captionInput(caption),
     "-filter_complex", `${withCaption(`[0:v]${COVER}${look(filter)}`, caption, 3)}[b];[b][1:v]overlay=0:0[v]`,
     "-map", "[v]", "-map", "2:a", ...ENCODE, "-shortest", out,
   ]);
-  return PHOTO_SECONDS;
+  return seconds;
 }
 
 // The closing card: a still frame with silence (a library sound, if any, runs on over it).
@@ -75,9 +78,9 @@ async function outroSegment(card: string, out: string) {
   return OUTRO_SECONDS;
 }
 
-async function videoSegment(input: string, overlay: string, out: string, filter: string | null, caption?: CaptionFile) {
+async function videoSegment(input: string, overlay: string, out: string, filter: string | null, caption?: CaptionFile, max = VIDEO_MAX_SECONDS) {
   const { duration, hasAudio } = await probe(input);
-  const seconds = Math.min(duration || VIDEO_MAX_SECONDS, VIDEO_MAX_SECONDS);
+  const seconds = Math.min(duration || max, max);
   await ffmpeg([
     "-t", String(seconds), "-i", input,
     "-i", overlay,
@@ -118,6 +121,17 @@ async function withShotSound(segment: string, soundPath: string, sound: Sound, m
   return seconds;
 }
 
+// «١ سبتمبر ٢٠٢٦»: a story shot's day, in Mecca time like the rest of Zawmo.
+const storyDate = (at: Date, locale: string) =>
+  new Intl.DateTimeFormat(locale === "ar" ? "ar" : "en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Riyadh" }).format(at);
+
+// «١٢ لقطة خلال ٤٠ يوم»: how many shots, from the first day to the last.
+function storyMeta(dates: Date[], dict: typeof ar | typeof en, locale: string) {
+  const times = dates.map((d) => d.getTime());
+  const days = Math.max(1, Math.round((Math.max(...times) - Math.min(...times)) / 86_400_000) + 1);
+  return dict.montage.storyMeta.replace("{shots}", plural(locale, dict.plurals.shots, dates.length)).replace("{days}", plural(locale, dict.plurals.days, days));
+}
+
 // Renders a queued montage end to end and records the outcome on its row.
 export async function renderMontage(montageId: string, siteHost: string) {
   const montage = await db.montage.update({ where: { id: montageId }, data: { status: "RENDERING" }, include: { moment: true } });
@@ -131,13 +145,16 @@ export async function renderMontage(montageId: string, siteHost: string) {
     if (!ordered.length) throw new Error("no angles");
 
     const { moment } = montage;
+    const story = moment.kind === "STORY";
     const arabic = isArabic(moment.title);
     const dict = arabic ? ar : en;
     const locale = arabic ? "ar" : "en";
     const participants = await db.participant.count({ where: { momentId: moment.id } });
-    const meta = dict.moment.meta
-      .replace("{angles}", plural(locale, dict.plurals.angles, ordered.length))
-      .replace("{people}", plural(locale, dict.plurals.people, participants));
+    const meta = story
+      ? storyMeta(ordered.map((a) => a.capturedAt ?? a.uploadedAt), dict, locale)
+      : dict.moment.meta
+          .replace("{angles}", plural(locale, dict.plurals.angles, ordered.length))
+          .replace("{people}", plural(locale, dict.plurals.people, participants));
 
     // Library sounds are fetched from the site once per render, whichever shots use them.
     const fetched = new Map<string, string>();
@@ -164,11 +181,13 @@ export async function renderMontage(montageId: string, siteHost: string) {
         await renderOverlay({
           title: moment.title,
           meta,
-          label: dict.montage.label
+          label: (story ? dict.montage.storyLabel : dict.montage.label)
             .replace("{i}", String(i + 1))
             .replace("{n}", String(ordered.length))
             .replace("{name}", angle.contributor.displayName),
-          cta: dict.montage.cta,
+          cta: story ? dict.montage.storyCta : dict.montage.cta,
+          // «مع الوقت»: each shot's date, big — the dates tell the story.
+          date: story ? storyDate(angle.capturedAt ?? angle.uploadedAt, locale) : undefined,
           // The short link (zawmo.com/K7M2Q4): easy to read off a video and type in.
           link: `${publicHost(siteHost)}/${moment.code}`,
           stamp: angle.stamp ? stampText(angle.capturedAt ?? angle.uploadedAt, locale, "Asia/Riyadh") : undefined,
@@ -183,9 +202,12 @@ export async function renderMontage(montageId: string, siteHost: string) {
         await download(writingUrl, caption.file);
       }
       let seconds =
-        angle.mediaType === "VIDEO" ? await videoSegment(input, overlay, out, angle.filter, caption) : await photoSegment(input, overlay, out, angle.filter, caption);
+        angle.mediaType === "VIDEO"
+          ? await videoSegment(input, overlay, out, angle.filter, caption, story ? STORY_VIDEO_SECONDS : VIDEO_MAX_SECONDS)
+          : await photoSegment(input, overlay, out, angle.filter, caption, story ? STORY_PHOTO_SECONDS : PHOTO_SECONDS);
       let segment = out;
-      const shotSound = montage.soundKey ? null : soundByKey(angle.soundKey);
+      // A story moves too fast for each shot's own sound: only the video's sound plays.
+      const shotSound = montage.soundKey || story ? null : soundByKey(angle.soundKey);
       if (shotSound) {
         segment = join(dir, `seg-${i}-sound.mp4`);
         seconds = await withShotSound(out, await soundAt(shotSound), shotSound, angle.muteOriginal, seconds, segment);
@@ -198,7 +220,7 @@ export async function renderMontage(montageId: string, siteHost: string) {
     if (segments.length) {
       const card = join(dir, "outro.png");
       const out = join(dir, "seg-outro.mp4");
-      await writeFile(card, await renderOutro({ name: dict.montage.outroName, tagline: dict.montage.outroTagline, cta: dict.montage.outroCta, link: `${publicHost(siteHost)}/${moment.code}` }));
+      await writeFile(card, await renderOutro({ name: dict.montage.outroName, tagline: dict.montage.outroTagline, cta: story ? dict.montage.storyOutroCta : dict.montage.outroCta, link: `${publicHost(siteHost)}/${moment.code}` }));
       total += await outroSegment(card, out);
       segments.push(out);
     }

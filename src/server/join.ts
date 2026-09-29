@@ -99,9 +99,10 @@ async function candidates(userId: string, angleId: string) {
     where: { id: angleId },
     include: { contributor: { select: { isGuest: true } }, moment: { select: { id: true, kind: true, title: true, placeId: true } } },
   });
-  // Only an official account's checked shot, outside «لحظة اليوم».
+  // Only an official account's checked shot, outside «لحظة اليوم» and «مع الوقت» stories
+  // (a story is one person's own, not a moment shared with others).
   if (!angle || angle.contributorId !== userId || angle.contributor.isGuest) return null;
-  if (!["DRAFT", "READY"].includes(angle.status) || angle.screening !== "allowed" || angle.moment.kind === "DAILY") return null;
+  if (!["DRAFT", "READY"].includes(angle.status) || angle.screening !== "allowed" || angle.moment.kind === "DAILY" || angle.moment.kind === "STORY") return null;
   const at = (angle.capturedAt ?? angle.uploadedAt).getTime();
   const blocked = [...(await blockedIdsFor(userId))];
 
@@ -115,7 +116,7 @@ async function candidates(userId: string, angleId: string) {
         { capturedAt: { gte: new Date(at - VISUAL_WINDOW_MS), lte: new Date(at + VISUAL_WINDOW_MS) } },
         { capturedAt: null, uploadedAt: { gte: new Date(at - VISUAL_WINDOW_MS), lte: new Date(at + VISUAL_WINDOW_MS) } },
       ],
-      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, creator: { allowJoins: true, id: { notIn: blocked } } },
+      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { notIn: ["DAILY", "STORY"] }, creator: { allowJoins: true, id: { notIn: blocked } } },
     },
     select: {
       momentId: true, scene: true, seenText: true, placeId: true, networkPlaceId: true, capturedAt: true, uploadedAt: true,
@@ -220,13 +221,13 @@ export class JoinError extends Error {
 export async function joinMoment(userId: string, angleId: string, code: string) {
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { contributor: { select: { isGuest: true } }, moment: { select: { kind: true } } } });
   if (!angle || angle.contributorId !== userId || angle.contributor.isGuest) throw new JoinError("not_found");
-  if (!["DRAFT", "READY"].includes(angle.status) || angle.screening !== "allowed" || angle.moment.kind === "DAILY") throw new JoinError("not_found");
+  if (!["DRAFT", "READY"].includes(angle.status) || angle.screening !== "allowed" || angle.moment.kind === "DAILY" || angle.moment.kind === "STORY") throw new JoinError("not_found");
   // Only the moment that was offered, and only while it still takes joins.
   const target = await db.moment.findUnique({ where: { code: code.toUpperCase() }, include: { creator: { select: { allowJoins: true } } } });
   if (!target || target.id !== angle.joinOffer) throw new JoinError("not_suggested");
   const blocked = await blockedIdsFor(userId);
   const stillOpen =
-    target.visibility === "PUBLIC" && target.status === "ACTIVE" && target.kind !== "DAILY" && target.creator.allowJoins && !blocked.has(target.creatorId) &&
+    target.visibility === "PUBLIC" && target.status === "ACTIVE" && target.kind !== "DAILY" && target.kind !== "STORY" && target.creator.allowJoins && !blocked.has(target.creatorId) &&
     (await db.angle.count({ where: { momentId: target.id, contributorId: userId } })) === 0;
   if (!stillOpen) throw new JoinError("not_suggested");
   const source = await db.moment.findUniqueOrThrow({ where: { id: angle.momentId } });

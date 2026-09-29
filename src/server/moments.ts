@@ -43,6 +43,7 @@ export type CreateMomentInput = {
   visibility?: unknown;
   // Starting without a name: this placeholder («لحظة جديدة») stands in until the creator names it at «نشر».
   untitled?: string;
+  kind?: unknown; // "STORY": «مع الوقت», one thing followed over time; anything else: a moment
 };
 
 export async function createMoment(creator: User, input: CreateMomentInput) {
@@ -67,7 +68,8 @@ export async function createMoment(creator: User, input: CreateMomentInput) {
   // Everyone reads a public description: it must pass the check first (fail-closed).
   if (visibility === Visibility.PUBLIC && description && (await screenText(description)).result !== "allowed") throw new MomentError("description_blocked");
 
-  // Users only create everyday moments; BIG and DAILY moments are scheduled by Zawmo.
+  // Users create everyday moments and «مع الوقت» stories; BIG and DAILY moments are scheduled by Zawmo.
+  const kind = input.kind === "STORY" ? ("STORY" as const) : ("EVERYDAY" as const);
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = newCode();
     if (await db.moment.findUnique({ where: { code }, select: { id: true } })) continue;
@@ -81,6 +83,7 @@ export async function createMoment(creator: User, input: CreateMomentInput) {
         placeId,
         visibility,
         creatorId: creator.id,
+        kind,
         participants: { create: { userId: creator.id, role: "HOST" } },
       },
     });
@@ -133,7 +136,8 @@ export async function getMomentView(code: string, viewer: User | null) {
   const hasContributed = !!viewer && angles.some((a) => a.contributorId === viewer.id);
   // Public moments are open to everyone; "give to get" is for friends/link moments —
   // and for «لحظة اليوم», where seeing everyone's angle is the reward for adding yours.
-  const unlocked = isCreator || hasContributed || (moment.visibility === Visibility.PUBLIC && moment.kind !== "DAILY");
+  // A «مع الوقت» story is its owner's alone to add to: whoever holds it sees all of it.
+  const unlocked = isCreator || hasContributed || moment.kind === "STORY" || (moment.visibility === Visibility.PUBLIC && moment.kind !== "DAILY");
   const visible = unlocked ? angles : angles.slice(0, 1);
   const visibleIds = visible.map((a) => a.id);
   // Views and likes are shown to everyone.

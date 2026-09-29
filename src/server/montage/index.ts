@@ -10,6 +10,22 @@ const MAX_ANGLES = 12;
 // A moment's video needs this many angles; made by hand the first time, by the owner of
 // the moment's first angle, then kept up to date by itself.
 export const MIN_ANGLES = 5;
+// «مع الوقت»: a story's video is its shots in date order, quickly, like time passing — from
+// three shots, and at most STORY_MAX of them, spread evenly from the first to the latest.
+export const STORY_MIN = 3;
+const STORY_MAX = 40;
+
+async function sizeFor(momentId: string) {
+  const moment = await db.moment.findUnique({ where: { id: momentId }, select: { kind: true } });
+  return moment?.kind === "STORY" ? { story: true, min: STORY_MIN, max: STORY_MAX } : { story: false, min: MIN_ANGLES, max: MAX_ANGLES };
+}
+
+// `n` items spread evenly over the list, the first and the last always in.
+export function spread<T>(items: T[], n: number) {
+  if (items.length <= n) return items;
+  if (n <= 1) return items.slice(-1);
+  return Array.from({ length: n }, (_, i) => items[Math.round((i * (items.length - 1)) / (n - 1))]);
+}
 // A render that has not finished in this time is treated as dead and may be retried.
 const STALE_RENDER_MS = 10 * 60 * 1000;
 // Changes come in bursts (upload, then a look, then a sound): wait for them to settle
@@ -27,7 +43,8 @@ export class MontageError extends Error {
 async function unlockedMoment(user: User, code: string) {
   const moment = await db.moment.findUnique({ where: { code: code.toUpperCase() } });
   if (!moment || (moment.status === "HIDDEN" && moment.creatorId !== user.id)) throw new MontageError("not_found");
-  if (moment.creatorId === user.id) return moment;
+  // A «مع الوقت» story is open to whoever holds it (nobody else adds to it).
+  if (moment.creatorId === user.id || moment.kind === "STORY") return moment;
   const contributed = await db.angle.count({ where: { momentId: moment.id, contributorId: user.id, status: "READY" } });
   if (!contributed) throw new MontageError("locked");
   return moment;
@@ -36,12 +53,15 @@ async function unlockedMoment(user: User, code: string) {
 // The moment's shots as a montage would use them, and a fingerprint of everything that
 // shows or sounds in it — the shots, their looks and sounds, and the montage's sound.
 async function currentContent(momentId: string, soundKey: string | null) {
-  const angles = await db.angle.findMany({
+  const size = await sizeFor(momentId);
+  const found = await db.angle.findMany({
     where: { momentId, status: "READY", mediaPath: { not: null }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
     orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
     select: { id: true, filter: true, stamp: true, soundKey: true, muteOriginal: true, caption: true },
-    take: MAX_ANGLES,
+    // A story keeps its whole span (spread below); a moment its first angles.
+    ...(size.story ? {} : { take: size.max }),
   });
+  const angles = spread(found, size.max);
   const signature = createHash("sha256")
     .update(JSON.stringify([soundKey, angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null])]))
     .digest("hex")
@@ -91,7 +111,8 @@ async function videoRights(momentId: string) {
 // itself up to date.
 async function madeByHand(momentId: string) {
   const made = await db.montage.findMany({ where: { momentId }, select: { angleIds: true } });
-  return made.some((m) => m.angleIds.length >= MIN_ANGLES);
+  const { min } = await sizeFor(momentId);
+  return made.some((m) => m.angleIds.length >= min);
 }
 
 // The maker asks for the video (or picks a new sound for it).
@@ -99,7 +120,7 @@ export async function requestMontage(user: User, code: string, rawSound: unknown
   const soundKey = soundByKey(typeof rawSound === "string" ? rawSound : null)?.key ?? null;
   const moment = await unlockedMoment(user, code);
   const rights = await videoRights(moment.id);
-  if (rights.count < MIN_ANGLES) throw new MontageError("too_few");
+  if (rights.count < (await sizeFor(moment.id)).min) throw new MontageError("too_few");
   if (rights.makerId !== user.id) throw new MontageError("not_maker");
   const result = await montageFor(moment.id, soundKey);
   if (!result) throw new MontageError("no_angles");
@@ -111,7 +132,7 @@ export async function requestMontage(user: User, code: string, rawSound: unknown
 // public host for the link in the video.
 export async function refreshMontage(momentId: string, host: string) {
   await new Promise((r) => setTimeout(r, SETTLE_MS));
-  if ((await videoRights(momentId)).count < MIN_ANGLES || !(await madeByHand(momentId))) return;
+  if ((await videoRights(momentId)).count < (await sizeFor(momentId)).min || !(await madeByHand(momentId))) return;
   const result = await montageFor(momentId, await chosenSound(momentId));
   if (result?.created) await renderMontage(result.montage.id, host);
 }
@@ -126,17 +147,18 @@ export type MontageView = Awaited<ReturnType<typeof momentVideo>>;
 // What the moment page shows: the latest finished video (kept on screen while a newer
 // one is being made), whether a newer one is on its way, and the moment's hearts.
 async function momentVideo(user: User, momentId: string) {
-  const [latest, ready, likes, liked, current, rights] = await Promise.all([
+  const [latest, ready, likes, liked, current, rights, size] = await Promise.all([
     db.montage.findFirst({ where: { momentId }, orderBy: { createdAt: "desc" } }),
     db.montage.findFirst({ where: { momentId, status: "READY" }, orderBy: { createdAt: "desc" } }),
     db.momentLike.count({ where: { momentId } }),
     db.momentLike.count({ where: { momentId, userId: user.id } }),
     chosenSound(momentId).then((sound) => currentContent(momentId, sound)),
     videoRights(momentId),
+    sizeFor(momentId),
   ]);
   // Below the minimum there is no video at all (an older one made with fewer angles
   // stays hidden): the page shows how many angles are still missing.
-  const enough = rights.count >= MIN_ANGLES;
+  const enough = rights.count >= size.min;
   return {
     id: enough ? (ready?.id ?? null) : null,
     durationSec: enough ? (ready?.durationSec ?? null) : null,
@@ -148,7 +170,7 @@ async function momentVideo(user: User, momentId: string) {
     // render): the maker is offered the button.
     outdated: enough && !(latest && isAlive(latest) && latest.signature === current.signature),
     angleCount: rights.count,
-    minAngles: MIN_ANGLES,
+    minAngles: size.min,
     canMake: rights.makerId === user.id,
     likes,
     liked: liked > 0,

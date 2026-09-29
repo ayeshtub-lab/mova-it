@@ -12,13 +12,15 @@ export const MAX_VIDEO_SECONDS = 40;
 // A little slack: containers round durations, and a 40.3 s clip is still "40 seconds".
 const VIDEO_SECONDS_TOLERANCE = 0.5;
 const ANGLES_PER_USER_PER_MOMENT = 30;
+// «مع الوقت»: a shot a day for most of a year.
+const SHOTS_PER_STORY = 300;
 const UPLOAD_WINDOW_MS = 15 * 60 * 1000;
 
 const VIDEO_TYPES: Record<string, string> = { "video/mp4": "mp4", "video/quicktime": "mov", "video/webm": "webm" };
 
 export class AngleError extends Error {
   constructor(
-    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required" | "needs_title",
+    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required" | "needs_title" | "story_owner",
   ) {
     super(code);
   }
@@ -78,6 +80,8 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
   if (!moment || moment.status === "HIDDEN") throw new AngleError("not_found");
   // Anything added to a public moment is public: only official (Google) accounts.
   if (moment.visibility === "PUBLIC" && user.isGuest) throw new AngleError("official_required");
+  // A «مع الوقت» story is shot by its owner alone.
+  if (moment.kind === "STORY" && moment.creatorId !== user.id) throw new AngleError("story_owner");
 
   const mediaType = input.mediaType === "VIDEO" ? MediaType.VIDEO : input.mediaType === "PHOTO" ? MediaType.PHOTO : null;
   if (!mediaType) throw new AngleError("invalid_media");
@@ -95,7 +99,7 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
   const existing = await db.angle.count({
     where: { momentId: moment.id, contributorId: user.id, status: { not: "REMOVED" } },
   });
-  if (existing >= ANGLES_PER_USER_PER_MOMENT) throw new AngleError("too_many");
+  if (existing >= (moment.kind === "STORY" ? SHOTS_PER_STORY : ANGLES_PER_USER_PER_MOMENT)) throw new AngleError("too_many");
 
   const capturedAt = captureDate(input.capturedAt);
   const place = await placeFor(input, moment.placeId, capturedAt, ipCountry);
@@ -261,7 +265,7 @@ export async function screenForPublic(momentId: string) {
 // «نشر»: the owner publishes a checked draft — from now on it shows in the moment. A moment
 // started without a name gets its name here, from its creator: nothing goes up unnamed.
 export async function publishAngle(user: User, angleId: string, title?: unknown) {
-  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { named: true, creatorId: true } } } });
+  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { named: true, creatorId: true, kind: true } } } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
   if (angle.status === "READY") return angle; // a retry
   if (angle.status !== "DRAFT") throw new AngleError("forbidden");
@@ -271,7 +275,11 @@ export async function publishAngle(user: User, angleId: string, title?: unknown)
   const now = new Date();
   const [done] = await db.$transaction([
     db.angle.update({ where: { id: angle.id }, data: { status: "READY" } }),
-    db.moment.update({ where: { id: angle.momentId }, data: { lastActivityAt: now, ...(naming ? { title: name, named: true } : {}) } }),
+    db.moment.update({
+      where: { id: angle.momentId },
+      // A new shot of a story starts its weekly reminders over.
+      data: { lastActivityAt: now, ...(naming ? { title: name, named: true } : {}), ...(angle.moment.kind === "STORY" ? { reminders: 0, remindedAt: null } : {}) },
+    }),
   ]);
   return done;
 }

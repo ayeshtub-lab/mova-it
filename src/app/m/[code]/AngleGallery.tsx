@@ -127,8 +127,10 @@ export function AngleGallery({
   viewerId,
   share,
   momentEdit,
+  story = false,
 }: {
   angles: GalleryAngle[];
+  story?: boolean; // «مع الوقت»: each shot shows its day
   locale: string;
   labels: Labels;
   canReact: boolean;
@@ -603,6 +605,12 @@ export function AngleGallery({
                 <img src={a.gridUrl ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               )}
               <CaptionOverlay caption={captionOf(a.id)} />
+              {story && (
+                <span className="pointer-events-none absolute start-2 top-2 z-[2] rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-extrabold text-white">
+                  {/* Mecca time, as everywhere on Zawmo: the same on the server and the phone. */}
+                  {new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "Asia/Riyadh" }).format(new Date(a.capturedAt ?? a.takenAt))}
+                </span>
+              )}
               {a.isNew && <span className="pointer-events-none absolute end-2 top-2"><span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span></span>}
               {a.mediaType === "VIDEO" && (
                 <span aria-hidden="true" className="absolute bottom-9 end-2 flex size-7 items-center justify-center rounded-full bg-black/55">

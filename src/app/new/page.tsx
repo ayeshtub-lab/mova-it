@@ -8,7 +8,7 @@ import { getCurrentUser } from "@/lib/session";
 export const metadata = { robots: { index: false } };
 
 // Start a moment: the page behind the ＋ in the bottom bar.
-export default async function NewMomentPage() {
+export default async function NewMomentPage({ searchParams }: PageProps<"/new">) {
   const user = await getCurrentUser();
   if (!user) redirect("/");
   const locale = await getLocale();
@@ -26,7 +26,8 @@ export default async function NewMomentPage() {
           </div>
         </header>
         <div className="rounded-3xl border border-line bg-surface/60 p-5">
-          <CreateMomentForm labels={dict.create} canPublic={!user.isGuest} />
+          {/* «/new?kind=story»: straight to «مع الوقت» (from a story's «ابدأ قصتك»). */}
+          <CreateMomentForm labels={dict.create} canPublic={!user.isGuest} initialKind={(await searchParams).kind === "story" ? "STORY" : "EVERYDAY"} />
         </div>
       </main>
     </div>

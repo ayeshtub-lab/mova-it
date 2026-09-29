@@ -93,6 +93,7 @@ enum MomentKind {
   EVERYDAY // created by someone: a trip, a sunset, a hangout
   BIG // announced synchronized moment: a match, iftar, new year
   DAILY // the "moment of the day" prompt
+  STORY // «مع الوقت»: one thing over days, weeks or months (a plant, a house), shot by its owner
 }
 
 enum Visibility {
@@ -128,6 +129,10 @@ model Moment {
   creatorId      String
   createdAt      DateTime         @default(now())
   lastActivityAt DateTime         @default(now()) // drives "why now" ranking
+  // «مع الوقت»: when its owner was last reminded to add a shot, and how many times since
+  // their last shot (reminders stop after a few; a new shot starts them over).
+  remindedAt     DateTime?
+  reminders      Int              @default(0)
 
   creator      User           @relation("MomentCreator", fields: [creatorId], references: [id])
   place        Place?         @relation(fields: [placeId], references: [id])
@@ -494,6 +499,7 @@ enum NotificationKind {
   REPLY // a reply to your comment
   NEW_ANGLE // someone else added an angle to a moment you have an angle in
   JOINED // «صوّر معك»: someone who shot the same moment added their shot to your moment
+  STORY_REMINDER // «مع الوقت»: a week since the last shot of your story (from Zawmo)
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.

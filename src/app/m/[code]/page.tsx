@@ -14,7 +14,8 @@ import { plural } from "@/i18n/plural";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { relativeTime, siteOrigin } from "@/lib/site";
-import { latestMontageFor } from "@/server/montage";
+import { activityDay } from "@/server/stats";
+import { latestMontageFor, STORY_MIN } from "@/server/montage";
 import { googleEnabled } from "@/server/google";
 import { screenForPublic } from "@/server/angles";
 import { dailyFor, tomorrowVote } from "@/server/daily";
@@ -80,6 +81,21 @@ function timelineOf(angles: { id: string; capturedAt: Date | null }[]) {
   return [...buckets.values()];
 }
 
+// «مع الوقت»: the shots grouped by day (Mecca time), each day with its date.
+const dayFormat = (locale: string, withYear = false) =>
+  new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", ...(withYear ? { year: "numeric" } : {}), timeZone: "Asia/Riyadh" });
+function daysOf(angles: { id: string; capturedAt: Date | null; takenAt: Date }[], locale: string) {
+  const days = new Map<string, { firstId: string; label: string; count: number }>();
+  for (const a of angles) {
+    const at = a.capturedAt ?? a.takenAt;
+    const key = activityDay(at);
+    const day = days.get(key);
+    if (day) day.count++;
+    else days.set(key, { firstId: a.id, label: dayFormat(locale).format(at), count: 1 });
+  }
+  return [...days.values()];
+}
+
 // The creator switches their moment between friends and everyone. Going public
 // re-checks older angles in the background (anything unclear waits for an admin).
 async function changeVisibility(formData: FormData) {
@@ -104,7 +120,12 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   const dict = await getDictionary(locale);
   const t = dict.moment;
   const shareUrl = `${await siteOrigin()}/m/${view.code}`;
-  const timeline = timelineOf(view.angles);
+  // «مع الوقت»: one thing over days and weeks, shot by its owner alone.
+  const story = view.kind === "STORY";
+  const timeline = story ? [] : timelineOf(view.angles);
+  const storyDays = story ? daysOf(view.angles, locale) : [];
+  const storyDates = view.angles.map((a) => (a.capturedAt ?? a.takenAt).getTime());
+  const storySpan = storyDates.length ? Math.round((Math.max(...storyDates) - Math.min(...storyDates)) / 86_400_000) + 1 : 0;
   // «لحظة اليوم»: its theme, time left, and (while it's today) the vote for tomorrow.
   const daily = view.kind === "DAILY" ? await dailyFor(view.id, user) : null;
   const ballot = daily?.isToday ? await tomorrowVote(user) : null;
@@ -138,6 +159,12 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
             </p>
           )}
           {daily && <p className="leading-relaxed text-muted">{themeHint(daily.theme, locale)}</p>}
+          {story && (
+            <p className="w-fit rounded-full bg-moment/25 px-3 py-1 text-xs font-extrabold">
+              {dict.story.badge}
+              {storyDates.length > 0 && <> · {fill(dict.story.since, { date: dayFormat(locale, true).format(new Date(Math.min(...storyDates))) })}</>}
+            </p>
+          )}
           {view.description && <Description text={view.description} className="text-lg" />}
           {daily?.theme.tip && <p className="rounded-2xl bg-secondary-soft px-3 py-2 text-sm font-semibold text-secondary">🤍 {locale === "ar" ? daily.theme.tip.ar : daily.theme.tip.en}</p>}
           {(view.place || view.placeName) && (
@@ -153,7 +180,9 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           )}
           <p className="text-sm text-muted">
             {[
-              countsLine(dict, locale, view.angleCount, view.participantCount),
+              story
+                ? fill(dict.montage.storyMeta, { shots: plural(locale, dict.plurals.shots, view.angleCount), days: plural(locale, dict.plurals.days, Math.max(1, storySpan)) })
+                : countsLine(dict, locale, view.angleCount, view.participantCount),
               view.angleCount > 0 ? fill(t.lastAdded, { when: relativeTime(view.lastActivityAt, locale) }) : null,
             ]
               .filter(Boolean)
@@ -191,14 +220,29 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
 
         {/* The moment's ready video comes first, for those who may see it. */}
         {view.angleCount > 0 && montage && (
-          <MontagePanel code={view.code} initial={montage} labels={dict.montage} locale={locale} soundLabels={dict.sounds} />
+          <MontagePanel code={view.code} initial={montage} labels={story ? { ...dict.montage, ...dict.story.video } : dict.montage} locale={locale} soundLabels={dict.sounds} />
         )}
 
-        <AngleWheel
+        {!story && <AngleWheel
           angles={view.angles.map((a) => ({ id: a.id, imageUrl: a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl, name: a.contributorName, avatarUrl: a.contributorAvatar, caption: a.caption }))}
           locked={view.lockedCount}
           labels={dict.wheel}
-        />
+        />}
+
+        {storyDays.length > 1 && (
+          <nav aria-label={t.timeline} className="-mx-4 overflow-x-auto px-4">
+            <ol className="flex gap-2">
+              {storyDays.map((d) => (
+                <li key={d.firstId}>
+                  <a href={`#angle-${d.firstId}`} className="flex min-h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-surface px-3 text-sm font-semibold">
+                    {d.label}
+                    {d.count > 1 && <span className="text-muted">· {d.count}</span>}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        )}
 
         {timeline.length > 1 && (
           <nav aria-label={t.timeline} className="-mx-4 overflow-x-auto px-4">
@@ -257,6 +301,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               canReact={!!user}
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}
+              story={story}
               momentEdit={view.viewer.isCreator && view.kind !== "DAILY" ? { code: view.code, title: view.title, description: view.description, labels: dict.momentDetails } : undefined}
             />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (
@@ -269,7 +314,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           </div>
         )}
 
-        {view.angleCount > 0 && !montage && <p className="rounded-2xl bg-surface p-4 text-sm text-muted">{dict.montage.locked}</p>}
+        {view.angleCount > 0 && !montage && (!story || view.angleCount < STORY_MIN) && <p className="rounded-2xl bg-surface p-4 text-sm text-muted">{story ? dict.story.video.locked : dict.montage.locked}</p>}
 
         {view.lockedCount > 0 && (
           <p className="rounded-2xl bg-accent-soft p-4 text-sm font-semibold text-accent-ink">
@@ -280,9 +325,18 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         {/* "Add your angle", framed in the logo's red → yellow → blue. */}
         <div className="rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px] shadow-sm">
           <section id="join" className="flex scroll-mt-4 flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">
-            <h2 className="text-xl font-extrabold">{t.ctaTitle}</h2>
-            {/* Public moments take official (Google) accounts only: no guest form here. */}
-            {(!user || user.isGuest) && view.visibility === "PUBLIC" ? (
+            <h2 className="text-xl font-extrabold">{story ? (view.viewer.isCreator ? dict.story.ctaOwner : dict.story.visitorTitle) : t.ctaTitle}</h2>
+            {story && view.viewer.isCreator && <p className="-mt-1 text-sm leading-relaxed text-muted">{dict.story.ctaOwnerHint}</p>}
+            {/* A story is shot by its owner alone: everyone else is invited to start their own. */}
+            {story && !view.viewer.isCreator ? (
+              <>
+                <p className="text-sm leading-relaxed text-muted">{fill(dict.story.visitorText, { name: view.creatorName ?? "" })}</p>
+                <Link href="/new?kind=story" className="flex min-h-12 items-center justify-center rounded-full bg-accent px-6 font-bold text-white">
+                  {dict.story.start}
+                </Link>
+              </>
+            ) : /* Public moments take official (Google) accounts only: no guest form here. */
+            (!user || user.isGuest) && view.visibility === "PUBLIC" ? (
               <>
                 <p className="text-sm leading-relaxed text-muted">{dict.visibility.publicGuest}</p>
                 {googleEnabled() && <GoogleButton label={user ? dict.account.saveButton : dict.account.google} returnTo={`/m/${view.code}#join`} />}

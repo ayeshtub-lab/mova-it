@@ -1,10 +1,16 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createMomentAction } from "@/app/actions/moments";
 import { PlaceField, type PlaceOption } from "@/app/PlaceField";
 
 type Labels = {
+  kindMoment: string;
+  kindMomentHint: string;
+  kindStory: string;
+  kindStoryHint: string;
+  storyPlaceholder: string;
+  storyTitleLabel: string;
   title: string;
   titleLabel: string;
   titlePlaceholder: string;
@@ -34,19 +40,45 @@ const inputClass =
   "min-h-11 w-full rounded-full border border-line bg-background px-4 outline-none focus:border-accent";
 
 // «للكل» is offered to official (Google) accounts only; the server enforces it too.
-export function CreateMomentForm({ labels, canPublic = false, initialPlace = null }: { labels: Labels; canPublic?: boolean; initialPlace?: PlaceOption | null }) {
+export function CreateMomentForm({
+  labels,
+  canPublic = false,
+  initialPlace = null,
+  initialKind = "EVERYDAY",
+}: {
+  labels: Labels;
+  canPublic?: boolean;
+  initialPlace?: PlaceOption | null;
+  initialKind?: "EVERYDAY" | "STORY";
+}) {
   const [state, action, pending] = useActionState(createMomentAction, undefined);
+  // A moment (now, from every angle) or «مع الوقت» (one thing over days and weeks).
+  const [kind, setKind] = useState(initialKind);
   const error = state?.error
     ? ({ title: labels.titleError, place: labels.placeError, description: labels.descriptionError, descriptionBlocked: labels.descriptionBlocked, server: labels.serverError } as const)[state.error]
     : null;
 
   return (
     <form action={action} className="flex flex-col gap-3">
+      <div role="radiogroup" className="grid grid-cols-2 gap-2">
+        {(
+          [
+            ["EVERYDAY", labels.kindMoment, labels.kindMomentHint],
+            ["STORY", labels.kindStory, labels.kindStoryHint],
+          ] as const
+        ).map(([value, title, hint]) => (
+          <label key={value} className="flex cursor-pointer flex-col gap-0.5 rounded-2xl border border-line p-3 has-[:checked]:border-accent has-[:checked]:bg-accent-soft/50">
+            <input type="radio" name="kind" value={value} checked={kind === value} onChange={() => setKind(value)} className="sr-only" />
+            <span className="font-extrabold">{title}</span>
+            <span className="text-xs leading-snug text-muted">{hint}</span>
+          </label>
+        ))}
+      </div>
       <label className="flex flex-col gap-1.5 text-sm font-bold">
         <span>
-          {labels.titleLabel} <span className="font-normal text-muted">{labels.titleOptional}</span>
+          {kind === "STORY" ? labels.storyTitleLabel : labels.titleLabel} <span className="font-normal text-muted">{labels.titleOptional}</span>
         </span>
-        <input name="title" maxLength={80} placeholder={labels.titlePlaceholder} className={`${inputClass} font-normal`} />
+        <input name="title" maxLength={80} placeholder={kind === "STORY" ? labels.storyPlaceholder : labels.titlePlaceholder} className={`${inputClass} font-normal`} />
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-bold">
         {labels.descriptionLabel}

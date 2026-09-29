@@ -27,6 +27,7 @@ export async function createMomentAction(_prev: CreateMomentState, formData: For
       visibility: ["LINK", "PUBLIC"].includes(String(formData.get("visibility"))) ? String(formData.get("visibility")) : "FRIENDS",
       // No name yet is fine: it's asked for after the upload, with the lens's suggestion.
       untitled: dict.create.untitled,
+      kind: formData.get("kind") === "STORY" ? "STORY" : "EVERYDAY",
     });
     code = moment.code;
   } catch (error) {
