@@ -180,6 +180,9 @@ export async function getMomentView(code: string, viewer: User | null) {
         stamp: a.stamp,
         caption: await captionView(a.caption),
         takenAt: a.capturedAt ?? a.uploadedAt,
+        // The retro stamp shows when the shot was shared from the phone, not the file's own date
+        // (a gallery photo's metadata can be days old, or wrong).
+        stampAt: a.uploadedAt,
         contributorName: a.contributor.displayName,
         contributorAvatar: a.contributor.avatarUrl,
         // Official accounts have a profile page; guests don't.

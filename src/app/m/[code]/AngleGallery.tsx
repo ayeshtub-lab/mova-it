@@ -12,6 +12,7 @@ import { CaptionEditor, CaptionOverlay, type CaptionLabels } from "@/app/Caption
 import type { CaptionView } from "@/lib/caption";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { filterCss, stampText } from "@/lib/filters";
+import { StampText } from "@/app/StampText";
 import { isQuran, soundByKey, soundFile, soundName } from "@/lib/sounds";
 import { ReportSheet, type ReportLabels } from "./ReportSheet";
 
@@ -28,6 +29,7 @@ export type GalleryAngle = {
   filter: string | null;
   stamp: boolean;
   takenAt: string;
+  stampAt: string; // when it was shared: the retro stamp's date and time
   contributorName: string;
   contributorAvatar: string | null;
   profileId: string | null;
@@ -681,7 +683,9 @@ export function AngleGallery({
                   <img src={a.mediaUrl ?? ""} alt={a.contributorName} className="max-h-full max-w-full object-contain" style={{ filter: filterCss(lookOf(a.id).filter) }} />
                 )}
                 {lookOf(a.id).stamp && (
-                  <span className="stamp absolute bottom-24 left-4 z-10 text-base">{stampText(new Date(a.takenAt), locale)}</span>
+                  <span className="stamp absolute bottom-24 left-4 z-10 text-base">
+                    <StampText at={a.stampAt} locale={locale} />
+                  </span>
                 )}
                 <CaptionOverlay caption={captionOf(a.id)} framed />
 
@@ -1064,7 +1068,7 @@ export function AngleGallery({
             labels={labels.edit}
             initialFilter={lookOf(editFor).filter}
             initialStamp={lookOf(editFor).stamp}
-            stampPreview={stampText(new Date(angles.find((y) => y.id === editFor)!.takenAt), locale)}
+            stampPreview={stampText(new Date(angles.find((y) => y.id === editFor)!.stampAt), locale)}
             soundName={soundByKey(soundOf(editFor).key) ? soundName(soundByKey(soundOf(editFor).key)!, locale) : null}
             busy={savingSound}
             onSave={(filter, stamp) => saveLook(editFor, filter, stamp)}

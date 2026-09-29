@@ -190,7 +190,7 @@ export async function renderMontage(montageId: string, siteHost: string) {
           date: story ? storyDate(angle.capturedAt ?? angle.uploadedAt, locale) : undefined,
           // The short link (zawmo.com/K7M2Q4): easy to read off a video and type in.
           link: `${publicHost(siteHost)}/${moment.code}`,
-          stamp: angle.stamp ? stampText(angle.capturedAt ?? angle.uploadedAt, locale, "Asia/Riyadh") : undefined,
+          stamp: angle.stamp ? stampText(angle.uploadedAt, locale, "Asia/Riyadh") : undefined,
         }),
       );
       // The shot's writing, fetched next to its picture.

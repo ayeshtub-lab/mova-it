@@ -53,7 +53,7 @@ type ItemState = {
   soundKey?: string | null;
   muteOriginal?: boolean;
   preview?: string; // local picture of the shot, for the edit sheet
-  takenAt?: string;
+  stampAt?: string;
   filter?: string | null;
   stamp?: boolean;
   caption?: CaptionView | null;
@@ -236,7 +236,8 @@ export function AngleUploader({
         isVideo: prepared.mediaType === "VIDEO",
         soundKey: null,
         preview: picture ? URL.createObjectURL(picture) : undefined,
-        takenAt: prepared.capturedAt ?? new Date().toISOString(),
+        // The retro stamp: now, on this phone's clock (not the file's own date).
+        stampAt: new Date().toISOString(),
         filter: null,
         stamp: false,
         suggestion: result.suggestion ?? null,
@@ -413,7 +414,7 @@ export function AngleUploader({
             <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-2">
               <span className="flex flex-col">
                 <span className="text-sm font-bold">🕐 {editLabels.stampSuggest}</span>
-                <span className="stamp mt-1 self-start text-[10px]">{stampText(new Date(drafts[0].it.takenAt!), locale)}</span>
+                <span className="stamp mt-1 self-start text-[10px]">{stampText(new Date(drafts[0].it.stampAt!), locale)}</span>
               </span>
               <input type="checkbox" checked={stampAll} disabled={saving || publishing} onChange={(e) => setStampAll(e.target.checked)} className="size-5 accent-[var(--accent)]" />
             </label>
@@ -451,7 +452,7 @@ export function AngleUploader({
           labels={editLabels}
           initialFilter={items[editing].filter ?? null}
           initialStamp={items[editing].stamp ?? false}
-          stampPreview={stampText(new Date(items[editing].takenAt!), locale)}
+          stampPreview={stampText(new Date(items[editing].stampAt!), locale)}
           soundName={soundByKey(items[editing].soundKey) ? soundName(soundByKey(items[editing].soundKey)!, locale) : null}
           busy={saving}
           onSave={(filter, stamp) => saveLook(editing, items[editing].angleId!, filter, stamp)}
