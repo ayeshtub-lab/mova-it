@@ -114,6 +114,40 @@ export default async function StatsPage() {
         <Bars title="🆕 الجدد" values={s.series.map((d) => d.joined)} days={days} color="bg-accent" />
         <Bars title="📸 اللقطات" values={s.series.map((d) => d.shots)} days={days} color="bg-moment" />
 
+        {/* Per campaign: an ad link carries «?src=…»; otherwise the referring site, or «مباشر». */}
+        <section className="flex flex-col gap-2 rounded-3xl bg-surface p-4">
+          <h2 className="font-extrabold">📣 من وين إجوا (آخر ١٤ يوم)</h2>
+          {s.sources.length ? (
+            <table className="w-full text-sm">
+              <thead className="text-xs text-muted">
+                <tr>
+                  <th className="py-1 text-start font-bold">المصدر</th>
+                  <th className="py-1 font-bold">انضموا</th>
+                  <th className="py-1 font-bold">نشروا لقطة</th>
+                  <th className="py-1 font-bold">رجعوا</th>
+                </tr>
+              </thead>
+              <tbody>
+                {s.sources.map((r) => (
+                  <tr key={r.source} className="border-t border-line">
+                    <td className="py-2 font-bold" dir="ltr">{r.source === "direct" ? "مباشر" : r.source}</td>
+                    <td className="py-2 text-center tabular-nums">{num(r.joined)}</td>
+                    <td className="py-2 text-center tabular-nums">
+                      {num(r.shot)} <span className="text-xs text-muted">({pct(r.shot / r.joined)})</span>
+                    </td>
+                    <td className="py-2 text-center tabular-nums">
+                      {num(r.returned)} <span className="text-xs text-muted">({pct(r.returned / r.joined)})</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-sm text-muted">ما انضم أحد بعد.</p>
+          )}
+          <p className="text-xs text-muted">رابط كل إعلان: zawmo.com/start?src=اسم-الحملة · «رجعوا» = فتحوا زاومو بيوم بعد يوم انضمامهم. التسجيل بدأ ١ أكتوبر ٢٠٢٦.</p>
+        </section>
+
         <section className="flex flex-col gap-2 rounded-3xl bg-surface p-4">
           <h2 className="font-extrabold">🔥 أنشط اللحظات هذا الأسبوع</h2>
           {s.topMoments.length ? (

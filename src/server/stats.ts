@@ -31,6 +31,30 @@ async function returnRate(day: string, after: number) {
   return { joined: joined.length, returned, rate: returned / joined.length };
 }
 
+// Per campaign / source (User.source, src/lib/source.ts), for people who joined since `since`:
+// how many joined, how many published a shot, and how many came back on a later day.
+export async function sourceStats(since: Date) {
+  const people = await db.user.findMany({ where: { isSystem: false, createdAt: { gte: since } }, select: { id: true, source: true, createdAt: true } });
+  const ids = people.map((p) => p.id);
+  const [shooters, days] = await Promise.all([
+    db.angle.groupBy({ by: ["contributorId"], where: { contributorId: { in: ids }, status: "READY" } }),
+    db.activeDay.findMany({ where: { userId: { in: ids } }, select: { userId: true, day: true } }),
+  ]);
+  const shot = new Set(shooters.map((s) => s.contributorId));
+  const joinedDay = new Map(people.map((p) => [p.id, activityDay(p.createdAt)]));
+  const cameBack = new Set(days.filter((d) => d.day > joinedDay.get(d.userId)!).map((d) => d.userId));
+  const rows = new Map<string, { source: string; joined: number; shot: number; returned: number }>();
+  for (const p of people) {
+    const key = p.source ?? "direct";
+    const row = rows.get(key) ?? { source: key, joined: 0, shot: 0, returned: 0 };
+    row.joined++;
+    if (shot.has(p.id)) row.shot++;
+    if (cameBack.has(p.id)) row.returned++;
+    rows.set(key, row);
+  }
+  return [...rows.values()].sort((a, b) => b.joined - a.joined);
+}
+
 export async function getStats(viewer: User | null, now = new Date(), days = 14) {
   assertAdmin(viewer);
   const today = activityDay(now);
@@ -68,6 +92,7 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
   const joinedSum = cohorts.reduce((s, c) => s + c.joined, 0);
   const [yesterday, week] = await Promise.all([returnRate(shift(today, -1), 1), returnRate(shift(today, -7), 7)]);
 
+  const sources = await sourceStats(since);
   const top = await db.moment.findMany({ where: { id: { in: weekAngles.map((w) => w.momentId) } }, select: { id: true, code: true, title: true } });
   return {
     today,
@@ -85,6 +110,7 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
       week,
     },
     series,
+    sources,
     topMoments: weekAngles.map((w) => ({ ...top.find((m) => m.id === w.momentId)!, shots: w._count._all })).filter((m) => m.code),
   };
 }

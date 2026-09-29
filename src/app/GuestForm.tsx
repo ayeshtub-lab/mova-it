@@ -6,11 +6,13 @@ import { continueAsGuest } from "@/app/actions/session";
 
 type Labels = { nameLabel: string; placeholder: string; submit: string; nameError: string; serverError: string; consent: string; terms: string; privacy: string };
 
-export function GuestForm({ labels }: { labels: Labels }) {
+// `next`: where to go once the guest account exists (an ad's landing page sends people on).
+export function GuestForm({ labels, next }: { labels: Labels; next?: string }) {
   const [state, action, pending] = useActionState(continueAsGuest, undefined);
 
   return (
     <form action={action} className="flex flex-col gap-2">
+      {next && <input type="hidden" name="next" value={next} />}
       <label htmlFor="displayName" className="text-sm font-bold">
         {labels.nameLabel}
       </label>

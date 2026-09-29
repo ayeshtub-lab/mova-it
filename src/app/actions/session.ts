@@ -1,6 +1,8 @@
 "use server";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { safeReturnTo } from "@/server/google";
 import { getLocale } from "@/i18n/server";
 import { allowedFor } from "@/server/rate-limit";
 import { cleanDisplayName, endSession, getCurrentUser, startGuestSession } from "@/lib/session";
@@ -20,6 +22,9 @@ export async function continueAsGuest(_prev: GuestFormState, formData: FormData)
     console.error("continueAsGuest failed", error);
     return { error: "server" };
   }
+  // Outside try/catch: redirect() works by throwing.
+  const next = formData.get("next");
+  if (typeof next === "string" && next) redirect(safeReturnTo(next));
   return undefined;
 }
 

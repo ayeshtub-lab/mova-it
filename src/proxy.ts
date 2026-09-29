@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 import { CANONICAL_HOST, OLD_HOSTS } from "@/lib/hosts";
+import { SOURCE_COOKIE, SOURCE_DAYS, sourceOf } from "@/lib/source";
 
 // Moment codes (src/server/moments.ts): no 0/O, 1/I/L. Upper case only, so no page
 // (all lower case) can be mistaken for one.
@@ -10,7 +11,8 @@ const SHORT_LINK = /^\/([2-9A-HJKMNP-Z]{6})$/;
 // - www.zawmo.com → zawmo.com;
 // - the old address → zawmo.com, via /api/session/move when the browser is signed in
 //   there, so nobody is signed out by the move;
-// - zawmo.com/K7M2Q4 (the short link printed on montages) → /m/K7M2Q4.
+// - zawmo.com/K7M2Q4 (the short link printed on montages) → /m/K7M2Q4;
+// - a first visit remembers where it came from (src/lib/source.ts), for per-campaign numbers.
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   const { pathname, search } = request.nextUrl;
@@ -29,9 +31,13 @@ export function proxy(request: NextRequest) {
   }
 
   const short = SHORT_LINK.exec(pathname);
-  if (short) return NextResponse.redirect(new URL(`/m/${short[1]}${search}`, request.url), 308);
+  const response = short ? NextResponse.redirect(new URL(`/m/${short[1]}${search}`, request.url), 308) : NextResponse.next();
 
-  return NextResponse.next();
+  if (request.method === "GET" && !request.cookies.has(SOURCE_COOKIE)) {
+    const source = sourceOf(request.nextUrl, request.headers.get("referer"), host);
+    if (source) response.cookies.set(SOURCE_COOKIE, source, { maxAge: SOURCE_DAYS * 24 * 3600, httpOnly: true, sameSite: "lax", secure: host !== "localhost" && !host.startsWith("localhost:"), path: "/" });
+  }
+  return response;
 }
 
 export const config = {

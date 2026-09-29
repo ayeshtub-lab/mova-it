@@ -7,7 +7,7 @@ import { CONTACT_EMAIL } from "@/lib/site";
 // Privacy policy. Every statement here must match what the code actually does —
 // update this page (and UPDATED) whenever data handling changes.
 
-const UPDATED = { ar: "٢٨ سبتمبر ٢٠٢٦", en: "September 28, 2026" };
+const UPDATED = { ar: "١ أكتوبر ٢٠٢٦", en: "October 1, 2026" };
 
 type Section = { title: string; items: string[] };
 
@@ -26,6 +26,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "ما تضيفه أنت: الصور والفيديوهات ووقت التقاطها، وعناوين اللحظات، والتعليقات، والإعجابات، ورسائل الوارد، ومن تتابعه.",
           "ما يُسجَّل أثناء الاستخدام: من شاهد لقطاتك (العدد يظهر لك وحدك)، والبلاغات، ومن حظرتهم.",
           "لحماية الموقع من الإغراق: عدّاد مؤقت لعدد بعض الطلبات (كالرفع والتعليق)، يُحذف خلال يوم. لغير المسجّلين يُحفظ عنوان الشبكة مشفّرًا باتجاه واحد فقط، لا العنوان نفسه.",
+          "من وين وصلت لزاومو أول مرة: اسم عام فقط، كاسم حملة إعلانية أو «تيك توك» أو «جوجل»، لنعرف أي إعلان يفيد. لا نحفظ الرابط الكامل، ولا يظهر لأي مستخدم.",
         ],
       },
       {
@@ -128,6 +129,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "What you add: photos and videos and when they were taken, moment titles, comments, likes, inbox messages, and who you follow.",
           "What is recorded as you use it: who viewed your shots (only you see the count), reports, and who you blocked.",
           "To protect the site from floods: a temporary count of some actions (like uploads and comments), deleted within a day. For visitors who aren't signed in, the network address is kept only as a one-way hash, never the address itself.",
+          "Where you first came to Zawmo from: a general name only, like an ad campaign's name, \"TikTok\" or \"Google\", so we know which ads help. We never keep the full link, and no other user sees it.",
         ],
       },
       {

@@ -4,6 +4,7 @@ import { cache } from "react";
 import { db } from "@/lib/db";
 
 import { SESSION_COOKIE } from "@/lib/session-cookie";
+import { SOURCE_COOKIE } from "@/lib/source";
 
 export { SESSION_COOKIE };
 const SESSION_DAYS = 180;
@@ -29,6 +30,11 @@ async function setSessionCookie(token: string, expiresAt: Date) {
   });
 }
 
+// Where this browser first came from (set by src/proxy.ts), for a new account.
+export async function visitSource() {
+  return (await cookies()).get(SOURCE_COOKIE)?.value?.slice(0, 40) || null;
+}
+
 // Must be called from a Server Function or Route Handler (it sets a cookie).
 export async function startGuestSession(displayName: string, locale: string) {
   const token = randomBytes(32).toString("base64url");
@@ -39,6 +45,7 @@ export async function startGuestSession(displayName: string, locale: string) {
       displayName,
       locale,
       isGuest: true,
+      source: await visitSource(),
       sessions: { create: { tokenHash: hashToken(token), expiresAt } },
     },
   });

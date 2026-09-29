@@ -89,7 +89,7 @@ export async function exchangeCode(code: string, attempt: Attempt, redirectUri: 
 // - otherwise → a new official account named after their Google name.
 // Each sign-in refreshes the Google name (offered on the profile as a one-tap choice)
 // and the Google photo, unless the user set a photo of their own.
-export async function accountForGoogle(current: User | null, profile: GoogleProfile, locale: string) {
+export async function accountForGoogle(current: User | null, profile: GoogleProfile, locale: string, source: string | null = null) {
   const googleName = cleanDisplayName(profile.name);
   const fromGoogle = (u: { avatarUrl: string | null }) => ({
     email: profile.email,
@@ -107,6 +107,7 @@ export async function accountForGoogle(current: User | null, profile: GoogleProf
       googleSub: profile.sub,
       isGuest: false,
       locale,
+      source,
       displayName: googleName ?? cleanDisplayName(profile.email?.split("@")[0]) ?? "Zawmo",
       ...fromGoogle({ avatarUrl: null }),
     },

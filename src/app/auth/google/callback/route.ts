@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getLocale } from "@/i18n/server";
-import { endSession, getCurrentUser, startSessionFor } from "@/lib/session";
+import { endSession, getCurrentUser, startSessionFor, visitSource } from "@/lib/session";
 import { siteOrigin } from "@/lib/site";
 import { accountForGoogle, exchangeCode, googleEnabled, OAUTH_COOKIE, safeReturnTo, type Attempt } from "@/server/google";
 
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   try {
     const profile = await exchangeCode(code, attempt, `${origin}/auth/google/callback`);
     const current = await getCurrentUser();
-    const user = await accountForGoogle(current, profile, await getLocale());
+    const user = await accountForGoogle(current, profile, await getLocale(), await visitSource());
     if (user.id !== current?.id) {
       if (current) await endSession();
       await startSessionFor(user.id);

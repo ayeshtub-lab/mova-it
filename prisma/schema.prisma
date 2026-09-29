@@ -28,6 +28,9 @@ model User {
   googleSub   String?  @unique
   email       String? // private, never shown to other users
   googleName  String? // name on the Google account, offered as a one-tap choice
+  // Where this person first came from (an ad's «?src=tiktok-house», a UTM source, or the referring
+  // site: google, whatsapp…), for the admin's per-campaign numbers. Never shown to anyone else.
+  source      String?
   createdAt   DateTime @default(now())
 
   sessions        Session[]
