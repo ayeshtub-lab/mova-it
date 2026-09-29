@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
-import { ZMark } from "@/app/Logo";
+import { HeroWheel } from "@/app/HeroWheel";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
@@ -33,7 +33,7 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
       <SiteHeader locale={locale} dict={dict} />
       <main className="mx-auto flex w-full max-w-xl flex-col gap-5 pb-12">
         <header className="flex flex-col items-center gap-3 text-center">
-          <ZMark className="size-16" />
+          <HeroWheel className="w-full max-w-[15rem]" openLabel={dict.home.wheelOpen} />
           <h1 className="text-3xl font-extrabold leading-tight">{story ? t.storyTitle : t.momentTitle}</h1>
           <p className="leading-relaxed text-muted">{story ? t.storyText : t.momentText}</p>
         </header>

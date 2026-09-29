@@ -9,6 +9,7 @@ import { commentCounts } from "@/server/comments";
 import { blockedIdsFor } from "@/server/moderation";
 import { reactionsFor } from "@/server/reactions";
 import { hashtagsIn, normalizeTag } from "@/lib/hashtags";
+import { firstName } from "@/lib/names";
 
 // «اكتشف»: public moments — for everyone to watch (visitors too); interacting needs an
 // account. Vertical = moments,
@@ -208,6 +209,64 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
       momentCode: a.moment.code,
       title: a.moment.title,
       name: a.contributor.displayName,
+    })),
+  );
+}
+
+// The visitor home's wheel: real public shots (checked, members' only — guests can't post
+// publicly), the best liked first, then the newest — one per moment, and different people
+// before the same person twice, so the wheel shows Zawmo's variety. Only the owner's first name is shown, with their photo.
+export async function wheelShots(take = 12) {
+  const shots = await db.angle.findMany({
+    where: {
+      status: "READY",
+      screening: "allowed",
+      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } },
+      contributor: { isGuest: false },
+    },
+    orderBy: { uploadedAt: "desc" },
+    take: 300,
+    select: {
+      id: true, shares: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, contributorId: true,
+      moment: { select: { code: true, title: true } },
+      contributor: { select: { displayName: true, avatarUrl: true } },
+    },
+  });
+  if (!shots.length) return [];
+  const ids = shots.map((s) => s.id);
+  const [views, likes, comments] = await Promise.all([
+    db.angleView.groupBy({ by: ["angleId"], where: { angleId: { in: ids } }, _count: { _all: true } }),
+    db.reaction.groupBy({ by: ["angleId"], where: { angleId: { in: ids } }, _count: { _all: true } }),
+    db.comment.groupBy({ by: ["angleId"], where: { angleId: { in: ids } }, _count: { _all: true } }),
+  ]);
+  const count = (rows: { angleId: string; _count: { _all: number } }[]) => new Map(rows.map((r) => [r.angleId, r._count._all]));
+  const [v, l, c] = [count(views), count(likes), count(comments)];
+  // Stable sort: equal scores keep the newest-first order.
+  const ranked = shots
+    .map((s, i) => ({ s, i, score: (v.get(s.id) ?? 0) + 3 * (l.get(s.id) ?? 0) + 4 * (c.get(s.id) ?? 0) + 5 * s.shares }))
+    .sort((x, y) => y.score - x.score || x.i - y.i);
+  // Different people first; while Zawmo is small, the rest from other moments of the same people.
+  const moments = new Set<string>();
+  const people = new Set<string>();
+  const picked: typeof shots = [];
+  for (const samePersonOk of [false, true]) {
+    for (const { s } of ranked) {
+      if (picked.length >= take) break;
+      if (moments.has(s.moment.code) || (!samePersonOk && people.has(s.contributorId))) continue;
+      moments.add(s.moment.code);
+      people.add(s.contributorId);
+      picked.push(s);
+    }
+  }
+  return Promise.all(
+    picked.map(async (s) => ({
+      id: s.id,
+      momentCode: s.moment.code,
+      title: s.moment.title,
+      name: firstName(s.contributor.displayName),
+      avatarUrl: s.contributor.avatarUrl,
+      imageUrl: await coverOf(s),
     })),
   );
 }

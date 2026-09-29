@@ -22,7 +22,8 @@
     "newsAll": "🌍 On Zawmo: {people} {added} {angles}",
     "addedOne": "added",
     "addedMany": "added",
-    "peopleTitle": "✨ New from people"
+    "peopleTitle": "✨ New from people",
+    "wheelOpen": "Open the moment"
   },
   "lang": {
     "switchTo": "العربية",
@@ -143,6 +144,7 @@
     "visibilityLinkHint": "Nobody sees it unless you send them the link.",
     "visibilityPublic": "Everyone 🌍",
     "visibilityPublicHint": "Shows in Discover for every signed-in Zawmo user. Every photo is checked automatically.",
+    "publicLockedHint": "Want everyone to see your shot? Sign in with Google in a second to make it public — everything you made as a guest stays with you.",
     "descriptionLabel": "Short description (optional)",
     "descriptionPlaceholder": "e.g. First winter sunset #sea #sunset",
     "descriptionHint": "Put # before a word to make it a hashtag.",

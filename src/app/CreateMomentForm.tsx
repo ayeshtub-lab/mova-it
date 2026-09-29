@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type ReactNode } from "react";
 import { createMomentAction } from "@/app/actions/moments";
 import { PlaceField, type PlaceOption } from "@/app/PlaceField";
 
@@ -39,15 +39,18 @@ type Labels = {
 const inputClass =
   "min-h-11 w-full rounded-full border border-line bg-background px-4 outline-none focus:border-accent";
 
-// «للكل» is offered to official (Google) accounts only; the server enforces it too.
+// «للكل» is offered to official (Google) accounts only; the server enforces it too. A guest
+// sees it locked instead, with a nudge to sign in with Google (`publicLocked`).
 export function CreateMomentForm({
   labels,
   canPublic = false,
+  publicLocked = null,
   initialPlace = null,
   initialKind = "EVERYDAY",
 }: {
   labels: Labels;
   canPublic?: boolean;
+  publicLocked?: ReactNode;
   initialPlace?: PlaceOption | null;
   initialKind?: "EVERYDAY" | "STORY";
 }) {
@@ -112,6 +115,7 @@ export function CreateMomentForm({
             </span>
           </label>
         ))}
+        {!canPublic && publicLocked}
       </fieldset>
       {error && (
         <p role="alert" className="text-sm font-semibold text-accent-ink">

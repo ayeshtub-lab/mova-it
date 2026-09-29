@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { CreateMomentForm } from "@/app/CreateMomentForm";
+import { GoogleButton } from "@/app/GoogleButton";
+import { googleEnabled } from "@/server/google";
 import { ZMark } from "@/app/Logo";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
@@ -13,6 +15,7 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
   if (!user) redirect("/");
   const locale = await getLocale();
   const dict = await getDictionary(locale);
+  const { kind } = await searchParams;
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
@@ -27,7 +30,26 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
         </header>
         <div className="rounded-3xl border border-line bg-surface/60 p-5">
           {/* «/new?kind=story»: straight to «مع الوقت» (from a story's «ابدأ قصتك»). */}
-          <CreateMomentForm labels={dict.create} canPublic={!user.isGuest} initialKind={(await searchParams).kind === "story" ? "STORY" : "EVERYDAY"} />
+          <CreateMomentForm
+            labels={dict.create}
+            canPublic={!user.isGuest}
+            initialKind={kind === "story" ? "STORY" : "EVERYDAY"}
+            publicLocked={
+              user.isGuest && googleEnabled() ? (
+                // A guest can't post for everyone: «للكل» shows locked, one tap from Google
+                // (which keeps everything they made as a guest).
+                <div className="flex flex-col gap-2.5 rounded-2xl border border-dashed border-secondary/40 bg-secondary-soft/60 p-3">
+                  <span className="flex flex-col">
+                    <span className="font-bold">
+                      {dict.create.visibilityPublic} <span aria-hidden="true">🔒</span>
+                    </span>
+                    <span className="text-xs leading-relaxed text-muted">{dict.create.publicLockedHint}</span>
+                  </span>
+                  <GoogleButton label={dict.account.google} returnTo={kind === "story" ? "/new?kind=story" : "/new"} />
+                </div>
+              ) : null
+            }
+          />
         </div>
       </main>
     </div>

@@ -107,8 +107,18 @@ body {
   transform-origin: center;
   animation: wheel-pulse 2.4s ease-in-out infinite;
 }
+/* Visitor home's live wheel: a slice's new shot fades in over the old. */
+@keyframes wheel-swap {
+  from {
+    opacity: 0;
+  }
+}
+.wheel-swap {
+  animation: wheel-swap 0.7s ease-out both;
+}
 @media (prefers-reduced-motion: reduce) {
   .wheel-slice,
+  .wheel-swap,
   .wheel-pulse {
     animation: none;
   }

@@ -22,7 +22,8 @@
     "newsAll": "🌍 بزاومو: {people} {added} {angles}",
     "addedOne": "ضاف",
     "addedMany": "ضافوا",
-    "peopleTitle": "✨ جديد من الناس"
+    "peopleTitle": "✨ جديد من الناس",
+    "wheelOpen": "افتح اللحظة"
   },
   "lang": {
     "switchTo": "English",
@@ -143,6 +144,7 @@
     "visibilityLinkHint": "ما بتظهر لحدا إلا اللي بتبعتله الرابط.",
     "visibilityPublic": "للكل 🌍",
     "visibilityPublicHint": "تظهر في «اكتشف» لكل مستخدمي زاومو المسجلين. كل الصور تُفحص تلقائيًا.",
+    "publicLockedHint": "بدك الكل يشوف لقطتك؟ سجّل بحساب Google بثانية وبتقدر تخليها للكل — وكل اللي عملته كضيف بيضل معك.",
     "descriptionLabel": "وصف قصير (اختياري)",
     "descriptionPlaceholder": "مثلًا: أول غروب بالشتاء #بحر #غروب",
     "descriptionHint": "أضف # قبل الكلمة لتصير هاشتاق.",
