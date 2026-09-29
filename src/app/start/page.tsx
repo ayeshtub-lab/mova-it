@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
 import { HeroWheel } from "@/app/HeroWheel";
+import { StoryDemo } from "@/app/start/StoryDemo";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
@@ -39,20 +40,7 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
       <main className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-12">
         <header className="flex flex-col items-center gap-3 text-center">
           {story ? (
-            <figure className="flex flex-col items-center gap-2">
-              <video
-                src={`/start/story-${demo}.mp4`}
-                poster={`/start/story-${demo}.jpg`}
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="auto"
-                aria-label={t.demoLabel}
-                className="h-72 w-auto rounded-3xl bg-surface shadow-md"
-              />
-              <figcaption className="text-sm font-bold text-secondary">{t.demoLabel}</figcaption>
-            </figure>
+            <StoryDemo src={`/start/ad-${demo}.mp4`} poster={`/start/ad-${demo}.jpg`} label={t.demoLabel} soundLabel={t.sound} />
           ) : (
             <HeroWheel className="w-full max-w-[15rem]" openLabel={dict.home.wheelOpen} />
           )}
