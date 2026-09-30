@@ -77,6 +77,7 @@ type Labels = {
   actionFailed: string;
   isNew: string;
   edit: ShotEditorLabels & { open: string; failed: string };
+  branded: { make: string; working: string; share: string; failed: string };
   caption: CaptionLabels;
   sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
   delete: string;
@@ -480,6 +481,38 @@ export function AngleGallery({
       () => false,
     );
     flash(copied ? labels.copied : url);
+  }
+
+  // ── «📤 شارك بختم زاومو» (the owner's video, with the Zawmo mark and closing card) ──
+  // Made on the server, then kept here as a file: the phone's share sheet needs a fresh tap
+  // (iPhone refuses a share after a wait), so a first tap prepares, a second one shares.
+  const [branded, setBranded] = useState<{ id: string; file: File | null } | null>(null);
+  async function prepareBranded(a: GalleryAngle) {
+    setBranded({ id: a.id, file: null });
+    try {
+      const res = await fetch(`/api/angles/${a.id}/branded`, { method: "POST" });
+      if (!res.ok) throw new Error(String(res.status));
+      const { url } = (await res.json()) as { url: string };
+      const blob = await (await fetch(url)).blob();
+      const code = share.url.split("/").pop() ?? "zawmo";
+      setBranded((b) => (b?.id === a.id ? { id: a.id, file: new File([blob], `zawmo-${code}.mp4`, { type: "video/mp4" }) } : b));
+    } catch {
+      setBranded(null);
+      flash(labels.branded.failed);
+    }
+  }
+  async function shareBranded(file: File) {
+    fetch(`/api/angles/${branded?.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], text: share.url }).catch(() => {});
+      return;
+    }
+    const href = URL.createObjectURL(file);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = file.name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(href), 10_000);
   }
 
   // ── Comments (a sheet over the viewer, for the angle on screen) ─────────
@@ -893,6 +926,20 @@ export function AngleGallery({
                 {labels.edit.open}
               </button>
             )}
+            {angles[current]?.isMine && angles[current].mediaType === "VIDEO" && (() => {
+              const a = angles[current];
+              const mine = branded?.id === a.id ? branded : null;
+              return (
+                <button
+                  type="button"
+                  disabled={!!mine && !mine.file}
+                  onClick={() => (mine?.file ? shareBranded(mine.file) : prepareBranded(a))}
+                  className="pointer-events-auto flex min-h-11 items-center gap-1 rounded-full bg-accent/90 px-3 text-sm font-bold disabled:opacity-80"
+                >
+                  {mine ? (mine.file ? labels.branded.share : labels.branded.working) : labels.branded.make}
+                </button>
+              );
+            })()}
             {canReact && angles[current] && !angles[current].isMine && (
               <button
                 type="button"

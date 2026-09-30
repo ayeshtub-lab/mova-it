@@ -13,7 +13,7 @@ import { isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
 import { viewUrl } from "@/server/media";
 import { isArabic } from "@/server/og-text";
-import { FRAME, renderIntro, renderOutro, renderOverlay } from "./overlay";
+import { FRAME, renderIntro, renderOutro, renderOverlay, renderWatermark } from "./overlay";
 
 const PHOTO_SECONDS = 2.8;
 const INTRO_SECONDS = 1.8;
@@ -371,4 +371,56 @@ export async function renderMontage(montageId: string, siteHost: string) {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+// «بختم زاومو»: one shot's own video, ready to share on its own — the whole picture (a wide
+// video sits on a blurred copy of itself, nothing cropped), its look and writing, a small
+// Zawmo mark with the moment's link, and the closing card flowing in at the end. The
+// video's own sound stays. Returns the file.
+export async function buildBrandedShot(
+  shot: { mediaPath: string; filter: string | null; caption: Parameters<typeof parseCaption>[0]; stamp: boolean; uploadedAt: Date; momentCode: string; momentTitle: string },
+  siteHost: string,
+  dir: string,
+) {
+  const url = await viewUrl(shot.mediaPath);
+  if (!url) throw new Error("no video");
+  const input = join(dir, "in");
+  await download(url, input);
+  const { duration, hasAudio } = await probe(input);
+  const seconds = Math.max(1, duration || 1);
+  const dict = isArabic(shot.momentTitle) ? ar : en;
+  const locale = isArabic(shot.momentTitle) ? "ar" : "en";
+  const link = `${publicHost(siteHost)}/${shot.momentCode}`;
+
+  const mark = join(dir, "mark.png");
+  await writeFile(mark, await renderWatermark({ link, stamp: shot.stamp ? stampText(shot.uploadedAt, locale, "Asia/Riyadh") : undefined }));
+  const writing = parseCaption(shot.caption);
+  const writingUrl = writing ? await viewUrl(writing.path) : null;
+  let caption: CaptionFile | undefined;
+  if (writing && writingUrl) {
+    caption = { file: join(dir, "cap.png"), y: writing.y, w: writing.w };
+    await download(writingUrl, caption.file);
+  }
+
+  // The shot: blurred fill behind, the whole picture on top, then its look, writing and mark.
+  const body = join(dir, "body.mp4");
+  const fit = `scale=${FRAME.width}:${FRAME.height}:force_original_aspect_ratio=decrease,setsar=1`;
+  const base = `[0:v]split[a][b];[a]${COVER},boxblur=24:2,eq=brightness=-0.12[bg];[b]${fit}[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,fps=${FPS},format=yuv420p${look(shot.filter)}`;
+  await ffmpeg([
+    "-i", input,
+    "-loop", "1", "-t", String(seconds), "-i", mark,
+    "-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=44100:cl=stereo",
+    ...captionInput(caption),
+    "-filter_complex", `${withCaption(base, caption, 3)}[b2];[b2][1:v]overlay=0:0[v]`,
+    "-map", "[v]", "-map", hasAudio ? "0:a:0" : "2:a", ...ENCODE, "-t", String(seconds), body,
+  ], 240_000);
+
+  const card = join(dir, "outro.png");
+  const outro = join(dir, "outro.mp4");
+  await writeFile(card, await renderOutro({ name: dict.montage.outroName, tagline: dict.montage.outroTagline, cta: dict.montage.outroCta, link }));
+  const durations = [seconds, await cardSegment(card, outro, OUTRO_SECONDS)];
+  const { graph } = joinGraph(durations, TRANSITION, ["fade"], "v");
+  const output = join(dir, "zawmo.mp4");
+  await ffmpeg(["-i", body, "-i", outro, "-filter_complex", `${graph};[orig]anull[a]`, "-map", "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output], 240_000);
+  return output;
 }

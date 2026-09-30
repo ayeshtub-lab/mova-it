@@ -577,6 +577,12 @@
     "failed": "Couldn't delete. Try again or email us.",
     "link": "Delete my account"
   },
+  "branded": {
+    "make": "📤 Share with Zawmo mark",
+    "working": "⏳ Preparing the video…",
+    "share": "📤 Share the video",
+    "failed": "Couldn't prepare the video — try again."
+  },
   "editShot": {
     "open": "✏️ Edit",
     "title": "✏️ Edit",

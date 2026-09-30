@@ -194,3 +194,27 @@ export async function renderOutro(o: OutroText) {
     at(link, 0, pillY + 14, "center"),
   ]);
 }
+
+// «بختم زاومو»: a shot's own video shared on its own carries a small mark, bottom corner —
+// the name and the moment's short link — and the retro stamp when the shot has it.
+export async function renderWatermark(o: { link: string; stamp?: string }) {
+  const [brand, link, stamp, stampShade] = await Promise.all([
+    text("zawmo", 30, "#FFFBF0"),
+    text(o.link, 20, "#FFFBF0"),
+    o.stamp ? text(o.stamp, 30, "#FF9A3C") : null,
+    o.stamp ? text(o.stamp, 30, "#5A1E00") : null,
+  ]);
+  const pillW = Math.max(brand.width, link.width) + 40;
+  const pillH = brand.height + link.height + 22;
+  const pillX = W - 32 - pillW;
+  const pillY = H - 120 - pillH;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+    <rect x="${pillX}" y="${pillY}" width="${pillW}" height="${pillH}" rx="18" fill="#000" fill-opacity="0.42"/>
+    <rect x="${pillX + 14}" y="${pillY + 10}" width="5" height="${brand.height - 4}" rx="2.5" fill="#e63946"/>
+  </svg>`;
+  return png(svg, [
+    { input: brand.input, top: pillY + 8, left: pillX + (pillW - brand.width) / 2 + 6 },
+    { input: link.input, top: pillY + 12 + brand.height, left: pillX + (pillW - link.width) / 2 },
+    ...(stamp && stampShade ? [at(stampShade, 46, pillY - 2 - stamp.height + 2, "start-ltr"), at(stamp, 44, pillY - 2 - stamp.height, "start-ltr")] : []),
+  ].map((c) => ({ ...c, top: Math.round(c.top), left: Math.round(c.left) })));
+}

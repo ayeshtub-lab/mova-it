@@ -298,7 +298,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 caption: a.caption,
               }))}
               locale={locale}
-              labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds, edit: dict.editShot, caption: dict.caption }}
+              labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds, edit: dict.editShot, branded: dict.branded, caption: dict.caption }}
               canReact={!!user}
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}
