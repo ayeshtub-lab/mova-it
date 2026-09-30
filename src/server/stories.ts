@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { coverOf } from "@/server/media";
 import { systemUser } from "@/server/daily";
 import { notify } from "@/server/notifications";
 
@@ -42,4 +43,26 @@ export async function remindStories(now = new Date()) {
     sent++;
   }
   return sent;
+}
+
+// Public stories with at least one checked shot, newest activity first — the live examples
+// on the «مع الوقت» guides (/guide/house, /guide/plant).
+export async function publicStories(take = 6) {
+  const now = new Date();
+  const shown = { status: "READY" as const, screening: "allowed", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] };
+  const stories = await db.moment.findMany({
+    where: { kind: "STORY", visibility: "PUBLIC", status: "ACTIVE", angles: { some: shown } },
+    orderBy: { lastActivityAt: "desc" },
+    take,
+    select: {
+      code: true,
+      title: true,
+      createdAt: true,
+      _count: { select: { angles: { where: shown } } },
+      angles: { where: shown, orderBy: { uploadedAt: "desc" }, take: 1, select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } },
+    },
+  });
+  return Promise.all(
+    stories.map(async (s) => ({ code: s.code, title: s.title, since: s.createdAt, shots: s._count.angles, coverUrl: s.angles[0] ? await coverOf(s.angles[0]) : null })),
+  );
 }

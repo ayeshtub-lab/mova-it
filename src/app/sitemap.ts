@@ -20,6 +20,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: base, changeFrequency: "daily", priority: 1 },
     { url: `${base}/album`, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${base}/guide/house`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${base}/guide/plant`, changeFrequency: "monthly", priority: 0.8 },
     ...places.map((p) => ({ url: `${base}/p/${encodeURIComponent(p.slug)}`, lastModified: p.updatedAt, changeFrequency: "daily" as const, priority: 0.8 })),
     ...moments.map((m) => ({ url: `${base}/m/${m.code}`, lastModified: m.updatedAt, changeFrequency: "weekly" as const, priority: 0.6, images: pictures.get(m.code) })),
     ...shots.map((s) => {

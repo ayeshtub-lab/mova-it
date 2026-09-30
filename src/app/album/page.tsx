@@ -35,6 +35,7 @@ type Content = {
   examplesMore: string;
   faqTitle: string;
   faq: [string, string][];
+  guides: [string, string][];
 };
 
 const CONTENT: Record<"ar" | "en", Content> = {
@@ -85,6 +86,10 @@ const CONTENT: Record<"ar" | "en", Content> = {
       ["مين بيشوف الفيديو الجاهز؟", "صاحب اللحظة وكل مين ضاف زاوية."],
       ["هل زاومو مجاني؟", "نعم."],
     ],
+    guides: [
+      ["🏗️ وثّق مراحل بناء بيتك مع الوقت", "/guide/house"],
+      ["🌱 وثّق نمو نبتة من البذرة", "/guide/plant"],
+    ],
   },
   en: {
     metaTitle: "Collect your event's photos from every guest with one link — weddings, graduations, parties | Zawmo",
@@ -132,6 +137,10 @@ const CONTENT: Record<"ar" | "en", Content> = {
       ["Is there a video length limit?", "Each video can be up to 40 seconds. For a longer one, we offer to send its first 40 seconds."],
       ["Who sees the ready video?", "The moment's owner and everyone who added an angle."],
       ["Is Zawmo free?", "Yes."],
+    ],
+    guides: [
+      ["🏗️ Document your house being built, over time", "/guide/house"],
+      ["🌱 Document a plant growing from seed", "/guide/plant"],
     ],
   },
 };
@@ -273,6 +282,14 @@ export default async function AlbumPage() {
             </details>
           ))}
         </section>
+
+        <nav className="flex flex-col gap-2 text-center text-sm font-bold">
+          {c.guides.map(([label, href]) => (
+            <Link key={href} href={href} className="underline underline-offset-4">
+              {label}
+            </Link>
+          ))}
+        </nav>
       </main>
     </div>
   );
