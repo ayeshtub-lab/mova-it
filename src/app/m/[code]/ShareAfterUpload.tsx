@@ -39,11 +39,14 @@ export function ShareAfterUpload({ code, url, text, labels }: { code: string; ur
       try {
         await navigator.share({ text, url });
         return;
-      } catch {
-        // Cancelled or unavailable: fall through to copying the link.
+      } catch (error) {
+        // Closed by the person: nothing more. Unavailable: fall through to copying the link.
+        if ((error as Error)?.name === "AbortError") return;
       }
     }
-    await navigator.clipboard.writeText(url);
+    // Safari may refuse the clipboard after the share sheet (the tap has "expired").
+    const ok = await navigator.clipboard?.writeText(url).then(() => true, () => false);
+    if (!ok) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   }

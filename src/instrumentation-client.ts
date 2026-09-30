@@ -16,7 +16,9 @@ Sentry.init({
     urlQueryParams: false,
   },
   // A dropped connection (phone went to sleep, in-app browser closed the tab) is not a bug.
-  ignoreErrors: ["Connection closed.", "Failed to fetch", "Load failed", "NetworkError when attempting to fetch resource.", "The operation was aborted.", "AbortError", /network error occurred/i, /^network error$/i, /reading 'M_ID'/],
+  ignoreErrors: ["Connection closed.", "Failed to fetch", "Load failed", "NetworkError when attempting to fetch resource.", "The operation was aborted.", "AbortError", /network error occurred/i, /^network error$/i, /reading 'M_ID'/,
+    // TikTok's in-app browser injects a timing script (checkPerfReady) that throws on its own.
+    /reading 'domInteractive'/],
   // Scripts injected by desktop apps and extensions (app:///executors/…) are not Zawmo's.
   denyUrls: [/^app:\/\/\//, /^chrome-extension:\/\//, /^moz-extension:\/\//],
   beforeSend(event) {
