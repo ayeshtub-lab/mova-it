@@ -125,7 +125,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         status: "READY",
         OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
       },
-      include: { contributor: { select: { displayName: true, isGuest: true, avatarUrl: true } } },
+      include: { contributor: { select: { displayName: true, isGuest: true, avatarUrl: true, verified: true } } },
       orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
     }),
     db.participant.count({ where: { momentId: moment.id } }),
@@ -185,6 +185,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         // (a gallery photo's metadata can be days old, or wrong).
         stampAt: a.uploadedAt,
         contributorName: a.contributor.displayName,
+        contributorVerified: a.contributor.verified,
         contributorAvatar: a.contributor.avatarUrl,
         // Official accounts have a profile page; guests don't.
         profileId: a.contributor.isGuest ? null : a.contributorId,

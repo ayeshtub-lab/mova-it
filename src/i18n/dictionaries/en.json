@@ -396,6 +396,7 @@
     "activity": "Activity",
     "messages": "Messages",
     "liked": "{name} liked your shot ❤️",
+    "likedOfficial": "⭐ The Zawmo team liked your shot!",
     "followed": "{name} started following you",
     "commented": "{name} commented on your shot:",
     "replied": "{name} replied to your comment:",
@@ -608,6 +609,11 @@
     "open": "See the whole moment, every angle",
     "description": "{label} — a {kind} by {name} on Zawmo, from the moment “{title}”."
   },
+  "verified": {
+    "badge": "Official Zawmo account",
+    "official": "Official Zawmo account",
+    "team": "Zawmo team"
+  },
   "qr": {
     "scan": "📸 Scan to add your photos and videos",
     "sub": "From your phone, no app to download. We make a video from every angle",
@@ -662,6 +668,7 @@
   },
   "push": {
     "like": "❤️ {name} liked your shot",
+    "likeOfficial": "⭐ The Zawmo team liked your shot!",
     "follow": "👤 {name} started following you",
     "comment": "💬 {name} commented on your shot",
     "reply": "↩️ {name} replied to your comment",

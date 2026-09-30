@@ -20,6 +20,7 @@ model User {
   isGuest     Boolean  @default(true)
   isAdmin     Boolean  @default(false) // may open /admin to review reports
   isSystem    Boolean  @default(false) // the «زاومو» account that starts «لحظة اليوم»
+  verified    Boolean  @default(false) // ✓ an official Zawmo account: a badge by its name, its comments first
   // «اسمح للي صوّروا نفس اللحظة ينضمّوا للحظاتي»: when off, this person's moments are never
   // suggested to others (src/server/join.ts).
   allowJoins  Boolean  @default(true)

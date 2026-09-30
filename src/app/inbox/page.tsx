@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { ZMark } from "@/app/Logo";
+import { VerifiedBadge } from "@/app/VerifiedBadge";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
@@ -27,7 +28,8 @@ export default async function InboxPage() {
   after(() => markNotificationsRead(user, unreadIds));
 
   const line = (n: NotificationView) =>
-    fill({ LIKE: t.liked, FOLLOW: t.followed, COMMENT: t.commented, REPLY: t.replied, NEW_ANGLE: t.addedAngle, JOINED: t.joined, STORY_REMINDER: t.storyReminder, VIDEO_READY: t.videoReady }[n.kind], { name: n.actorName });
+    // A heart from Zawmo itself says so: «⭐ فريق زاومو حبّ لقطتك!»
+    n.kind === "LIKE" && n.actorVerified ? t.likedOfficial : fill({ LIKE: t.liked, FOLLOW: t.followed, COMMENT: t.commented, REPLY: t.replied, NEW_ANGLE: t.addedAngle, JOINED: t.joined, STORY_REMINDER: t.storyReminder, VIDEO_READY: t.videoReady }[n.kind], { name: n.actorName });
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
@@ -60,7 +62,10 @@ export default async function InboxPage() {
                       </span>
                     )}
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className={`text-sm ${n.unread ? "font-extrabold" : "font-bold"}`}>{line(n)}</span>
+                      <span className={`flex items-center gap-1 text-sm ${n.unread ? "font-extrabold" : "font-bold"}`}>
+                        <span>{line(n)}</span>
+                        {n.actorVerified && <VerifiedBadge label={dict.verified.badge} />}
+                      </span>
                       {n.comment && <span className="line-clamp-2 text-sm text-foreground">{n.comment}</span>}
                       <span className="truncate text-xs text-muted">
                         {n.momentTitle ? `${fill(t.inMoment, { title: n.momentTitle })} · ` : ""}

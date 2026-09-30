@@ -115,7 +115,7 @@ export async function accountForGoogle(
       locale,
       source,
       ...place,
-      displayName: googleName ?? cleanDisplayName(profile.email?.split("@")[0]) ?? "Zawmo",
+      displayName: googleName ?? cleanDisplayName(profile.email?.split("@")[0]) ?? (locale === "ar" ? "عضو جديد" : "New member"),
       ...fromGoogle({ avatarUrl: null }),
     },
   });

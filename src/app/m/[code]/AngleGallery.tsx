@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { VerifiedBadge } from "@/app/VerifiedBadge";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AutoVideo } from "@/app/AutoVideo";
@@ -18,7 +19,7 @@ import { ReportSheet, type ReportLabels } from "./ReportSheet";
 
 type Likes = { count: number; liked: boolean };
 
-type CommentView = { id: string; body: string; createdAt: string; authorName: string; parentId: string | null; likes: number; liked: boolean; mine: boolean; canDelete: boolean };
+type CommentView = { id: string; body: string; createdAt: string; authorName: string; authorVerified?: boolean; parentId: string | null; likes: number; liked: boolean; mine: boolean; canDelete: boolean };
 
 export type GalleryAngle = {
   id: string;
@@ -31,6 +32,7 @@ export type GalleryAngle = {
   takenAt: string;
   stampAt: string; // when it was shared: the retro stamp's date and time
   contributorName: string;
+  contributorVerified?: boolean;
   contributorAvatar: string | null;
   profileId: string | null;
   following: boolean;
@@ -52,6 +54,7 @@ export type GalleryAngle = {
 };
 
 type Labels = {
+  verified: { badge: string; team: string; official: string };
   placeVerified: string;
   open: string;
   close: string;
@@ -614,6 +617,7 @@ export function AngleGallery({
   const caption = (a: GalleryAngle) => (
     <>
       <span className="truncate">{a.contributorName}</span>
+      {a.contributorVerified && <VerifiedBadge label={labels.verified.badge} />}
       <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">
         {a.presence === "REMOTE" ? labels.remoteTag : labels.thereTag}
       </span>
@@ -773,6 +777,7 @@ export function AngleGallery({
                       <Link href={`/u/${a.profileId}`} className="pointer-events-auto truncate underline-offset-4 hover:underline">
                         {a.contributorName}
                       </Link>
+                      {a.contributorVerified && <VerifiedBadge label={labels.verified.badge} />}
                       <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{a.presence === "REMOTE" ? labels.remoteTag : labels.thereTag}</span>
                       {a.isNew && <span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span>}
                     </>
@@ -1033,14 +1038,18 @@ export function AngleGallery({
               {comments === null && !commentError && <li className="text-sm text-muted">{labels.comments.loading}</li>}
               {comments?.length === 0 && <li className="text-sm text-muted">{labels.comments.empty}</li>}
               {comments?.map((c) => (
-                <li key={c.id} className={`flex items-start gap-3 ${c.parentId ? "ps-10" : ""}`}>
+                <li key={c.id} className={`flex items-start gap-3 ${c.parentId ? "ps-10" : ""} ${c.authorVerified ? "-mx-2 rounded-2xl bg-accent-soft/60 p-2" : ""}`}>
                   <span aria-hidden="true" className={`flex shrink-0 items-center justify-center rounded-full bg-accent-soft font-bold text-accent-ink ${c.parentId ? "size-6 text-xs" : "size-8 text-sm"}`}>
                     {c.authorName.charAt(0)}
                   </span>
                   <div className="flex min-w-0 flex-1 flex-col">
-                    <div className="flex items-baseline gap-2 text-xs text-muted">
-                      <span className="font-bold text-foreground">{c.authorName}</span>
-                      <span>{timeAgo(c.createdAt, locale)}</span>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+                      <span className="flex items-center gap-1 font-bold text-foreground">
+                        {c.authorName}
+                        {c.authorVerified && <VerifiedBadge label={labels.verified.badge} />}
+                      </span>
+                      {c.authorVerified && <span className="whitespace-nowrap rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-extrabold text-white">{labels.verified.team}</span>}
+                      <span className="whitespace-nowrap">{timeAgo(c.createdAt, locale)}</span>
                     </div>
                     <p className="whitespace-pre-line break-words text-sm leading-relaxed">{c.body}</p>
                     <button

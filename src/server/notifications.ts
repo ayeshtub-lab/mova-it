@@ -25,7 +25,7 @@ export async function notify(event: Event, once?: { key: string; where: Prisma.N
       });
       if (told) return;
     }
-    const include = { actor: { select: { displayName: true } }, angle: { select: { id: true, moment: { select: { code: true, title: true } } } }, comment: { select: { body: true } } } as const;
+    const include = { actor: { select: { displayName: true, verified: true } }, angle: { select: { id: true, moment: { select: { code: true, title: true } } } }, comment: { select: { body: true } } } as const;
     const created = once
       ? await db.$transaction(async (tx) => {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${once.key}))`;
@@ -39,6 +39,7 @@ export async function notify(event: Event, once?: { key: string; where: Prisma.N
       pushTo(event.userId, {
         kind: event.kind,
         actorName: created.actor.displayName,
+        actorVerified: created.actor.verified,
         momentTitle: created.angle?.moment.title ?? null,
         comment: created.comment?.body ?? null,
         url: created.angle ? (event.kind === "VIDEO_READY" ? `/m/${created.angle.moment.code}#video` : `/m/${created.angle.moment.code}#angle-${created.angle.id}`) : `/u/${event.actorId}`,
@@ -98,7 +99,7 @@ export async function listNotifications(user: User, take = 40) {
     orderBy: { createdAt: "desc" },
     take,
     include: {
-      actor: { select: { id: true, displayName: true, avatarUrl: true, isGuest: true } },
+      actor: { select: { id: true, displayName: true, avatarUrl: true, isGuest: true, verified: true } },
       angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, moment: { select: { code: true, title: true } } } },
       comment: { select: { body: true } },
     },
@@ -111,6 +112,7 @@ export async function listNotifications(user: User, take = 40) {
       createdAt: n.createdAt,
       actorId: n.actor.id,
       actorName: n.actor.displayName,
+      actorVerified: n.actor.verified,
       actorAvatar: n.actor.avatarUrl,
       // Guests have no profile page; everyone else links to theirs.
       actorHasProfile: !n.actor.isGuest,

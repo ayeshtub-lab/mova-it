@@ -135,6 +135,7 @@ export async function getProfile(viewer: User | null, userId: string) {
   return {
     id: owner.id,
     displayName: owner.displayName,
+    verified: owner.verified,
     avatarUrl: owner.avatarUrl,
     isMe,
     isAdmin: isMe && owner.isAdmin,
@@ -212,7 +213,7 @@ export async function setFollow(viewer: User, targetId: string, on: boolean) {
 }
 
 export async function setDisplayName(user: User, raw: unknown) {
-  const name = cleanDisplayName(raw);
+  const name = cleanDisplayName(raw, user.verified);
   if (!name) throw new ProfileError("invalid");
   await db.user.update({ where: { id: user.id }, data: { displayName: name } });
 }

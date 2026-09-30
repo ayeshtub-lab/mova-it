@@ -320,6 +320,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 takenAt: a.takenAt.toISOString(),
                 stampAt: a.stampAt.toISOString(),
                 contributorName: a.contributorName,
+                contributorVerified: a.contributorVerified,
                 profileId: a.profileId,
                 contributorAvatar: a.contributorAvatar,
                 following: a.following,
@@ -340,7 +341,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 caption: a.caption,
               }))}
               locale={locale}
-              labels={{ ...dict.viewer, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds, edit: dict.editShot, branded: dict.branded, caption: dict.caption }}
+              labels={{ ...dict.viewer, verified: dict.verified, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds, edit: dict.editShot, branded: dict.branded, caption: dict.caption }}
               canReact={!!user}
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}

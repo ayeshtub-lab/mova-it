@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
 import { db } from "@/lib/db";
+import { isReservedName } from "@/lib/names";
 
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 import { SOURCE_COOKIE } from "@/lib/source";
@@ -13,9 +14,11 @@ const SESSION_DAYS = 180;
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
 // Trim, drop control characters, collapse spaces; 1–40 characters.
-export function cleanDisplayName(raw: unknown): string | null {
+// «زاومو» / «Zawmo» is only for verified (official) accounts: `official` lets it through.
+export function cleanDisplayName(raw: unknown, official = false): string | null {
   if (typeof raw !== "string") return null;
   const name = raw.replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim();
+  if (!official && isReservedName(name)) return null;
   return name.length >= 1 && name.length <= 40 ? name : null;
 }
 

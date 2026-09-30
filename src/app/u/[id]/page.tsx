@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { VerifiedBadge } from "@/app/VerifiedBadge";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -76,6 +77,12 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             />
           ) : (
             <h1 className="text-2xl font-extrabold">{profile.displayName}</h1>
+          )}
+          {profile.verified && (
+            <p className="-mt-1 flex items-center gap-1.5 text-sm font-bold text-accent-ink">
+              <VerifiedBadge label={dict.verified.badge} className="size-5" />
+              {dict.verified.official}
+            </p>
           )}
 
           <div className="grid w-full max-w-sm grid-cols-4 gap-1.5">

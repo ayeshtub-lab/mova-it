@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { VerifiedBadge } from "@/app/VerifiedBadge";
 
-type Comment = { id: string; body: string; authorName: string; parentId: string | null };
+type Comment = { id: string; body: string; authorName: string; authorVerified?: boolean; parentId: string | null };
 export type CommentsLabels = { title: string; empty: string; loading: string; placeholder: string; send: string; failed: string; tooMany: string; reply: string; replyingTo: string; cancelReply: string };
 
 // The comments of one angle, readable by anyone; writing (and replying) needs an account.
@@ -77,7 +78,10 @@ export function CommentsSheet({
         <ul className="flex flex-col gap-3">
           {comments.map((c) => (
             <li key={c.id} className={`flex flex-col gap-0.5 ${c.parentId ? "ms-8 border-s-2 border-line ps-3" : ""}`}>
-              <span className="text-sm font-extrabold">{c.authorName}</span>
+              <span className="flex items-center gap-1 text-sm font-extrabold">
+                {c.authorName}
+                {c.authorVerified && <VerifiedBadge label="✓" />}
+              </span>
               <span className="whitespace-pre-line text-sm">{c.body}</span>
               {canWrite && (
                 <button type="button" onClick={() => setReplyTo({ id: c.id, name: c.authorName })} className="w-fit text-xs font-bold text-muted hover:text-foreground">

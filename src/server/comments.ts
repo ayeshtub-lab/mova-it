@@ -23,12 +23,13 @@ function cleanBody(raw: unknown) {
   return text.length >= 1 && text.length <= MAX_LENGTH ? text : null;
 }
 
-type Row = { id: string; body: string; createdAt: Date; userId: string; parentId: string | null; user: { displayName: string } };
+type Row = { id: string; body: string; createdAt: Date; userId: string; parentId: string | null; user: { displayName: string; verified: boolean } };
 const toView = (c: Row, viewer: User | null, creatorId: string, likes = { count: 0, liked: false }) => ({
   id: c.id,
   body: c.body,
   createdAt: c.createdAt,
   authorName: c.user.displayName,
+  authorVerified: c.user.verified,
   parentId: c.parentId,
   likes: likes.count,
   liked: likes.liked,
@@ -52,12 +53,13 @@ export async function listComments(user: User | null, angleId: string) {
     where: { angleId, userId: { notIn: blocked } },
     orderBy: { createdAt: "asc" },
     take: 300,
-    include: { user: { select: { displayName: true } }, _count: { select: { likes: true } }, likes: { where: { userId: user?.id ?? "" }, select: { userId: true } } },
+    include: { user: { select: { displayName: true, verified: true } }, _count: { select: { likes: true } }, likes: { where: { userId: user?.id ?? "" }, select: { userId: true } } },
   });
   // Top-level comments in order, each followed by its replies (a reply whose comment is
   // hidden from this viewer is left out too).
   const views = comments.map((c) => toView(c, user, angle.moment.creatorId, { count: c._count.likes, liked: c.likes.length > 0 }));
-  const top = views.filter((c) => !c.parentId);
+  // Zawmo's own (verified) comments lead, like a pinned comment; the rest keep their order.
+  const top = views.filter((c) => !c.parentId).sort((a, b) => Number(b.authorVerified) - Number(a.authorVerified));
   return top.flatMap((c) => [c, ...views.filter((r) => r.parentId === c.id)]);
 }
 
@@ -80,7 +82,7 @@ export async function addComment(user: User, angleId: string, raw: unknown, rawP
     parentId = parent.parentId ?? rawParent;
     parentAuthor = parent.userId; // the person answered (who wrote the comment tapped)
   }
-  const comment = await db.comment.create({ data: { angleId, userId: user.id, body, parentId }, include: { user: { select: { displayName: true } } } });
+  const comment = await db.comment.create({ data: { angleId, userId: user.id, body, parentId }, include: { user: { select: { displayName: true, verified: true } } } });
   await db.moment.update({ where: { id: angle.momentId }, data: { lastActivityAt: new Date() } });
   // The person answered hears of the reply, and the shot's owner of the comment (only
   // once when they are the one answered).
