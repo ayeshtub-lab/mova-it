@@ -129,6 +129,7 @@
     "copied": "Link copied",
     "whatsapp": "WhatsApp",
     "shareText": "{title} — see every angle. Got one? Add it:",
+    "qrCard": "🖨️ QR card for your event: print it for the tables",
     "by": "Started by {name}"
   },
   "create": {
@@ -248,8 +249,8 @@
     "allShots": "All shots here",
     "aroundTitle": "📍 Around today",
     "angles": "{n} angles",
-    "metaTitle": "📍 {name} — shots on Zawmo",
-    "metaDescription": "Real moments people captured in {name}, from every angle."
+    "metaTitle": "Recent photos of {name} — real shots from people | Zawmo",
+    "metaDescription": "Recent, real photos of {name}, taken by people there and shared on Zawmo. Moments from every angle, always up to date."
   },
   "viewer": {
     "placeVerified": "Verified from the photo",
@@ -402,6 +403,7 @@
     "addedAngle": "{name} added a new angle 📸",
     "joined": "🤝 {name} shot the same moment and added their angle to yours",
     "storyReminder": "🌱 It's been a week since the last shot of your story. Shoot it today and see how it changed",
+    "videoReady": "🎬 You have enough shots now! Tap here and make the video from every angle",
     "giveBack": "Remove it",
     "giveBackHint": "It goes back to its own moment; nothing is deleted",
     "givenBack": "Done, their shot is back in its own moment 🤍",
@@ -451,6 +453,7 @@
     "noFollowing": "Not following anyone yet."
   },
   "footer": {
+    "album": "📸 Collect your event photos",
     "privacy": "Privacy",
     "terms": "Terms",
     "contact": "Contact us"
@@ -604,6 +607,14 @@
     "open": "See the whole moment, every angle",
     "description": "{label} — a {kind} by {name} on Zawmo, from the moment “{title}”."
   },
+  "qr": {
+    "scan": "📸 Scan to add your photos and videos",
+    "sub": "From your phone, no app to download. We make a video from every angle",
+    "orOpen": "or open",
+    "print": "🖨️ Print",
+    "hint": "Printing gives 4 cards on an A4 page: cut them and put one on each table. The code opens your moment directly.",
+    "back": "Back to the moment"
+  },
   "branded": {
     "make": "📤 Share with Zawmo mark",
     "working": "⏳ Preparing the video…",
@@ -656,6 +667,7 @@
     "newAngle": "📸 {name} added a new angle",
     "joined": "🤝 {name} shot the same moment and joined yours",
     "storyReminder": "🌱 A week since the last shot. Shoot it today?",
+    "videoReady": "🎬 Your video is ready to make!",
     "open": "Open Zawmo",
     "enableTitle": "🔔 Get notified",
     "enableText": "A note on your phone when someone likes, comments or adds an angle to your moment — even with Zawmo closed.",

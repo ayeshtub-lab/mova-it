@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
 import { soundByKey } from "@/lib/sounds";
 import { viewUrl } from "@/server/media";
+import { systemUser } from "@/server/daily";
+import { notify } from "@/server/notifications";
 import { renderMontage } from "./render";
 
 const MAX_ANGLES = 12;
@@ -117,6 +119,22 @@ async function madeByHand(momentId: string) {
   const made = await db.montage.findMany({ where: { momentId }, select: { angleIds: true } });
   const { min } = await sizeFor(momentId);
   return made.some((m) => m.angleIds.length >= min);
+}
+
+// «🎬 صار فيك تعمل الفيديو»: the shot just published brought the moment to enough shots for
+// its video. Its maker (the owner of the first shot) is told once — never again for this
+// moment, and not at all once a video has been made. Not for «لحظة اليوم».
+export async function offerVideo(angleId: string) {
+  const angle = await db.angle.findUnique({ where: { id: angleId }, select: { status: true, momentId: true, moment: { select: { kind: true } } } });
+  if (!angle || angle.status !== "READY" || angle.moment.kind === "DAILY") return;
+  const [rights, size] = await Promise.all([videoRights(angle.momentId), sizeFor(angle.momentId)]);
+  if (!rights.makerId || rights.count < size.min || (await madeByHand(angle.momentId))) return;
+  const first = await db.angle.findFirst({ where: liveAngles(angle.momentId), orderBy: { uploadedAt: "asc" }, select: { id: true } });
+  if (!first) return;
+  await notify(
+    { userId: rights.makerId, actorId: (await systemUser()).id, kind: "VIDEO_READY", angleId: first.id },
+    { key: `video-ready:${angle.momentId}`, where: { userId: rights.makerId, kind: "VIDEO_READY", angle: { momentId: angle.momentId } } },
+  );
 }
 
 // The maker asks for the video (or picks a new sound for it).

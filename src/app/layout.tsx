@@ -33,6 +33,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title: dict.meta.title,
     description: dict.meta.description,
     openGraph: { siteName: dict.meta.brand, type: "website", locale: locale === "ar" ? "ar_AR" : "en_US" },
+    // Big pictures and full video previews in results — what Google Discover asks for.
+    robots: { googleBot: { "max-image-preview": "large", "max-video-preview": -1, "max-snippet": -1 } },
   };
 }
 
@@ -50,7 +52,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         {user && <ActivityPing userId={user.id} />}
         <PresencePing />
-        <footer className={`px-4 py-6 text-center text-xs text-muted ${user ? "pb-28 sm:pb-6" : ""}`}>
+        <footer className={`px-4 py-6 text-center text-xs text-muted print:hidden ${user ? "pb-28 sm:pb-6" : ""}`}>
+          <Link href="/album" className="font-bold underline-offset-4 hover:underline">
+            {dict.footer.album}
+          </Link>
+          <span className="mx-2" aria-hidden>·</span>
           <Link href="/privacy" className="underline-offset-4 hover:underline">
             {dict.footer.privacy}
           </Link>

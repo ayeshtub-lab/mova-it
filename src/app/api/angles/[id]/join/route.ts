@@ -1,7 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { joinMoment, JoinError } from "@/server/join";
-import { refreshMontageForAngle } from "@/server/montage";
+import { offerVideo, refreshMontageForAngle } from "@/server/montage";
 
 // «صوّر معك»: the shot's owner adds it to the moment they were offered ({ code }).
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -14,6 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const done = await joinMoment(user.id, id, body.code);
     const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;
     after(() => refreshMontageForAngle(id, host).catch((error) => console.error("montage refresh failed", id, error)));
+    after(() => offerVideo(id).catch((error) => console.error("video offer failed", id, error)));
     return NextResponse.json(done);
   } catch (error) {
     if (error instanceof JoinError) return NextResponse.json({ error: error.code }, { status: 409 });

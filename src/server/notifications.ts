@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import type { NotificationKind, User } from "@/generated/prisma/client";
+import type { NotificationKind, Prisma, User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { coverOf } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
@@ -11,7 +11,9 @@ import { pushTo } from "@/server/push";
 
 type Event = { userId: string; actorId: string; kind: NotificationKind; angleId?: string; commentId?: string };
 
-export async function notify(event: Event) {
+// `once`: tell only if nothing matching `where` was told yet — checked and created one at a
+// time per `key`, so two requests arriving together can't both tell.
+export async function notify(event: Event, once?: { key: string; where: Prisma.NotificationWhereInput }) {
   try {
     if (event.userId === event.actorId) return;
     if ((await blockedIdsFor(event.userId)).has(event.actorId)) return;
@@ -23,10 +25,15 @@ export async function notify(event: Event) {
       });
       if (told) return;
     }
-    const created = await db.notification.create({
-      data: event,
-      include: { actor: { select: { displayName: true } }, angle: { select: { id: true, moment: { select: { code: true, title: true } } } }, comment: { select: { body: true } } },
-    });
+    const include = { actor: { select: { displayName: true } }, angle: { select: { id: true, moment: { select: { code: true, title: true } } } }, comment: { select: { body: true } } } as const;
+    const created = once
+      ? await db.$transaction(async (tx) => {
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${once.key}))`;
+          if (await tx.notification.count({ where: once.where })) return null;
+          return tx.notification.create({ data: event, include });
+        })
+      : await db.notification.create({ data: event, include });
+    if (!created) return;
     // …and on the person's phone (after the response, so the like or comment never waits).
     const push = () =>
       pushTo(event.userId, {
@@ -34,7 +41,7 @@ export async function notify(event: Event) {
         actorName: created.actor.displayName,
         momentTitle: created.angle?.moment.title ?? null,
         comment: created.comment?.body ?? null,
-        url: created.angle ? `/m/${created.angle.moment.code}#angle-${created.angle.id}` : `/u/${event.actorId}`,
+        url: created.angle ? (event.kind === "VIDEO_READY" ? `/m/${created.angle.moment.code}#video` : `/m/${created.angle.moment.code}#angle-${created.angle.id}`) : `/u/${event.actorId}`,
       }).catch((error) => console.error("push failed", error));
     try {
       after(push);
@@ -108,7 +115,7 @@ export async function listNotifications(user: User, take = 40) {
       // Guests have no profile page; everyone else links to theirs.
       actorHasProfile: !n.actor.isGuest,
       comment: n.comment?.body ?? null,
-      href: n.angle ? `/m/${n.angle.moment.code}#angle-${n.angle.id}` : `/u/${n.actor.id}`,
+      href: n.angle ? (n.kind === "VIDEO_READY" ? `/m/${n.angle.moment.code}#video` : `/m/${n.angle.moment.code}#angle-${n.angle.id}`) : `/u/${n.actor.id}`,
       momentTitle: n.angle?.moment.title ?? null,
       thumbUrl: n.angle ? await coverOf(n.angle) : null,
       // «صوّر معك»: the host may give the joined shot back («شيلها»).

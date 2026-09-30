@@ -437,6 +437,12 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           ))}
 
         <ShareBar url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={t} />
+        {/* For weddings and parties: a card with the moment's QR code, for the guests' tables. */}
+        {view.viewer.isCreator && view.kind !== "STORY" && view.kind !== "DAILY" && (
+          <Link href={`/m/${view.code}/qr`} className="flex min-h-12 items-center justify-center rounded-full border border-line px-5 text-center text-sm font-bold hover:bg-surface">
+            {t.qrCard}
+          </Link>
+        )}
       </main>
     </div>
   );

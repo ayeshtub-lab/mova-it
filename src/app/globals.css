@@ -232,3 +232,11 @@ body {
   overflow-x: clip;
   overflow-wrap: break-word;
 }
+
+/* Printed pages (the QR card for tables): white paper, not the site background. */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+}

@@ -507,6 +507,7 @@ enum NotificationKind {
   NEW_ANGLE // someone else added an angle to a moment you have an angle in
   JOINED // «صوّر معك»: someone who shot the same moment added their shot to your moment
   STORY_REMINDER // «مع الوقت»: a week since the last shot of your story (from Zawmo)
+  VIDEO_READY // your moment reached enough shots for its video: make it (from Zawmo, once)
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.

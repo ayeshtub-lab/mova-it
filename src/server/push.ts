@@ -52,7 +52,7 @@ export type PushEvent = { kind: NotificationKind; actorName: string; momentTitle
 export function pushMessage(e: PushEvent, locale: string) {
   const t = (locale === "en" ? en : ar).push;
   const fill = (s: string) => s.replace("{name}", e.actorName);
-  const title = fill({ LIKE: t.like, FOLLOW: t.follow, COMMENT: t.comment, REPLY: t.reply, NEW_ANGLE: t.newAngle, JOINED: t.joined, STORY_REMINDER: t.storyReminder }[e.kind]);
+  const title = fill({ LIKE: t.like, FOLLOW: t.follow, COMMENT: t.comment, REPLY: t.reply, NEW_ANGLE: t.newAngle, JOINED: t.joined, STORY_REMINDER: t.storyReminder, VIDEO_READY: t.videoReady }[e.kind]);
   const body = (e.kind === "COMMENT" || e.kind === "REPLY" ? e.comment : e.momentTitle) ?? t.open;
   return { title, body: body.length > 140 ? body.slice(0, 139) + "…" : body };
 }

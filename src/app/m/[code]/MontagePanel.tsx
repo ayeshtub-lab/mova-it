@@ -135,7 +135,7 @@ export function MontagePanel({
   // Not enough angles yet: how far along the moment is.
   if (!enough) {
     return (
-      <section className="flex flex-col gap-3 rounded-3xl bg-surface p-5">
+      <section id="video" className="flex scroll-mt-20 flex-col gap-3 rounded-3xl bg-surface p-5">
         <h2 className="text-xl font-extrabold">🎬 {labels.title}</h2>
         <div className="flex items-baseline justify-between gap-2 text-sm">
           <span className="font-bold">{fill(labels.progress, { n: n(video.angleCount), min: n(video.minAngles) })}</span>
@@ -149,7 +149,7 @@ export function MontagePanel({
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-3xl bg-surface p-5">
+    <section id="video" className="flex scroll-mt-20 flex-col gap-3 rounded-3xl bg-surface p-5">
       <div className="flex flex-col gap-1">
         <h2 className="text-xl font-extrabold">🎬 {labels.title}</h2>
         <p className="text-sm text-muted">{labels.hint}</p>
