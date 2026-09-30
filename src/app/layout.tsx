@@ -25,13 +25,14 @@ const syne = Syne({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const dict = await getDictionary(await getLocale());
+  const locale = await getLocale();
+  const dict = await getDictionary(locale);
   // Absolute links in previews (WhatsApp, social) always point at zawmo.com.
   return {
     metadataBase: new URL(`https://${CANONICAL_HOST}`),
     title: dict.meta.title,
     description: dict.meta.description,
-    openGraph: { siteName: dict.meta.brand, type: "website" },
+    openGraph: { siteName: dict.meta.brand, type: "website", locale: locale === "ar" ? "ar_AR" : "en_US" },
   };
 }
 
