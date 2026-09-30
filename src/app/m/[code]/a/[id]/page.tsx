@@ -1,0 +1,163 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { cache } from "react";
+import { JsonLd } from "@/app/JsonLd";
+import { SiteHeader } from "@/app/SiteHeader";
+import { StreamVideo } from "@/app/StreamVideo";
+import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
+import { filterCss } from "@/lib/filters";
+import { CANONICAL_HOST } from "@/lib/hosts";
+import { viewUrl } from "@/server/media";
+import { publicShot, shotLabel, shotPath, type PublicShot } from "@/server/seo";
+import { hlsUrl } from "@/server/stream";
+
+// One public shot on its own page: what Google Images and Google Video list (a moment's page
+// holds many shots; a search result needs one). Friends-only shots have no such page.
+
+const loadShot = cache((id: string) => publicShot(id));
+
+const fill = (template: string, values: Record<string, string>) => template.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
+const placeName = (p: { nameAr: string; kind: string }) => (p.kind === "GOVERNORATE" ? `محافظة ${p.nameAr}` : p.nameAr);
+
+function describe(shot: PublicShot, dict: Dictionary, locale: string) {
+  const t = dict.shotPage;
+  return fill(t.description, {
+    label: shotLabel(shot, locale),
+    kind: shot.mediaType === "VIDEO" ? t.video : t.photo,
+    name: shot.contributor.displayName,
+    title: shot.moment.title,
+  });
+}
+
+export async function generateMetadata({ params }: PageProps<"/m/[code]/a/[id]">): Promise<Metadata> {
+  const shot = await loadShot((await params).id);
+  if (!shot) return {};
+  const locale = await getLocale();
+  const dict = await getDictionary(locale);
+  const title = shotLabel(shot, locale);
+  const description = describe(shot, dict, locale);
+  const image = `/i/${shot.id}.jpg`;
+  return {
+    title: `${title} · ${dict.meta.brand}`,
+    description,
+    alternates: { canonical: shotPath(shot) },
+    openGraph: { title, description, type: "website", siteName: dict.meta.brand, images: [{ url: image, alt: title }] },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
+  };
+}
+
+export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">) {
+  const { code, id } = await params;
+  const shot = await loadShot(id);
+  if (!shot) notFound();
+  if (shot.moment.code !== code) redirect(shotPath(shot));
+  const locale = await getLocale();
+  const dict = await getDictionary(locale);
+  const t = dict.shotPage;
+  const label = shotLabel(shot, locale);
+  const isVideo = shot.mediaType === "VIDEO";
+  const where = shot.place ? placeName(shot.place) : null;
+  const at = shot.capturedAt ?? shot.uploadedAt;
+  const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Riyadh" }).format(at);
+
+  const site = `https://${CANONICAL_HOST}`;
+  const url = `${site}${shotPath(shot)}`;
+  const momentUrl = `${site}/m/${shot.moment.code}`;
+  const image = `${site}/i/${shot.id}.jpg`;
+  const common = {
+    "@id": `${url}#media`,
+    url,
+    name: label,
+    description: describe(shot, dict, locale),
+    inLanguage: locale,
+    author: { "@type": "Person", name: shot.contributor.displayName },
+    ...(where ? { contentLocation: { "@type": "Place", name: where } } : {}),
+    isPartOf: { "@id": `${momentUrl}#post` },
+    publisher: { "@id": `${site}/#org` },
+  };
+  const media = isVideo
+    ? {
+        "@type": "VideoObject",
+        ...common,
+        thumbnailUrl: [image],
+        uploadDate: shot.uploadedAt.toISOString(),
+        contentUrl: `${site}/v/${shot.id}.mp4`,
+        ...(shot.durationSec ? { duration: `PT${Math.max(1, Math.round(shot.durationSec))}S` } : {}),
+      }
+    : {
+        "@type": "ImageObject",
+        ...common,
+        contentUrl: image,
+        caption: label,
+        datePublished: shot.uploadedAt.toISOString(),
+        ...(shot.width && shot.height ? { width: shot.width, height: shot.height } : {}),
+      };
+  const crumbs = [
+    { name: dict.meta.brand, item: site },
+    ...(shot.place ? [{ name: placeName(shot.place), item: `${site}/p/${encodeURIComponent(shot.place.slug)}` }] : []),
+    { name: shot.moment.title, item: momentUrl },
+    { name: label, item: url },
+  ];
+  const structured = {
+    "@context": "https://schema.org",
+    "@graph": [media, { "@type": "BreadcrumbList", itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, ...c })) }],
+  };
+
+  return (
+    <div className="flex flex-1 flex-col px-4 sm:px-8">
+      <JsonLd data={structured} />
+      <SiteHeader locale={locale} dict={dict} />
+      <main className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-16">
+        <div className="overflow-hidden rounded-3xl bg-black">
+          {isVideo ? (
+            <StreamVideo
+              file={await viewUrl(shot.mediaPath)}
+              hls={hlsUrl(shot)}
+              poster={`/i/${shot.id}.jpg`}
+              controls
+              playsInline
+              preload="metadata"
+              aria-label={label}
+              className="max-h-[75vh] w-full"
+              style={{ filter: filterCss(shot.filter) }}
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element -- the fixed address is what search engines index
+            <img
+              src={`/i/${shot.id}.jpg`}
+              alt={label}
+              width={shot.width ?? undefined}
+              height={shot.height ?? undefined}
+              className="mx-auto max-h-[75vh] w-auto object-contain"
+              style={{ filter: filterCss(shot.filter) }}
+            />
+          )}
+        </div>
+        <header className="flex flex-col gap-1">
+          <h1 className="text-2xl font-extrabold leading-snug">{label}</h1>
+          <p className="text-sm text-muted">
+            {fill(t.by, { name: shot.contributor.displayName })}
+            {where && shot.place && (
+              <>
+                {" · 📍 "}
+                <Link href={`/p/${encodeURIComponent(shot.place.slug)}`} className="underline underline-offset-2">
+                  {where}
+                </Link>
+              </>
+            )}
+            {" · "}
+            <time dateTime={at.toISOString()}>{date}</time>
+          </p>
+          <p className="text-sm text-muted">{fill(t.from, { title: shot.moment.title })}</p>
+        </header>
+        <Link
+          href={`/m/${shot.moment.code}#angle-${shot.id}`}
+          className="flex min-h-12 items-center justify-center rounded-full bg-accent px-6 font-extrabold text-white shadow-sm"
+        >
+          {t.open}
+        </Link>
+      </main>
+    </div>
+  );
+}

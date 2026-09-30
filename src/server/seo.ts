@@ -1,4 +1,6 @@
+import { parseCaption } from "@/lib/caption";
 import { db } from "@/lib/db";
+import { isScene, SCENES } from "@/lib/scenes";
 
 // What search engines may list: only what anyone can already open without signing in.
 // Friends-only, hidden and «لحظة اليوم» moments never appear (their pages say noindex too).
@@ -46,4 +48,57 @@ export async function sitemapEntries(now = new Date()) {
     moments: moments.map((m) => ({ code: m.code, updatedAt: m.lastActivityAt })),
     places: places.map((p) => ({ slug: p.slug, updatedAt: latest.get(p.id)! })),
   };
+}
+
+// ── Shots for search engines (Google Images / Video) ─────────────────────────────────────
+// Each public shot gets its own page (/m/CODE/a/ID) and fixed addresses for its picture
+// (/i/ID.jpg) and video (/v/ID.mp4) — the files themselves sit in private storage behind
+// short-lived links, which search engines can't keep. Nothing else ever gets one.
+
+const shotSelect = {
+  id: true,
+  mediaType: true,
+  mediaPath: true,
+  thumbPath: true,
+  streamUid: true,
+  streamReady: true,
+  durationSec: true,
+  width: true,
+  height: true,
+  filter: true,
+  caption: true,
+  scene: true,
+  capturedAt: true,
+  uploadedAt: true,
+  moment: { select: { code: true, title: true } },
+  contributor: { select: { displayName: true } },
+  place: { select: { slug: true, nameAr: true, kind: true } },
+} as const;
+
+// A shot anyone may open without signing in: ready, passed the check, in a public moment.
+export async function publicShot(id: string, now = new Date()) {
+  if (!/^[a-z0-9]{20,40}$/.test(id)) return null;
+  return db.angle.findFirst({ where: { id, ...shownAngle(now) }, select: shotSelect });
+}
+
+export type PublicShot = NonNullable<Awaited<ReturnType<typeof publicShot>>>;
+
+const placeName = (p: { nameAr: string; kind: string }) => (p.kind === "GOVERNORATE" ? `محافظة ${p.nameAr}` : p.nameAr);
+
+// Words that say what the shot is, for its title and the picture's alt text:
+// «غيوم وسماء جميلة — سما وقمر في بيت لحم».
+export function shotLabel(shot: PublicShot, locale: string) {
+  const ar = locale === "ar";
+  const text = parseCaption(shot.caption)?.text?.replace(/\s+/g, " ").trim() || shot.moment.title;
+  const scene = isScene(shot.scene) && shot.scene !== "other" ? SCENES[shot.scene][ar ? "ar" : "en"] : null;
+  const where = shot.place ? placeName(shot.place) : null;
+  const tail = [scene, where && `${ar ? "في" : "in"} ${where}`].filter(Boolean).join(" ");
+  return tail && !text.includes(tail) ? `${text} — ${tail}` : text;
+}
+
+export const shotPath = (shot: { id: string; moment: { code: string } }) => `/m/${shot.moment.code}/a/${shot.id}`;
+
+// The sitemap's shots, newest first.
+export async function sitemapShots(now = new Date(), take = 5000) {
+  return db.angle.findMany({ where: shownAngle(now), select: shotSelect, orderBy: { uploadedAt: "desc" }, take });
 }

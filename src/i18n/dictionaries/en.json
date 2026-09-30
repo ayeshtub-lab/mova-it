@@ -596,6 +596,14 @@
     "failed": "Couldn't delete. Try again or email us.",
     "link": "Delete my account"
   },
+  "shotPage": {
+    "by": "Shot by {name}",
+    "photo": "photo",
+    "video": "video",
+    "from": "From the moment “{title}”",
+    "open": "See the whole moment, every angle",
+    "description": "{label} — a {kind} by {name} on Zawmo, from the moment “{title}”."
+  },
   "branded": {
     "make": "📤 Share with Zawmo mark",
     "working": "⏳ Preparing the video…",
