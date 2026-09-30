@@ -3,6 +3,7 @@ import Link from "next/link";
 import { JsonLd } from "@/app/JsonLd";
 import { Showcase } from "@/app/Showcase";
 import { SiteHeader } from "@/app/SiteHeader";
+import { StoryDemo } from "@/app/start/StoryDemo";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { publicShowcase } from "@/server/discover";
@@ -18,6 +19,7 @@ type Content = {
   metaDescription: string;
   h1: string;
   intro: string[];
+  demoLabel: string;
   cta: string;
   stepsTitle: string;
   steps: [string, string][];
@@ -48,6 +50,7 @@ const CONTENT: Record<"ar" | "en", Content> = {
       "بكل عرس وتخرج وحفلة، الصور الحلوة بتكون بجوالات الضيوف، مش عند المصوّر بس. وبعد المناسبة بتتوزع على عشرات المحادثات، ونصها ما بيوصلك أبدًا.",
       "زاومو بيجمعها بمكان واحد: رابط واحد بتبعته للكل، وكل واحد بيضيف لقطاته من جواله. مجانًا، وبدون تحميل تطبيق.",
     ],
+    demoLabel: "👆 فيديو توضيحي: هيك بتنجمع صور العرس من كل الضيوف",
     cta: "📸 أنشئ لحظة مناسبتك الآن، مجانًا",
     stepsTitle: "كيف يعمل؟ ٣ خطوات",
     steps: [
@@ -100,6 +103,7 @@ const CONTENT: Record<"ar" | "en", Content> = {
       "At every wedding, graduation and party, the best photos are on the guests' phones, not just the photographer's. Afterwards they scatter across dozens of chats, and half of them never reach you.",
       "Zawmo gathers them in one place: one link you send to everyone, and each person adds their shots from their phone. Free, and no app to download.",
     ],
+    demoLabel: "👆 Illustrative video: how a wedding's photos come together from every guest",
     cta: "📸 Start your event's moment now — free",
     stepsTitle: "How it works, in 3 steps",
     steps: [
@@ -195,6 +199,9 @@ export default async function AlbumPage() {
               {p}
             </p>
           ))}
+          <div className="mx-auto w-full max-w-xs">
+            <StoryDemo src="/album/demo.mp4" poster="/album/demo.jpg" label={c.demoLabel} soundLabel={dict.start.sound} />
+          </div>
           {cta}
         </header>
 
