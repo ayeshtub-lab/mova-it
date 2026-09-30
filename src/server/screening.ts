@@ -13,6 +13,25 @@ import { isScene, SCENES, type Scene } from "@/lib/scenes";
 const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 const TIMEOUT_MS = 25_000;
 
+// Gemini now and then answers "busy" (503), "too many" (429) or a passing server error. Try
+// again twice, a little later each time, before giving up: a public shot left unchecked is
+// hidden until an admin looks at it.
+const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
+export const RETRY_DELAYS_MS = [1500, 4500];
+export async function callGemini({ body }: { body: string }) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      body,
+    });
+    if (res.ok || !RETRY_STATUS.has(res.status) || attempt >= RETRY_DELAYS_MS.length) return res;
+    await res.body?.cancel().catch(() => {});
+    await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
+  }
+}
+
 export const screeningEnabled = () => !!process.env.GEMINI_API_KEY;
 
 // Gemini failing (a retired model name, a bad key, an outage) must never go unnoticed: uploads
@@ -75,10 +94,7 @@ async function videoFrames(url: string, durationSec: number | null) {
 }
 
 export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+  const res = await callGemini({
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: PROMPT }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
       generationConfig: { temperature: 0, responseMimeType: "application/json" },
@@ -147,10 +163,7 @@ export async function screenAngle(angle: {
 export async function screenText(text: string): Promise<Verdict> {
   if (!screeningEnabled()) return { result: "error", reason: "screening off" };
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+    const res = await callGemini({
       body: JSON.stringify({
         contents: [
           {
@@ -203,10 +216,7 @@ export async function likeness(mine: string, others: string[]): Promise<Likeness
   const none: Likeness[] = others.map(() => "no");
   if (!screeningEnabled() || !others.length) return none;
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+    const res = await callGemini({
       body: JSON.stringify({
         // Every picture labelled with its number: counting unlabelled pictures, the model
         // sometimes answered one short (5 answers for 6 pictures) and the whole check was lost.

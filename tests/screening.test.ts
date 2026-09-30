@@ -1,9 +1,11 @@
 // Unit test for how Gemini's answers become a verdict (src/server/screening.ts).
 // Run: npx tsx tests/screening.test.ts — no network, no database: fetch is simulated.
 import assert from "node:assert/strict";
-import { askGemini, likeness } from "../src/server/screening";
+import { askGemini, likeness, RETRY_DELAYS_MS } from "../src/server/screening";
 
 process.env.GEMINI_API_KEY = "test-key";
+// No real waiting between retries here.
+RETRY_DELAYS_MS.fill(0);
 const out: string[] = [];
 const check = async (name: string, fn: () => Promise<void>) => {
   await fn();
@@ -80,6 +82,31 @@ async function main() {
     reply(200, answer('{"verdict":"allow","category":"none","reason":"x","scene":"volcano"}'));
     assert.deepEqual(await askGemini(["a"]), { result: "allowed" });
     assert.match(JSON.stringify(lastRequest?.body), /sunset, sunrise/, "the prompt lists the scenes");
+  });
+
+  // A busy Gemini (503) once hid a real public shot: passing errors are tried again.
+  const sequence = (replies: [number, unknown][]) => {
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      const [status, body] = replies[Math.min(calls++, replies.length - 1)];
+      return new Response(JSON.stringify(body), { status });
+    }) as unknown as typeof fetch;
+    return () => calls;
+  };
+  await check("a busy Gemini (503) is tried again, and the answer counts", async () => {
+    const calls = sequence([[503, { error: { message: "The service is currently unavailable." } }], [200, answer('{"verdict":"allow","category":"none","reason":"farm"}')]]);
+    assert.deepEqual(await askGemini(["a"]), { result: "allowed" });
+    assert.equal(calls(), 2);
+  });
+  await check("still busy after three tries: an error, not a verdict", async () => {
+    const calls = sequence([[503, { error: { message: "busy" } }]]);
+    assert.equal((await askGemini(["a"])).result, "error");
+    assert.equal(calls(), 3);
+  });
+  await check("a real refusal (403) is not tried again", async () => {
+    const calls = sequence([[403, { error: { message: "API key not valid" } }]]);
+    assert.equal((await askGemini(["a"])).result, "error");
+    assert.equal(calls(), 1);
   });
 }
 
