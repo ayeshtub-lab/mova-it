@@ -238,7 +238,7 @@ export function AngleUploader({
         preview: picture ? URL.createObjectURL(picture) : undefined,
         // The retro stamp: now, on this phone's clock (not the file's own date).
         stampAt: new Date().toISOString(),
-        filter: null,
+        filter: "auto", // «✨ تحسين», set on the server when the shot was created
         stamp: false,
         suggestion: result.suggestion ?? null,
       });

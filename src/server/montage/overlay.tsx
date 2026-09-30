@@ -22,11 +22,11 @@ const arabicLine = (s: string) => toArabicDigits(s).replace(/\s·\s/g, " | ");
 // Text cropped to its ink. Several lines (joined with "\n") are laid out by Pango as one
 // block — line_height keeps them close, and "left" aligns to the paragraph start, which is
 // the right edge for Arabic.
-async function text(value: string, size: number, color: string): Promise<Text> {
+async function text(value: string, size: number, color: string, align: "left" | "centre" = "left"): Promise<Text> {
   const { data, info } = await sharp({
     text: {
       text: `<span foreground="${color}" line_height="0.75">${escape(value)}</span>`,
-      align: "left",
+      align,
       font: `Cairo Bold ${size}`,
       fontfile: FONT,
       rgba: true,
@@ -116,6 +116,43 @@ export async function renderOverlay(o: OverlayText) {
     at(cta, rtl ? W - 66 : 66, cardY + 10, side),
     at(link, rtl ? W - 66 : 66, cardY + 10 + cta.height, side),
   ]);
+}
+
+export type IntroText = {
+  title: string; // the moment's name
+  meta: string; // «٥ زوايا · ٣ أشخاص» / «١٢ لقطة خلال ٤٠ يوم»
+  kicker: string; // «لحظة من كل الزوايا» / «مع الوقت»
+};
+
+// The opening card (the first second and a half): the first shot, blurred and darkened,
+// under the moment's name — like a film's title. `background` is that shot's picture.
+export async function renderIntro(o: IntroText, background: Buffer) {
+  const rtl = isArabic(o.title);
+  const line = (s: string) => (rtl ? arabicLine(s) : s);
+  const titleLines = wrap(o.title, 16, 3);
+  if (titleLines.join(" ").length < o.title.trim().replace(/\s+/g, " ").length) titleLines[titleLines.length - 1] += "…";
+  const [brand, kicker, title, meta] = await Promise.all([
+    text("zawmo", 34, "#FFFBF0"),
+    text(line(o.kicker), 30, "#ffbf1f"),
+    text(titleLines.map(line).join("\n"), 78, "#FFFBF0", "centre"),
+    text(line(o.meta), 30, "#FBE2D8"),
+  ]);
+  const bg = await sharp(background).rotate().resize(W, H, { fit: "cover" }).blur(18).modulate({ brightness: 0.55 }).png().toBuffer();
+  const titleY = (H - title.height) / 2 - 10;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+    <rect width="${W}" height="${H}" fill="#10163a" fill-opacity="0.25"/>
+    <rect x="${(W - 120) / 2}" y="${titleY - kicker.height - 46}" width="120" height="6" rx="3" fill="#ffbf1f"/>
+  </svg>`;
+  return sharp(bg)
+    .composite([
+      { input: Buffer.from(svg), top: 0, left: 0 },
+      at(brand, 0, 70, "center"),
+      at(kicker, 0, titleY - kicker.height - 24, "center"),
+      at(title, 0, titleY, "center"),
+      at(meta, 0, titleY + title.height + 30, "center"),
+    ])
+    .png()
+    .toBuffer();
 }
 
 export type OutroText = {

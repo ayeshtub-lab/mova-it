@@ -50,6 +50,10 @@ async function unlockedMoment(user: User, code: string) {
   return moment;
 }
 
+// The look of the film itself (motion, transitions, title, ending): a new style makes every
+// moment's video again the next time it's asked for.
+const MONTAGE_STYLE = "pro-1";
+
 // The moment's shots as a montage would use them, and a fingerprint of everything that
 // shows or sounds in it — the shots, their looks and sounds, and the montage's sound.
 async function currentContent(momentId: string, soundKey: string | null) {
@@ -63,7 +67,7 @@ async function currentContent(momentId: string, soundKey: string | null) {
   });
   const angles = spread(found, size.max);
   const signature = createHash("sha256")
-    .update(JSON.stringify([soundKey, angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null])]))
+    .update(JSON.stringify([MONTAGE_STYLE, soundKey, angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null])]))
     .digest("hex")
     .slice(0, 32);
   return { angleIds: angles.map((a) => a.id), signature };

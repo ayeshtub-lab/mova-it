@@ -303,6 +303,8 @@
     "storyCta": "Start your story over time",
     "storyOutroCta": "Keep something you care about, shot by shot",
     "storyMeta": "{shots} over {days}",
+    "kicker": "One moment, every angle",
+    "storyKicker": "Over time",
     "label": "Angle {i} of {n} · {name}",
     "cta": "Were you there? Add your angle",
     "title": "The moment's video",

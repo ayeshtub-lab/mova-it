@@ -115,6 +115,8 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
       capturedAt,
       ...place,
       networkPlaceId,
+      // «✨ تحسين» from the start: every new shot looks its best; «طبيعي» takes it back.
+      filter: "auto",
     },
   });
   // A moment without a place takes the first one a photo brings (silently, like the shot's).
