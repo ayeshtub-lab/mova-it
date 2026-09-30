@@ -45,6 +45,7 @@ export async function listDiscover(viewer: User | null) {
     where: {
       visibility: "PUBLIC",
       status: "ACTIVE",
+      demo: false,
       creatorId: { notIn: blocked },
       angles: { some: shown },
     },
@@ -157,6 +158,7 @@ export async function listTag(viewer: User, rawTag: string) {
     where: {
       visibility: "PUBLIC",
       status: "ACTIVE",
+      demo: false,
       creatorId: { notIn: blocked },
       description: { contains: `#${tag}`, mode: "insensitive" },
       angles: { some: shown },
@@ -190,7 +192,7 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
       status: "READY",
       screening: "allowed",
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } },
+      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false },
       ...(exclude.length ? { contributorId: { notIn: exclude } } : {}),
     },
     orderBy: { uploadedAt: "desc" },
@@ -222,7 +224,7 @@ export async function wheelShots(take = 12) {
       status: "READY",
       screening: "allowed",
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } },
+      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false },
       contributor: { isGuest: false },
     },
     orderBy: { uploadedAt: "desc" },
@@ -285,7 +287,7 @@ export async function trendingVideos(viewer: User | null, take = 10) {
       screening: "allowed",
       uploadedAt: { gte: new Date(now - 30 * 24 * 60 * 60 * 1000) },
       contributorId: { notIn: blocked },
-      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } },
+      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false },
     },
     select: {
       id: true, shares: true, uploadedAt: true, mediaPath: true, thumbPath: true, filter: true, caption: true, soundKey: true, muteOriginal: true, streamUid: true, streamReady: true,

@@ -47,7 +47,7 @@ export async function soundShots(viewer: User | null, key: string, take = 30) {
       ...live(),
       screening: "allowed",
       contributorId: { notIn: blocked },
-      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } },
+      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false },
     },
     orderBy: { uploadedAt: "desc" },
     take,

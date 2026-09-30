@@ -38,7 +38,7 @@ export async function homeNews(user: User) {
       orderBy: { uploadedAt: "desc" },
     }),
     db.angle.findMany({
-      where: { ...live, screening: "allowed", moment: { visibility: "PUBLIC", status: "ACTIVE" } },
+      where: { ...live, screening: "allowed", moment: { visibility: "PUBLIC", status: "ACTIVE", demo: false } },
       select: { contributorId: true },
     }),
   ]);

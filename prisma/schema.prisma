@@ -153,6 +153,10 @@ model Moment {
 
   @@index([lastActivityAt])
   @@index([creatorId])
+  // An illustrative example (AI-made, for explaining Zawmo): opens by its link and on its
+  // owner's profile, but is never listed with real people's moments (feeds, wheel, places,
+  // search engines, «صوّر معك»).
+  demo Boolean @default(false)
 }
 
 enum ParticipantRole {

@@ -160,6 +160,7 @@ export async function getMomentView(code: string, viewer: User | null) {
     description: moment.description,
     kind: moment.kind,
     visibility: moment.visibility,
+    demo: moment.demo,
     placeName: moment.placeName,
     place: moment.placeId ? (places.get(moment.placeId) ?? null) : null,
     createdAt: moment.createdAt,
@@ -260,7 +261,7 @@ export async function listMyMoments(user: User, limit = 20) {
 // Candidates: public moments, moments the viewer is part of, and friends-only moments
 // by people the viewer follows. Ranked by "why now" (recent activity × richness).
 export async function listFeed(viewer: User | null, limit = 20) {
-  const or = [{ visibility: Visibility.PUBLIC }] as object[];
+  const or = [{ visibility: Visibility.PUBLIC, demo: false }] as object[];
   if (viewer) {
     or.push({ participants: { some: { userId: viewer.id } } });
     or.push({ visibility: Visibility.FRIENDS, creator: { followers: { some: { followerId: viewer.id } } } });

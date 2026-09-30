@@ -180,6 +180,12 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           </svg>
           {dict.mine.title}
         </Link>
+        {/* An illustrative, AI-made example (Moment.demo): said plainly, before anything else. */}
+        {view.demo && (
+          <p role="note" className="rounded-2xl border-2 border-dashed border-secondary/50 bg-secondary-soft/60 p-3 text-sm font-bold leading-relaxed">
+            {t.demoBanner}
+          </p>
+        )}
         <section className="flex flex-col gap-2">
           {daily && (
             <p className="w-fit rounded-full bg-moment/25 px-3 py-1 text-xs font-extrabold">

@@ -51,7 +51,7 @@ export async function publicStories(take = 6) {
   const now = new Date();
   const shown = { status: "READY" as const, screening: "allowed", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] };
   const stories = await db.moment.findMany({
-    where: { kind: "STORY", visibility: "PUBLIC", status: "ACTIVE", angles: { some: shown } },
+    where: { kind: "STORY", visibility: "PUBLIC", status: "ACTIVE", demo: false, angles: { some: shown } },
     orderBy: { lastActivityAt: "desc" },
     take,
     select: {

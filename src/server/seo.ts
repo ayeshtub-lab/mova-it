@@ -6,22 +6,22 @@ import { isScene, SCENES } from "@/lib/scenes";
 // Friends-only, hidden and «لحظة اليوم» moments never appear (their pages say noindex too).
 
 // A moment's own page is indexable when it is public, not «لحظة اليوم», and has something to see.
-export const momentIndexable = (m: { visibility: string; kind: string; angleCount: number }) =>
-  m.visibility === "PUBLIC" && m.kind !== "DAILY" && m.angleCount > 0;
+export const momentIndexable = (m: { visibility: string; kind: string; angleCount: number; demo?: boolean }) =>
+  m.visibility === "PUBLIC" && m.kind !== "DAILY" && m.angleCount > 0 && !m.demo;
 
 // A public shot as place pages show it (src/server/places.ts placePage).
 const shownAngle = (now: Date) => ({
   status: "READY" as const,
   screening: "allowed",
   OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-  moment: { visibility: "PUBLIC" as const, status: "ACTIVE" as const, kind: { not: "DAILY" as const } },
+  moment: { visibility: "PUBLIC" as const, status: "ACTIVE" as const, kind: { not: "DAILY" as const }, demo: false },
 });
 
 // The sitemap's moments and places, each with when it last changed.
 export async function sitemapEntries(now = new Date()) {
   const [moments, angles] = await Promise.all([
     db.moment.findMany({
-      where: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, angles: { some: shownAngle(now) } },
+      where: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false, angles: { some: shownAngle(now) } },
       select: { code: true, lastActivityAt: true },
       orderBy: { lastActivityAt: "desc" },
       take: 5000,

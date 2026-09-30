@@ -116,7 +116,7 @@ async function candidates(userId: string, angleId: string) {
         { capturedAt: { gte: new Date(at - VISUAL_WINDOW_MS), lte: new Date(at + VISUAL_WINDOW_MS) } },
         { capturedAt: null, uploadedAt: { gte: new Date(at - VISUAL_WINDOW_MS), lte: new Date(at + VISUAL_WINDOW_MS) } },
       ],
-      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { notIn: ["DAILY", "STORY"] }, creator: { allowJoins: true, id: { notIn: blocked } } },
+      moment: { visibility: "PUBLIC", status: "ACTIVE", demo: false, kind: { notIn: ["DAILY", "STORY"] }, creator: { allowJoins: true, id: { notIn: blocked } } },
     },
     select: {
       momentId: true, scene: true, seenText: true, placeId: true, networkPlaceId: true, capturedAt: true, uploadedAt: true,

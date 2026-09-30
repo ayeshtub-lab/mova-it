@@ -130,6 +130,7 @@
     "whatsapp": "WhatsApp",
     "shareText": "{title} — see every angle. Got one? Add it:",
     "qrCard": "🖨️ QR card for your event: print it for the tables",
+    "demoBanner": "🎬 Illustrative video: the photos and video here are AI-made examples explaining how Zawmo works — not a real moment of real people.",
     "by": "Started by {name}"
   },
   "create": {

@@ -119,7 +119,7 @@ export async function placePage(slug: string, viewerId: string | null, take = 60
     status: "READY" as const,
     screening: "allowed",
     OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-    moment: { visibility: "PUBLIC" as const, status: "ACTIVE" as const, kind: { not: "DAILY" as const } },
+    moment: { visibility: "PUBLIC" as const, status: "ACTIVE" as const, kind: { not: "DAILY" as const }, demo: false },
     contributorId: { notIn: blocked },
     ...(scene ? { scene, uploadedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } } : {}),
   };
@@ -197,7 +197,7 @@ export async function sceneCards(viewerId: string | null, take = 8) {
       placeId: { not: null },
       uploadedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       contributorId: { notIn: blocked },
-      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" } },
+      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false },
     },
     orderBy: { uploadedAt: "desc" },
     include: { place: { select: { id: true, kind: true, parentId: true } } },
