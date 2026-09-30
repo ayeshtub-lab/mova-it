@@ -30,6 +30,14 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(`https://${CANONICAL_HOST}${pathname}${search}`, 308);
   }
 
+  // A link with broken encoding (an old Windows-Arabic «%DE%E5…» from some other site) can't be
+  // read: "not found", not a server error.
+  try {
+    decodeURIComponent(pathname);
+  } catch {
+    return new NextResponse("Not found", { status: 404 });
+  }
+
   const short = SHORT_LINK.exec(pathname);
   if (short) return NextResponse.redirect(new URL(`/m/${short[1]}${search}`, request.url), 308);
 
