@@ -5,6 +5,8 @@ import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
 import { HeroWheel } from "@/app/HeroWheel";
 import { QuickStart } from "@/app/start/QuickStart";
+import { Showcase } from "@/app/Showcase";
+import { publicShowcase } from "@/server/discover";
 import { StoryDemo } from "@/app/start/StoryDemo";
 import Link from "next/link";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -35,6 +37,7 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
   const t = dict.start;
   // «مع الوقت»: show at once what their story becomes — the one from the ad they tapped.
   const demo = typeof params.src === "string" && params.src.includes("house") ? "house" : "plant";
+  const shots = await publicShowcase(12);
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
@@ -81,6 +84,8 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
             </div>
           </details>
         </section>
+        {/* Real people's shots, right under the button: Zawmo is alive, not an empty promise. */}
+        <Showcase shots={shots} labels={{ title: dict.home.showcaseTitle, more: dict.home.showcaseMore }} />
         {story && (
           <ol className="flex flex-col gap-2">
             {t.storySteps.map((step) => (
