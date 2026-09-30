@@ -19,7 +19,7 @@ import { ReportSheet, type ReportLabels } from "./ReportSheet";
 
 type Likes = { count: number; liked: boolean };
 
-type CommentView = { id: string; body: string; createdAt: string; authorName: string; authorVerified?: boolean; parentId: string | null; likes: number; liked: boolean; mine: boolean; canDelete: boolean };
+type CommentView = { id: string; body: string; createdAt: string; authorName: string; authorVerified?: boolean; authorAvatar?: string | null; parentId: string | null; likes: number; liked: boolean; mine: boolean; canDelete: boolean };
 
 export type GalleryAngle = {
   id: string;
@@ -50,11 +50,13 @@ export type GalleryAngle = {
   isMine: boolean;
   views: number;
   isNew: boolean; // first 24 hours
+  picked?: boolean; // «⭐ اختيار زاومو»
   caption: CaptionView | null; // writing on the shot
 };
 
 type Labels = {
   verified: { badge: string; team: string; official: string };
+  pick: { pick: string; unpick: string; badge: string; done: string };
   placeVerified: string;
   open: string;
   close: string;
@@ -130,6 +132,7 @@ export function AngleGallery({
   locale,
   labels,
   canReact,
+  canPick = false,
   viewerId,
   share,
   momentEdit,
@@ -140,6 +143,7 @@ export function AngleGallery({
   locale: string;
   labels: Labels;
   canReact: boolean;
+  canPick?: boolean; // an official account: may mark «⭐ اختيار زاومو»
   viewerId: string | null;
   share: { url: string; title: string };
   // The moment's creator edits its title and description from «تعديل» too.
@@ -155,6 +159,7 @@ export function AngleGallery({
   const [reportTarget, setReportTarget] = useState<{ angleId: string } | { commentId: string } | null>(null);
   const [likes, setLikes] = useState(() => new Map(angles.map((a) => [a.id, a.likes])));
   const [saved, setSaved] = useState(() => new Set(angles.filter((a) => a.saved).map((a) => a.id)));
+  const [picks, setPicks] = useState(() => new Set(angles.filter((a) => a.picked).map((a) => a.id)));
   const [following, setFollowing] = useState(() => new Set(angles.filter((a) => a.following && a.profileId).map((a) => a.profileId!)));
   const [commentCounts, setCommentCounts] = useState(() => new Map(angles.map((a) => [a.id, a.commentCount])));
   const [paused, setPaused] = useState(() => new Set<string>());
@@ -458,6 +463,24 @@ export function AngleGallery({
     } else if (next) flash(labels.saved);
   }
 
+  // «⭐ اختيار زاومو» (official accounts only): on or off, right away, undone if it fails.
+  async function togglePick(angleId: string) {
+    const next = !picks.has(angleId);
+    const apply = (on: boolean) =>
+      setPicks((s) => {
+        const copy = new Set(s);
+        if (on) copy.add(angleId);
+        else copy.delete(angleId);
+        return copy;
+      });
+    apply(next);
+    const res = await fetch(`/api/angles/${angleId}/pick`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ picked: next }) }).catch(() => null);
+    if (!res?.ok) {
+      apply(!next);
+      flash(labels.actionFailed);
+    } else if (next) flash(labels.pick.done);
+  }
+
   async function follow(profileId: string) {
     if (!canReact) return join();
     setFollowing((s) => new Set(s).add(profileId));
@@ -650,7 +673,16 @@ export function AngleGallery({
                   {new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "Asia/Riyadh" }).format(new Date(a.capturedAt ?? a.takenAt))}
                 </span>
               )}
-              {a.isNew && <span className="pointer-events-none absolute end-2 top-2"><span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span></span>}
+              {(a.isNew || picks.has(a.id)) && (
+                <span className="pointer-events-none absolute end-2 top-2 flex flex-col items-end gap-1">
+                  {picks.has(a.id) && (
+                    <span role="img" aria-label={labels.pick.badge} className="flex size-6 items-center justify-center rounded-full bg-gradient-to-r from-amber-300 to-yellow-400 text-xs shadow">
+                      ⭐
+                    </span>
+                  )}
+                  {a.isNew && <span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span>}
+                </span>
+              )}
               {a.mediaType === "VIDEO" && (
                 <span aria-hidden="true" className="absolute bottom-9 end-2 flex size-7 items-center justify-center rounded-full bg-black/55">
                   <svg viewBox="0 0 24 24" className="size-3.5 fill-white">
@@ -780,9 +812,13 @@ export function AngleGallery({
                       {a.contributorVerified && <VerifiedBadge label={labels.verified.badge} />}
                       <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{a.presence === "REMOTE" ? labels.remoteTag : labels.thereTag}</span>
                       {a.isNew && <span className="rounded-full bg-moment px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.isNew}</span>}
+                      {picks.has(a.id) && <span className="rounded-full bg-gradient-to-r from-amber-300 to-yellow-400 px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.pick.badge}</span>}
                     </>
                   ) : (
-                    caption(a)
+                    <>
+                      {caption(a)}
+                      {picks.has(a.id) && <span className="rounded-full bg-gradient-to-r from-amber-300 to-yellow-400 px-2 py-0.5 text-[11px] font-extrabold text-black shadow">{labels.pick.badge}</span>}
+                    </>
                   )}
                   {soundByKey(soundOf(a.id)?.key) && (
                     <Link href={`/sound/${soundOf(a.id)!.key}`} className="pointer-events-auto flex min-w-0 items-center gap-1 truncate rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">
@@ -869,6 +905,17 @@ export function AngleGallery({
                     </svg>
                   </button>
                   <span className={railCount} />
+
+                  {canPick && (
+                    <>
+                      <button type="button" aria-pressed={picks.has(a.id)} aria-label={picks.has(a.id) ? labels.pick.unpick : labels.pick.pick} onClick={() => togglePick(a.id)} className={railButton}>
+                        <svg viewBox="0 0 24 24" className={`size-8 ${picks.has(a.id) ? "heart-pop fill-amber-400" : "fill-white"}`}>
+                          <path d="M12 2.8l2.8 5.7 6.3.9-4.6 4.4 1.1 6.2L12 17l-5.6 3 1.1-6.2L2.9 9.4l6.3-.9z" />
+                        </svg>
+                      </button>
+                      <span className={railCount} />
+                    </>
+                  )}
 
                   <button type="button" aria-label={labels.share} onClick={() => shareAngle(a)} className={railButton}>
                     <svg viewBox="0 0 24 24" className="size-8 fill-white">
@@ -1039,16 +1086,21 @@ export function AngleGallery({
               {comments?.length === 0 && <li className="text-sm text-muted">{labels.comments.empty}</li>}
               {comments?.map((c) => (
                 <li key={c.id} className={`flex items-start gap-3 ${c.parentId ? "ps-10" : ""} ${c.authorVerified ? "-mx-2 rounded-2xl bg-accent-soft/60 p-2" : ""}`}>
-                  <span aria-hidden="true" className={`flex shrink-0 items-center justify-center rounded-full bg-accent-soft font-bold text-accent-ink ${c.parentId ? "size-6 text-xs" : "size-8 text-sm"}`}>
-                    {c.authorName.charAt(0)}
-                  </span>
+                  {c.authorAvatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- profile photo
+                    <img src={c.authorAvatar} alt="" referrerPolicy="no-referrer" className={`shrink-0 rounded-full object-cover ${c.parentId ? "size-6" : "size-8"}`} />
+                  ) : (
+                    <span aria-hidden="true" className={`flex shrink-0 items-center justify-center rounded-full bg-accent-soft font-bold text-accent-ink ${c.parentId ? "size-6 text-xs" : "size-8 text-sm"}`}>
+                      {c.authorName.charAt(0)}
+                    </span>
+                  )}
                   <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
                       <span className="flex items-center gap-1 font-bold text-foreground">
                         {c.authorName}
                         {c.authorVerified && <VerifiedBadge label={labels.verified.badge} />}
                       </span>
-                      {c.authorVerified && <span className="whitespace-nowrap rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-extrabold text-white">{labels.verified.team}</span>}
+                      {c.authorVerified && <span className="whitespace-nowrap rounded-full bg-gradient-to-r from-[#3aa0ff] to-[#1463e0] px-1.5 py-0.5 text-[10px] font-extrabold text-white">{labels.verified.team}</span>}
                       <span className="whitespace-nowrap">{timeAgo(c.createdAt, locale)}</span>
                     </div>
                     <p className="whitespace-pre-line break-words text-sm leading-relaxed">{c.body}</p>

@@ -169,7 +169,7 @@ export async function getMomentView(code: string, viewer: User | null) {
     participantCount,
     angleCount: angles.length,
     lockedCount: angles.length - visible.length,
-    viewer: { isCreator, hasContributed },
+    viewer: { isCreator, hasContributed, canPick: !!viewer?.verified && moment.visibility === Visibility.PUBLIC && moment.kind !== "DAILY" && !moment.demo },
     angles: await Promise.all(
       visible.map(async (a) => ({
         id: a.id,
@@ -192,6 +192,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         capturedAt: a.capturedAt,
         uploadedAt: a.uploadedAt,
         isNew: isNew(a.uploadedAt, now),
+        picked: !!a.pickedAt,
         durationSec: a.durationSec,
         width: a.width,
         height: a.height,

@@ -83,7 +83,7 @@ export async function listDiscover(viewer: User | null) {
               m.lastActivityAt,
               m.angles.length,
               m._count.participants,
-            ),
+            ) * (m.angles.some((a) => a.pickedAt) ? 2 : 1), // «⭐ اختيار زاومو» lifts a moment
     }))
     .sort((a, b) => b.score - a.score)
     .slice(0, PAGE)
@@ -199,6 +199,8 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
     take: Math.max(40, take * 2),
     include: { moment: { select: { code: true, title: true } }, contributor: { select: { displayName: true } } },
   });
+  // «⭐ اختيار زاومو» first (newest pick first), then the newest; a few videos lead the grid.
+  angles.sort((x, y) => (y.pickedAt?.getTime() ?? 0) - (x.pickedAt?.getTime() ?? 0));
   const picked = [...angles.filter((a) => a.mediaType === "VIDEO").slice(0, 6), ...angles.filter((a) => a.mediaType === "PHOTO")].slice(0, take);
   return Promise.all(
     picked.map(async (a) => ({
@@ -211,6 +213,7 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
       momentCode: a.moment.code,
       title: a.moment.title,
       name: a.contributor.displayName,
+      picked: !!a.pickedAt,
     })),
   );
 }
@@ -230,7 +233,7 @@ export async function wheelShots(take = 12) {
     orderBy: { uploadedAt: "desc" },
     take: 300,
     select: {
-      id: true, shares: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, contributorId: true,
+      id: true, shares: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, contributorId: true, pickedAt: true,
       moment: { select: { code: true, title: true } },
       contributor: { select: { displayName: true, avatarUrl: true } },
     },
@@ -246,7 +249,8 @@ export async function wheelShots(take = 12) {
   const [v, l, c] = [count(views), count(likes), count(comments)];
   // Stable sort: equal scores keep the newest-first order.
   const ranked = shots
-    .map((s, i) => ({ s, i, score: (v.get(s.id) ?? 0) + 3 * (l.get(s.id) ?? 0) + 4 * (c.get(s.id) ?? 0) + 5 * s.shares }))
+    // «⭐ اختيار زاومو» comes before everything else.
+    .map((s, i) => ({ s, i, score: (s.pickedAt ? 1_000_000 : 0) + (v.get(s.id) ?? 0) + 3 * (l.get(s.id) ?? 0) + 4 * (c.get(s.id) ?? 0) + 5 * s.shares }))
     .sort((x, y) => y.score - x.score || x.i - y.i);
   // Different people first; while Zawmo is small, the rest from other moments of the same people.
   const moments = new Set<string>();

@@ -23,13 +23,14 @@ function cleanBody(raw: unknown) {
   return text.length >= 1 && text.length <= MAX_LENGTH ? text : null;
 }
 
-type Row = { id: string; body: string; createdAt: Date; userId: string; parentId: string | null; user: { displayName: string; verified: boolean } };
+type Row = { id: string; body: string; createdAt: Date; userId: string; parentId: string | null; user: { displayName: string; verified: boolean; avatarUrl: string | null } };
 const toView = (c: Row, viewer: User | null, creatorId: string, likes = { count: 0, liked: false }) => ({
   id: c.id,
   body: c.body,
   createdAt: c.createdAt,
   authorName: c.user.displayName,
   authorVerified: c.user.verified,
+  authorAvatar: c.user.avatarUrl,
   parentId: c.parentId,
   likes: likes.count,
   liked: likes.liked,
@@ -53,7 +54,7 @@ export async function listComments(user: User | null, angleId: string) {
     where: { angleId, userId: { notIn: blocked } },
     orderBy: { createdAt: "asc" },
     take: 300,
-    include: { user: { select: { displayName: true, verified: true } }, _count: { select: { likes: true } }, likes: { where: { userId: user?.id ?? "" }, select: { userId: true } } },
+    include: { user: { select: { displayName: true, verified: true, avatarUrl: true } }, _count: { select: { likes: true } }, likes: { where: { userId: user?.id ?? "" }, select: { userId: true } } },
   });
   // Top-level comments in order, each followed by its replies (a reply whose comment is
   // hidden from this viewer is left out too).
@@ -82,7 +83,7 @@ export async function addComment(user: User, angleId: string, raw: unknown, rawP
     parentId = parent.parentId ?? rawParent;
     parentAuthor = parent.userId; // the person answered (who wrote the comment tapped)
   }
-  const comment = await db.comment.create({ data: { angleId, userId: user.id, body, parentId }, include: { user: { select: { displayName: true, verified: true } } } });
+  const comment = await db.comment.create({ data: { angleId, userId: user.id, body, parentId }, include: { user: { select: { displayName: true, verified: true, avatarUrl: true } } } });
   await db.moment.update({ where: { id: angle.momentId }, data: { lastActivityAt: new Date() } });
   // The person answered hears of the reply, and the shot's owner of the comment (only
   // once when they are the one answered).

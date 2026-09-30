@@ -28,8 +28,8 @@ export default async function InboxPage() {
   after(() => markNotificationsRead(user, unreadIds));
 
   const line = (n: NotificationView) =>
-    // A heart from Zawmo itself says so: «⭐ فريق زاومو حبّ لقطتك!»
-    n.kind === "LIKE" && n.actorVerified ? t.likedOfficial : fill({ LIKE: t.liked, FOLLOW: t.followed, COMMENT: t.commented, REPLY: t.replied, NEW_ANGLE: t.addedAngle, JOINED: t.joined, STORY_REMINDER: t.storyReminder, VIDEO_READY: t.videoReady }[n.kind], { name: n.actorName });
+    // A heart from Zawmo itself says so: «⭐ زاومو حبّ لقطتك!»
+    n.kind === "LIKE" && n.actorVerified ? t.likedOfficial : fill({ LIKE: t.liked, FOLLOW: t.followed, COMMENT: t.commented, REPLY: t.replied, NEW_ANGLE: t.addedAngle, JOINED: t.joined, STORY_REMINDER: t.storyReminder, VIDEO_READY: t.videoReady, PICKED: t.picked }[n.kind], { name: n.actorName });
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">

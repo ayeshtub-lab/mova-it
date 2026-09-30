@@ -396,7 +396,7 @@
     "activity": "Activity",
     "messages": "Messages",
     "liked": "{name} liked your shot ❤️",
-    "likedOfficial": "⭐ The Zawmo team liked your shot!",
+    "likedOfficial": "⭐ Zawmo liked your shot!",
     "followed": "{name} started following you",
     "commented": "{name} commented on your shot:",
     "replied": "{name} replied to your comment:",
@@ -406,6 +406,7 @@
     "joined": "🤝 {name} shot the same moment and added their angle to yours",
     "storyReminder": "🌱 It's been a week since the last shot of your story. Shoot it today and see how it changed",
     "videoReady": "🎬 You have enough shots now! Tap here and make the video from every angle",
+    "picked": "⭐ Your shot is a «Zawmo pick»! It will show on the home page and in Discover",
     "giveBack": "Remove it",
     "giveBackHint": "It goes back to its own moment; nothing is deleted",
     "givenBack": "Done, their shot is back in its own moment 🤍",
@@ -611,8 +612,14 @@
   },
   "verified": {
     "badge": "Official Zawmo account",
-    "official": "Official Zawmo account",
-    "team": "Zawmo team"
+    "official": "Official account · الحساب الرسمي",
+    "team": "Zawmo · زاومو"
+  },
+  "pick": {
+    "pick": "⭐ Zawmo pick",
+    "unpick": "Remove «Zawmo pick»",
+    "badge": "⭐ Zawmo pick",
+    "done": "⭐ Now a «Zawmo pick»"
   },
   "qr": {
     "scan": "📸 Scan to add your photos and videos",
@@ -668,7 +675,7 @@
   },
   "push": {
     "like": "❤️ {name} liked your shot",
-    "likeOfficial": "⭐ The Zawmo team liked your shot!",
+    "likeOfficial": "⭐ Zawmo liked your shot!",
     "follow": "👤 {name} started following you",
     "comment": "💬 {name} commented on your shot",
     "reply": "↩️ {name} replied to your comment",
@@ -676,6 +683,7 @@
     "joined": "🤝 {name} shot the same moment and joined yours",
     "storyReminder": "🌱 A week since the last shot. Shoot it today?",
     "videoReady": "🎬 Your video is ready to make!",
+    "picked": "⭐ Your shot is a «Zawmo pick»!",
     "open": "Open Zawmo",
     "enableTitle": "🔔 Get notified",
     "enableText": "A note on your phone when someone likes, comments or adds an angle to your moment — even with Zawmo closed.",

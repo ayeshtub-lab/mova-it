@@ -79,7 +79,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             <h1 className="text-2xl font-extrabold">{profile.displayName}</h1>
           )}
           {profile.verified && (
-            <p className="-mt-1 flex items-center gap-1.5 text-sm font-bold text-accent-ink">
+            <p className="-mt-1 flex items-center gap-1.5 text-sm font-bold text-[#1463e0] dark:text-[#5aa9ff]">
               <VerifiedBadge label={dict.verified.badge} className="size-5" />
               {dict.verified.official}
             </p>

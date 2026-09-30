@@ -56,8 +56,8 @@ async function main() {
       await setReaction(official, shot.id, true);
       const n = (await listNotifications(person)).find((x) => x.kind === "LIKE");
       assert.equal(n?.actorVerified, true);
-      assert.match(pushMessage({ kind: "LIKE", actorName: "زاومو", actorVerified: true, momentTitle: "m", comment: null, url: "/" }, "ar").title, /فريق زاومو/);
-      assert.doesNotMatch(pushMessage({ kind: "LIKE", actorName: "سلمى", momentTitle: "m", comment: null, url: "/" }, "ar").title, /فريق زاومو/);
+      assert.match(pushMessage({ kind: "LIKE", actorName: "زاومو", actorVerified: true, momentTitle: "m", comment: null, url: "/" }, "ar").title, /⭐ زاومو/);
+      assert.doesNotMatch(pushMessage({ kind: "LIKE", actorName: "سلمى", momentTitle: "m", comment: null, url: "/" }, "ar").title, /⭐ زاومو/);
     });
   } finally {
     await db.notification.deleteMany({ where: { OR: [{ userId: { in: ids } }, { actorId: { in: ids } }] } });

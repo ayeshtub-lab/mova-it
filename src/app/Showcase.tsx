@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AutoVideo } from "@/app/AutoVideo";
 import { filterCss } from "@/lib/filters";
 
-type Shot = { id: string; video: boolean; mediaUrl: string | null; hlsUrl?: string | null; imageUrl: string | null; momentCode: string; title: string; name: string; filter: string | null };
+type Shot = { id: string; picked?: boolean; video: boolean; mediaUrl: string | null; hlsUrl?: string | null; imageUrl: string | null; momentCode: string; title: string; name: string; filter: string | null };
 
 // Real public shots on the visitor's home page. Videos take a double-height tile and play
 // silently while on screen; everything opens the moment it belongs to.
@@ -21,6 +21,8 @@ export function Showcase({ shots, labels }: { shots: Shot[]; labels: { title: st
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
                 s.imageUrl && <img src={s.imageUrl} alt="" loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(s.filter) }} />
               )}
+              {/* «⭐ اختيار زاومو» */}
+              {s.picked && <span aria-hidden="true" className="absolute start-1.5 top-1.5 rounded-full bg-gradient-to-r from-amber-300 to-yellow-400 px-1.5 text-xs font-extrabold text-black shadow">⭐</span>}
               {s.video && (
                 <span aria-hidden="true" className="absolute end-1.5 top-1.5 rounded-full bg-black/55 px-1.5 text-xs text-white">
                   ▶

@@ -245,6 +245,9 @@ model Angle {
   ipCountryMatch Boolean?
   // What it shows (src/lib/scenes.ts), from the content check: «غروب», «مطر»… Drives «صوّر معك».
   scene          String?
+  // «⭐ اختيار زاومو»: when an official (verified) account picked this public shot; picked
+  // shots carry a badge and lead the home wheel, the showcase and «اكتشف».
+  pickedAt       DateTime?
   // What the check read on the picture, like a lens: visible names (a sign, a venue) and a
   // landmark. Matched between shots by «صوّر معك».
   seenText       String?
@@ -513,6 +516,7 @@ enum NotificationKind {
   JOINED // «صوّر معك»: someone who shot the same moment added their shot to your moment
   STORY_REMINDER // «مع الوقت»: a week since the last shot of your story (from Zawmo)
   VIDEO_READY // your moment reached enough shots for its video: make it (from Zawmo, once)
+  PICKED // «⭐ اختيار زاومو»: an official account picked your shot
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.
