@@ -4,7 +4,9 @@ import { after } from "next/server";
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
 import { HeroWheel } from "@/app/HeroWheel";
+import { QuickStart } from "@/app/start/QuickStart";
 import { StoryDemo } from "@/app/start/StoryDemo";
+import Link from "next/link";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
@@ -47,18 +49,37 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
           <h1 className="text-3xl font-extrabold leading-tight">{story ? t.storyTitle : t.momentTitle}</h1>
           <p className="leading-relaxed text-muted">{story ? t.storyText : t.momentText}</p>
         </header>
-        {/* Straight after the promise: one field and «ابدأ» (the steps come after, for the curious). */}
+        {/* Straight after the promise: one button — the camera. No name, no form: a guest account
+            is made on the way, and the name is asked once the first shot is in. */}
         <section className="flex flex-col gap-3 rounded-3xl border-2 border-accent/40 bg-surface/60 p-5">
-          <p className="text-sm font-bold">{t.how}</p>
-          {/* Inside TikTok's (or any app's) browser Google refuses to sign in: the guest start only. */}
-          {googleEnabled() && !inApp && (
-            <>
-              <GoogleButton label={dict.account.google} returnTo={next} />
-              <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
-            </>
-          )}
-          <GuestForm labels={dict.guest} next={next} track />
-          {googleEnabled() && inApp && <p className="text-xs leading-relaxed text-muted">{dict.account.inAppHint}</p>}
+          <QuickStart
+            kind={story ? "STORY" : "EVERYDAY"}
+            labels={{ ...t.quick, fallbackTitle: story ? t.quick.storyTitle : t.quick.momentTitle }}
+          />
+          <p className="text-center text-xs text-muted">
+            {dict.guest.consent.split(/(\{terms\}|\{privacy\})/).map((part, i) =>
+              part === "{terms}" ? (
+                <Link key={i} href="/terms" className="underline underline-offset-2">
+                  {dict.guest.terms}
+                </Link>
+              ) : part === "{privacy}" ? (
+                <Link key={i} href="/privacy" className="underline underline-offset-2">
+                  {dict.guest.privacy}
+                </Link>
+              ) : (
+                part
+              ),
+            )}
+          </p>
+          {/* The other ways in, folded: a name first, or Google (not inside app browsers — Google refuses there). */}
+          <details className="rounded-2xl bg-background/60 px-3 py-2">
+            <summary className="cursor-pointer text-center text-sm font-bold text-muted">{t.quick.more}</summary>
+            <div className="mt-3 flex flex-col gap-3">
+              {googleEnabled() && !inApp && <GoogleButton label={dict.account.google} returnTo={next} />}
+              <GuestForm labels={dict.guest} next={next} track />
+              {googleEnabled() && inApp && <p className="text-xs leading-relaxed text-muted">{dict.account.inAppHint}</p>}
+            </div>
+          </details>
         </section>
         {story && (
           <ol className="flex flex-col gap-2">

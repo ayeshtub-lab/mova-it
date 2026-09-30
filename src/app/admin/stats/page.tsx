@@ -125,8 +125,8 @@ export default async function StatsPage() {
                 <tr>
                   <th className="py-1 text-start font-bold">المصدر</th>
                   <th className="py-1 font-bold">وصلوا</th>
-                  <th className="py-1 font-bold">كتبوا اسم</th>
-                  <th className="py-1 font-bold">كبسوا ابدأ</th>
+                  <th className="py-1 font-bold">بلّشوا</th>
+                  <th className="py-1 font-bold">كمّلوا</th>
                   <th className="py-1 font-bold">انضموا</th>
                   <th className="py-1 font-bold">نشروا لقطة</th>
                   <th className="py-1 font-bold">رجعوا</th>
@@ -155,7 +155,7 @@ export default async function StatsPage() {
           ) : (
             <p className="text-sm text-muted">ما انضم أحد بعد.</p>
           )}
-          <p className="text-xs text-muted">رابط كل إعلان: zawmo.com/start?src=اسم-الحملة · «وصلوا» = زوار جدد لصفحة الإعلان (قارنها بكبسات الإعلان: الفرق الكبير = كبسات وهمية) · «رجعوا» = فتحوا زاومو بيوم بعد يوم انضمامهم. التسجيل بدأ ١ أكتوبر ٢٠٢٦.</p>
+          <p className="text-xs text-muted">رابط كل إعلان: zawmo.com/start?src=اسم-الحملة · «وصلوا» = زوار جدد لصفحة الإعلان (قارنها بكبسات الإعلان: الفرق الكبير = كبسات وهمية) · «بلّشوا» = كبسوا الكاميرا أو كتبوا اسم · «كمّلوا» = نزّلوا أول لقطة أو كبسوا ابدأ · «رجعوا» = فتحوا زاومو بيوم بعد يوم انضمامهم. التسجيل بدأ ١ أكتوبر ٢٠٢٦.</p>
         </section>
 
         {/* Per country (from the connection when they joined), for per-country plans and local ads. */}

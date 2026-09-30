@@ -30,6 +30,25 @@
     "switchLabel": "التبديل إلى العربية"
   },
   "start": {
+    "guestName": "Guest",
+    "quick": {
+      "camera": "📸 Take your first shot",
+      "gallery": "🖼️ Or pick from your gallery",
+      "hint": "One tap — no sign-up, nothing to install",
+      "preparing": "⏳ Getting your shot ready…",
+      "uploading": "⬆️ Uploading {pct}%…",
+      "checking": "🔍 Checking your shot…",
+      "done": "✅ Your first shot is in your story!",
+      "nameAsk": "What's your name? (so friends know it's you)",
+      "namePlaceholder": "e.g. Salma",
+      "nameSave": "Save and see my story",
+      "skip": "Skip and see my story",
+      "failed": "The upload didn't work — try again.",
+      "blocked": "That picture didn't pass the check — try another one.",
+      "storyTitle": "My story",
+      "momentTitle": "My moment",
+      "more": "Other ways: your name, or Google"
+    },
     "storyTitle": "🌱 Start your story over time",
     "demoLabel": "👆 This is what your story becomes, shot by shot",
     "sound": "Play with sound",
