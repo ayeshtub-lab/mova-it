@@ -8,6 +8,8 @@ import { AngleUploader } from "@/app/AngleUploader";
 import { Description } from "@/app/Description";
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
+import { JsonLd } from "@/app/JsonLd";
+import { CANONICAL_HOST } from "@/lib/hosts";
 import { LocalTime } from "@/app/LocalTime";
 import { SiteHeader } from "@/app/SiteHeader";
 import { plural } from "@/i18n/plural";
@@ -66,6 +68,39 @@ function momentDescription(view: NonNullable<Awaited<ReturnType<typeof loadMomen
   const head = where && !view.title.includes(where) ? `${view.title} ${dict.moment.metaIn} ${where}` : view.title;
   const text = view.visibility === "PUBLIC" && view.description ? `${head}. ${view.description.slice(0, 120)}` : head;
   return `${text} — ${counts}`;
+}
+
+// For search engines (public moments only): the moment as a post, and where it sits —
+// الرئيسية › المكان › اللحظة.
+function momentStructured(view: NonNullable<Awaited<ReturnType<typeof loadMoment>>>, dict: Dictionary, locale: string) {
+  const site = `https://${CANONICAL_HOST}`;
+  const url = `${site}/m/${view.code}`;
+  const crumbs = [
+    { name: dict.meta.brand, item: site },
+    ...(view.place ? [{ name: view.place.name, item: `${site}/p/${encodeURIComponent(view.place.slug)}` }] : []),
+    { name: view.title, item: url },
+  ];
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "SocialMediaPosting",
+        "@id": `${url}#post`,
+        url,
+        mainEntityOfPage: url,
+        headline: view.title.slice(0, 110),
+        description: momentDescription(view, dict, locale),
+        inLanguage: locale,
+        datePublished: view.createdAt.toISOString(),
+        dateModified: view.lastActivityAt.toISOString(),
+        image: `${url}/opengraph-image`,
+        ...(view.creatorName ? { author: { "@type": "Person", name: view.creatorName } } : {}),
+        ...(view.place ? { contentLocation: { "@type": "Place", name: view.place.name } } : {}),
+        publisher: { "@id": `${site}/#org` },
+      },
+      { "@type": "BreadcrumbList", itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, ...c })) },
+    ],
+  };
 }
 
 // Group angles into 5-minute steps so the strip reads like "6:41 · 3 angles".
@@ -134,6 +169,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
+      {momentIndexable(view) && <JsonLd data={momentStructured(view, dict, locale)} />}
       <SiteHeader locale={locale} dict={dict} />
 
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-16">
