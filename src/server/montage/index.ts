@@ -226,22 +226,29 @@ export async function waitForMore(momentId: string, now = new Date()) {
 }
 
 // Every quarter hour (/api/cron/montages): videos left waiting for more shots are made once
-// things have gone quiet. A few per run, so a run stays short.
+// things have gone quiet — and so are videos made before the way films are cut changed
+// (which shots, how long), so every moment catches up by itself. A few per run, so a run
+// stays short; one that just failed waits a while before it is tried again.
 export async function refreshPendingMontages(host: string, limit = 3, now = new Date()) {
   const quietSince = new Date(now.getTime() - QUIET_MS);
   const candidates = await db.moment.findMany({
-    where: { montages: { some: { status: "READY" } }, angles: { some: { status: "READY", uploadedAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) } } } },
+    where: { montages: { some: { status: "READY" } } },
+    orderBy: { lastActivityAt: "desc" },
     select: { id: true },
-    take: 50,
+    take: 100,
   });
   let made = 0;
   for (const { id } of candidates) {
     if (made >= limit) break;
-    const [ready, newest] = await Promise.all([
-      db.montage.findFirst({ where: { momentId: id, status: "READY" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+    const [ready, last, newest] = await Promise.all([
+      db.montage.findFirst({ where: { momentId: id, status: "READY" }, orderBy: { createdAt: "desc" }, select: { createdAt: true, signature: true } }),
+      db.montage.findFirst({ where: { momentId: id }, orderBy: { createdAt: "desc" }, select: { status: true, createdAt: true } }),
       db.angle.findFirst({ where: liveAngles(id), orderBy: { uploadedAt: "desc" }, select: { uploadedAt: true } }),
     ]);
-    if (!ready || !newest || newest.uploadedAt <= ready.createdAt || newest.uploadedAt > quietSince) continue;
+    if (!ready || !newest || newest.uploadedAt > quietSince) continue;
+    if (last?.status === "FAILED" && now.getTime() - last.createdAt.getTime() < 6 * 60 * 60 * 1000) continue;
+    const current = await currentContent(id, await chosenSound(id));
+    if (newest.uploadedAt <= ready.createdAt && ready.signature === current.signature) continue;
     const before = await db.montage.count({ where: { momentId: id } });
     await refreshMontage(id, host, { settle: false, now }).catch((error) => console.error("pending montage failed", id, error));
     if ((await db.montage.count({ where: { momentId: id } })) > before) made++;
