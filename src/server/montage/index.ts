@@ -58,8 +58,9 @@ export class MontageError extends Error {
 async function unlockedMoment(user: User, code: string) {
   const moment = await db.moment.findUnique({ where: { code: code.toUpperCase() } });
   if (!moment || (moment.status === "HIDDEN" && moment.creatorId !== user.id)) throw new MontageError("not_found");
-  // A «مع الوقت» story is open to whoever holds it (nobody else adds to it).
-  if (moment.creatorId === user.id || moment.kind === "STORY") return moment;
+  // A «مع الوقت» story is open to whoever holds it (nobody else adds to it); a public moment's
+  // video is for everyone — it is what makes a visitor want to add theirs.
+  if (moment.creatorId === user.id || moment.kind === "STORY" || moment.visibility === "PUBLIC") return moment;
   const contributed = await db.angle.count({ where: { momentId: moment.id, contributorId: user.id, status: "READY" } });
   if (!contributed) throw new MontageError("locked");
   return moment;
@@ -311,12 +312,12 @@ export type MontageView = Awaited<ReturnType<typeof momentVideo>>;
 
 // What the moment page shows: the latest finished video (kept on screen while a newer
 // one is being made), whether a newer one is on its way, and the moment's hearts.
-async function momentVideo(user: User, momentId: string) {
+async function momentVideo(user: User | null, momentId: string) {
   const [latest, ready, likes, liked, current, rights, size] = await Promise.all([
     db.montage.findFirst({ where: { momentId }, orderBy: { createdAt: "desc" } }),
     db.montage.findFirst({ where: { momentId, status: "READY" }, orderBy: { createdAt: "desc" } }),
     db.momentLike.count({ where: { momentId } }),
-    db.momentLike.count({ where: { momentId, userId: user.id } }),
+    user ? db.momentLike.count({ where: { momentId, userId: user.id } }) : 0,
     chosenSound(momentId).then((sound) => currentContent(momentId, sound)),
     videoRights(momentId),
     sizeFor(momentId),
@@ -336,9 +337,9 @@ async function momentVideo(user: User, momentId: string) {
     outdated: enough && !(latest && isAlive(latest) && latest.signature === current.signature),
     angleCount: rights.count,
     minAngles: size.min,
-    canMake: rights.makerId === user.id,
+    canMake: !!user && rights.makerId === user.id,
     // How many shots «🆕 فيديو الجديد» would show (offered from two).
-    newShots: enough && ready ? (await newShotIds(momentId)).length : 0,
+    newShots: user && enough && ready ? (await newShotIds(momentId)).length : 0,
     likes,
     liked: liked > 0,
   };
@@ -349,9 +350,16 @@ export async function momentVideoFor(user: User, code: string) {
   return momentVideo(user, moment.id);
 }
 
+// A visitor (not signed in) sees a public moment's video.
+export async function publicMomentVideo(code: string) {
+  const moment = await db.moment.findUnique({ where: { code: code.toUpperCase() }, select: { id: true, visibility: true, status: true } });
+  if (!moment || moment.visibility !== "PUBLIC" || moment.status === "HIDDEN") return null;
+  return momentVideo(null, moment.id);
+}
+
 // For the moment page (null when the viewer may not see the video).
 export async function latestMontageFor(user: User | null, code: string) {
-  if (!user) return null;
+  if (!user) return publicMomentVideo(code);
   try {
     return await momentVideoFor(user, code);
   } catch {

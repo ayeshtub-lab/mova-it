@@ -114,7 +114,7 @@ const POINT_ICONS = [
 // Visitors: the idea at a glance (a wheel of real public shots, each with its owner's
 // photo and first name), three short points, sign in or try as a guest, then more shots.
 async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; google: boolean; inAppHint: string | null }) {
-  const shots = await publicShowcase(30);
+  const shots = await publicShowcase(12);
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 py-4 sm:py-10">
       <section className="flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-8 sm:text-start">
@@ -140,6 +140,9 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
         ))}
       </ul>
 
+      {/* What Zawmo looks like, for real (public shots, videos first) — before anything is asked. */}
+      <Showcase shots={shots} labels={{ title: dict.home.showcaseTitle, more: dict.home.showcaseMore }} />
+
       <div className="rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px] shadow-md">
         <section id="start" className="flex flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">
           {google && (
@@ -156,9 +159,6 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
           {inAppHint && <p className="text-xs leading-relaxed text-muted">{inAppHint}</p>}
         </section>
       </div>
-
-      {/* What Zawmo looks like, for real: public shots, videos first. */}
-      <Showcase shots={shots} labels={{ title: dict.home.showcaseTitle, more: dict.home.showcaseMore }} />
     </main>
   );
 }

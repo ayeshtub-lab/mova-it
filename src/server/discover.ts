@@ -72,12 +72,18 @@ export async function listDiscover(viewer: User | null) {
     },
   });
 
-  // «لحظة اليوم» first, then by "why now".
+  // Today's «لحظة اليوم» first (older ones rank like any moment; a question asked again shows
+  // once, its newest), then by "why now".
+  const dailies = moments.filter((m) => m.kind === "DAILY").sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const today = dailies[0]?.id;
+  const seenTitles = new Set<string>();
+  const repeated = new Set(dailies.filter((m) => (seenTitles.has(m.title) ? true : (seenTitles.add(m.title), false))).map((m) => m.id));
   const ranked = moments
+    .filter((m) => !repeated.has(m.id))
     .map((m) => ({
       m,
       score:
-        m.kind === "DAILY"
+        m.id === today
           ? Infinity
           : computeWhyNowScore(
               m.lastActivityAt,
@@ -186,6 +192,7 @@ export async function listTag(viewer: User, rawTag: string) {
 // Recent public shots that passed the check (not «لحظة اليوم», which is give-to-get),
 // a few videos first so they lead the grid: the visitor's home page, and members' «جديد من
 // الناس» (without their own shots, nor those of anyone either side blocked).
+const MAX_PER_MOMENT = 2;
 export async function publicShowcase(take = 12, exclude: string[] = []) {
   const angles = await db.angle.findMany({
     where: {
@@ -196,12 +203,23 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
       ...(exclude.length ? { contributorId: { notIn: exclude } } : {}),
     },
     orderBy: { uploadedAt: "desc" },
-    take: Math.max(40, take * 2),
+    take: Math.max(150, take * 5),
     include: { moment: { select: { code: true, title: true } }, contributor: { select: { displayName: true } } },
   });
   // «⭐ اختيار زاومو» first (newest pick first), then the newest; a few videos lead the grid.
   angles.sort((x, y) => (y.pickedAt?.getTime() ?? 0) - (x.pickedAt?.getTime() ?? 0));
-  const picked = [...angles.filter((a) => a.mediaType === "VIDEO").slice(0, 6), ...angles.filter((a) => a.mediaType === "PHOTO")].slice(0, take);
+  // Variety: one moment (or one title, «قهوة الصباح» again and again) never fills the grid.
+  const perMoment = new Map<string, number>();
+  const perTitle = new Map<string, number>();
+  const varied = angles.filter((a) => {
+    const m = perMoment.get(a.momentId) ?? 0;
+    const t = perTitle.get(a.moment.title) ?? 0;
+    if (m >= MAX_PER_MOMENT || t >= MAX_PER_MOMENT) return false;
+    perMoment.set(a.momentId, m + 1);
+    perTitle.set(a.moment.title, t + 1);
+    return true;
+  });
+  const picked = [...varied.filter((a) => a.mediaType === "VIDEO").slice(0, 6), ...varied.filter((a) => a.mediaType === "PHOTO")].slice(0, take);
   return Promise.all(
     picked.map(async (a) => ({
       id: a.id,

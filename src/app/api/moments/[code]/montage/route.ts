@@ -1,6 +1,6 @@
 import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
-import { MontageError, momentVideoFor, requestMontage } from "@/server/montage";
+import { MontageError, momentVideoFor, publicMomentVideo, requestMontage } from "@/server/montage";
 import { renderMontage } from "@/server/montage/render";
 import { limited } from "@/server/rate-limit";
 
@@ -16,7 +16,11 @@ const failure = (error: unknown) => {
 // The moment's video as the page shows it.
 export async function GET(_request: Request, { params }: { params: Promise<{ code: string }> }) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!user) {
+    // A visitor: a public moment's video only.
+    const video = await publicMomentVideo((await params).code);
+    return video ? NextResponse.json(video) : NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   try {
     return NextResponse.json(await momentVideoFor(user, (await params).code));
   } catch (error) {
