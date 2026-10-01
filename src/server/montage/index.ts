@@ -85,10 +85,15 @@ export async function bestShots<T extends Candidate>(shots: T[], max: number, li
   const c = new Map(comments.map((r) => [r.angleId, r._count._all]));
   const score = (s: T) => (s.pickedAt ? 1_000_000 : 0) + 3 * (l.get(s.id) ?? 0) + 4 * (c.get(s.id) ?? 0);
   const at = (s: T) => (s.capturedAt ?? s.uploadedAt).getTime();
-  // Clusters of near-duplicates, kept in time order.
+  // Clusters of near-duplicates, kept in time order. Only shots whose time came from the camera
+  // (whole seconds): without it (a scanned print, a photo sent over WhatsApp) the phone gives the
+  // file's date, to the millisecond, and ten photos saved together are not duplicates.
+  const fromCamera = (s: T) => !!s.capturedAt && s.capturedAt.getMilliseconds() === 0;
   const kept: T[] = [];
   for (const s of shots) {
-    const twin = kept.find((k) => k.contributorId === s.contributorId && k.mediaType === s.mediaType && Math.abs(at(k) - at(s)) <= DUPLICATE_MS);
+    const twin = fromCamera(s)
+      ? kept.find((k) => fromCamera(k) && k.contributorId === s.contributorId && k.mediaType === s.mediaType && Math.abs(at(k) - at(s)) <= DUPLICATE_MS)
+      : undefined;
     if (!twin) kept.push(s);
     else if (score(s) > score(twin)) kept[kept.indexOf(twin)] = s;
   }

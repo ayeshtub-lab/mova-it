@@ -37,6 +37,12 @@ async function main() {
       const shots = [shot("a", "salma", 0), shot("b", "salma", 8, { pickedAt: new Date() })];
       assert.deepEqual((await bestShots(shots, 48)).map((s) => s.id), ["b"]);
     });
+    await check("photos without a camera time (old prints, WhatsApp: file dates) saved together all stay", async () => {
+      const shots = [0, 2, 4, 6].map((sec, i) => ({ ...shot(`p${i}`, "salma", sec), capturedAt: new Date(T0 + sec * 1000 + 137) }));
+      assert.equal((await bestShots(shots, 48)).length, 4);
+      const none = [0, 2].map((sec, i) => ({ ...shot(`n${i}`, "salma", sec), capturedAt: null }));
+      assert.equal((await bestShots(none, 48)).length, 2);
+    });
     await check("a photo and a video taken together are not duplicates", async () => {
       const shots = [shot("a", "salma", 0), shot("b", "salma", 5, { mediaType: "VIDEO" })];
       assert.equal((await bestShots(shots, 48)).length, 2);
