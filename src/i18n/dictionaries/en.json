@@ -16,6 +16,15 @@
     "status": "In the works — coming soon",
     "createHint": "Capture it, and let your friends add their angles.",
     "howTitle": "How Zawmo works",
+    "usesTitle": "What you can do with Zawmo",
+    "uses": [
+      {"icon": "🌅", "title": "A moment around you", "text": "A sunset, rain, a cup of coffee, a day out: shoot it, and see who caught the same moment near you.", "cta": "Start a moment", "href": "/start?kind=moment"},
+      {"icon": "🌱", "title": "Your story over time", "text": "Your plant, your house going up, your pregnancy or your child: one photo a week becomes a video that tells the story. Private to you.", "cta": "Start your story", "href": "/start"},
+      {"icon": "🎉", "title": "Your occasion, from every guest", "text": "A wedding, a graduation, a birthday: one link for the guests, everyone adds their photos, and you get a video from every angle.", "cta": "Collect your photos", "href": "/album"}
+    ],
+    "usesExamples": "Examples:",
+    "usesPlant": "A plant from seed",
+    "usesHouse": "Building a house",
     "showcaseTitle": "👀 Moments on Zawmo",
     "showcaseMore": "Discover more",
     "newsMine": "🔥 In your moments: {people} {added} {angles}",

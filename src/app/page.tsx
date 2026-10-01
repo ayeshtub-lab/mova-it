@@ -112,7 +112,7 @@ const POINT_ICONS = [
 ] as const;
 
 // Visitors: the idea at a glance (a wheel of real public shots, each with its owner's
-// photo and first name), three short points, sign in or try as a guest, then more shots.
+// photo and first name), real shots, three ways to start, then sign in or try as a guest.
 async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; google: boolean; inAppHint: string | null }) {
   const shots = await publicShowcase(12);
   return (
@@ -128,20 +128,36 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
         </div>
       </section>
 
-      <h2 className="-mb-5 text-xl font-extrabold">{dict.home.howTitle}</h2>
+      {/* What Zawmo looks like, for real (public shots, videos first) — before anything is asked. */}
+      <Showcase shots={shots} labels={{ title: dict.home.showcaseTitle, more: dict.home.showcaseMore }} />
+
+      {/* Three ways in, the easiest first: a moment around you (nothing at stake), a story over
+          time (useful alone, private), then an occasion — shown boldly, for when trust comes. */}
+      <h2 className="-mb-5 text-xl font-extrabold">{dict.home.usesTitle}</h2>
       <ul className="grid gap-3 sm:grid-cols-3">
-        {dict.home.points.map((point, i) => (
-          <li key={i} className="flex items-start gap-3 rounded-3xl bg-surface p-4 sm:flex-col">
-            <span aria-hidden="true" className={`flex size-11 shrink-0 items-center justify-center rounded-2xl text-xl ${POINT_ICONS[i]?.[1] ?? "bg-line"}`}>
-              {POINT_ICONS[i]?.[0] ?? "✨"}
-            </span>
-            <span className="leading-relaxed">{point}</span>
+        {dict.home.uses.map((use, i) => (
+          <li key={use.href} className={i === 2 ? "rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px]" : ""}>
+            <div className={`flex h-full flex-col gap-3 p-4 ${i === 2 ? "rounded-[calc(1.5rem-2px)] bg-background" : "rounded-3xl bg-surface"}`}>
+              <div className="flex items-center gap-3">
+                <span aria-hidden="true" className={`flex size-11 shrink-0 items-center justify-center rounded-2xl text-xl ${POINT_ICONS[i]?.[1] ?? "bg-line"}`}>{use.icon}</span>
+                <h3 className="text-lg font-extrabold">{use.title}</h3>
+              </div>
+              <p className="flex-1 leading-relaxed text-muted">{use.text}</p>
+              {i === 1 && (
+                <p className="text-sm text-muted">
+                  {dict.home.usesExamples}{" "}
+                  <Link href="/guide/plant" className="font-bold text-secondary underline-offset-2 hover:underline">{dict.home.usesPlant}</Link>
+                  {" · "}
+                  <Link href="/guide/house" className="font-bold text-secondary underline-offset-2 hover:underline">{dict.home.usesHouse}</Link>
+                </p>
+              )}
+              <Link href={use.href} className={`flex min-h-12 items-center justify-center rounded-full px-5 font-extrabold ${i === 2 ? "bg-accent text-white shadow-sm" : "bg-background text-foreground"}`}>
+                {use.cta}
+              </Link>
+            </div>
           </li>
         ))}
       </ul>
-
-      {/* What Zawmo looks like, for real (public shots, videos first) — before anything is asked. */}
-      <Showcase shots={shots} labels={{ title: dict.home.showcaseTitle, more: dict.home.showcaseMore }} />
 
       <div className="rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px] shadow-md">
         <section id="start" className="flex flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">
