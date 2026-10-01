@@ -7,7 +7,7 @@ import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { bestShots, waitForMore } from "../src/server/montage";
-import { shotTimes } from "../src/server/montage/render";
+import { filmLimit, shotTimes } from "../src/server/montage/render";
 
 const TAG = "[montageselecttest]";
 const out: string[] = [];
@@ -62,6 +62,13 @@ async function main() {
         assert.ok(total <= 40.05, `${p}+${v}: ${total.toFixed(1)} s`);
       }
       assert.equal(shotTimes(5, 0, false).photo, 2.8, "few shots keep their full time");
+      // Under Ayat al-Kursi (54 s), never cut: twelve photos spread over the verse, up to twice as long each.
+      const limit = filmLimit("q16");
+      assert.ok(limit > 54 && limit < 56);
+      const q = shotTimes(12, 0, false, limit);
+      const qTotal = 4.4 + 12 * q.photo - 0.45 * 13;
+      assert.ok(qTotal > limit - 1 && qTotal <= limit + 0.05, `fills the verse: ${qTotal.toFixed(1)} s`);
+      assert.equal(filmLimit("d01"), 40, "any other sound: 40 seconds");
       // 48 videos can't all fit: only as many as a 40-second film holds are kept.
       const videos = Array.from({ length: 48 }, (_, i) => shot(`v${i}`, `p${i % 6}`, i * 60, { mediaType: "VIDEO" }));
       const kept = await bestShots(videos, 48);

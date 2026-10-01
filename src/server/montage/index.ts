@@ -10,7 +10,7 @@ import { soundByKey } from "@/lib/sounds";
 import { blobExists, viewUrl } from "@/server/media";
 import { systemUser } from "@/server/daily";
 import { notify } from "@/server/notifications";
-import { buildMontageVideo, fitsFilm, renderMontage } from "./render";
+import { buildMontageVideo, filmLimit, fitsFilm, renderMontage } from "./render";
 
 // A moment's video shows every shot (near-duplicates aside) as long as it stays within 40
 // seconds — each shot gets shorter as there are more (src/server/montage/render.ts). Past
@@ -74,7 +74,7 @@ type Candidate = { id: string; contributorId: string; mediaType: string; capture
 // A moment's shots for its video, in the order they were taken: near-duplicates dropped (the
 // same person, the same kind of shot, within DUPLICATE_MS — the best of them stays), and past
 // `max` the best kept: one per person first, then by «⭐ اختيار زاومو» and hearts.
-export async function bestShots<T extends Candidate>(shots: T[], max: number): Promise<T[]> {
+export async function bestShots<T extends Candidate>(shots: T[], max: number, limit?: number): Promise<T[]> {
   if (!shots.length) return shots;
   const ids = shots.map((s) => s.id);
   const [likes, comments] = await Promise.all([
@@ -93,7 +93,7 @@ export async function bestShots<T extends Candidate>(shots: T[], max: number): P
     else if (score(s) > score(twin)) kept[kept.indexOf(twin)] = s;
   }
   // Everything that fits a 40-second film (videos take about twice a photo's time).
-  const fits = (list: T[]) => fitsFilm(list.filter((s) => s.mediaType !== "VIDEO").length, list.filter((s) => s.mediaType === "VIDEO").length, false);
+  const fits = (list: T[]) => fitsFilm(list.filter((s) => s.mediaType !== "VIDEO").length, list.filter((s) => s.mediaType === "VIDEO").length, false, limit);
   if (kept.length <= max && fits(kept)) return kept;
   const ranked = [...kept].sort((a, b) => score(b) - score(a) || at(a) - at(b));
   const chosen: T[] = [];
@@ -118,7 +118,7 @@ async function currentContent(momentId: string, soundKey: string | null) {
     select: { id: true, filter: true, stamp: true, soundKey: true, muteOriginal: true, caption: true, contributorId: true, mediaType: true, capturedAt: true, uploadedAt: true, pickedAt: true },
   });
   // A story keeps its whole span, spread evenly; a moment its distinct shots, best ones past the cap.
-  const angles = size.story ? spread(found, size.max) : await bestShots(found, size.max);
+  const angles = size.story ? spread(found, size.max) : await bestShots(found, size.max, filmLimit(soundKey));
   const signature = createHash("sha256")
     .update(JSON.stringify([MONTAGE_STYLE, soundKey, angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null])]))
     .digest("hex")

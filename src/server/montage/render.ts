@@ -34,20 +34,30 @@ const MIN_PHOTO_SECONDS = 1;
 const MIN_VIDEO_SECONDS = 1.6;
 const VIDEO_WEIGHT = 2.15;
 
+// How long a film may be: 40 seconds — except under a Quran verse that is longer, which is
+// never cut: then the film lasts the verse (and a breath), its shots spread over it.
+export function filmLimit(soundKey: string | null) {
+  const sound = soundByKey(soundKey);
+  return sound && isQuran(sound) ? Math.max(MAX_FILM_SECONDS, sound.seconds + 0.8) : MAX_FILM_SECONDS;
+}
+
 // Whether this many photos and videos fit in one film, at the shortest times.
-export function fitsFilm(photos: number, videos: number, story: boolean) {
-  const t = shotTimes(photos, videos, story);
+export function fitsFilm(photos: number, videos: number, story: boolean, limit = MAX_FILM_SECONDS) {
+  const t = shotTimes(photos, videos, story, limit);
   const transition = story ? STORY_TRANSITION : TRANSITION;
-  return INTRO_SECONDS + OUTRO_SECONDS + photos * t.photo + videos * t.video - transition * (photos + videos + 1) <= MAX_FILM_SECONDS;
+  return INTRO_SECONDS + OUTRO_SECONDS + photos * t.photo + videos * t.video - transition * (photos + videos + 1) <= limit;
 }
 
 // How long each photo, and at most each video, stays on screen so the film fits.
-export function shotTimes(photos: number, videos: number, story: boolean) {
+export function shotTimes(photos: number, videos: number, story: boolean, limit = MAX_FILM_SECONDS) {
   const n = photos + videos;
   const t = story ? STORY_TRANSITION : TRANSITION;
-  const room = MAX_FILM_SECONDS - INTRO_SECONDS - OUTRO_SECONDS + t * (n + 1);
+  const room = limit - INTRO_SECONDS - OUTRO_SECONDS + t * (n + 1);
   const fit = n ? room / (photos + VIDEO_WEIGHT * videos) : Infinity;
-  const photo = Math.min(story ? STORY_PHOTO_SECONDS : PHOTO_SECONDS, Math.max(MIN_PHOTO_SECONDS, fit));
+  // Under a long verse the shots may stay up to twice as long, so the film fills the verse
+  // instead of resting on its last frame.
+  const longest = (story ? STORY_PHOTO_SECONDS : PHOTO_SECONDS) * (limit > MAX_FILM_SECONDS ? 2 : 1);
+  const photo = Math.min(longest, Math.max(MIN_PHOTO_SECONDS, fit));
   const video = Math.min(story ? STORY_VIDEO_SECONDS : VIDEO_MAX_SECONDS, Math.max(MIN_VIDEO_SECONDS, photo * VIDEO_WEIGHT));
   // Rounded down, so the film never ends up a hair over the limit.
   return { photo: Math.floor(photo * 100) / 100, video: Math.floor(video * 100) / 100 };
@@ -257,7 +267,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   const durations: number[] = [];
   let background: string | null = null; // the first shot's picture, for the opening card
   let shotSounds = false;
-  const times = shotTimes(ordered.filter((a) => a.mediaType !== "VIDEO").length, ordered.filter((a) => a.mediaType === "VIDEO").length, story);
+  const times = shotTimes(ordered.filter((a) => a.mediaType !== "VIDEO").length, ordered.filter((a) => a.mediaType === "VIDEO").length, story, filmLimit(soundKey));
   for (const [i, angle] of ordered.entries()) {
     const url = await viewUrl(angle.mediaPath);
     if (!url) continue;
