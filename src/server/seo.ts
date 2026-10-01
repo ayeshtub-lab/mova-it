@@ -70,7 +70,8 @@ const shotSelect = {
   scene: true,
   capturedAt: true,
   uploadedAt: true,
-  moment: { select: { code: true, title: true } },
+  contributorId: true,
+  moment: { select: { id: true, code: true, title: true } },
   contributor: { select: { displayName: true } },
   place: { select: { slug: true, nameAr: true, kind: true } },
 } as const;
@@ -97,6 +98,37 @@ export function shotLabel(shot: PublicShot, locale: string) {
 }
 
 export const shotPath = (shot: { id: string; moment: { code: string } }) => `/m/${shot.moment.code}/a/${shot.id}`;
+
+// A shot's own title — its label, who shot it, and which of theirs in that moment when they
+// have several: «غيوم وسماء جميلة — طبيعة — عزالدين (٢)». Every shot page gets its own.
+type Ordinal = { n: number; of: number };
+export function shotTitle(shot: PublicShot, locale: string, ordinal?: Ordinal) {
+  const base = `${shotLabel(shot, locale)} — ${shot.contributor.displayName}`;
+  return ordinal && ordinal.of > 1 ? `${base} (${ordinal.n.toLocaleString(locale === "ar" ? "ar-EG" : "en")})` : base;
+}
+
+const takenOrder = (a: { capturedAt: Date | null; uploadedAt: Date }, b: { capturedAt: Date | null; uploadedAt: Date }) =>
+  (a.capturedAt ?? a.uploadedAt).getTime() - (b.capturedAt ?? b.uploadedAt).getTime() || a.uploadedAt.getTime() - b.uploadedAt.getTime();
+
+// Each shot's place among its owner's public shots of the same moment.
+export function shotOrdinals(shots: { id: string; contributorId: string; capturedAt: Date | null; uploadedAt: Date; moment: { id: string } }[]) {
+  const groups = new Map<string, typeof shots>();
+  for (const s of shots) {
+    const key = `${s.moment.id}:${s.contributorId}`;
+    groups.set(key, [...(groups.get(key) ?? []), s]);
+  }
+  const out = new Map<string, Ordinal>();
+  for (const list of groups.values()) [...list].sort(takenOrder).forEach((s, i, all) => out.set(s.id, { n: i + 1, of: all.length }));
+  return out;
+}
+
+export async function shotOrdinal(shot: PublicShot, now = new Date()) {
+  const siblings = await db.angle.findMany({
+    where: { ...shownAngle(now), momentId: shot.moment.id, contributorId: shot.contributorId },
+    select: { id: true, contributorId: true, capturedAt: true, uploadedAt: true },
+  });
+  return shotOrdinals(siblings.map((s) => ({ ...s, moment: { id: shot.moment.id } }))).get(shot.id);
+}
 
 // The sitemap's shots, newest first.
 export async function sitemapShots(now = new Date(), take = 5000) {

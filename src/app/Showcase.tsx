@@ -19,7 +19,7 @@ export function Showcase({ shots, labels }: { shots: Shot[]; labels: { title: st
                 <AutoVideo src={s.mediaUrl} hls={s.hlsUrl} poster={s.imageUrl} className="size-full object-cover" style={{ filter: filterCss(s.filter) }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
-                s.imageUrl && <img src={s.imageUrl} alt="" loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(s.filter) }} />
+                s.imageUrl && <img src={s.imageUrl} alt={`${s.title} — ${s.name}`} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(s.filter) }} />
               )}
               {/* «⭐ اختيار زاومو» */}
               {s.picked && <span aria-hidden="true" className="absolute start-1.5 top-1.5 rounded-full bg-gradient-to-r from-amber-300 to-yellow-400 px-1.5 text-xs font-extrabold text-black shadow">⭐</span>}

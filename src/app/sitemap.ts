@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { CANONICAL_HOST } from "@/lib/hosts";
-import { sitemapEntries, sitemapShots, shotLabel, shotPath } from "@/server/seo";
+import { sitemapEntries, sitemapShots, shotOrdinals, shotPath, shotTitle } from "@/server/seo";
 
 // The pages Google should know about: the home page, public moments and places with shots,
 // and each public shot on its own page with its picture (and video) for Google Images / Video.
@@ -10,6 +10,7 @@ export const revalidate = 3600;
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = `https://${CANONICAL_HOST}`;
   const [{ moments, places }, shots] = await Promise.all([sitemapEntries(), sitemapShots()]);
+  const ordinals = shotOrdinals(shots);
   // A moment lists its shots' pictures too (a few, newest first).
   const pictures = new Map<string, string[]>();
   for (const s of shots) {
@@ -25,7 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...places.map((p) => ({ url: `${base}/p/${encodeURIComponent(p.slug)}`, lastModified: p.updatedAt, changeFrequency: "daily" as const, priority: 0.8 })),
     ...moments.map((m) => ({ url: `${base}/m/${m.code}`, lastModified: m.updatedAt, changeFrequency: "weekly" as const, priority: 0.6, images: pictures.get(m.code) })),
     ...shots.map((s) => {
-      const title = shotLabel(s, "ar");
+      const title = shotTitle(s, "ar", ordinals.get(s.id));
       const image = `${base}/i/${s.id}.jpg`;
       return {
         url: `${base}${shotPath(s)}`,

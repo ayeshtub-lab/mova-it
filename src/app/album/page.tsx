@@ -159,7 +159,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title: c.metaTitle,
     description: c.metaDescription,
     alternates: { canonical: "/album" },
-    openGraph: { title: c.h1, description: c.metaDescription, type: "website" },
+    openGraph: { title: c.h1, description: c.metaDescription, type: "website", images: [{ url: "/album/demo.jpg", width: 540, height: 960, alt: c.h1 }] },
+    twitter: { card: "summary_large_image", title: c.h1, description: c.metaDescription, images: ["/album/demo.jpg"] },
   };
 }
 

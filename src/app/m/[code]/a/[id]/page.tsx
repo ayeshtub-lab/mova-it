@@ -9,7 +9,7 @@ import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { filterCss } from "@/lib/filters";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { viewUrl } from "@/server/media";
-import { publicShot, shotLabel, shotPath, type PublicShot } from "@/server/seo";
+import { publicShot, shotLabel, shotOrdinal, shotPath, shotTitle, type PublicShot } from "@/server/seo";
 import { hlsUrl } from "@/server/stream";
 
 // One public shot on its own page: what Google Images and Google Video list (a moment's page
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]/a/[id]">
   if (!shot) return {};
   const locale = await getLocale();
   const dict = await getDictionary(locale);
-  const title = shotLabel(shot, locale);
+  const title = shotTitle(shot, locale, await shotOrdinal(shot));
   const description = describe(shot, dict, locale);
   const image = `/i/${shot.id}.jpg`;
   return {
@@ -68,7 +68,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   const common = {
     "@id": `${url}#media`,
     url,
-    name: label,
+    name: shotTitle(shot, locale, await shotOrdinal(shot)),
     description: describe(shot, dict, locale),
     inLanguage: locale,
     author: { "@type": "Person", name: shot.contributor.displayName },
