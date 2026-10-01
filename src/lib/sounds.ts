@@ -1,12 +1,14 @@
 // Zawmo's sound library: sounds people can put on a photo, a video or a montage.
 // Every file in public/sounds/ is public domain / CC0, CC BY (credit shown on the
-// sound's page), or made by Zawmo (AI voice, pronunciation checked). Quran verses are
+// sound's page), or made by Zawmo. Calm music («هادية») is CC0 or public domain only, and
+// never from libraries that fingerprint their music (YouTube Content ID): people share
+// their videos everywhere, and a claim must never land on them (AI voice, pronunciation checked). Quran verses are
 // Sheikh Mishary Alafasy's recitation from MP3Quran.net (its site states its rights are
 // open to all, commercial use included), cut on MP3Quran's official verse timings and
 // otherwise untouched. Keys are stored in the database — add freely, never rename or
 // remove a key that has been used.
 
-export type SoundCategory = "quran" | "nature" | "spiritual" | "wisdom" | "funny" | "warm" | "daf";
+export type SoundCategory = "quran" | "nature" | "spiritual" | "wisdom" | "funny" | "warm" | "daf" | "calm";
 type Credit = { author: string; license: string; url: string };
 export type Sound = { key: string; cat: SoundCategory; ar: string; en: string; seconds: number; credit: Credit | null };
 
@@ -65,6 +67,11 @@ export const SOUNDS: Sound[] = [
   { key: "f05", cat: "funny", ar: "جرس الباب", en: "Doorbell", seconds: 10, credit: { author: "Wikimedia Commons", license: PD, url: commons("Doorbell-classic-dingdong.ogg") } },
   { key: "d01", cat: "daf", ar: "إيقاع دف هادئ", en: "Calm frame drum", seconds: 30, credit: { author: "Anomyq", license: "CC0", url: commons("Oynak_(60_bpm).ogg") } },
   { key: "d02", cat: "daf", ar: "إيقاع دف متوسط", en: "Frame drum", seconds: 30, credit: { author: "Anomyq", license: "CC0", url: commons("Aksak_(90_bpm).ogg") } },
+  { key: "m01", cat: "calm", ar: "هدوء الصبح", en: "Quiet morning", seconds: 30, credit: { author: "Alex McCulloch", license: "CC0", url: "https://opengameart.org/content/just-you-and-me-guitar" } },
+  { key: "m02", cat: "calm", ar: "سكون", en: "Stillness", seconds: 30, credit: { author: "The Cynic Project", license: "CC0", url: "https://opengameart.org/content/calm-piano-1-vaporware" } },
+  { key: "m03", cat: "calm", ar: "بيانو هادي (ساتي)", en: "Gymnopédie No. 1 (Satie)", seconds: 30, credit: { author: "Robin Alciatore · Musopen", license: PD, url: commons("Erik_Satie_-_gymnopedies_-_la_1_ere._lent_et_douloureux.ogg") } },
+  { key: "m04", cat: "calm", ar: "رواق الصبح", en: "Cozy morning", seconds: 30, credit: { author: "Cakeflaps", license: "CC0", url: "https://opengameart.org/content/good-morning" } },
+  { key: "m05", cat: "calm", ar: "حالم", en: "Dreamy", seconds: 30, credit: { author: "Joth", license: "CC0", url: "https://opengameart.org/content/contemplation-0" } },
   { key: "d03", cat: "daf", ar: "إيقاع دف سريع", en: "Upbeat frame drum", seconds: 30, credit: { author: "Anomyq", license: "CC0", url: commons("Oynak_(120_bpm).ogg") } },
 ];
 
@@ -76,6 +83,7 @@ export const SOUND_CATEGORIES: { key: SoundCategory; emoji: string }[] = [
   { key: "funny", emoji: "😂" },
   { key: "warm", emoji: "🤍" },
   { key: "daf", emoji: "🥁" },
+  { key: "calm", emoji: "🎵" },
 ];
 
 const BY_KEY = new Map(SOUNDS.map((s) => [s.key, s]));
