@@ -68,6 +68,7 @@ const shotSelect = {
   filter: true,
   caption: true,
   scene: true,
+  aiText: true,
   capturedAt: true,
   uploadedAt: true,
   contributorId: true,

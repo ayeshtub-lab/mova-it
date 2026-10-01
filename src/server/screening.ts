@@ -43,7 +43,7 @@ function reportGemini(where: "screening" | "text" | "lens", detail: string) {
 }
 
 export type Verdict =
-  | { result: "allowed"; scene?: Scene; seen?: string; title?: string }
+  | { result: "allowed"; scene?: Scene; seen?: string; title?: string; text?: string }
   | { result: "blocked"; category: string; reason: string }
   | { result: "error"; reason: string };
 
@@ -66,6 +66,26 @@ Also, like a lens: copy any clearly readable name shown (a shop or restaurant si
 Also suggest a name for this moment in Arabic, 2 to 4 words, the way the person who shot it would title it for friends (for example «عنب الدالية», «غروب على البحر», «عشاء العيلة»). Plain words only: no emoji, no hashtags, no quotation marks.
 
 Answer only with JSON: {"verdict":"allow"|"block","category":"none"|"sexual"|"minor_safety"|"violence"|"hate"|"self_harm"|"drugs","reason":"short English reason","scene":"<one of the scenes>","text":"<visible names, or empty>","landmark":"<landmark or venue, or empty>","title":"<the suggested Arabic name>"}`;
+
+// Pictures only (not text): a line about the shot, for search engines and for a moment left
+// without a description.
+const DESCRIBE = `
+
+Also write, in Arabic, a description of this shot for its public page: one warm, natural sentence (8 to 16 words) that says concretely what is seen — the place, food, occasion, weather or mood — the way a happy friend would caption it, so that someone searching for such a picture would find it. Never name or guess who the people are, never invent a city or country that is not clearly shown, no emoji, no quotation marks. Then 2 or 3 hashtags in Arabic that people really search for about what is seen (single words or joined with _, no spaces, for example غروب, قهوة_الصباح, عرس).
+
+Add them to the same JSON: "description":"<the sentence>","hashtags":["<tag>","<tag>"]`;
+
+// The description and its hashtags as one line (≤150, a moment description's limit).
+export function aiTextOf(description: unknown, hashtags: unknown) {
+  const line = typeof description === "string" ? description.replace(/[#"«»\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, 110) : "";
+  if (!line) return "";
+  const tags = (Array.isArray(hashtags) ? hashtags : [])
+    .map((t) => (typeof t === "string" ? t.replace(/^#+/, "").trim().replace(/\s+/g, "_").replace(/[^\p{L}\p{N}_]/gu, "").slice(0, 30) : ""))
+    .filter(Boolean);
+  let out = line;
+  for (const t of [...new Set(tags)].slice(0, 3)) if (`${out} #${t}`.length <= 150) out += ` #${t}`;
+  return out;
+}
 
 async function jpegBase64(url: string) {
   const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
@@ -96,7 +116,7 @@ async function videoFrames(url: string, durationSec: number | null) {
 export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
   const res = await callGemini({
     body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: PROMPT }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
+      contents: [{ role: "user", parts: [{ text: PROMPT + DESCRIBE }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
       generationConfig: { temperature: 0, responseMimeType: "application/json" },
     }),
   });
@@ -120,7 +140,7 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
 
   const text = candidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   try {
-    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string };
+    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string; description?: unknown; hashtags?: unknown };
     if (parsed.verdict === "block") {
       return { result: "blocked", category: String(parsed.category ?? "other").slice(0, 40), reason: String(parsed.reason ?? "").slice(0, 300) };
     }
@@ -129,7 +149,8 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
       const seen = [parsed.text, parsed.landmark].filter((x) => typeof x === "string" && x.trim()).join(" · ").slice(0, 160);
       // A name to offer when the moment was started without one (the creator may change it).
       const title = typeof parsed.title === "string" ? parsed.title.replace(/["«»#]/g, "").replace(/\s+/g, " ").trim().slice(0, 40) : "";
-      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}) };
+      const described = aiTextOf(parsed.description, parsed.hashtags);
+      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}), ...(described ? { text: described } : {}) };
     }
   } catch {}
   return { result: "error", reason: `unreadable answer: ${text.slice(0, 200)}` };

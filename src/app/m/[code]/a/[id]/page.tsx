@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
+import { Description } from "@/app/Description";
 import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
 import { StreamVideo } from "@/app/StreamVideo";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
+import { hashtagsIn } from "@/lib/hashtags";
 import { filterCss } from "@/lib/filters";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { viewUrl } from "@/server/media";
@@ -22,6 +24,8 @@ const placeName = (p: { nameAr: string; kind: string }) => (p.kind === "GOVERNOR
 
 function describe(shot: PublicShot, dict: Dictionary, locale: string) {
   const t = dict.shotPage;
+  // The line written for the shot first (Arabic), then where it is from.
+  if (shot.aiText) return `${shot.aiText} — ${fill(t.from, { title: shot.moment.title })}`;
   return fill(t.description, {
     label: shotLabel(shot, locale),
     kind: shot.mediaType === "VIDEO" ? t.video : t.photo,
@@ -71,6 +75,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
     name: shotTitle(shot, locale, await shotOrdinal(shot)),
     description: describe(shot, dict, locale),
     inLanguage: locale,
+    ...(shot.aiText ? { keywords: hashtagsIn(shot.aiText).join(", ") } : {}),
     author: { "@type": "Person", name: shot.contributor.displayName },
     ...(where ? { contentLocation: { "@type": "Place", name: where } } : {}),
     isPartOf: { "@id": `${momentUrl}#post` },
@@ -89,7 +94,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         "@type": "ImageObject",
         ...common,
         contentUrl: image,
-        caption: label,
+        caption: shot.aiText ?? label,
         datePublished: shot.uploadedAt.toISOString(),
         ...(shot.width && shot.height ? { width: shot.width, height: shot.height } : {}),
       };
@@ -126,7 +131,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
             // eslint-disable-next-line @next/next/no-img-element -- the fixed address is what search engines index
             <img
               src={`/i/${shot.id}.jpg`}
-              alt={label}
+              alt={shot.aiText ? `${label} — ${shot.aiText.replace(/#\S+/g, "").trim()}` : label}
               width={shot.width ?? undefined}
               height={shot.height ?? undefined}
               className="mx-auto max-h-[75vh] w-auto object-contain"
@@ -149,6 +154,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
             {" · "}
             <time dateTime={at.toISOString()}>{date}</time>
           </p>
+          {shot.aiText && <Description text={shot.aiText} className="mt-1 text-base" />}
           <p className="text-sm text-muted">{fill(t.from, { title: shot.moment.title })}</p>
         </header>
         <Link

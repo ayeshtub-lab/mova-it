@@ -228,6 +228,7 @@ export async function completeAngle(user: User, angleId: string) {
         durationSec: angle.durationSec,
         scene: verdict?.result === "allowed" ? (verdict.scene ?? null) : null,
         seenText: verdict?.result === "allowed" ? (verdict.seen ?? null) : null,
+        aiText: verdict?.result === "allowed" ? (verdict.text ?? null) : null,
         screenedAt: verdict ? now : null,
       },
     });
@@ -253,7 +254,7 @@ export async function screenForPublic(momentId: string) {
     const verdict = screeningEnabled() ? await screenAngle(angle) : null;
     const now = new Date();
     if (verdict?.result === "allowed") {
-      await db.angle.update({ where: { id: angle.id }, data: { screening: "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null } });
+      await db.angle.update({ where: { id: angle.id }, data: { screening: "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null } });
       continue;
     }
     const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : `public, not checked: ${verdict?.result === "error" ? verdict.reason : "screening off"}`;
@@ -267,7 +268,7 @@ export async function screenForPublic(momentId: string) {
 // «نشر»: the owner publishes a checked draft — from now on it shows in the moment. A moment
 // started without a name gets its name here, from its creator: nothing goes up unnamed.
 export async function publishAngle(user: User, angleId: string, title?: unknown) {
-  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { named: true, creatorId: true, kind: true } } } });
+  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { named: true, creatorId: true, kind: true, description: true } } } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
   if (angle.status === "READY") return angle; // a retry
   if (angle.status !== "DRAFT") throw new AngleError("forbidden");
@@ -275,12 +276,15 @@ export async function publishAngle(user: User, angleId: string, title?: unknown)
   const name = naming && typeof title === "string" ? title.replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim().slice(0, 80) : "";
   if (naming && !name) throw new AngleError("needs_title");
   const now = new Date();
+  // A moment without a description takes the first shot's line (with its #hashtags), so
+  // nothing goes up undescribed; the creator may change it. ("" = they cleared it: left so.)
+  const describe = angle.moment.description === null && angle.aiText ? { description: angle.aiText } : {};
   const [done] = await db.$transaction([
     db.angle.update({ where: { id: angle.id }, data: { status: "READY" } }),
     db.moment.update({
       where: { id: angle.momentId },
       // A new shot of a story starts its weekly reminders over.
-      data: { lastActivityAt: now, ...(naming ? { title: name, named: true } : {}), ...(angle.moment.kind === "STORY" ? { reminders: 0, remindedAt: null } : {}) },
+      data: { lastActivityAt: now, ...describe, ...(naming ? { title: name, named: true } : {}), ...(angle.moment.kind === "STORY" ? { reminders: 0, remindedAt: null } : {}) },
     }),
   ]);
   return done;

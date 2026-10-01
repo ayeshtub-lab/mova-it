@@ -1,7 +1,7 @@
 // Unit test for how Gemini's answers become a verdict (src/server/screening.ts).
 // Run: npx tsx tests/screening.test.ts — no network, no database: fetch is simulated.
 import assert from "node:assert/strict";
-import { askGemini, likeness, RETRY_DELAYS_MS } from "../src/server/screening";
+import { aiTextOf, askGemini, likeness, RETRY_DELAYS_MS } from "../src/server/screening";
 
 process.env.GEMINI_API_KEY = "test-key";
 // No real waiting between retries here.
@@ -97,6 +97,12 @@ async function main() {
     const calls = sequence([[503, { error: { message: "The service is currently unavailable." } }], [200, answer('{"verdict":"allow","category":"none","reason":"farm"}')]]);
     assert.deepEqual(await askGemini(["a"]), { result: "allowed" });
     assert.equal(calls(), 2);
+  });
+  await check("a picture gets a warm line with its #hashtags (tidied, ≤150)", async () => {
+    sequence([[200, answer(JSON.stringify({ verdict: "allow", category: "none", reason: "ok", description: " غروب  ذهبي فوق البحر \"الهادئ\" ", hashtags: ["#غروب", "بحر هادئ", "غروب", "!!"] }))]]);
+    assert.deepEqual(await askGemini(["a"]), { result: "allowed", text: "غروب ذهبي فوق البحر الهادئ #غروب #بحر_هادئ" });
+    assert.equal(aiTextOf("", ["x"]), "", "no sentence, no line");
+    assert.ok(aiTextOf("ك".repeat(200), ["وسم".repeat(9), "ثاني"]).length <= 150);
   });
   await check("still busy after three tries: an error, not a verdict", async () => {
     const calls = sequence([[503, { error: { message: "busy" } }]]);

@@ -32,6 +32,7 @@ export type GalleryAngle = {
   takenAt: string;
   stampAt: string; // when it was shared: the retro stamp's date and time
   contributorName: string;
+  aiText?: string | null; // the line written for the shot (image alt text)
   contributorVerified?: boolean;
   contributorAvatar: string | null;
   profileId: string | null;
@@ -666,7 +667,7 @@ export function AngleGallery({
                 <AutoVideo src={a.mediaUrl} hls={a.hlsUrl} poster={a.thumbUrl} className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
-                <img src={a.gridUrl ?? ""} alt={altBase ? `${altBase} — ${a.contributorName}` : ""} loading="lazy" className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
+                <img src={a.gridUrl ?? ""} alt={altBase ? [altBase, a.aiText?.replace(/#\S+/g, "").trim(), a.contributorName].filter(Boolean).join(" — ") : ""} loading="lazy" className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               )}
               <CaptionOverlay caption={captionOf(a.id)} />
               {story && (

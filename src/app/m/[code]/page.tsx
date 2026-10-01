@@ -334,6 +334,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 takenAt: a.takenAt.toISOString(),
                 stampAt: a.stampAt.toISOString(),
                 contributorName: a.contributorName,
+                aiText: a.aiText,
                 contributorVerified: a.contributorVerified,
                 profileId: a.profileId,
                 contributorAvatar: a.contributorAvatar,

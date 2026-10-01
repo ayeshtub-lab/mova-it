@@ -185,6 +185,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         // (a gallery photo's metadata can be days old, or wrong).
         stampAt: a.uploadedAt,
         contributorName: a.contributor.displayName,
+        aiText: a.aiText,
         contributorVerified: a.contributor.verified,
         contributorAvatar: a.contributor.avatarUrl,
         // Official accounts have a profile page; guests don't.
@@ -338,5 +339,6 @@ export async function updateMomentDetails(user: User, code: string, input: { tit
   if (moment.visibility === Visibility.PUBLIC && description && description !== moment.description && (await screenText(description)).result !== "allowed") {
     throw new MomentError("description_blocked");
   }
-  return db.moment.update({ where: { id: moment.id }, data: { title, named: true, description } });
+  // Cleared by its creator: kept empty (""), so a new shot's line does not fill it again.
+  return db.moment.update({ where: { id: moment.id }, data: { title, named: true, description: description ?? (moment.description !== null ? "" : null) } });
 }

@@ -251,6 +251,9 @@ model Angle {
   // What the check read on the picture, like a lens: visible names (a sign, a venue) and a
   // landmark. Matched between shots by «صوّر معك».
   seenText       String?
+  // A warm line about the shot with a few #hashtags, written by the content check (Arabic):
+  // the shot page's description, image alts, and a moment's description when it has none.
+  aiText         String?
   // The town the uploader's network is in (Vercel's guess from the connection, often coarse):
   // used ONLY to match «صوّر معك», never shown anywhere. The address itself is not kept.
   networkPlaceId String?

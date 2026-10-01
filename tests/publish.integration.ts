@@ -36,6 +36,23 @@ async function main() {
       assert.equal((await publishAngle(owner, a.id)).status, "READY", "a retry is fine");
     });
 
+    await check("a moment without a description takes its first shot's line; a cleared one stays empty", async () => {
+      const m = await moment();
+      const a = await draft(m.id);
+      await db.angle.update({ where: { id: a.id }, data: { aiText: "شاي العصر على البلكونة #شاي" } });
+      await publishAngle(owner, a.id);
+      assert.equal((await db.moment.findUnique({ where: { id: m.id } }))!.description, "شاي العصر على البلكونة #شاي");
+      const b = await draft(m.id);
+      await db.angle.update({ where: { id: b.id }, data: { aiText: "سطر ثاني #ثاني" } });
+      await publishAngle(owner, b.id);
+      assert.equal((await db.moment.findUnique({ where: { id: m.id } }))!.description, "شاي العصر على البلكونة #شاي", "a description already there is kept");
+      await updateMomentDetails(owner, m.code, { title: "شاي العصر", description: "" });
+      const c = await draft(m.id);
+      await db.angle.update({ where: { id: c.id }, data: { aiText: "سطر ثالث" } });
+      await publishAngle(owner, c.id);
+      assert.equal((await db.moment.findUnique({ where: { id: m.id } }))!.description, "", "cleared by its creator: not filled again");
+    });
+
     await check("a moment never published doesn't show in «لحظاتي»", async () => {
       const m = await moment();
       await draft(m.id);
@@ -70,7 +87,7 @@ async function main() {
       const done = await updateMomentDetails(owner, m.code, { title: " شاي  المغرب ", description: "مع الجيران" });
       assert.equal(done.title, "شاي المغرب");
       assert.equal(done.description, "مع الجيران");
-      assert.equal((await updateMomentDetails(owner, m.code, { title: "شاي", description: "" })).description, null);
+      assert.equal((await updateMomentDetails(owner, m.code, { title: "شاي", description: "" })).description, "", "cleared: kept empty, not refilled");
     });
     await check("a moment may start without a name; its creator names it at the first «نشر»", async () => {
       await assert.rejects(createMoment(owner, { title: "" }), (e) => e instanceof MomentError && e.code === "invalid_title");
