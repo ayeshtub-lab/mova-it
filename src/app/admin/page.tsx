@@ -88,6 +88,9 @@ export default async function AdminPage() {
             <Link href="/admin/members" className="min-h-10 rounded-full bg-surface px-4 py-2 text-sm font-bold">
               👥 الأعضاء
             </Link>
+            <Link href="/admin/daily" className="min-h-10 rounded-full bg-surface px-4 py-2 text-sm font-bold">
+              🎬 فيديو اليوم
+            </Link>
             <Link href="/admin/stats" className="min-h-10 shrink-0 rounded-full bg-secondary px-4 py-2 text-sm font-bold text-white dark:text-background">
               📊 لوحة القياس
             </Link>

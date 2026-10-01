@@ -249,6 +249,11 @@
       "failed": "Couldn't save, try again."
     }
   },
+  "dailyVideo": {
+    "title": "Let my photos appear in the daily video",
+    "hint": "Every day Zawmo makes a short video of the public «Moment of the day» photos, with each person's name. Turn this off and yours stay out.",
+    "failed": "Couldn't save, try again."
+  },
   "allowJoins": {
     "title": "Let people who shot the same moment join my moments",
     "hint": "If someone nearby shot the same sunset or the same wedding, they can add their shot to your public moment. You'll be told, and you can remove it.",
@@ -534,6 +539,8 @@
   },
   "daily": {
     "label": "☀️ Moment of the day",
+    "videoNotice": "🎬 Moment-of-the-day photos may appear, with their owner's name, in Zawmo's daily video. Rather not? Turn it off on your page.",
+    "videoKicker": "☀️ Moment of the day",
     "endsIn": "Ends {time}",
     "angles": "{n} so far",
     "add": "Add your angle",

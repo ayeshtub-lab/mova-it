@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { listDiscover, publicShowcase } from "../src/server/discover";
 import { latestMontageFor } from "../src/server/montage";
+import { dailyShots } from "../src/server/daily-video";
 
 const TAG = "[visittest]";
 const out: string[] = [];
@@ -61,6 +62,20 @@ async function main() {
       assert.equal(codes[0], today.code, "today leads");
       assert.ok(codes.includes(again.code), "the newest of a repeated question stays");
       assert.ok(!codes.includes(old.code), "the older one is dropped");
+    });
+    await check("the daily film: public, checked shots of members who allow it — never the others", async () => {
+      const shy = await db.user.create({ data: { displayName: `${TAG} shy`, isGuest: false, dailyVideo: false } });
+      const guest = await db.user.create({ data: { displayName: `${TAG} guest`, isGuest: true } });
+      ids.push(shy.id, guest.id);
+      const day = await moment({ kind: "DAILY", title: `${TAG} قمر` });
+      const mk = (contributorId: string, extra: Record<string, unknown> = {}) =>
+        db.angle.create({ data: { momentId: day.id, contributorId, mediaType: "PHOTO", status: "READY", screening: "allowed", mediaPath: `visittest/${Math.random()}.jpg`, capturedAt: new Date(Date.now() - Math.random() * 1e8), ...extra } as never });
+      const ok = await mk(person.id);
+      await mk(shy.id);
+      await mk(guest.id);
+      await mk(person.id, { screening: "blocked" });
+      await mk(person.id, { status: "HIDDEN" });
+      assert.deepEqual((await dailyShots(day.id)).map((a) => a.id), [ok.id]);
     });
   } finally {
     await db.montage.deleteMany({ where: { moment: { creatorId: { in: ids } } } });

@@ -212,6 +212,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
             </p>
           )}
           {daily && <p className="leading-relaxed text-muted">{themeHint(daily.theme, locale)}</p>}
+          {daily && <p data-nosnippet className="text-xs leading-relaxed text-muted">{dict.daily.videoNotice}</p>}
           {story && (
             <p className="w-fit rounded-full bg-moment/25 px-3 py-1 text-xs font-extrabold">
               {dict.story.badge}

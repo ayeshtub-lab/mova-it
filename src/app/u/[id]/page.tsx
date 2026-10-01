@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
-import { AllowJoins } from "./AllowJoins";
+import { SettingToggle } from "./SettingToggle";
 import { getProfile, ProfileError, setDisplayName } from "@/server/profile";
 import { AvatarEditor } from "./AvatarEditor";
 import { FollowButton } from "./FollowButton";
@@ -144,7 +144,12 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             isNew: dict.viewer.isNew,
           }}
         />
-        {profile.isMe && viewer && !viewer.isGuest && <AllowJoins initial={viewer.allowJoins} labels={dict.allowJoins} />}
+        {profile.isMe && viewer && !viewer.isGuest && (
+          <>
+            <SettingToggle initial={viewer.allowJoins} endpoint="/api/me/allow-joins" icon="🤝" labels={dict.allowJoins} />
+            <SettingToggle initial={viewer.dailyVideo} endpoint="/api/me/daily-video" icon="🎬" labels={dict.dailyVideo} />
+          </>
+        )}
         {profile.isMe && (
           <Link href="/account/delete" className="self-center text-xs font-bold text-muted underline-offset-4 hover:text-accent-ink hover:underline">
             {dict.deleteAccount.link}

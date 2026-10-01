@@ -24,6 +24,9 @@ model User {
   // «اسمح للي صوّروا نفس اللحظة ينضمّوا للحظاتي»: when off, this person's moments are never
   // suggested to others (src/server/join.ts).
   allowJoins  Boolean  @default(true)
+  // «اسمح تطلع صوري بفيديو لحظة اليوم»: their public «لحظة اليوم» shots may appear in Zawmo's
+  // daily film (src/server/daily-video.ts). On by default; said on the daily moment's page.
+  dailyVideo  Boolean  @default(true)
   // Official account: Google's stable user id. A guest who signs in with Google keeps
   // the same row (and everything they made); isGuest becomes false.
   googleSub   String?  @unique

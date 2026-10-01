@@ -52,6 +52,9 @@ export default async function MembersPage({ searchParams }: PageProps<"/admin/me
             <Link href="/admin/stats" className="min-h-10 rounded-full bg-surface px-4 py-2 text-sm font-bold">
               📊 القياس
             </Link>
+            <Link href="/admin/daily" className="min-h-10 rounded-full bg-surface px-4 py-2 text-sm font-bold">
+              🎬 فيديو اليوم
+            </Link>
             <Link href="/admin" className="min-h-10 rounded-full bg-surface px-4 py-2 text-sm font-bold">
               البلاغات
             </Link>
