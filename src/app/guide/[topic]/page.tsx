@@ -1,4 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { after } from "next/server";
+import { NEW_VISIT_HEADER } from "@/lib/source";
+import { recordLanding } from "@/server/stats";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/app/JsonLd";
@@ -250,6 +254,10 @@ export async function generateMetadata({ params }: PageProps<"/guide/[topic]">):
 export default async function GuidePage({ params }: PageProps<"/guide/[topic]">) {
   const { topic } = await params;
   if (!isTopic(topic)) notFound();
+  // A new arrival from an ad, YouTube or another site (src/proxy.ts marks it): counted in
+  // «📣 من وين إجوا», like the ad landing page, to set against the clicks.
+  const arrival = (await headers()).get(NEW_VISIT_HEADER);
+  if (arrival) after(() => recordLanding(arrival.slice(0, 40)).catch((error) => console.error("landing count failed", error)));
   const locale = await getLocale();
   const [dict, stories] = await Promise.all([getDictionary(locale), publicStories(6)]);
   const g = GUIDES[topic][locale];

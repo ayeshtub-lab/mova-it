@@ -1,4 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { after } from "next/server";
+import { NEW_VISIT_HEADER } from "@/lib/source";
+import { recordLanding } from "@/server/stats";
 import Link from "next/link";
 import { JsonLd } from "@/app/JsonLd";
 import { Showcase } from "@/app/Showcase";
@@ -162,6 +166,10 @@ export async function generateMetadata(): Promise<Metadata> {
 const site = `https://${CANONICAL_HOST}`;
 
 export default async function AlbumPage() {
+  // A new arrival from an ad, YouTube or another site (src/proxy.ts marks it): counted in
+  // «📣 من وين إجوا», like the ad landing page, to set against the clicks.
+  const arrival = (await headers()).get(NEW_VISIT_HEADER);
+  if (arrival) after(() => recordLanding(arrival.slice(0, 40)).catch((error) => console.error("landing count failed", error)));
   const locale = await getLocale();
   const [dict, shots] = await Promise.all([getDictionary(locale), publicShowcase(12)]);
   const c = CONTENT[locale];
