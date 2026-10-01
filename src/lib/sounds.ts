@@ -8,7 +8,7 @@
 // otherwise untouched. Keys are stored in the database — add freely, never rename or
 // remove a key that has been used.
 
-export type SoundCategory = "quran" | "nature" | "spiritual" | "wisdom" | "funny" | "warm" | "daf" | "calm";
+export type SoundCategory = "quran" | "nature" | "spiritual" | "wisdom" | "funny" | "warm" | "daf" | "calm" | "occasions";
 type Credit = { author: string; license: string; url: string };
 export type Sound = { key: string; cat: SoundCategory; ar: string; en: string; seconds: number; credit: Credit | null };
 
@@ -75,10 +75,19 @@ export const SOUNDS: Sound[] = [
   { key: "m03", cat: "calm", ar: "بيانو هادي (ساتي)", en: "Gymnopédie No. 1 (Satie)", seconds: 30, credit: { author: "Robin Alciatore · Musopen", license: PD, url: commons("Erik_Satie_-_gymnopedies_-_la_1_ere._lent_et_douloureux.ogg") } },
   { key: "m04", cat: "calm", ar: "رواق الصبح", en: "Cozy morning", seconds: 30, credit: { author: "Cakeflaps", license: "CC0", url: "https://opengameart.org/content/good-morning" } },
   { key: "m05", cat: "calm", ar: "حالم", en: "Dreamy", seconds: 30, credit: { author: "Joth", license: "CC0", url: "https://opengameart.org/content/contemplation-0" } },
+  // «مناسبات»: real recordings (CC0, Freesound) — zaghrouta, a Ramallah car zaffe, wedding drums.
+  { key: "e01", cat: "occasions", ar: "زغرودة", en: "Zaghrouta", seconds: 7.1, credit: { author: "Slimane27", license: "CC0", url: "https://freesound.org/people/Slimane27/sounds/687474/" } },
+  { key: "e02", cat: "occasions", ar: "زغرودة «يويو»", en: "Yoyo ululation", seconds: 6.2, credit: { author: "Slimane27", license: "CC0", url: "https://freesound.org/people/Slimane27/sounds/687473/" } },
+  { key: "e03", cat: "occasions", ar: "زفة سيارات (رام الله)", en: "Wedding car zaffe (Ramallah)", seconds: 25, credit: { author: "sounds_from_palestine", license: "CC0", url: "https://freesound.org/people/sounds_from_palestine/sounds/819767/" } },
+  { key: "e04", cat: "occasions", ar: "طبل وأهازيج عرس", en: "Wedding drums and chants", seconds: 30, credit: { author: "Dunny45", license: "CC0", url: "https://freesound.org/people/Dunny45/sounds/580678/" } },
+  { key: "e05", cat: "occasions", ar: "إيقاع دربكة مقسوم", en: "Darbuka maqsoum", seconds: 15.1, credit: { author: "nemaavla", license: "CC0", url: "https://freesound.org/people/nemaavla/sounds/510745/" } },
+  { key: "e06", cat: "occasions", ar: "ألعاب نارية", en: "Fireworks", seconds: 25, credit: { author: "redcrow1973", license: "CC0", url: "https://freesound.org/people/redcrow1973/sounds/190700/" } },
+  { key: "e07", cat: "occasions", ar: "تصفيق وهتاف", en: "Cheering and clapping", seconds: 14.2, credit: { author: "AlaskaRobotics", license: "CC0", url: "https://freesound.org/people/AlaskaRobotics/sounds/221568/" } },
   { key: "d03", cat: "daf", ar: "إيقاع دف سريع", en: "Upbeat frame drum", seconds: 30, credit: { author: "Anomyq", license: "CC0", url: commons("Oynak_(120_bpm).ogg") } },
 ];
 
 export const SOUND_CATEGORIES: { key: SoundCategory; emoji: string }[] = [
+  { key: "occasions", emoji: "🎉" },
   { key: "quran", emoji: "🕋" },
   { key: "nature", emoji: "🌿" },
   { key: "spiritual", emoji: "🤲" },
