@@ -27,6 +27,32 @@ const FPS = 30;
 // only dissolves, quickly, like days passing.
 const TRANSITION = 0.45;
 const STORY_TRANSITION = 0.25;
+// No film is longer than this (the owner's rule): with more shots, each one is shorter —
+// never below the minimums — so every shot still shows. A video shot gets about twice a photo.
+const MAX_FILM_SECONDS = 40;
+const MIN_PHOTO_SECONDS = 1;
+const MIN_VIDEO_SECONDS = 1.6;
+const VIDEO_WEIGHT = 2.15;
+
+// Whether this many photos and videos fit in one film, at the shortest times.
+export function fitsFilm(photos: number, videos: number, story: boolean) {
+  const t = shotTimes(photos, videos, story);
+  const transition = story ? STORY_TRANSITION : TRANSITION;
+  return INTRO_SECONDS + OUTRO_SECONDS + photos * t.photo + videos * t.video - transition * (photos + videos + 1) <= MAX_FILM_SECONDS;
+}
+
+// How long each photo, and at most each video, stays on screen so the film fits.
+export function shotTimes(photos: number, videos: number, story: boolean) {
+  const n = photos + videos;
+  const t = story ? STORY_TRANSITION : TRANSITION;
+  const room = MAX_FILM_SECONDS - INTRO_SECONDS - OUTRO_SECONDS + t * (n + 1);
+  const fit = n ? room / (photos + VIDEO_WEIGHT * videos) : Infinity;
+  const photo = Math.min(story ? STORY_PHOTO_SECONDS : PHOTO_SECONDS, Math.max(MIN_PHOTO_SECONDS, fit));
+  const video = Math.min(story ? STORY_VIDEO_SECONDS : VIDEO_MAX_SECONDS, Math.max(MIN_VIDEO_SECONDS, photo * VIDEO_WEIGHT));
+  // Rounded down, so the film never ends up a hair over the limit.
+  return { photo: Math.floor(photo * 100) / 100, video: Math.floor(video * 100) / 100 };
+}
+
 const TRANSITIONS = ["smoothleft", "circleopen", "slideup", "dissolve", "smoothright", "zoomin", "fade"];
 const STORY_TRANSITIONS = ["fade", "dissolve"];
 // A shot with no look of its own gets a light shared grade, so the montage reads as one film.
@@ -199,12 +225,13 @@ type MontageInput = {
   participants: number;
   soundKey: string | null;
   siteHost: string; // where library sounds are fetched from, and the link on screen
+  kicker?: string; // the line over the opening title, when not the usual one («🆕 الجديد»)
 };
 
 // Builds the film in `dir`: an opening title, every shot moving (photos drift and zoom,
 // videos play) under the Zawmo frame, flowing into each other, a closing card with the
 // link, and a sound under it all. Returns the file and its length in seconds.
-export async function buildMontageVideo({ moment, angles: ordered, participants, soundKey, siteHost }: MontageInput, dir: string) {
+export async function buildMontageVideo({ moment, angles: ordered, participants, soundKey, siteHost, kicker }: MontageInput, dir: string) {
   const story = moment.kind === "STORY";
   const arabic = isArabic(moment.title);
   const dict = arabic ? ar : en;
@@ -230,6 +257,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   const durations: number[] = [];
   let background: string | null = null; // the first shot's picture, for the opening card
   let shotSounds = false;
+  const times = shotTimes(ordered.filter((a) => a.mediaType !== "VIDEO").length, ordered.filter((a) => a.mediaType === "VIDEO").length, story);
   for (const [i, angle] of ordered.entries()) {
     const url = await viewUrl(angle.mediaPath);
     if (!url) continue;
@@ -265,8 +293,8 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
     }
     let seconds =
       angle.mediaType === "VIDEO"
-        ? await videoSegment(input, overlay, out, angle.filter, caption, story ? STORY_VIDEO_SECONDS : VIDEO_MAX_SECONDS)
-        : await photoSegment(input, overlay, out, angle.filter, caption, story ? STORY_PHOTO_SECONDS : PHOTO_SECONDS, story ? null : i);
+        ? await videoSegment(input, overlay, out, angle.filter, caption, times.video)
+        : await photoSegment(input, overlay, out, angle.filter, caption, times.photo, story ? null : i);
     let segment = out;
     // A story moves too fast for each shot's own sound: only the video's sound plays.
     const shotSound = soundKey || story ? null : soundByKey(angle.soundKey);
@@ -282,7 +310,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
 
   // Open on the title over the first shot, blurred; close on the card with the short link.
   const intro = join(dir, "intro.png");
-  await writeFile(intro, await renderIntro({ title: moment.title, meta, kicker: story ? dict.montage.storyKicker : dict.montage.kicker }, await readFile(background)));
+  await writeFile(intro, await renderIntro({ title: moment.title, meta, kicker: kicker ?? (story ? dict.montage.storyKicker : dict.montage.kicker) }, await readFile(background)));
   const introOut = join(dir, "seg-intro.mp4");
   durations.unshift(await cardSegment(intro, introOut, INTRO_SECONDS));
   segments.unshift(introOut);

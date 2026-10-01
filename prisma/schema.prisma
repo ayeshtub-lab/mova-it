@@ -529,6 +529,8 @@ model Notification {
   commentId String?
   createdAt DateTime         @default(now())
   readAt    DateTime?
+  // Grouped: «سلمى حبّت ٥ من لقطاتك» is one notice (and one push), not five.
+  count     Int              @default(1)
 
   user    User     @relation("NotificationsReceived", fields: [userId], references: [id], onDelete: Cascade)
   actor   User     @relation("NotificationsSent", fields: [actorId], references: [id], onDelete: Cascade)

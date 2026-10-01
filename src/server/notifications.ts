@@ -11,6 +11,9 @@ import { pushTo } from "@/server/push";
 
 type Event = { userId: string; actorId: string; kind: NotificationKind; angleId?: string; commentId?: string };
 
+// How long hearts on one moment keep adding up into the same (unread) notice.
+const GROUP_MS = 6 * 60 * 60 * 1000;
+
 // `once`: tell only if nothing matching `where` was told yet — checked and created one at a
 // time per `key`, so two requests arriving together can't both tell.
 export async function notify(event: Event, once?: { key: string; where: Prisma.NotificationWhereInput }) {
@@ -24,6 +27,22 @@ export async function notify(event: Event, once?: { key: string; where: Prisma.N
         select: { id: true },
       });
       if (told) return;
+    }
+    // Hearts on more shots of the same moment, while the first notice is still unread (and
+    // recent): that notice counts them and comes back to the top — no new notice, no new push.
+    if (event.kind === "LIKE" && event.angleId) {
+      const shot = await db.angle.findUnique({ where: { id: event.angleId }, select: { momentId: true } });
+      const group = shot
+        ? await db.notification.findFirst({
+            where: { userId: event.userId, actorId: event.actorId, kind: "LIKE", readAt: null, createdAt: { gt: new Date(Date.now() - GROUP_MS) }, angle: { momentId: shot.momentId } },
+            orderBy: { createdAt: "desc" },
+            select: { id: true },
+          })
+        : null;
+      if (group) {
+        await db.notification.update({ where: { id: group.id }, data: { count: { increment: 1 }, createdAt: new Date() } });
+        return;
+      }
     }
     const include = { actor: { select: { displayName: true, verified: true } }, angle: { select: { id: true, moment: { select: { code: true, title: true } } } }, comment: { select: { body: true } } } as const;
     const created = once
@@ -78,7 +97,8 @@ export async function notifyNewAngle(angleId: string) {
         where: { userId, actorId: angle.contributorId, kind: "NEW_ANGLE", readAt: null, angle: { momentId: angle.momentId } },
         select: { id: true },
       });
-      if (!pending) await notify({ userId, actorId: angle.contributorId, kind: "NEW_ANGLE", angleId });
+      if (pending) await db.notification.update({ where: { id: pending.id }, data: { count: { increment: 1 }, createdAt: new Date() } });
+      else await notify({ userId, actorId: angle.contributorId, kind: "NEW_ANGLE", angleId });
     }
   } catch (error) {
     console.error("notifyNewAngle failed", angleId, error);
@@ -113,6 +133,7 @@ export async function listNotifications(user: User, take = 40) {
       actorId: n.actor.id,
       actorName: n.actor.displayName,
       actorVerified: n.actor.verified,
+      count: n.count,
       actorAvatar: n.actor.avatarUrl,
       // Guests have no profile page; everyone else links to theirs.
       actorHasProfile: !n.actor.isGuest,

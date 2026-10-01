@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
     // Content screening grabs video frames with ffmpeg when an upload completes; a shot's
     // video «بختم زاومو» and the montages refreshed after an upload draw Arabic text.
     "/api/angles/**": ["./public/Cairo-Bold.ttf", "./node_modules/ffmpeg-static/ffmpeg"],
+    // The quarter-hourly cron makes the videos left waiting for more shots.
+    "/api/cron/**": ["./public/Cairo-Bold.ttf", "./node_modules/ffmpeg-static/ffmpeg"],
   },
 };
 

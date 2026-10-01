@@ -64,9 +64,14 @@ export default async function StatsPage() {
             <h1 className="text-2xl font-extrabold">📊 لوحة القياس</h1>
             <p className="text-sm text-muted">اليوم {dateAr(s.today)} · بتوقيت مكة</p>
           </div>
-          <Link href="/admin" className="min-h-10 rounded-full bg-surface px-4 py-2 text-sm font-bold">
-            البلاغات
-          </Link>
+          <nav className="flex gap-2">
+            <Link href="/admin/members" className="min-h-10 rounded-full bg-secondary px-4 py-2 text-sm font-bold text-white dark:text-background">
+              👥 الأعضاء
+            </Link>
+            <Link href="/admin" className="min-h-10 rounded-full bg-surface px-4 py-2 text-sm font-bold">
+              البلاغات
+            </Link>
+          </nav>
         </header>
 
         <LiveVisitors />

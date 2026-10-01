@@ -1,14 +1,27 @@
 import { createHash } from "node:crypto";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { put } from "@vercel/blob";
 import type { Montage, User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
 import { soundByKey } from "@/lib/sounds";
-import { viewUrl } from "@/server/media";
+import { blobExists, viewUrl } from "@/server/media";
 import { systemUser } from "@/server/daily";
 import { notify } from "@/server/notifications";
-import { renderMontage } from "./render";
+import { buildMontageVideo, fitsFilm, renderMontage } from "./render";
 
-const MAX_ANGLES = 12;
+// A moment's video shows every shot (near-duplicates aside) as long as it stays within 40
+// seconds — each shot gets shorter as there are more (src/server/montage/render.ts). Past
+// this many, the best are kept: «⭐ اختيار زاومو», then the most liked, one per person first.
+const MAX_ANGLES = 48;
+// The same person's shots this close in time are one shot taken twice: only the best stays.
+const DUPLICATE_MS = 20_000;
+// After the first video, a new version waits for a few new shots — or for things to go
+// quiet — so a busy wedding makes two or three versions, not one per guest.
+const BATCH_SHOTS = 3;
+const QUIET_MS = 30 * 60 * 1000;
 // A moment's video needs this many angles; made by hand the first time, by the owner of
 // the moment's first angle, then kept up to date by itself.
 export const MIN_ANGLES = 5;
@@ -56,6 +69,45 @@ async function unlockedMoment(user: User, code: string) {
 // moment's video again the next time it's asked for.
 const MONTAGE_STYLE = "pro-1";
 
+type Candidate = { id: string; contributorId: string; mediaType: string; capturedAt: Date | null; uploadedAt: Date; pickedAt: Date | null };
+
+// A moment's shots for its video, in the order they were taken: near-duplicates dropped (the
+// same person, the same kind of shot, within DUPLICATE_MS — the best of them stays), and past
+// `max` the best kept: one per person first, then by «⭐ اختيار زاومو» and hearts.
+export async function bestShots<T extends Candidate>(shots: T[], max: number): Promise<T[]> {
+  if (!shots.length) return shots;
+  const ids = shots.map((s) => s.id);
+  const [likes, comments] = await Promise.all([
+    db.reaction.groupBy({ by: ["angleId"], where: { angleId: { in: ids } }, _count: { _all: true } }),
+    db.comment.groupBy({ by: ["angleId"], where: { angleId: { in: ids } }, _count: { _all: true } }),
+  ]);
+  const l = new Map(likes.map((r) => [r.angleId, r._count._all]));
+  const c = new Map(comments.map((r) => [r.angleId, r._count._all]));
+  const score = (s: T) => (s.pickedAt ? 1_000_000 : 0) + 3 * (l.get(s.id) ?? 0) + 4 * (c.get(s.id) ?? 0);
+  const at = (s: T) => (s.capturedAt ?? s.uploadedAt).getTime();
+  // Clusters of near-duplicates, kept in time order.
+  const kept: T[] = [];
+  for (const s of shots) {
+    const twin = kept.find((k) => k.contributorId === s.contributorId && k.mediaType === s.mediaType && Math.abs(at(k) - at(s)) <= DUPLICATE_MS);
+    if (!twin) kept.push(s);
+    else if (score(s) > score(twin)) kept[kept.indexOf(twin)] = s;
+  }
+  // Everything that fits a 40-second film (videos take about twice a photo's time).
+  const fits = (list: T[]) => fitsFilm(list.filter((s) => s.mediaType !== "VIDEO").length, list.filter((s) => s.mediaType === "VIDEO").length, false);
+  if (kept.length <= max && fits(kept)) return kept;
+  const ranked = [...kept].sort((a, b) => score(b) - score(a) || at(a) - at(b));
+  const chosen: T[] = [];
+  const people = new Set<string>();
+  const tryAdd = (s: T) => {
+    if (chosen.length >= max || chosen.includes(s) || !fits([...chosen, s])) return;
+    chosen.push(s);
+    people.add(s.contributorId);
+  };
+  for (const s of ranked) if (!people.has(s.contributorId)) tryAdd(s);
+  for (const s of ranked) tryAdd(s);
+  return kept.filter((s) => chosen.includes(s));
+}
+
 // The moment's shots as a montage would use them, and a fingerprint of everything that
 // shows or sounds in it — the shots, their looks and sounds, and the montage's sound.
 async function currentContent(momentId: string, soundKey: string | null) {
@@ -63,11 +115,10 @@ async function currentContent(momentId: string, soundKey: string | null) {
   const found = await db.angle.findMany({
     where: { momentId, status: "READY", mediaPath: { not: null }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
     orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
-    select: { id: true, filter: true, stamp: true, soundKey: true, muteOriginal: true, caption: true },
-    // A story keeps its whole span (spread below); a moment its first angles.
-    ...(size.story ? {} : { take: size.max }),
+    select: { id: true, filter: true, stamp: true, soundKey: true, muteOriginal: true, caption: true, contributorId: true, mediaType: true, capturedAt: true, uploadedAt: true, pickedAt: true },
   });
-  const angles = spread(found, size.max);
+  // A story keeps its whole span, spread evenly; a moment its distinct shots, best ones past the cap.
+  const angles = size.story ? spread(found, size.max) : await bestShots(found, size.max);
   const signature = createHash("sha256")
     .update(JSON.stringify([MONTAGE_STYLE, soundKey, angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null])]))
     .digest("hex")
@@ -152,16 +203,96 @@ export async function requestMontage(user: User, code: string, rawSound: unknown
 // The moment's video remakes itself after an upload, a look or sound change, or a
 // deletion — once it has been made by hand. Runs after the response; `host` is the
 // public host for the link in the video.
-export async function refreshMontage(momentId: string, host: string) {
-  await new Promise((r) => setTimeout(r, SETTLE_MS));
+export async function refreshMontage(momentId: string, host: string, { settle = true, now = new Date() } = {}) {
+  if (settle) await new Promise((r) => setTimeout(r, SETTLE_MS));
   if ((await videoRights(momentId)).count < (await sizeFor(momentId)).min || !(await madeByHand(momentId))) return;
+  // One or two new shots while people are still adding: wait (refreshPendingMontages picks it
+  // up once it goes quiet). Looks, sounds, writing and deletions remake it at once.
+  if (await waitForMore(momentId, now)) return;
   const result = await montageFor(momentId, await chosenSound(momentId));
   if (result?.created) await renderMontage(result.montage.id, host);
+}
+
+export async function waitForMore(momentId: string, now = new Date()) {
+  const [shown, current, newest] = await Promise.all([
+    db.montage.findFirst({ where: { momentId, status: "READY" }, orderBy: { createdAt: "desc" }, select: { angleIds: true } }),
+    chosenSound(momentId).then((sound) => currentContent(momentId, sound)),
+    db.angle.findFirst({ where: liveAngles(momentId), orderBy: { uploadedAt: "desc" }, select: { uploadedAt: true } }),
+  ]);
+  if (!shown) return false;
+  const added = current.angleIds.filter((id) => !shown.angleIds.includes(id)).length;
+  const quiet = !newest || now.getTime() - newest.uploadedAt.getTime() >= QUIET_MS;
+  return added > 0 && added < BATCH_SHOTS && !quiet;
+}
+
+// Every quarter hour (/api/cron/montages): videos left waiting for more shots are made once
+// things have gone quiet. A few per run, so a run stays short.
+export async function refreshPendingMontages(host: string, limit = 3, now = new Date()) {
+  const quietSince = new Date(now.getTime() - QUIET_MS);
+  const candidates = await db.moment.findMany({
+    where: { montages: { some: { status: "READY" } }, angles: { some: { status: "READY", uploadedAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) } } } },
+    select: { id: true },
+    take: 50,
+  });
+  let made = 0;
+  for (const { id } of candidates) {
+    if (made >= limit) break;
+    const [ready, newest] = await Promise.all([
+      db.montage.findFirst({ where: { momentId: id, status: "READY" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+      db.angle.findFirst({ where: liveAngles(id), orderBy: { uploadedAt: "desc" }, select: { uploadedAt: true } }),
+    ]);
+    if (!ready || !newest || newest.uploadedAt <= ready.createdAt || newest.uploadedAt > quietSince) continue;
+    const before = await db.montage.count({ where: { momentId: id } });
+    await refreshMontage(id, host, { settle: false, now }).catch((error) => console.error("pending montage failed", id, error));
+    if ((await db.montage.count({ where: { momentId: id } })) > before) made++;
+  }
+  return made;
 }
 
 export async function refreshMontageForAngle(angleId: string, host: string) {
   const angle = await db.angle.findUnique({ where: { id: angleId }, select: { momentId: true, status: true } });
   if (angle?.status === "READY") await refreshMontage(angle.momentId, host);
+}
+
+// «🆕 الجديد»: the shots the latest version of the video added to the version before it (still
+// there, in film order) — what someone who shared the earlier video hasn't shown yet.
+async function newShotIds(momentId: string) {
+  const ready = await db.montage.findMany({ where: { momentId, status: "READY" }, orderBy: { createdAt: "desc" }, take: 10, select: { angleIds: true } });
+  const [latest, ...older] = ready;
+  const before = latest && older.find((m) => m.angleIds.join() !== latest.angleIds.join());
+  if (!latest || !before) return [];
+  const live = await db.angle.findMany({ where: { ...liveAngles(momentId), id: { in: latest.angleIds } }, select: { id: true } });
+  const alive = new Set(live.map((a) => a.id));
+  return latest.angleIds.filter((id) => !before.angleIds.includes(id) && alive.has(id));
+}
+
+const NEW_STYLE = "new-1";
+
+// The short film of what's new (two shots at least), made when asked and kept next to the
+// moment's videos; the same people who may watch the video may ask for it.
+export async function newShotsVideoUrl(user: User, code: string, siteHost: string, kicker: string) {
+  const moment = await unlockedMoment(user, code);
+  const ids = await newShotIds(moment.id);
+  if (ids.length < 2) throw new MontageError("too_few");
+  const found = await db.angle.findMany({ where: { id: { in: ids } }, include: { contributor: { select: { displayName: true } } } });
+  const angles = ids.map((id) => found.find((a) => a.id === id)).filter((a) => !!a);
+  const soundKey = await chosenSound(moment.id);
+  const version = createHash("sha256")
+    .update(JSON.stringify([NEW_STYLE, MONTAGE_STYLE, soundKey, siteHost, kicker, angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null])]))
+    .digest("hex")
+    .slice(0, 16);
+  const path = `m/${moment.id}/new-${version}.mp4`;
+  if (!(await blobExists(path))) {
+    const dir = await mkdtemp(join(tmpdir(), "zawmo-new-"));
+    try {
+      const participants = await db.participant.count({ where: { momentId: moment.id } });
+      const { output } = await buildMontageVideo({ moment, angles, participants, soundKey, siteHost, kicker }, dir);
+      await put(path, await readFile(output), { access: "private", contentType: "video/mp4", addRandomSuffix: false, allowOverwrite: true });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }
+  return viewUrl(path);
 }
 
 export type MontageView = Awaited<ReturnType<typeof momentVideo>>;
@@ -194,6 +325,8 @@ async function momentVideo(user: User, momentId: string) {
     angleCount: rights.count,
     minAngles: size.min,
     canMake: rights.makerId === user.id,
+    // How many shots «🆕 فيديو الجديد» would show (offered from two).
+    newShots: enough && ready ? (await newShotIds(momentId)).length : 0,
     likes,
     liked: liked > 0,
   };
