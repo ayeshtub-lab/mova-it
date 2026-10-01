@@ -747,7 +747,7 @@ export function AngleGallery({
                     }}
                     // Full size, not the stream's own: adaptive streams start at a small
                     // quality, and a video sized by it shows up small in a black frame.
-                    className="size-full object-contain"
+                    className="relative z-0 size-full object-contain"
                     style={{ filter: filterCss(lookOf(a.id).filter) }}
                   />
                 ) : (
@@ -762,11 +762,13 @@ export function AngleGallery({
                 <CaptionOverlay caption={captionOf(a.id)} framed />
 
                 {rain?.angleId === a.id && (
-                  <div key={rain.key} aria-hidden="true" className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+                  // Its own layer, above the video: phones draw a playing video over moving
+                  // things that have none, and the hearts were lost behind it.
+                  <div key={rain.key} aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 overflow-hidden [transform:translateZ(0)]">
                     {rain.drops.map((d, i) => (
                       <span
                         key={i}
-                        className="heart-fall absolute top-0 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-black/45 py-1 pe-3 ps-1.5 text-xs font-bold text-white opacity-0 backdrop-blur-sm"
+                        className="heart-fall absolute top-0 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-black/45 py-1 pe-3 ps-1.5 text-xs font-bold text-white opacity-0 backdrop-blur-sm will-change-transform"
                         style={{ left: `${d.left}%`, animationDelay: `${d.delay}s`, ["--fall" as string]: `${d.fall}s`, ["--sway" as string]: `${d.sway}px` }}
                       >
                         <svg viewBox="0 0 24 24" className="size-5 fill-accent">

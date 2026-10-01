@@ -5,10 +5,13 @@ import { LocalTime } from "@/app/LocalTime";
 
 type Message = { id: string; body: string; mine: boolean; createdAt: string };
 
+const POLL_MS = 5000;
+
 type Labels = { quick: string[]; placeholder: string; send: string; failed: string; tooMany: string };
 
 // The conversation under a shared moment: bubbles, one-tap quick replies, and a short
-// text box. Messages come from the server page; ones sent here are shown right away.
+// text box. Messages come from the server page; ones sent here are shown right away, and
+// the other side's replies arrive while the thread is on screen.
 export function Thread({ id, initial, locale, labels }: { id: string; initial: Message[]; locale: string; labels: Labels }) {
   const [sent, setSent] = useState<Message[]>([]);
   const [text, setText] = useState("");
@@ -18,7 +21,28 @@ export function Thread({ id, initial, locale, labels }: { id: string; initial: M
 
   // After a refresh the server list already has our messages: don't show them twice.
   const known = new Set(initial.map((m) => m.id));
-  const messages = [...initial, ...sent.filter((m) => !known.has(m.id))];
+  const extra = sent.filter((m, i) => !known.has(m.id) && sent.findIndex((x) => x.id === m.id) === i);
+  const messages = [...initial, ...extra].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  const latest = messages.length ? messages[messages.length - 1].createdAt : new Date(0).toISOString();
+
+  // While the thread is on screen, ask for new messages every few seconds (stops when hidden).
+  useEffect(() => {
+    let stopped = false;
+    const tick = async () => {
+      if (document.visibilityState !== "visible") return;
+      const res = await fetch(`/api/inbox/${id}/messages?since=${encodeURIComponent(latest)}`).catch(() => null);
+      if (!res?.ok || stopped) return;
+      const fresh = (await res.json()) as Message[];
+      if (fresh.length) setSent((list) => [...list, ...fresh]);
+    };
+    const timer = setInterval(tick, POLL_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [id, latest]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });

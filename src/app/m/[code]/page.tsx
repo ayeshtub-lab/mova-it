@@ -29,6 +29,7 @@ import { AngleWheel } from "./AngleWheel";
 import { MontagePanel } from "./MontagePanel";
 import { ShareAfterUpload } from "./ShareAfterUpload";
 import { ShareBar } from "./ShareBar";
+import { DeleteMoment } from "./DeleteMoment";
 import { VoteBox } from "./VoteBox";
 
 // Shared by generateMetadata and the page within one request.
@@ -470,6 +471,14 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           <Link href={`/m/${view.code}/qr`} className="flex min-h-12 items-center justify-center rounded-full border border-line px-5 text-center text-sm font-bold hover:bg-surface">
             {t.qrCard}
           </Link>
+        )}
+        {/* One button: the creator deletes the whole moment; anyone else, all of their shots in it. */}
+        {view.viewer.isCreator && view.kind !== "DAILY" ? (
+          <DeleteMoment code={view.code} scope="moment" labels={{ ...dict.deleteMoment, button: dict.deleteMoment.moment, confirm: fill(dict.deleteMoment.momentConfirm, { n: String(view.angleCount) }) }} />
+        ) : (
+          view.angles.some((a) => a.isMine) && (
+            <DeleteMoment code={view.code} scope="mine" labels={{ ...dict.deleteMoment, button: fill(dict.deleteMoment.mine, { n: String(view.angles.filter((a) => a.isMine).length) }), confirm: dict.deleteMoment.mineConfirm }} />
+          )
         )}
       </main>
     </div>

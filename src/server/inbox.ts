@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/session";
 import { coverOf } from "@/server/media";
 import { blockedIdsFor, blockUser } from "@/server/moderation";
 import { unreadNotifications } from "@/server/notifications";
+import { pushInboxMessage } from "@/server/push";
 
 // The inbox 📥: every moment a friend sent you (or you sent a friend) is a small
 // two-person thread about that moment, with quick replies. No live polling — pages
@@ -133,7 +134,7 @@ export async function openThread(user: User, id: string) {
 export async function sendMessage(user: User, id: string, raw: unknown) {
   const body = cleanBody(raw);
   if (!body) throw new InboxError("invalid");
-  const thread = await db.momentInvite.findFirst({ where: { id, ...(await threadWhere(user)) }, select: { fromUserId: true } });
+  const thread = await db.momentInvite.findFirst({ where: { id, ...(await threadWhere(user)) }, select: { fromUserId: true, toUserId: true } });
   if (!thread) throw new InboxError("not_found");
 
   const lastHour = await db.directMessage.count({ where: { senderId: user.id, createdAt: { gt: new Date(Date.now() - 60 * 60 * 1000) } } });
@@ -148,7 +149,29 @@ export async function sendMessage(user: User, id: string, raw: unknown) {
       data: { lastActivityAt: now, ...(thread.fromUserId === user.id ? { fromSeenAt: now } : { toSeenAt: now }) },
     }),
   ]);
+  // The other side hears of it on their phone (the badge alone was easy to miss).
+  const to = thread.fromUserId === user.id ? thread.toUserId : thread.fromUserId;
+  await pushInboxMessage(to, { senderName: user.displayName, body, url: `/inbox/${id}` }).catch((error) => console.error("message push failed", id, error));
   return { id: message.id, body: message.body, mine: true, createdAt: message.createdAt };
+}
+
+// While a thread is open: messages after `since` (the other side's replies), and the thread
+// stays seen. null when the thread is not this person's.
+export async function messagesSince(user: User, id: string, since: Date) {
+  const t = await db.momentInvite.findFirst({ where: { id, ...(await threadWhere(user)) }, select: { fromUserId: true } });
+  if (!t) return null;
+  const rows = await db.directMessage.findMany({ where: { inviteId: id, createdAt: { gt: since } }, orderBy: { createdAt: "asc" }, take: PAGE, select: { id: true, body: true, senderId: true, createdAt: true } });
+  if (rows.length) await db.momentInvite.update({ where: { id }, data: t.fromUserId === user.id ? { fromSeenAt: new Date() } : { toSeenAt: new Date() } });
+  return rows.map((m) => ({ id: m.id, body: m.body, mine: m.senderId === user.id, createdAt: m.createdAt }));
+}
+
+// The inbox list was looked at: its threads count as seen for the badge (like notices, they
+// stay highlighted this once). Each side has its own «seen» time.
+export async function markThreadsSeen(user: User, ids: string[]) {
+  if (!ids.length) return;
+  const now = new Date();
+  await db.momentInvite.updateMany({ where: { id: { in: ids }, fromUserId: user.id }, data: { fromSeenAt: now } });
+  await db.momentInvite.updateMany({ where: { id: { in: ids }, toUserId: user.id }, data: { toSeenAt: now } });
 }
 
 // "Block" from inside a thread: blocks the other side (only if the user is in it).

@@ -61,13 +61,24 @@ export function pushMessage(e: PushEvent, locale: string) {
 // Sends one event to every device of a person; devices the push service has forgotten
 // (the person turned notifications off, or reinstalled) are removed.
 export async function pushTo(userId: string, event: PushEvent) {
+  await pushEach(userId, (locale) => ({ ...pushMessage(event, locale), url: event.url, tag: `${event.kind}:${event.url}` }));
+}
+
+// A message in the inbox: «💬 سلمى بعتتلك» with the words themselves.
+export async function pushInboxMessage(userId: string, m: { senderName: string; body: string; url: string }) {
+  await pushEach(userId, (locale) => {
+    const t = (locale === "en" ? en : ar).push;
+    return { title: t.message.replace("{name}", m.senderName), body: m.body.length > 140 ? m.body.slice(0, 139) + "…" : m.body, url: m.url, tag: `message:${m.url}` };
+  });
+}
+
+async function pushEach(userId: string, payloadFor: (locale: string) => { title: string; body: string; url: string; tag: string }) {
   if (!pushEnabled()) return;
   configure();
   const devices = await db.pushDevice.findMany({ where: { userId } });
   await Promise.all(
     devices.map(async (d) => {
-      const message = pushMessage(event, d.locale);
-      const payload = JSON.stringify({ ...message, url: event.url, tag: `${event.kind}:${event.url}` });
+      const payload = JSON.stringify(payloadFor(d.locale));
       try {
         await webpush.sendNotification({ endpoint: d.endpoint, keys: { p256dh: d.p256dh, auth: d.auth } }, payload, { TTL: 24 * 60 * 60, urgency: "normal" });
       } catch (error) {

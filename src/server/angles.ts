@@ -1,4 +1,4 @@
-import { del } from "@vercel/blob";
+import { del, list } from "@vercel/blob";
 import { MediaType, PlaceSource, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
@@ -179,6 +179,33 @@ export async function deleteAngle(user: User, angleId: string) {
   // After the rows are gone, so a failed storage call can never leave a visible angle without its file.
   if (files.length) await del(files).catch((error) => console.error("deleteAngle: blob cleanup failed", angle.id, error));
   await deleteFromStream(angle.streamUid);
+}
+
+// «احذف اللحظة كاملة»: its creator removes the moment with every shot (by everyone), its videos
+// and every file kept for it. Never «لحظة اليوم» (it belongs to everyone). The rows go first
+// (everything hanging on the moment goes with it), then the files.
+export async function deleteMoment(user: User, code: string) {
+  const moment = await db.moment.findUnique({ where: { code: code.toUpperCase() } });
+  if (!moment || moment.creatorId !== user.id || moment.kind === "DAILY") throw new AngleError("not_found");
+  const [angles, montages] = await Promise.all([
+    db.angle.findMany({ where: { momentId: moment.id }, select: { mediaPath: true, thumbPath: true, smallPath: true, caption: true, streamUid: true } }),
+    db.montage.findMany({ where: { momentId: moment.id }, select: { videoUrl: true } }),
+  ]);
+  const files = [...angles.flatMap((a) => [a.mediaPath, a.thumbPath, a.smallPath, parseCaption(a.caption)?.path]), ...montages.map((m) => m.videoUrl)].filter((p): p is string => !!p);
+  await db.moment.delete({ where: { id: moment.id } });
+  // Also whatever else was made under the moment's folder («🆕 الجديد», the daily film…).
+  const folder = await list({ prefix: `m/${moment.id}/` }).then((r) => r.blobs.map((b) => b.pathname)).catch(() => []);
+  const all = [...new Set([...files, ...folder])];
+  if (all.length) await del(all).catch((error) => console.error("deleteMoment: blob cleanup failed", moment.id, error));
+  for (const a of angles) await deleteFromStream(a.streamUid);
+  return { deleted: angles.length };
+}
+
+// «احذف لقطاتي من هاللحظة»: someone removes every shot of theirs from a moment at once.
+export async function deleteMyShots(user: User, code: string) {
+  const mine = await db.angle.findMany({ where: { moment: { code: code.toUpperCase() }, contributorId: user.id }, select: { id: true } });
+  for (const a of mine) await deleteAngle(user, a.id);
+  return { deleted: mine.length };
 }
 
 // Step 3: the device reports the upload finished; trust it only after the files exist.

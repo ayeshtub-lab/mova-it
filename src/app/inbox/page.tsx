@@ -7,7 +7,7 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { relativeTime } from "@/lib/site";
-import { listThreads } from "@/server/inbox";
+import { listThreads, markThreadsSeen } from "@/server/inbox";
 import { listNotifications, markNotificationsRead, type NotificationView } from "@/server/notifications";
 import { PushToggle } from "@/app/PushToggle";
 import { GiveBack } from "./GiveBack";
@@ -26,6 +26,8 @@ export default async function InboxPage() {
   // Shown highlighted this once, then read (the badge clears on the next page).
   const unreadIds = activity.filter((n) => n.unread).map((n) => n.id);
   after(() => markNotificationsRead(user, unreadIds));
+  const unseenThreads = threads.filter((th) => th.unread).map((th) => th.id);
+  after(() => markThreadsSeen(user, unseenThreads));
 
   const line = (n: NotificationView) =>
     // A heart from Zawmo itself says so: «⭐ زاومو حبّ لقطتك!»

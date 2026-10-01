@@ -249,6 +249,14 @@
       "failed": "Couldn't save, try again."
     }
   },
+  "deleteMoment": {
+    "moment": "🗑️ Delete the whole moment",
+    "momentConfirm": "The whole moment will be deleted: every photo and video ({n}) by everyone, and its video. For good — it can't be undone. Sure?",
+    "mine": "🗑️ Delete my shots from this moment ({n})",
+    "mineConfirm": "All your photos and videos in this moment will be deleted for good. Sure?",
+    "working": "⏳ Deleting…",
+    "failed": "Couldn't delete, try again."
+  },
   "dailyVideo": {
     "title": "Let my photos appear in the daily video",
     "hint": "Every day Zawmo makes a short video of the public «Moment of the day» photos, with each person's name. Turn this off and yours stay out.",
@@ -714,6 +722,7 @@
     "storyReminder": "🌱 A week since the last shot. Shoot it today?",
     "videoReady": "🎬 Your video is ready to make!",
     "picked": "⭐ Your shot is a «Zawmo pick»!",
+    "message": "💬 {name} sent you a message",
     "open": "Open Zawmo",
     "enableTitle": "🔔 Get notified",
     "enableText": "A note on your phone when someone likes, comments or adds an angle to your moment — even with Zawmo closed.",
