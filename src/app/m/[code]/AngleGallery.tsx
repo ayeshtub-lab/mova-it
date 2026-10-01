@@ -136,6 +136,7 @@ export function AngleGallery({
   viewerId,
   share,
   momentEdit,
+  altBase = "",
   story = false,
 }: {
   angles: GalleryAngle[];
@@ -148,6 +149,7 @@ export function AngleGallery({
   share: { url: string; title: string };
   // The moment's creator edits its title and description from «تعديل» too.
   momentEdit?: { code: string; title: string; description: string | null; labels: MomentDetailsLabels };
+  altBase?: string; // «روااااق — بيت لحم»: each grid picture's alt is this and whose shot it is
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -664,7 +666,7 @@ export function AngleGallery({
                 <AutoVideo src={a.mediaUrl} hls={a.hlsUrl} poster={a.thumbUrl} className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
-                <img src={a.gridUrl ?? ""} alt="" loading="lazy" className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
+                <img src={a.gridUrl ?? ""} alt={altBase ? `${altBase} — ${a.contributorName}` : ""} loading="lazy" className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               )}
               <CaptionOverlay caption={captionOf(a.id)} />
               {story && (

@@ -166,6 +166,17 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   const ballot = daily?.isToday ? await tomorrowVote(user) : null;
   // The ready video, for the creator and those who added an angle (null for everyone else).
   const montage = view.angleCount > 0 ? await latestMontageFor(user, view.code) : null;
+  // «لحظة «روااااق» في بيت لحم، صوّرها عزالدين وNareman Ayesh.»
+  const people = [...new Set(view.angles.map((a) => a.contributorName))];
+  const where = view.place?.name ?? view.placeName;
+  const summary = people.length
+    ? fill(t.summary, {
+        kind: story ? t.summaryStory : t.summaryMoment,
+        title: view.title,
+        where: where ? fill(t.summaryWhere, { place: where }) : "",
+        names: new Intl.ListFormat(locale, { type: "conjunction" }).format(people.length > 3 ? [...people.slice(0, 3), t.summaryOthers] : people),
+      })
+    : null;
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
@@ -231,6 +242,9 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               .join(" · ")}
           </p>
           {view.creatorName && <p className="text-sm text-muted">{fill(t.by, { name: view.creatorName })}</p>}
+          {/* What this moment is, in one sentence of its own (search engines show it rather than the
+              invitations every moment shares). */}
+          {!daily && summary && <p className="text-sm leading-relaxed text-muted">{summary}</p>}
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full px-3 py-1 text-xs font-bold ${view.visibility === "PUBLIC" ? "bg-secondary-soft text-secondary" : "bg-surface text-muted"}`}>
               {dict.visibility[view.visibility as "PUBLIC" | "FRIENDS" | "LINK"] ?? dict.visibility.FRIENDS}
@@ -348,6 +362,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}
               story={story}
+              altBase={[view.title, view.place?.name ?? view.placeName].filter(Boolean).join(" — ")}
               momentEdit={view.viewer.isCreator && view.kind !== "DAILY" ? { code: view.code, title: view.title, description: view.description, labels: dict.momentDetails } : undefined}
             />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (
@@ -360,7 +375,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           </div>
         )}
 
-        {view.angleCount > 0 && !montage && (!story || view.angleCount < STORY_MIN) && <p className="rounded-2xl bg-surface p-4 text-sm text-muted">{story ? dict.story.video.locked : dict.montage.locked}</p>}
+        {view.angleCount > 0 && !montage && (!story || view.angleCount < STORY_MIN) && <p data-nosnippet className="rounded-2xl bg-surface p-4 text-sm text-muted">{story ? dict.story.video.locked : dict.montage.locked}</p>}
 
         {view.lockedCount > 0 && (
           <p className="rounded-2xl bg-accent-soft p-4 text-sm font-semibold text-accent-ink">
@@ -370,7 +385,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
 
         {/* "Add your angle", framed in the logo's red → yellow → blue. */}
         <div className="rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px] shadow-sm">
-          <section id="join" className="flex scroll-mt-4 flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">
+          <section id="join" data-nosnippet className="flex scroll-mt-4 flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">
             <h2 className="text-xl font-extrabold">{story ? (view.viewer.isCreator ? dict.story.ctaOwner : dict.story.visitorTitle) : t.ctaTitle}</h2>
             {story && view.viewer.isCreator && <p className="-mt-1 text-sm leading-relaxed text-muted">{dict.story.ctaOwnerHint}</p>}
             {/* A story is shot by its owner alone: everyone else is invited to start their own. */}
@@ -445,7 +460,9 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
             />
           ))}
 
-        <ShareBar url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={t} />
+        <div data-nosnippet>
+          <ShareBar url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={t} />
+        </div>
         {/* For weddings and parties: a card with the moment's QR code, for the guests' tables. */}
         {view.viewer.isCreator && view.kind !== "STORY" && view.kind !== "DAILY" && (
           <Link href={`/m/${view.code}/qr`} className="flex min-h-12 items-center justify-center rounded-full border border-line px-5 text-center text-sm font-bold hover:bg-surface">
