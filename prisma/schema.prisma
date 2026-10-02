@@ -27,6 +27,10 @@ model User {
   // «اسمح تطلع صوري بفيديو لحظة اليوم»: their public «لحظة اليوم» shots may appear in Zawmo's
   // daily film (src/server/daily-video.ts). On by default; said on the daily moment's page.
   dailyVideo  Boolean  @default(true)
+  // The day (src/server/daily.ts dayKey) this person was last sent the «لحظة اليوم» reminder,
+  // and the weekly summary — each at most once a day (src/server/nudges.ts).
+  nudgedDay   String?
+  summaryDay  String?
   // Official account: Google's stable user id. A guest who signs in with Google keeps
   // the same row (and everything they made); isGuest becomes false.
   googleSub   String?  @unique

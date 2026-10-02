@@ -30,6 +30,7 @@ import { MontagePanel } from "./MontagePanel";
 import { ShareAfterUpload } from "./ShareAfterUpload";
 import { ShareBar } from "./ShareBar";
 import { DeleteMoment } from "./DeleteMoment";
+import { PushAsk } from "@/app/PushAsk";
 import { VoteBox } from "./VoteBox";
 
 // Shared by generateMetadata and the page within one request.
@@ -261,6 +262,9 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
             )}
           </div>
         </section>
+
+        {/* Someone with a shot here: offer notifications now (hearts on it are what bring them back). */}
+        {user && view.angles.some((a) => a.isMine) && <PushAsk labels={dict.push} locale={locale} />}
 
         {/* After the first angle: invite the creator to share it with everyone. */}
         {view.viewer.isCreator && user && !user.isGuest && view.visibility !== "PUBLIC" && view.angleCount > 0 && (

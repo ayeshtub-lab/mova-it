@@ -72,6 +72,11 @@ export async function pushInboxMessage(userId: string, m: { senderName: string; 
   });
 }
 
+// Any short note, worded per device language (t = that language's push texts).
+export async function pushNote(userId: string, make: (t: typeof ar.push, locale: string) => { title: string; body: string; url: string; tag: string }) {
+  await pushEach(userId, (locale) => make((locale === "en" ? en : ar).push as typeof ar.push, locale));
+}
+
 async function pushEach(userId: string, payloadFor: (locale: string) => { title: string; body: string; url: string; tag: string }) {
   if (!pushEnabled()) return;
   configure();

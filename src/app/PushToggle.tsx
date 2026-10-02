@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type Labels = { enableTitle: string; enableText: string; enable: string; enabled: string; disable: string; denied: string; iosInstall: string; unsupported: string; failed: string };
+type Labels = { enableTitle: string; enableText: string; enable: string; enabled: string; disable: string; denied: string; iosInstall: string; unsupported: string; failed: string; askTitle?: string; askText?: string; askLater?: string };
 type State = "loading" | "hidden" | "unsupported" | "ios" | "off" | "on" | "denied";
 
 const PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
@@ -20,7 +20,9 @@ const iosBrowserTab = () =>
   /iPhone|iPad|iPod/.test(navigator.userAgent) && !(navigator as Navigator & { standalone?: boolean }).standalone && !matchMedia("(display-mode: standalone)").matches;
 
 // «🔔 خلّي الإشعارات توصلك»: turns notifications on or off for this phone or browser.
-export function PushToggle({ labels, locale }: { labels: Labels; locale: string }) {
+// ask: the gentle invitation shown after someone publishes a shot — only while notifications
+// are off and can be turned on here, with «مش هلأ» (onLater); gone once they're on.
+export function PushToggle({ labels, locale, ask = false, onLater }: { labels: Labels; locale: string; ask?: boolean; onLater?: () => void }) {
   const [state, setState] = useState<State>("loading");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
@@ -75,6 +77,7 @@ export function PushToggle({ labels, locale }: { labels: Labels; locale: string 
   }
 
   if (state === "loading" || state === "hidden") return null;
+  if (ask && state !== "off") return null;
   if (state === "on") {
     return (
       <div className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 text-sm">
@@ -87,14 +90,21 @@ export function PushToggle({ labels, locale }: { labels: Labels; locale: string 
   }
   return (
     <section className="flex flex-col gap-2 rounded-3xl bg-gradient-to-l from-brand-red/10 via-moment/15 to-brand-blue/10 p-4">
-      <h2 className="font-extrabold">{labels.enableTitle}</h2>
+      <h2 className="font-extrabold">{ask ? (labels.askTitle ?? labels.enableTitle) : labels.enableTitle}</h2>
       <p className="text-sm leading-relaxed text-muted">
-        {state === "ios" ? labels.iosInstall : state === "denied" ? labels.denied : state === "unsupported" ? labels.unsupported : labels.enableText}
+        {state === "ios" ? labels.iosInstall : state === "denied" ? labels.denied : state === "unsupported" ? labels.unsupported : ask ? (labels.askText ?? labels.enableText) : labels.enableText}
       </p>
       {state === "off" && (
-        <button type="button" onClick={enable} disabled={busy} className="min-h-11 w-fit rounded-full bg-accent px-5 text-sm font-bold text-white disabled:opacity-60">
-          🔔 {labels.enable}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={enable} disabled={busy} className="min-h-11 w-fit rounded-full bg-accent px-5 text-sm font-bold text-white disabled:opacity-60">
+            🔔 {labels.enable}
+          </button>
+          {ask && onLater && (
+            <button type="button" onClick={onLater} className="min-h-11 rounded-full px-4 text-sm font-bold text-muted">
+              {labels.askLater}
+            </button>
+          )}
+        </div>
       )}
       {error && (
         <p role="alert" className="text-xs font-semibold text-accent-ink">
