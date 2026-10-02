@@ -5,14 +5,11 @@ import { cache } from "react";
 import { Description } from "@/app/Description";
 import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
-import { StreamVideo } from "@/app/StreamVideo";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { hashtagsIn } from "@/lib/hashtags";
 import { filterCss } from "@/lib/filters";
 import { CANONICAL_HOST } from "@/lib/hosts";
-import { viewUrl } from "@/server/media";
 import { publicShot, shotLabel, shotOrdinal, shotPath, shotTitle, type PublicShot } from "@/server/seo";
-import { hlsUrl } from "@/server/stream";
 
 // One public shot on its own page: what Google Images and Google Video list (a moment's page
 // holds many shots; a search result needs one). Friends-only shots have no such page.
@@ -116,9 +113,10 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
       <main className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-16">
         <div className="overflow-hidden rounded-3xl bg-black">
           {isVideo ? (
-            <StreamVideo
-              file={await viewUrl(shot.mediaPath)}
-              hls={hlsUrl(shot)}
+            // A plain video at its fixed address (the same as in the sitemap and the structured
+            // data), so a search engine sees one stable file as the page's main content.
+            <video
+              src={`/v/${shot.id}.mp4`}
               poster={`/i/${shot.id}.jpg`}
               controls
               playsInline
