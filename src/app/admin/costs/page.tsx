@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 const usd = (n: number) => `$${n < 1 ? n.toFixed(3) : n.toFixed(2)}`;
 const num = (n: number) => new Intl.NumberFormat("ar-EG").format(Math.round(n));
-const PURPOSE: Record<string, string> = { screening: "فحص الصور والفيديو + الوصف", text: "فحص النصوص", lens: "«صوّر معك» (مطابقة الصور)", other: "أخرى" };
+const PURPOSE: Record<string, string> = { screening: "فحص الصور والفيديو + الوصف", text: "فحص النصوص", lens: "«صوّر معك» (مطابقة الصور)", sound: "🎤 فحص الأصوات العامة", other: "أخرى" };
 
 export default async function CostsPage() {
   const user = await getCurrentUser();
@@ -83,6 +83,11 @@ export default async function CostsPage() {
             ) : (
               <span className="text-sm text-muted">ما قدرت أقرأ حساب Cloudflare.</span>
             )}
+          </div>
+          <div className={card}>
+            <span className="font-extrabold">🎤 فحص حقوق الأصوات (AudD) — {usd(r.audd.usd)}</span>
+            <span className="text-sm">{num(r.audd.month)} فحص هالشهر · {num(r.audd.ever)} من البداية</span>
+            <span className="text-sm">{r.audd.freeLeft > 0 ? `ضايل ${num(r.audd.freeLeft)} فحص مجاني` : "خلصت الفحوص المجانية (٥$ لكل ألف)"}</span>
           </div>
           <div className={card}>
             <span className="font-extrabold">🗂️ مخزن الملفات (Vercel Blob) — {usd(r.blobMonth)}</span>

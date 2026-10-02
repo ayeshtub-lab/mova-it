@@ -15,6 +15,7 @@ export const PRICES = {
   blobPerGbMonth: 0.023, // Vercel Blob storage
 };
 // The plans paid every month whatever happens (USD).
+export const AUDD_FREE = 300;
 export const FIXED_MONTHLY = [
   { name: "Vercel Pro", usd: 20 },
   { name: "Neon Launch", usd: 19 },
@@ -42,6 +43,14 @@ export function recordGemini(purpose: string, res: Response) {
       });
     })
     .catch((error) => console.error("cost record failed", purpose, error));
+}
+
+// Any other paid call, by count (AudD's fingerprint checks: 300 free, then $5 per 1,000).
+export function recordUsage(service: string) {
+  if (!process.env.DATABASE_URL) return;
+  db.costDay
+    .upsert({ where: { day_service: { day: day(new Date()), service } }, create: { day: day(new Date()), service, calls: 1 }, update: { calls: { increment: 1 } } })
+    .catch((error) => console.error("cost record failed", service, error));
 }
 
 const geminiUsd = (inTokens: number, outTokens: number) => (inTokens / 1e6) * PRICES.geminiInPerM + (outTokens / 1e6) * PRICES.geminiOutPerM;
@@ -104,6 +113,7 @@ export async function costReport(now = new Date()) {
   const gemini = new Map<string, { calls: number; inTokens: number; outTokens: number }>();
   let geminiToday = 0;
   for (const r of rows) {
+    if (!r.service.startsWith("gemini:")) continue;
     const g = gemini.get(r.service) ?? { calls: 0, inTokens: 0, outTokens: 0 };
     gemini.set(r.service, { calls: g.calls + r.calls, inTokens: g.inTokens + r.inTokens, outTokens: g.outTokens + r.outTokens });
     if (r.day === today) geminiToday += geminiUsd(r.inTokens, r.outTokens);
@@ -113,8 +123,12 @@ export async function costReport(now = new Date()) {
   const tracking = rows.length ? rows[rows.length - 1].day : null;
   const streamMonth = stream ? (stream.storedMinutes / 1000) * PRICES.streamStoredPer1000Min + ((stream.viewedMinutes ?? 0) / 1000) * PRICES.streamViewedPer1000Min : 0;
   const blobMonth = blob ? blob.gb * PRICES.blobPerGbMonth : 0;
+  // AudD: 300 checks free (ever), then $5 per 1,000.
+  const auddEver = (await db.costDay.aggregate({ where: { service: "audd" }, _sum: { calls: true } }))._sum.calls ?? 0;
+  const auddMonth = rows.filter((r) => r.service === "audd").reduce((s, r) => s + r.calls, 0);
+  const auddUsd = (Math.max(0, auddEver - AUDD_FREE) / 1000) * 5 * (auddEver ? auddMonth / auddEver : 0);
   const fixed = FIXED_MONTHLY.reduce((s, f) => s + f.usd, 0);
-  const variable = geminiMonth + streamMonth + blobMonth;
+  const variable = geminiMonth + streamMonth + blobMonth + auddUsd;
   const activeMembers = active.length;
   return {
     since: tracking,
@@ -123,6 +137,7 @@ export async function costReport(now = new Date()) {
     streamMonth,
     blob,
     blobMonth,
+    audd: { ever: auddEver, month: auddMonth, freeLeft: Math.max(0, AUDD_FREE - auddEver), usd: auddUsd },
     fixed,
     variable,
     total: fixed + variable,

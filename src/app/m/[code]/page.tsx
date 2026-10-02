@@ -360,12 +360,14 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 views: a.views,
                 isNew: a.isNew,
                 picked: a.picked,
+                ownSound: a.ownSound,
                 caption: a.caption,
               }))}
               locale={locale}
               labels={{ ...dict.viewer, verified: dict.verified, pick: dict.pick, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds, edit: dict.editShot, branded: dict.branded, caption: dict.caption }}
               canReact={!!user}
               canPick={view.viewer.canPick}
+              publicMoment={view.visibility === "PUBLIC" && view.kind !== "DAILY"}
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}
               story={story}

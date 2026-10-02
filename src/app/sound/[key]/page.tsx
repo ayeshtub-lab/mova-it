@@ -6,14 +6,18 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { isQuran, SOUND_CATEGORIES, soundByKey, soundFile, soundName } from "@/lib/sounds";
 import { soundShots, soundUses } from "@/server/sounds";
-import { PlaySound, UseSoundButton } from "./UseSound";
+import { userSound } from "@/server/user-sounds";
+import { PlaySound, UseSoundButton, WithdrawSound } from "./UseSound";
 
 export async function generateMetadata({ params }: PageProps<"/sound/[key]">): Promise<Metadata> {
   const sound = soundByKey((await params).key);
   if (!sound) return {};
   const locale = await getLocale();
   const t = (await getDictionary(locale)).sounds;
-  const name = soundName(sound, locale);
+  // A people's sound: its own name (and only while it is public).
+  const people = sound.cat === "people" ? await userSound(sound.key) : null;
+  if (sound.cat === "people" && people?.status !== "public") return { robots: { index: false } };
+  const name = people?.name ?? soundName(sound, locale);
   const title = (isQuran(sound) ? t.metaTitleQuran : t.metaTitle).replace("{name}", name);
   const description = t.metaDescription.replace("{name}", name).replace("{cat}", t.cats[sound.cat]);
   return { title, description, alternates: { canonical: `/sound/${sound.key}` }, openGraph: { title, description, type: "website" } };
@@ -24,6 +28,9 @@ export async function generateMetadata({ params }: PageProps<"/sound/[key]">): P
 export default async function SoundPage({ params }: PageProps<"/sound/[key]">) {
   const sound = soundByKey((await params).key);
   if (!sound) notFound();
+  // «🎤 صوتك الأصلي»: a people's sound has its own name and owner; gone once withdrawn or blocked.
+  const people = sound.cat === "people" ? await userSound(sound.key) : null;
+  if (sound.cat === "people" && people?.status !== "public") notFound();
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
   const [dict, uses, shots] = await Promise.all([getDictionary(locale), soundUses(sound.key), soundShots(user, sound.key)]);
   const t = dict.sounds;
@@ -37,10 +44,18 @@ export default async function SoundPage({ params }: PageProps<"/sound/[key]">) {
         <div className="flex flex-col items-center gap-1">
           <p className="w-fit rounded-full bg-surface px-3 py-1 text-xs font-bold text-muted">
             {cat.emoji} {t.cats[sound.cat]}
-            {isQuran(sound) ? "" : ` · ${t.library}`}
+            {isQuran(sound) || people ? "" : ` · ${t.library}`}
           </p>
-          <h1 className="text-3xl font-extrabold">{isQuran(sound) ? "" : "🎵 "}{soundName(sound, locale)}</h1>
-          <p className="text-sm text-muted">{sound.credit ? (isQuran(sound) ? t.recitedBy : t.by).replace("{author}", sound.credit.author) : t.byZawmo}</p>
+          <h1 className="text-3xl font-extrabold">{people ? `🎤 ${people.name}` : `${isQuran(sound) ? "" : "🎵 "}${soundName(sound, locale)}`}</h1>
+          {people ? (
+            <p className="text-sm text-muted">
+              <Link href={`/u/${people.owner.id}`} className="font-bold text-secondary underline-offset-4 hover:underline">
+                {t.originalBy.replace("{name}", people.owner.displayName)}
+              </Link>
+            </p>
+          ) : (
+            <p className="text-sm text-muted">{sound.credit ? (isQuran(sound) ? t.recitedBy : t.by).replace("{author}", sound.credit.author) : t.byZawmo}</p>
+          )}
           {sound.credit && (
             <p className="text-xs text-muted">
               {t.license.replace("{license}", sound.credit.license)} ·{" "}
@@ -53,6 +68,7 @@ export default async function SoundPage({ params }: PageProps<"/sound/[key]">) {
         </div>
         {user ? <UseSoundButton soundKey={sound.key} label={t.useThis} /> : null}
         {user && <p className="-mt-3 text-xs text-muted">{t.useHint}</p>}
+        {people && user?.id === people.owner.id && <WithdrawSound soundKey={people.key} labels={{ withdraw: t.withdraw, confirm: t.withdrawConfirm }} />}
 
         {shots.length ? (
           <ul className="grid w-full grid-cols-3 gap-1.5">

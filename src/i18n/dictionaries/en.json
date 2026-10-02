@@ -596,7 +596,8 @@
       "warm": "Warm",
       "daf": "Frame drum",
       "calm": "Calm music",
-      "occasions": "Celebrations"
+      "occasions": "Celebrations",
+      "people": "From people"
     },
     "preview": "Listen",
     "stop": "Stop",
@@ -613,6 +614,40 @@
     "uses": "{n} uses",
     "by": "Sound by {author}",
     "byZawmo": "Sound by Zawmo",
+
+    "peopleEmpty": "No sounds from people yet. The first video sound someone makes public shows up here.",
+
+    "peopleBy": "{name}'s sound",
+
+    "offer": "🎤 Make this video's sound public",
+
+    "offerConfirm": "This video's sound becomes public under your name, and anyone can put it on their shots on Zawmo. You can take it back anytime. OK?",
+
+    "offering": "⏳ Listening to the sound and checking it…",
+
+    "offerPublic": "✅ Your sound is public! «{name}»",
+
+    "offerBlocked": "Couldn't make it public: {why}",
+
+    "whyCopyright": "it contains a copyrighted song",
+
+    "whyMusic": "it contains recorded music (public sounds must be talk or real sounds)",
+
+    "whyOffensive": "it contains inappropriate words",
+
+    "whyFailed": "we couldn't check it now, try again shortly",
+
+    "whyNoAudio": "the video has no sound",
+
+    "whyNotPublic": "only videos in public moments can share their sound",
+
+    "offerShown": "🎤 Your sound is public · see who used it",
+
+    "withdraw": "Take my sound back",
+
+    "withdrawConfirm": "Your sound will stop being usable and its file deleted. Sure?",
+
+    "originalBy": "🎤 Original sound — {name}",
     "metaTitle": "{name} — a free sound for your photos and videos | Zawmo",
     "metaTitleQuran": "{name} — recited by Sheikh Mishary Alafasy, for your photos and videos | Zawmo",
     "metaDescription": "Listen to «{name}» ({cat}) and put it on your photos and videos on Zawmo for free, copyright-free, and see the shots that use it.",

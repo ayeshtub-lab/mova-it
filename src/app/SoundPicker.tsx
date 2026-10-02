@@ -14,6 +14,8 @@ export type SoundLabels = {
   solemnNote: string;
   save: string;
   cancel: string;
+  peopleEmpty?: string;
+  peopleBy?: string;
 };
 
 // A bottom sheet over the page: browse the library by category, listen, pick one (or
@@ -42,6 +44,18 @@ export function SoundPicker({
   const [mute, setMute] = useState(initialMute);
   const [cat, setCat] = useState<SoundCategory>(soundByKey(initialKey)?.cat ?? SOUND_CATEGORIES[0].key);
   const [playing, setPlaying] = useState<string | null>(null);
+  // «🎤 من الناس»: fetched when the tab is first opened.
+  const [people, setPeople] = useState<{ key: string; name: string; author: string; seconds: number }[] | null>(null);
+  useEffect(() => {
+    if (cat !== "people" || people) return;
+    fetch("/api/sounds/people")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setPeople, () => setPeople([]));
+  }, [cat, people]);
+  const rows =
+    cat === "people"
+      ? (people ?? []).map((p) => ({ key: p.key, name: p.name, sub: (labels.peopleBy ?? "{name}").replace("{name}", p.author), seconds: p.seconds }))
+      : SOUNDS.filter((s) => s.cat === cat).map((s) => ({ key: s.key, name: soundName(s, locale), sub: null as string | null, seconds: s.seconds }));
   const audio = useRef<HTMLAudioElement | null>(null);
   const solemn = isSolemn(soundByKey(key));
 
@@ -111,7 +125,8 @@ export function SoundPicker({
               {labels.none}
             </button>
           </li>
-          {SOUNDS.filter((s) => s.cat === cat).map((s) => {
+          {cat === "people" && people?.length === 0 && <li className="rounded-2xl bg-surface p-4 text-sm text-muted">{labels.peopleEmpty}</li>}
+          {rows.map((s) => {
             const on = key === s.key;
             return (
               <li key={s.key} className={`flex min-h-12 items-center gap-3 rounded-2xl border-2 px-3 ${on ? "border-accent bg-accent-soft/40" : "border-line"}`}>
@@ -126,7 +141,10 @@ export function SoundPicker({
                   </svg>
                 </button>
                 <button type="button" onClick={() => setKey(s.key)} aria-pressed={on} className="flex min-h-11 flex-1 items-center justify-between gap-2 text-start">
-                  <span className="font-bold leading-snug">{soundName(s, locale)}</span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="font-bold leading-snug">{s.name}</span>
+                    {s.sub && <span className="truncate text-xs text-muted">{s.sub}</span>}
+                  </span>
                   <span className="shrink-0 text-xs text-muted">{on ? labels.chosen : `${Math.round(s.seconds)}″`}</span>
                 </button>
               </li>

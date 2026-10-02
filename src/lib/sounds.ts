@@ -8,7 +8,7 @@
 // otherwise untouched. Keys are stored in the database — add freely, never rename or
 // remove a key that has been used.
 
-export type SoundCategory = "quran" | "nature" | "spiritual" | "wisdom" | "funny" | "warm" | "daf" | "calm" | "occasions";
+export type SoundCategory = "quran" | "nature" | "spiritual" | "wisdom" | "funny" | "warm" | "daf" | "calm" | "occasions" | "people";
 type Credit = { author: string; license: string; url: string };
 export type Sound = { key: string; cat: SoundCategory; ar: string; en: string; seconds: number; credit: Credit | null };
 
@@ -88,6 +88,7 @@ export const SOUNDS: Sound[] = [
 
 export const SOUND_CATEGORIES: { key: SoundCategory; emoji: string }[] = [
   { key: "occasions", emoji: "🎉" },
+  { key: "people", emoji: "🎤" },
   { key: "quran", emoji: "🕋" },
   { key: "nature", emoji: "🌿" },
   { key: "spiritual", emoji: "🤲" },
@@ -99,9 +100,14 @@ export const SOUND_CATEGORIES: { key: SoundCategory; emoji: string }[] = [
 ];
 
 const BY_KEY = new Map(SOUNDS.map((s) => [s.key, s]));
-export const soundByKey = (key: string | null | undefined) => (key ? (BY_KEY.get(key) ?? null) : null);
+// «🎤 صوتك الأصلي»: a sound someone made public from their video (src/server/user-sounds.ts).
+export const isPeopleKey = (key: string | null | undefined) => !!key && /^u[0-9a-f]{12}$/.test(key);
+// Its name and owner live in the database (its page shows them); everywhere else it plays
+// like any library sound, under this generic name.
+const peopleSound = (key: string): Sound => ({ key, cat: "people", ar: "🎤 صوت أصلي", en: "🎤 Original sound", seconds: 30, credit: null });
+export const soundByKey = (key: string | null | undefined) => (key ? (BY_KEY.get(key) ?? (isPeopleKey(key) ? peopleSound(key) : null)) : null);
 export const soundName = (s: Sound, locale: string) => (locale === "ar" ? s.ar : s.en);
-export const soundFile = (key: string) => `/sounds/${key}.mp3`;
+export const soundFile = (key: string) => (isPeopleKey(key) ? `/sounds/u/${key}.mp3` : `/sounds/${key}.mp3`);
 // Quran, remembrance and wisdom are heard alone: a video's own sound is always muted under them.
 export const isSolemn = (s: Sound | null) => s?.cat === "quran" || s?.cat === "spiritual" || s?.cat === "wisdom";
 // A verse is heard once, never looped, and never cut short.

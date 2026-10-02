@@ -59,6 +59,7 @@ model User {
   dailyVotes      DailyVote[]
   savedAngles     SavedAngle[]
   activeDays      ActiveDay[]
+  userSounds      UserSound[]
   commentLikes    CommentLike[]
   momentLikes     MomentLike[]
   notifications   Notification[]   @relation("NotificationsReceived")
@@ -359,6 +360,25 @@ model AngleView {
 
 // One row per signed-in person per day they opened Zawmo (Mecca calendar day), for the
 // admin dashboard's active users and return rates. Nothing else about the visit is kept.
+// «🎤 صوتك الأصلي»: a video's own sound its owner made public (src/server/user-sounds.ts). Shots
+// use it by its key («u…») like a library sound. status: public | blocked (reason) | withdrawn.
+model UserSound {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  ownerId   String
+  angleId   String?  @unique
+  name      String
+  seconds   Float
+  path      String? // the mp3 in the private Blob store (gone once withdrawn)
+  status    String
+  reason    String? // why blocked: copyright | music | offensive | check_failed
+  createdAt DateTime @default(now())
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+}
+
 // What running Zawmo costs, counted per day and service (src/server/costs.ts): «gemini:screening»…
 model CostDay {
   day       String // "2026-10-02" (UTC)

@@ -50,3 +50,25 @@ export function UseSoundButton({ soundKey, label }: { soundKey: string; label: s
     </button>
   );
 }
+
+// The owner of a people's sound takes it back (it stops being usable; its file is deleted).
+export function WithdrawSound({ soundKey, labels }: { soundKey: string; labels: { withdraw: string; confirm: string } }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={async () => {
+        if (!window.confirm(labels.confirm)) return;
+        setBusy(true);
+        const res = await fetch(`/api/sounds/${soundKey}`, { method: "DELETE" }).catch(() => null);
+        setBusy(false);
+        if (res?.ok) router.push("/");
+      }}
+      className="min-h-11 rounded-full px-4 text-sm font-bold text-muted underline-offset-4 hover:underline disabled:opacity-50"
+    >
+      {labels.withdraw}
+    </button>
+  );
+}
