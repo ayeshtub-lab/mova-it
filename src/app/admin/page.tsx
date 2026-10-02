@@ -82,20 +82,18 @@ export default async function AdminPage() {
           ))}
         </section>
 
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="text-2xl font-extrabold">الإشراف · {items.length} بلاغ مفتوح</h1>
-          <nav className="flex shrink-0 gap-2">
-            <Link href="/admin/members" className="min-h-10 rounded-full bg-surface px-4 py-2 text-sm font-bold">
-              👥 الأعضاء
-            </Link>
-            <Link href="/admin/daily" className="min-h-10 rounded-full bg-surface px-4 py-2 text-sm font-bold">
-              🎬 فيديو اليوم
-            </Link>
-            <Link href="/admin/stats" className="min-h-10 shrink-0 rounded-full bg-secondary px-4 py-2 text-sm font-bold text-white dark:text-background">
-              📊 لوحة القياس
-            </Link>
-          </nav>
-        </div>
+        <nav className="grid grid-cols-3 gap-2">
+          <Link href="/admin/stats" className="flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-secondary px-2 py-2 text-center text-sm font-extrabold text-white dark:text-background">
+            <span className="text-2xl">📊</span>لوحة القياس
+          </Link>
+          <Link href="/admin/members" className="flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-surface px-2 py-2 text-center text-sm font-extrabold">
+            <span className="text-2xl">👥</span>الأعضاء
+          </Link>
+          <Link href="/admin/daily" className="flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-surface px-2 py-2 text-center text-sm font-extrabold">
+            <span className="text-2xl">🎬</span>فيديو اليوم
+          </Link>
+        </nav>
+        <h1 className="text-2xl font-extrabold">الإشراف · {items.length} بلاغ مفتوح</h1>
         {items.length === 0 && <p className="rounded-2xl bg-surface p-6 text-center text-muted">لا توجد بلاغات مفتوحة 🎉</p>}
         {items.map((item) => (
           <article key={item.key} className="flex flex-col gap-3 rounded-3xl border border-line p-4">
