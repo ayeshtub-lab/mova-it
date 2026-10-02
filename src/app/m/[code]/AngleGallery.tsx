@@ -10,6 +10,7 @@ import type { MomentDetailsLabels } from "@/app/MomentDetails";
 import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
 import { StreamVideo } from "@/app/StreamVideo";
 import { CaptionEditor, CaptionOverlay, type CaptionLabels } from "@/app/CaptionEditor";
+import { LyricsLine } from "@/app/LyricsLine";
 import type { CaptionView } from "@/lib/caption";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { filterCss, stampText } from "@/lib/filters";
@@ -27,6 +28,7 @@ export type GalleryAngle = {
   presence: "THERE" | "REMOTE";
   soundKey: string | null;
   muteOriginal: boolean;
+  lyrics: boolean; // «📝» its sound's words on it
   filter: string | null;
   stamp: boolean;
   takenAt: string;
@@ -178,7 +180,7 @@ export function AngleGallery({
   const rained = useRef(new Set<string>());
   // Library sounds: per angle (the contributor may change it here), one shared player,
   // and a mute switch remembered on this device.
-  const [sounds, setSounds] = useState(() => new Map(angles.map((a) => [a.id, { key: a.soundKey, mute: a.muteOriginal }])));
+  const [sounds, setSounds] = useState(() => new Map(angles.map((a) => [a.id, { key: a.soundKey, mute: a.muteOriginal, lyrics: a.lyrics }])));
   const [muted, setMuted] = useState(false);
   const [soundFor, setSoundFor] = useState<string | null>(null);
   // The look (filter, date stamp): the owner can change it from the viewer.
@@ -215,7 +217,7 @@ export function AngleGallery({
   // yet: fall back to what the server sent for them.
   const byId = new Map(angles.map((a) => [a.id, a]));
   const likesOf = (id: string): Likes => likes.get(id) ?? byId.get(id)?.likes ?? { count: 0, liked: false };
-  const soundOf = (id: string) => sounds.get(id) ?? { key: byId.get(id)?.soundKey ?? null, mute: byId.get(id)?.muteOriginal ?? false };
+  const soundOf = (id: string) => sounds.get(id) ?? { key: byId.get(id)?.soundKey ?? null, mute: byId.get(id)?.muteOriginal ?? false, lyrics: byId.get(id)?.lyrics ?? true };
   // Writing on shots: as the server sent it, or as its owner just changed it here.
   const [captions, setCaptions] = useState(() => new Map<string, CaptionView | null>());
   const [captionFor, setCaptionFor] = useState<string | null>(null);
@@ -277,7 +279,7 @@ export function AngleGallery({
   useEffect(() => {
     if (!dialogRef.current?.open) return;
     const angle = angles[current];
-    const s = angle ? (sounds.get(angle.id) ?? { key: angle.soundKey, mute: angle.muteOriginal }) : null;
+    const s = angle ? (sounds.get(angle.id) ?? { key: angle.soundKey, mute: angle.muteOriginal, lyrics: angle.lyrics }) : null;
     const video = slides()[current]?.querySelector("video");
     if (video) {
       video.muted = muted || !!(s?.key && s.mute);
@@ -289,7 +291,9 @@ export function AngleGallery({
       player.current.loop = true;
     }
     const audio = player.current;
-    if (!s?.key || muted) return void audio.pause();
+    if (!s?.key) return void audio.pause();
+    // Muted, the sound plays on silently, so its words («📝») stay in time.
+    audio.muted = muted;
     const src = soundFile(s.key);
     audio.loop = !isQuran(soundByKey(s.key)); // a verse is heard once
     if (!audio.src.endsWith(src)) audio.src = src;
@@ -355,13 +359,13 @@ export function AngleGallery({
     } catch {}
   }
 
-  async function saveSound(angleId: string, key: string | null, mute: boolean) {
+  async function saveSound(angleId: string, key: string | null, mute: boolean, lyrics: boolean) {
     setSavingSound(true);
-    const res = await fetch(`/api/angles/${angleId}/sound`,{ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ soundKey: key, muteOriginal: mute }) }).catch(() => null);
+    const res = await fetch(`/api/angles/${angleId}/sound`,{ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ soundKey: key, muteOriginal: mute, lyrics }) }).catch(() => null);
     setSavingSound(false);
     if (!res?.ok) return flash(labels.sounds.failed);
-    const saved = (await res.json()) as { soundKey: string | null; muteOriginal: boolean };
-    setSounds((m) => new Map(m).set(angleId, { key: saved.soundKey, mute: saved.muteOriginal }));
+    const saved = (await res.json()) as { soundKey: string | null; muteOriginal: boolean; lyrics: boolean };
+    setSounds((m) => new Map(m).set(angleId, { key: saved.soundKey, mute: saved.muteOriginal, lyrics: saved.lyrics }));
     setSoundFor(null);
   }
 
@@ -443,7 +447,7 @@ export function AngleGallery({
     // The added sound pauses and resumes with the video.
     if (video.paused) {
       video.play().catch(() => {});
-      if (!muted && soundOf(angles[current]?.id ?? "").key) player.current?.play().catch(() => {});
+      if (soundOf(angles[current]?.id ?? "").key) player.current?.play().catch(() => {});
     } else {
       video.pause();
       player.current?.pause();
@@ -778,7 +782,7 @@ export function AngleGallery({
                     preload="none"
                     onPlay={() => {
                       setPaused((s) => (s.has(a.id) ? new Set([...s].filter((x) => x !== a.id)) : s));
-                      if (soundOf(a.id)?.key && !muted && dialogRef.current?.open) player.current?.play().catch(() => {});
+                      if (soundOf(a.id)?.key && dialogRef.current?.open) player.current?.play().catch(() => {});
                     }}
                     onPause={() => {
                       setPaused((s) => new Set(s).add(a.id));
@@ -799,6 +803,7 @@ export function AngleGallery({
                   </span>
                 )}
                 <CaptionOverlay caption={captionOf(a.id)} framed />
+                {angles[current]?.id === a.id && <LyricsLine player={player} soundKey={soundOf(a.id).key} on={soundOf(a.id).lyrics} />}
 
                 {/* The tap area over the picture: double-tap to like, tap a video to pause. */}
                 <div
@@ -1266,9 +1271,11 @@ export function AngleGallery({
             labels={labels.sounds}
             initialKey={soundOf(soundFor)?.key ?? null}
             initialMute={soundOf(soundFor)?.mute}
+            initialLyrics={soundOf(soundFor)?.lyrics}
+            lyricsToggle
             isVideo={angles.find((x) => x.id === soundFor)?.mediaType === "VIDEO"}
             busy={savingSound}
-            onSave={(key, mute) => saveSound(soundFor, key, mute)}
+            onSave={(key, mute, lyrics) => saveSound(soundFor, key, mute, lyrics)}
             onClose={() => setSoundFor(null)}
           />
         )}

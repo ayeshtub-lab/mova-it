@@ -6,6 +6,7 @@ import { put } from "@vercel/blob";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
+import { wordsMark } from "@/lib/lyrics";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { blobExists, viewUrl } from "@/server/media";
 import { buildBrandedShot } from "@/server/montage/render";
@@ -28,7 +29,7 @@ const findShot = (angleId: string) => db.angle.findUnique({ where: { id: angleId
 
 function brandedPath(angle: Shot) {
   const version = createHash("sha256")
-    .update(JSON.stringify([STYLE, angle.mediaPath, angle.filter, angle.stamp, parseCaption(angle.caption)?.path ?? null, angle.soundKey, angle.muteOriginal, angle.moment.code, CANONICAL_HOST]))
+    .update(JSON.stringify([STYLE, angle.mediaPath, angle.filter, angle.stamp, parseCaption(angle.caption)?.path ?? null, angle.soundKey, angle.muteOriginal, angle.moment.code, CANONICAL_HOST, ...wordsMark(angle.soundKey, angle.lyrics)]))
     .digest("hex")
     .slice(0, 16);
   return `m/${angle.moment.id}/${angle.id}-zawmo-${version}.mp4`;
@@ -53,6 +54,7 @@ export async function ensureBranded(angleId: string) {
         momentTitle: angle.moment.title,
         soundKey: angle.soundKey,
         muteOriginal: angle.muteOriginal,
+        lyrics: angle.lyrics,
       },
       CANONICAL_HOST,
       dir,

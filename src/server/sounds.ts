@@ -15,7 +15,7 @@ export class SoundError extends Error {
   }
 }
 
-export async function setAngleSound(user: User, angleId: string, rawKey: unknown, rawMute: unknown) {
+export async function setAngleSound(user: User, angleId: string, rawKey: unknown, rawMute: unknown, rawLyrics?: unknown) {
   const angle = await db.angle.findUnique({ where: { id: angleId }, select: { contributorId: true, mediaType: true } });
   if (!angle) throw new SoundError("not_found");
   if (angle.contributorId !== user.id) throw new SoundError("forbidden");
@@ -24,8 +24,10 @@ export async function setAngleSound(user: User, angleId: string, rawKey: unknown
   // A people's sound: only while it is public (not withdrawn, not blocked).
   if (sound?.cat === "people" && !(await isPublicSound(sound.key))) throw new SoundError("invalid");
   const muteOriginal = angle.mediaType === "VIDEO" && !!sound && (isSolemn(sound) || rawMute === true);
-  await db.angle.update({ where: { id: angleId }, data: { soundKey: sound?.key ?? null, muteOriginal } });
-  return { soundKey: sound?.key ?? null, muteOriginal };
+  // «📝» its words on the shot: on unless turned off.
+  const lyrics = rawLyrics !== false;
+  await db.angle.update({ where: { id: angleId }, data: { soundKey: sound?.key ?? null, muteOriginal, lyrics } });
+  return { soundKey: sound?.key ?? null, muteOriginal, lyrics };
 }
 
 const live = () => ({ status: "READY" as const, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] });

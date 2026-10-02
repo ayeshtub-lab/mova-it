@@ -46,6 +46,14 @@
   }
 }
 
+/* «📝» verses on a shot: Amiri Quran (OFL) draws every mark of the Uthmani text. Loaded only
+   when a verse's words show. */
+@font-face {
+  font-family: "Amiri Quran";
+  src: url("/AmiriQuran.ttf") format("truetype");
+  font-display: swap;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -62,6 +70,7 @@
   --color-brand-blue: var(--brand-blue);
   --font-sans: var(--font-cairo);
   --font-display: var(--font-syne);
+  --font-quran: "Amiri Quran", serif;
 }
 
 body {

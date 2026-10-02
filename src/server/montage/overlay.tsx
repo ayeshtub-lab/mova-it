@@ -218,3 +218,32 @@ export async function renderWatermark(o: { link: string; stamp?: string }) {
     ...(stamp && stampShade ? [at(stampShade, 46, pillY - 2 - stamp.height + 2, "start-ltr"), at(stamp, 44, pillY - 2 - stamp.height, "start-ltr")] : []),
   ].map((c) => ({ ...c, top: Math.round(c.top), left: Math.round(c.left) })));
 }
+
+const QURAN_FONT = join(process.cwd(), "public", "AmiriQuran.ttf");
+
+// «📝»: one line of a sound's words, on a soft dark pill, centred, wrapped to the frame. Verses
+// are set in Amiri Quran (it draws every mark of the Uthmani text); the rest in Cairo.
+export async function renderLyric(line: string, quran: boolean) {
+  const size = quran ? 44 : 38;
+  const { data, info } = await sharp({
+    text: {
+      text: `<span foreground="#FFFBF0">${escape(line)}</span>`,
+      font: quran ? `Amiri Quran ${size}` : `Cairo Bold ${size}`,
+      fontfile: quran ? QURAN_FONT : FONT,
+      width: Math.round(W * 0.84),
+      align: "centre",
+      wrap: "word",
+      rgba: true,
+      dpi: 72,
+      spacing: quran ? 18 : 6,
+    },
+  })
+    .png()
+    .toBuffer({ resolveWithObject: true });
+  const padX = 26;
+  const padY = quran ? 16 : 12;
+  const w = info.width + padX * 2;
+  const h = info.height + padY * 2;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="${w}" height="${h}" rx="${Math.min(28, h / 2)}" fill="#000" fill-opacity="0.5"/></svg>`;
+  return sharp(Buffer.from(svg)).composite([{ input: data, top: padY, left: padX }]).png().toBuffer();
+}

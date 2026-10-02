@@ -180,6 +180,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         presence: a.presence,
         soundKey: a.soundKey,
         muteOriginal: a.muteOriginal,
+        lyrics: a.lyrics,
         filter: a.filter,
         stamp: a.stamp,
         caption: await captionView(a.caption),

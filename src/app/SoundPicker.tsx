@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { lyricsOf } from "@/lib/lyrics";
 import { isSolemn, SOUND_CATEGORIES, SOUNDS, soundByKey, soundFile, soundName, type SoundCategory } from "@/lib/sounds";
 
 export type SoundLabels = {
@@ -16,6 +17,7 @@ export type SoundLabels = {
   cancel: string;
   peopleEmpty?: string;
   peopleBy?: string;
+  lyrics?: string;
 };
 
 // A bottom sheet over the page: browse the library by category, listen, pick one (or
@@ -26,6 +28,8 @@ export function SoundPicker({
   labels,
   initialKey,
   initialMute = false,
+  initialLyrics = true,
+  lyricsToggle = false,
   isVideo = false,
   busy = false,
   onSave,
@@ -35,13 +39,16 @@ export function SoundPicker({
   labels: SoundLabels;
   initialKey: string | null;
   initialMute?: boolean;
+  initialLyrics?: boolean;
+  lyricsToggle?: boolean; // a shot's sound: its words («📝») may be turned off
   isVideo?: boolean;
   busy?: boolean;
-  onSave: (key: string | null, muteOriginal: boolean) => void;
+  onSave: (key: string | null, muteOriginal: boolean, lyrics: boolean) => void;
   onClose: () => void;
 }) {
   const [key, setKey] = useState(initialKey);
   const [mute, setMute] = useState(initialMute);
+  const [lyrics, setLyrics] = useState(initialLyrics);
   const [cat, setCat] = useState<SoundCategory>(soundByKey(initialKey)?.cat ?? SOUND_CATEGORIES[0].key);
   const [playing, setPlaying] = useState<string | null>(null);
   // «🎤 من الناس»: fetched when the tab is first opened.
@@ -153,6 +160,12 @@ export function SoundPicker({
         </ul>
 
         <footer className="flex flex-col gap-2 border-t border-line px-5 py-3">
+          {lyricsToggle && labels.lyrics && lyricsOf(key) && (
+            <label className="flex min-h-10 items-center gap-2 text-sm font-semibold">
+              <input type="checkbox" checked={lyrics} onChange={(e) => setLyrics(e.target.checked)} className="size-4 accent-[var(--accent)]" />
+              {labels.lyrics}
+            </label>
+          )}
           {isVideo && key && (
             <label className="flex min-h-10 items-center gap-2 text-sm font-semibold">
               <input type="checkbox" checked={solemn || mute} disabled={solemn} onChange={(e) => setMute(e.target.checked)} className="size-4 accent-[var(--accent)]" />
@@ -164,7 +177,7 @@ export function SoundPicker({
             disabled={busy}
             onClick={() => {
               audio.current?.pause();
-              onSave(key, solemn || mute);
+              onSave(key, solemn || mute, lyrics);
             }}
             className="min-h-12 rounded-full bg-accent px-5 font-extrabold text-white disabled:opacity-60"
           >

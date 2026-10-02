@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CaptionOverlay } from "@/app/CaptionEditor";
+import { LyricsLine } from "@/app/LyricsLine";
 import { filterCss } from "@/lib/filters";
 import { isQuran, soundByKey, soundFile } from "@/lib/sounds";
 import { Rail } from "./Rail";
@@ -120,7 +121,9 @@ export function Viewer({
     });
     player.current ??= new Audio();
     const audio = player.current;
-    if (!sound || muted || paused) return void audio.pause();
+    if (!sound || paused) return void audio.pause();
+    // Muted, the sound plays on silently, so its words («📝») stay in time.
+    audio.muted = muted;
     audio.loop = !isQuran(sound); // a verse is heard once
     if (!audio.src.endsWith(soundFile(sound.key))) audio.src = soundFile(sound.key);
     audio.play().catch(() => {});
@@ -169,6 +172,7 @@ export function Viewer({
                 <img src={item.mediaUrl ?? ""} alt="" loading={near ? "eager" : "lazy"} className="size-full object-cover" style={{ filter: filterCss(item.filter) }} />
               )}
               <CaptionOverlay caption={item.caption} framed />
+              {i === active && <LyricsLine player={player} soundKey={item.soundKey} on={item.lyrics} />}
               {item.mediaType === "VIDEO" && paused && i === active && (
                 <span aria-hidden="true" className="pointer-events-none absolute inset-0 m-auto flex size-20 items-center justify-center rounded-full bg-black/45">
                   <svg viewBox="0 0 24 24" className="size-10 fill-white">

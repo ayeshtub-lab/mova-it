@@ -13,6 +13,7 @@ export type FeedAngle = {
   caption: CaptionView | null;
   soundKey: string | null;
   muteOriginal: boolean;
+  lyrics: boolean; // «📝» its sound's words on it
   mediaUrl: string | null;
   hlsUrl?: string | null; // videos: Cloudflare Stream's adaptive stream, once ready
   posterUrl: string | null;

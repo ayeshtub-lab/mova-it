@@ -233,6 +233,9 @@ model Angle {
   // video's own sound is muted under it.
   soundKey      String?
   muteOriginal  Boolean     @default(false)
+  // «📝»: a library sound's words written on the shot while they are heard (src/lib/lyrics.ts);
+  // on unless its owner turned them off.
+  lyrics        Boolean     @default(true)
   // Times someone tapped «share» on it (for «الأكثر رواجًا هذا الأسبوع»).
   shares        Int         @default(0)
   // The look chosen after upload (src/lib/filters.ts): applied when shown and burnt into

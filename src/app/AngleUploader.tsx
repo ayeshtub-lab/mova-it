@@ -52,6 +52,7 @@ type ItemState = {
   isVideo?: boolean;
   soundKey?: string | null;
   muteOriginal?: boolean;
+  lyrics?: boolean;
   preview?: string; // local picture of the shot, for the edit sheet
   stampAt?: string;
   filter?: string | null;
@@ -161,16 +162,16 @@ export function AngleUploader({
     router.refresh();
   }
 
-  async function saveSound(index: number, angleId: string, soundKey: string | null, muteOriginal: boolean) {
+  async function saveSound(index: number, angleId: string, soundKey: string | null, muteOriginal: boolean, lyrics = true) {
     setSaving(true);
     setSoundError(false);
-    const res = await fetch(`/api/angles/${angleId}/sound`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ soundKey, muteOriginal }) }).catch(() => null);
+    const res = await fetch(`/api/angles/${angleId}/sound`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ soundKey, muteOriginal, lyrics }) }).catch(() => null);
     setSaving(false);
     if (!res?.ok) {
       setSoundError(true);
       return false;
     }
-    const saved = (await res.json()) as { soundKey: string | null; muteOriginal: boolean };
+    const saved = (await res.json()) as { soundKey: string | null; muteOriginal: boolean; lyrics: boolean };
     update(index, saved);
     setPicking(null);
     router.refresh();
@@ -516,9 +517,11 @@ export function AngleUploader({
           labels={soundLabels}
           initialKey={items[picking].soundKey ?? null}
           initialMute={items[picking].muteOriginal}
+          initialLyrics={items[picking].lyrics}
+          lyricsToggle
           isVideo={items[picking].isVideo}
           busy={saving}
-          onSave={(key, mute) => saveSound(picking, items[picking].angleId!, key, mute)}
+          onSave={(key, mute, lyrics) => saveSound(picking, items[picking].angleId!, key, mute, lyrics)}
           onClose={() => setPicking(null)}
         />
       )}

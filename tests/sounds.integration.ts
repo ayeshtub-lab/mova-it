@@ -28,17 +28,24 @@ async function main() {
     await check("only the contributor sets a sound; unknown keys are refused", async () => {
       await assert.rejects(setAngleSound(other, photo.id, "n01", false), (e) => e instanceof SoundError && e.code === "forbidden");
       await assert.rejects(setAngleSound(owner, photo.id, "nope", false), (e) => e instanceof SoundError && e.code === "invalid");
-      assert.deepEqual(await setAngleSound(owner, photo.id, "n01", true), { soundKey: "n01", muteOriginal: false }); // a photo has no sound of its own
+      assert.deepEqual(await setAngleSound(owner, photo.id, "n01", true), { soundKey: "n01", muteOriginal: false, lyrics: true }); // a photo has no sound of its own
       const view = await getMomentView(m.code, owner);
       assert.equal(view?.angles.find((a) => a.id === photo.id)?.soundKey, "n01");
     });
 
+    await check("«📝» a sound's words: on unless the contributor turns them off", async () => {
+      assert.equal((await setAngleSound(owner, video.id, "s14", false)).lyrics, true);
+      assert.equal((await setAngleSound(owner, video.id, "s14", false, false)).lyrics, false);
+      assert.equal((await db.angle.findUnique({ where: { id: video.id } }))?.lyrics, false);
+      assert.equal((await setAngleSound(owner, video.id, "s14", false, "junk")).lyrics, true);
+    });
+
     await check("video: mute is the contributor's choice — always muted under Quran and remembrance", async () => {
-      assert.deepEqual(await setAngleSound(owner, video.id, "n02", false), { soundKey: "n02", muteOriginal: false });
-      assert.deepEqual(await setAngleSound(owner, video.id, "n02", true), { soundKey: "n02", muteOriginal: true });
-      assert.deepEqual(await setAngleSound(owner, video.id, "s01", false), { soundKey: "s01", muteOriginal: true });
-      assert.deepEqual(await setAngleSound(owner, video.id, "q15", false), { soundKey: "q15", muteOriginal: true }); // Quran: always alone
-      assert.deepEqual(await setAngleSound(owner, video.id, null, true), { soundKey: null, muteOriginal: false });
+      assert.deepEqual(await setAngleSound(owner, video.id, "n02", false), { soundKey: "n02", muteOriginal: false, lyrics: true });
+      assert.deepEqual(await setAngleSound(owner, video.id, "n02", true), { soundKey: "n02", muteOriginal: true, lyrics: true });
+      assert.deepEqual(await setAngleSound(owner, video.id, "s01", false), { soundKey: "s01", muteOriginal: true, lyrics: true });
+      assert.deepEqual(await setAngleSound(owner, video.id, "q15", false), { soundKey: "q15", muteOriginal: true, lyrics: true }); // Quran: always alone
+      assert.deepEqual(await setAngleSound(owner, video.id, null, true), { soundKey: null, muteOriginal: false, lyrics: true });
     });
 
     await check("uses count every shot; the sound page lists only public, checked ones", async () => {

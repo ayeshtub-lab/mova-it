@@ -9,11 +9,12 @@ import { db } from "@/lib/db";
 import { publicHost } from "@/lib/hosts";
 import { parseCaption } from "@/lib/caption";
 import { filterByKey, stampText } from "@/lib/filters";
+import { lyricsOf, lyricTimes } from "@/lib/lyrics";
 import { isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
 import { viewUrl } from "@/server/media";
 import { isArabic } from "@/server/og-text";
-import { FRAME, renderIntro, renderOutro, renderOverlay, renderWatermark } from "./overlay";
+import { FRAME, renderIntro, renderLyric, renderOutro, renderOverlay, renderWatermark } from "./overlay";
 
 const PHOTO_SECONDS = 2.8;
 const INTRO_SECONDS = 1.8;
@@ -190,16 +191,44 @@ async function videoSegment(input: string, overlay: string, out: string, filter:
 
 type Sound = NonNullable<ReturnType<typeof soundByKey>>;
 
+// «📝»: a sound's words over `total` seconds of video that starts with the sound — each line
+// drawn once and laid over the frame (a little below the middle) while it is heard: a verse
+// once, other sounds on every loop. Its inputs go after the others (from `first`); the graph
+// takes the video labelled `from` and gives it back as `to`. Null for a sound without words.
+async function lyricLayers(sound: Sound, total: number, dir: string, first: number, from: string, to: string) {
+  const words = lyricsOf(sound.key);
+  if (!words) return null;
+  const inputs: string[] = [];
+  const steps: string[] = [];
+  let label = from;
+  let input = first;
+  for (const [i, line] of lyricTimes(words, total).entries()) {
+    if (!line.at.length) continue;
+    const file = join(dir, `lyric-${sound.key}-${i}.png`);
+    await writeFile(file, await renderLyric(line.text, !!words.quran));
+    inputs.push("-loop", "1", "-t", total.toFixed(2), "-i", file);
+    const when = line.at.map(([s, e]) => `between(t,${s.toFixed(2)},${e.toFixed(2)})`).join("+");
+    const next = `ly${i}`;
+    steps.push(`[${label}][${input++}:v]overlay=(W-w)/2:H*0.7-h/2:enable='${when}'[${next}]`);
+    label = next;
+  }
+  if (!steps.length) return null;
+  return { inputs, graph: `${steps.join(";")};[${label}]null[${to}]` };
+}
+
 // The sound its owner added to a shot, laid over that shot's segment (used when the
 // montage has no sound of its own): looped to the segment's length with short fades, the
 // clip's own sound softer under it — or gone when the owner muted it. A verse is heard
-// once and whole: the shot's last frame holds until it ends.
-async function withShotSound(segment: string, soundPath: string, sound: Sound, muteOriginal: boolean, seconds: number, out: string) {
+// once and whole: the shot's last frame holds until it ends. Its words go over it too,
+// unless the owner turned them off.
+async function withShotSound(segment: string, soundPath: string, sound: Sound, muteOriginal: boolean, seconds: number, out: string, lyrics = false) {
+  const dir = join(out, "..");
   if (isQuran(sound)) {
     const total = Math.max(seconds, sound.seconds + 0.8);
+    const words = lyrics ? await lyricLayers(sound, total, dir, 2, "vt", "v") : null;
     await ffmpeg([
-      "-i", segment, "-i", soundPath,
-      "-filter_complex", `[0:v]tpad=stop_mode=clone:stop_duration=${(total - seconds).toFixed(2)}[v];[0:a]anullsink;[1:a]aresample=44100,apad=whole_dur=${total.toFixed(2)}[a]`,
+      "-i", segment, "-i", soundPath, ...(words?.inputs ?? []),
+      "-filter_complex", `[0:v]tpad=stop_mode=clone:stop_duration=${(total - seconds).toFixed(2)}[${words ? "vt" : "v"}];${words ? `${words.graph};` : ""}[0:a]anullsink;[1:a]aresample=44100,apad=whole_dur=${total.toFixed(2)}[a]`,
       "-map", "[v]", "-map", "[a]", ...ENCODE, "-t", total.toFixed(2), out,
     ]);
     return total;
@@ -209,10 +238,13 @@ async function withShotSound(segment: string, soundPath: string, sound: Sound, m
   const mix = muteOriginal || isSolemn(sound)
     ? `${bed};[0:a]anullsink;[bed]anull[a]`
     : `${bed};[0:a]volume=0.35[soft];[soft][bed]amix=inputs=2:duration=first:normalize=0[a]`;
+  const words = lyrics ? await lyricLayers(sound, seconds, dir, 2, "0:v", "v") : null;
   await ffmpeg([
-    "-i", segment, "-stream_loop", "-1", "-i", soundPath,
-    "-filter_complex", mix,
-    "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-ar", "44100", "-ac", "2", "-t", s, out,
+    "-i", segment, "-stream_loop", "-1", "-i", soundPath, ...(words?.inputs ?? []),
+    "-filter_complex", words ? `${words.graph};${mix}` : mix,
+    // (Without words the picture is copied as it is.)
+    ...(words ? ["-map", "[v]", "-map", "[a]", ...ENCODE] : ["-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-ar", "44100", "-ac", "2"]),
+    "-t", s, out,
   ]);
   return seconds;
 }
@@ -311,7 +343,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
     if (shotSound) {
       shotSounds = true;
       segment = join(dir, `seg-${i}-sound.mp4`);
-      seconds = await withShotSound(out, await soundAt(shotSound), shotSound, angle.muteOriginal, seconds, segment);
+      seconds = await withShotSound(out, await soundAt(shotSound), shotSound, angle.muteOriginal, seconds, segment, angle.lyrics);
     }
     durations.push(seconds);
     segments.push(segment);
@@ -365,9 +397,12 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
         : `${bed};[orig]volume=${auto ? "0.9" : "0.35"}[soft];[soft][bed]amix=inputs=2:duration=first:normalize=0[a]`;
     }
   }
+  // «📝»: the chosen sound's words over the whole film, as they are heard (from its start).
+  const words = sound && !auto ? await lyricLayers(sound, total, dir, segments.length + 1, "v", "vw") : null;
   const output = join(dir, "montage.mp4");
   const inputs = segments.flatMap((s) => ["-i", s]);
-  const run = (g: string) => ffmpeg([...inputs, ...soundInput, "-filter_complex", `${g};${mix}`, "-map", "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output], 240_000);
+  const run = (g: string) =>
+    ffmpeg([...inputs, ...soundInput, ...(words?.inputs ?? []), "-filter_complex", `${g}${words ? `;${words.graph}` : ""};${mix}`, "-map", words ? "[vw]" : "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output], 240_000);
   try {
     await run(graph);
   } catch (error) {
@@ -416,7 +451,7 @@ export async function renderMontage(montageId: string, siteHost: string) {
 // Zawmo mark with the moment's link, and the closing card flowing in at the end. The
 // video's own sound stays. Returns the file.
 export async function buildBrandedShot(
-  shot: { mediaPath: string; filter: string | null; caption: Parameters<typeof parseCaption>[0]; stamp: boolean; uploadedAt: Date; momentCode: string; momentTitle: string; soundKey?: string | null; muteOriginal?: boolean },
+  shot: { mediaPath: string; filter: string | null; caption: Parameters<typeof parseCaption>[0]; stamp: boolean; uploadedAt: Date; momentCode: string; momentTitle: string; soundKey?: string | null; muteOriginal?: boolean; lyrics?: boolean },
   siteHost: string,
   dir: string,
 ) {
@@ -462,7 +497,7 @@ export async function buildBrandedShot(
     const soundPath = join(dir, `sound-${sound.key}.mp3`);
     await download(`${siteHost.startsWith("localhost") ? "http" : "https"}://${siteHost}${soundFile(sound.key)}`, soundPath);
     shotBody = join(dir, "body-sound.mp4");
-    shotSeconds = await withShotSound(body, soundPath, sound, !!shot.muteOriginal, seconds, shotBody);
+    shotSeconds = await withShotSound(body, soundPath, sound, !!shot.muteOriginal, seconds, shotBody, shot.lyrics !== false);
   }
 
   const card = join(dir, "outro.png");

@@ -335,6 +335,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 presence: a.presence,
                 soundKey: a.soundKey,
                 muteOriginal: a.muteOriginal,
+                lyrics: a.lyrics,
                 filter: a.filter,
                 stamp: a.stamp,
                 takenAt: a.takenAt.toISOString(),

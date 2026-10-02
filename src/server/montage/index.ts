@@ -6,6 +6,7 @@ import { put } from "@vercel/blob";
 import type { Montage, User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
+import { wordsMark } from "@/lib/lyrics";
 import { soundByKey } from "@/lib/sounds";
 import { blobExists, viewUrl } from "@/server/media";
 import { systemUser } from "@/server/daily";
@@ -121,12 +122,12 @@ async function currentContent(momentId: string, soundKey: string | null) {
   const found = await db.angle.findMany({
     where: { momentId, status: "READY", mediaPath: { not: null }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
     orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
-    select: { id: true, filter: true, stamp: true, soundKey: true, muteOriginal: true, caption: true, contributorId: true, mediaType: true, capturedAt: true, uploadedAt: true, pickedAt: true },
+    select: { id: true, filter: true, stamp: true, soundKey: true, muteOriginal: true, lyrics: true, caption: true, contributorId: true, mediaType: true, capturedAt: true, uploadedAt: true, pickedAt: true },
   });
   // A story keeps its whole span, spread evenly; a moment its distinct shots, best ones past the cap.
   const angles = size.story ? spread(found, size.max) : await bestShots(found, size.max, filmLimit(soundKey));
   const signature = createHash("sha256")
-    .update(JSON.stringify([MONTAGE_STYLE, soundKey, angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null])]))
+    .update(JSON.stringify([MONTAGE_STYLE, soundKey, ...wordsMark(soundKey), angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null, ...wordsMark(a.soundKey, a.lyrics)])]))
     .digest("hex")
     .slice(0, 32);
   return { angleIds: angles.map((a) => a.id), signature };
@@ -291,7 +292,7 @@ export async function newShotsVideoUrl(user: User, code: string, siteHost: strin
   const angles = ids.map((id) => found.find((a) => a.id === id)).filter((a) => !!a);
   const soundKey = await chosenSound(moment.id);
   const version = createHash("sha256")
-    .update(JSON.stringify([NEW_STYLE, MONTAGE_STYLE, soundKey, siteHost, kicker, angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null])]))
+    .update(JSON.stringify([NEW_STYLE, MONTAGE_STYLE, soundKey, ...wordsMark(soundKey), siteHost, kicker, angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null, ...wordsMark(a.soundKey, a.lyrics)])]))
     .digest("hex")
     .slice(0, 16);
   const path = `m/${moment.id}/new-${version}.mp4`;

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { put } from "@vercel/blob";
 import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
+import { wordsMark } from "@/lib/lyrics";
 import { blobExists, viewUrl } from "@/server/media";
 import { bestShots } from "@/server/montage";
 import { buildMontageVideo, filmLimit } from "@/server/montage/render";
@@ -69,7 +70,7 @@ export async function dailyVideoUrl(code: string, siteHost: string, kicker: stri
   const latest = await db.montage.findFirst({ where: { momentId: moment.id }, orderBy: { createdAt: "desc" }, select: { soundKey: true } });
   const soundKey = latest?.soundKey ?? DAILY_SOUND;
   const version = createHash("sha256")
-    .update(JSON.stringify([DAILY_STYLE, soundKey, siteHost, kicker, filmLimit(soundKey), angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null])]))
+    .update(JSON.stringify([DAILY_STYLE, soundKey, ...wordsMark(soundKey), siteHost, kicker, filmLimit(soundKey), angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null, ...wordsMark(a.soundKey, a.lyrics)])]))
     .digest("hex")
     .slice(0, 16);
   const path = `m/${moment.id}/daily-${version}.mp4`;
