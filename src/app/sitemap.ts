@@ -1,15 +1,17 @@
 import type { MetadataRoute } from "next";
 import { CANONICAL_HOST } from "@/lib/hosts";
-import { sitemapEntries, sitemapShots, shotOrdinals, shotPath, shotTitle } from "@/server/seo";
+import { SOUNDS } from "@/lib/sounds";
+import { sitemapEntries, sitemapShots, sitemapTags, shotOrdinals, shotPath, shotTitle } from "@/server/seo";
 
 // The pages Google should know about: the home page, public moments and places with shots,
-// and each public shot on its own page with its picture (and video) for Google Images / Video.
+// and each public shot on its own page with its picture (and video) for Google Images / Video;
+// #hashtag pages with a few moments, and the library's sound pages.
 // Rebuilt at most once an hour.
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = `https://${CANONICAL_HOST}`;
-  const [{ moments, places }, shots] = await Promise.all([sitemapEntries(), sitemapShots()]);
+  const [{ moments, places }, shots, tags] = await Promise.all([sitemapEntries(), sitemapShots(), sitemapTags()]);
   const ordinals = shotOrdinals(shots);
   // A moment lists its shots' pictures too (a few, newest first).
   const pictures = new Map<string, string[]>();
@@ -39,6 +41,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           : {}),
       };
     }),
+    ...tags.map((t) => ({ url: `${base}/tag/${encodeURIComponent(t.tag)}`, lastModified: t.updatedAt, changeFrequency: "daily" as const, priority: 0.6 })),
+    ...SOUNDS.map((s) => ({ url: `${base}/sound/${s.key}`, changeFrequency: "weekly" as const, priority: 0.4 })),
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${base}/terms`, changeFrequency: "yearly", priority: 0.2 },
   ];

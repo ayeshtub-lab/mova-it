@@ -1,5 +1,6 @@
 import { parseCaption } from "@/lib/caption";
 import { db } from "@/lib/db";
+import { hashtagsIn } from "@/lib/hashtags";
 import { isScene, SCENES } from "@/lib/scenes";
 
 // What search engines may list: only what anyone can already open without signing in.
@@ -18,6 +19,24 @@ const shownAngle = (now: Date) => ({
 });
 
 // The sitemap's moments and places, each with when it last changed.
+// #hashtag pages worth listing: tags in public moments' descriptions or their shots' lines,
+// on `min` moments at least (a tag page lets itself be indexed from 3 — /tag/[tag]).
+export async function sitemapTags(now = new Date(), min = 3) {
+  const moments = await db.moment.findMany({
+    where: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false, angles: { some: shownAngle(now) } },
+    select: { description: true, lastActivityAt: true, angles: { where: shownAngle(now), select: { aiText: true } } },
+    take: 5000,
+  });
+  const byTag = new Map<string, { count: number; at: Date }>();
+  for (const m of moments) {
+    for (const tag of new Set([...hashtagsIn(m.description), ...m.angles.flatMap((a) => hashtagsIn(a.aiText))])) {
+      const was = byTag.get(tag);
+      byTag.set(tag, { count: (was?.count ?? 0) + 1, at: was && was.at > m.lastActivityAt ? was.at : m.lastActivityAt });
+    }
+  }
+  return [...byTag].filter(([, t]) => t.count >= min).map(([tag, t]) => ({ tag, updatedAt: t.at }));
+}
+
 export async function sitemapEntries(now = new Date()) {
   const [moments, angles] = await Promise.all([
     db.moment.findMany({
