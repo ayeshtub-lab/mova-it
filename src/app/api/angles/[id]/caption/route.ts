@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { CaptionError, clearCaption, setCaption } from "@/server/caption";
+import { brandAfterChange } from "@/server/branded";
 import { refreshMontageForAngle } from "@/server/montage";
 import { limited } from "@/server/rate-limit";
 
@@ -16,6 +17,8 @@ const failure = (error: unknown) => {
 const remake = (request: Request, id: string) => {
   const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;
   after(() => refreshMontageForAngle(id, host).catch((error) => console.error("montage refresh failed", id, error)));
+  // Its stamped copy made again with the new writing.
+  after(() => brandAfterChange(id));
 };
 
 // Form: image (PNG), text, y, w, style (JSON) — only the shot's owner.

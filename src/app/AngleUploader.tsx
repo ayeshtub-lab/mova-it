@@ -135,6 +135,7 @@ export function AngleUploader({
     } catch {}
   }, []);
   const [picking, setPicking] = useState<number | null>(null);
+  const soundAsked = useRef(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [captioning, setCaptioning] = useState<number | null>(null);
   const longFiles = useRef(new Map<number, File>());
@@ -243,6 +244,12 @@ export function AngleUploader({
         suggestion: result.suggestion ?? null,
       });
       if (pending && (await saveSound(index, angleId, pending, false))) clearPending();
+      // Like TikTok: the first shot ready opens the sounds at once (once per batch; «بدون صوت» or
+      // closing skips it). Not when a sound was already chosen on a sound's page.
+      else if (!soundAsked.current) {
+        soundAsked.current = true;
+        setPicking(index);
+      }
     } catch (error) {
       // A gallery video past 40 s: offer to send its first 40 seconds instead.
       if (error instanceof PrepareError && error.code === "too_long" && input instanceof File) {
@@ -361,10 +368,15 @@ export function AngleUploader({
                 </span>
               )}
               {(item.status === "done" || item.status === "draft") && item.angleId && (
-                <button type="button" onClick={() => setEditing(i)} className="min-h-9 shrink-0 rounded-full bg-background px-3 text-xs font-bold text-secondary shadow-sm">
-                  {editLabels.open}
-                  {soundByKey(item.soundKey) ? ` · 🎵 ${soundName(soundByKey(item.soundKey)!, locale)}` : ""}
-                </button>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {/* The sound, in sight (not inside «تعديل»): its name once chosen. */}
+                  <button type="button" onClick={() => setPicking(i)} className="min-h-9 max-w-36 truncate rounded-full bg-accent px-3 text-xs font-bold text-white shadow-sm">
+                    {soundByKey(item.soundKey) ? `🎵 ${soundName(soundByKey(item.soundKey)!, locale)}` : soundLabels.add}
+                  </button>
+                  <button type="button" onClick={() => setEditing(i)} className="min-h-9 rounded-full bg-background px-3 text-xs font-bold text-secondary shadow-sm">
+                    {editLabels.open}
+                  </button>
+                </span>
               )}
             </li>
           ))}

@@ -416,7 +416,7 @@ export async function renderMontage(montageId: string, siteHost: string) {
 // Zawmo mark with the moment's link, and the closing card flowing in at the end. The
 // video's own sound stays. Returns the file.
 export async function buildBrandedShot(
-  shot: { mediaPath: string; filter: string | null; caption: Parameters<typeof parseCaption>[0]; stamp: boolean; uploadedAt: Date; momentCode: string; momentTitle: string },
+  shot: { mediaPath: string; filter: string | null; caption: Parameters<typeof parseCaption>[0]; stamp: boolean; uploadedAt: Date; momentCode: string; momentTitle: string; soundKey?: string | null; muteOriginal?: boolean },
   siteHost: string,
   dir: string,
 ) {
@@ -453,12 +453,24 @@ export async function buildBrandedShot(
     "-map", "[v]", "-map", hasAudio ? "0:a:0" : "2:a", ...ENCODE, "-t", String(seconds), body,
   ], 240_000);
 
+  // The sound its owner put on it, as everywhere else on Zawmo (a verse whole, the clip's own
+  // sound softer under music, or muted).
+  const sound = soundByKey(shot.soundKey ?? null);
+  let shotBody = body;
+  let shotSeconds = seconds;
+  if (sound) {
+    const soundPath = join(dir, `sound-${sound.key}.mp3`);
+    await download(`${siteHost.startsWith("localhost") ? "http" : "https"}://${siteHost}${soundFile(sound.key)}`, soundPath);
+    shotBody = join(dir, "body-sound.mp4");
+    shotSeconds = await withShotSound(body, soundPath, sound, !!shot.muteOriginal, seconds, shotBody);
+  }
+
   const card = join(dir, "outro.png");
   const outro = join(dir, "outro.mp4");
   await writeFile(card, await renderOutro({ name: dict.montage.outroName, tagline: dict.montage.outroTagline, cta: dict.montage.outroCta, link }));
-  const durations = [seconds, await cardSegment(card, outro, OUTRO_SECONDS)];
+  const durations = [shotSeconds, await cardSegment(card, outro, OUTRO_SECONDS)];
   const { graph } = joinGraph(durations, TRANSITION, ["fade"], "v");
   const output = join(dir, "zawmo.mp4");
-  await ffmpeg(["-i", body, "-i", outro, "-filter_complex", `${graph};[orig]anull[a]`, "-map", "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output], 240_000);
+  await ffmpeg(["-i", shotBody, "-i", outro, "-filter_complex", `${graph};[orig]anull[a]`, "-map", "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output], 240_000);
   return output;
 }

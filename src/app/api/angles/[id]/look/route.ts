@@ -1,5 +1,6 @@
 import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
+import { brandAfterChange } from "@/server/branded";
 import { refreshMontageForAngle } from "@/server/montage";
 import { setAngleLook, SoundError } from "@/server/sounds";
 
@@ -16,6 +17,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const result = await setAngleLook(user, id, body?.filter ?? null, body?.stamp);
     const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;
     after(() => refreshMontageForAngle(id, host).catch((error) => console.error("montage refresh failed", id, error)));
+    // Its stamped copy (what a share sends) made again now, with the new look.
+    after(() => brandAfterChange(id));
     return NextResponse.json(result);
   } catch (error) {
     if (!(error instanceof SoundError)) throw error;

@@ -920,10 +920,15 @@ export function AngleGallery({
                     </>
                   )}
 
-                  <button type="button" aria-label={labels.share} onClick={() => shareAngle(a)} className={railButton}>
-                    <svg viewBox="0 0 24 24" className="size-8 fill-white">
-                      <path d="M13.5 4.5 21.5 12l-8 7.5v-4.3c-5.4 0-8.8 1.6-11 5.3.7-5.6 3.8-10.2 11-11.2z" />
-                    </svg>
+                  {/* Your video's stamped copy still being made: the arrow turns into a spinning ring. */}
+                  <button type="button" aria-label={labels.share} aria-busy={branded?.id === a.id && !branded.file} onClick={() => shareAngle(a)} className={railButton}>
+                    {branded?.id === a.id && !branded.file ? (
+                      <span aria-hidden="true" className="size-8 animate-spin rounded-full border-4 border-white/30 border-t-white" />
+                    ) : (
+                      <svg viewBox="0 0 24 24" className="size-8 fill-white">
+                        <path d="M13.5 4.5 21.5 12l-8 7.5v-4.3c-5.4 0-8.8 1.6-11 5.3.7-5.6 3.8-10.2 11-11.2z" />
+                      </svg>
+                    )}
                   </button>
                   {/* The sound disc, TikTok-style: spins, and opens the sound's page. */}
                   {soundByKey(soundOf(a.id)?.key) ? (

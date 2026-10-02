@@ -13,10 +13,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const slow = await limited("branded", request, user.id);
   if (slow) return slow;
-  // The public host the visitor used, for the link burnt into the video.
-  const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;
   try {
-    const url = await brandedShotUrl(user, (await params).id, host);
+    const url = await brandedShotUrl(user, (await params).id);
     if (!url) return NextResponse.json({ error: "failed" }, { status: 500 });
     return NextResponse.json({ url });
   } catch (error) {
