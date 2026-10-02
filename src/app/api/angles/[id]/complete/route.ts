@@ -26,7 +26,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (angle.mediaType === "VIDEO" && angle.status !== "HIDDEN") after(() => sendToStream(angle.id).catch((error) => console.error("stream copy failed", angle.id, error)));
     // «صوّر معك»: someone nearby shot the same moment just now? Offer to add this shot to it.
     const suggestion = angle.status === "DRAFT" ? await findJoinSuggestion(user.id, angle.id) : null;
-    return NextResponse.json({ id: angle.id, status: angle.status, suggestion, titleSuggestion: angle.titleSuggestion });
+    return NextResponse.json({ id: angle.id, status: angle.status, suggestion, titleSuggestion: angle.titleSuggestion, captionIdeas: angle.captionIdeas });
   } catch (error) {
     if (error instanceof AngleError) {
       return NextResponse.json({ error: error.code }, { status: error.code === "not_found" ? 404 : 409 });

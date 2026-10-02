@@ -18,6 +18,8 @@ export type CaptionLabels = {
   failed: string;
   blocked: string;
   checkFailed: string;
+  add: string;
+  ideas: string;
 };
 
 const FRAME = 1080; // the 9:16 frame the writing is drawn for (1080×1920)
@@ -84,6 +86,7 @@ export function CaptionEditor({
   imageUrl,
   filter,
   initial,
+  ideas = [],
   labels,
   onSaved,
   onClose,
@@ -92,6 +95,7 @@ export function CaptionEditor({
   imageUrl: string | null;
   filter?: string;
   initial: CaptionView | null;
+  ideas?: string[]; // lines the lens suggested for this shot (right after upload)
   labels: CaptionLabels;
   onSaved: (caption: CaptionView | null) => void;
   onClose: () => void;
@@ -195,6 +199,22 @@ export function CaptionEditor({
           )}
         </div>
         <p className="-mt-1 text-center text-xs text-muted">{labels.drag}</p>
+
+        {/* 💡 One tap writes a suggested line (still editable before saving). */}
+        {ideas.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-bold text-muted">{labels.ideas}</span>
+            <ul className="flex flex-wrap gap-2">
+              {ideas.map((idea) => (
+                <li key={idea}>
+                  <button type="button" aria-pressed={text === idea} onClick={() => setText(idea)} className={`min-h-10 rounded-full px-4 text-sm font-bold ${text === idea ? "bg-accent text-white" : "bg-surface"}`}>
+                    {idea}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <textarea
           value={text}

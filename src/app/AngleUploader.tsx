@@ -57,6 +57,7 @@ type ItemState = {
   filter?: string | null;
   stamp?: boolean;
   caption?: CaptionView | null;
+  ideas?: string[]; // lines to write on it, from the lens («✍️»)
   suggestion?: JoinSuggestion | null; // «صوّر معك», offered once right after upload
 };
 type UploaderSoundLabels = SoundLabels & { add: string; failed: string; pending: string; pendingClear: string };
@@ -242,6 +243,7 @@ export function AngleUploader({
         filter: "auto", // «✨ تحسين», set on the server when the shot was created
         stamp: false,
         suggestion: result.suggestion ?? null,
+        ideas: Array.isArray(result.captionIdeas) ? result.captionIdeas.filter((l: unknown) => typeof l === "string") : [],
       });
       if (pending && (await saveSound(index, angleId, pending, false))) clearPending();
       // Like TikTok: the first shot ready opens the sounds at once (once per batch; «بدون صوت» or
@@ -373,6 +375,13 @@ export function AngleUploader({
                   <button type="button" onClick={() => setPicking(i)} className="min-h-9 max-w-36 truncate rounded-full bg-accent px-3 text-xs font-bold text-white shadow-sm">
                     {soundByKey(item.soundKey) ? `🎵 ${soundName(soundByKey(item.soundKey)!, locale)}` : soundLabels.add}
                   </button>
+                  {/* Writing on it, in sight too (like TikTok): ✓ once written. */}
+                  {captionLabels && (
+                    <button type="button" onClick={() => setCaptioning(i)} className="min-h-9 rounded-full bg-background px-3 text-xs font-bold text-secondary shadow-sm">
+                      {captionLabels.add}
+                      {item.caption ? " ✓" : ""}
+                    </button>
+                  )}
                   <button type="button" onClick={() => setEditing(i)} className="min-h-9 rounded-full bg-background px-3 text-xs font-bold text-secondary shadow-sm">
                     {editLabels.open}
                   </button>
@@ -490,6 +499,7 @@ export function AngleUploader({
           imageUrl={items[captioning].preview ?? null}
           filter={filterCss(items[captioning].filter)}
           initial={items[captioning].caption ?? null}
+          ideas={items[captioning].ideas}
           labels={captionLabels}
           onSaved={(caption) => {
             const at = captioning;

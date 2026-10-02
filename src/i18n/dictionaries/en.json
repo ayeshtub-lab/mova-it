@@ -750,7 +750,9 @@
     "cancel": "Close",
     "failed": "Couldn't save. Try again.",
     "blocked": "This writing doesn't fit Zawmo's rules. Change it and try again.",
-    "checkFailed": "We couldn't check the writing right now. Try again shortly."
+    "checkFailed": "We couldn't check the writing right now. Try again shortly.",
+    "add": "✍️ Write",
+    "ideas": "💡 Ideas made for your shot — tap one"
   },
   "push": {
     "like": "❤️ {name} liked your shot",

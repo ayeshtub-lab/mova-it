@@ -45,7 +45,7 @@ function reportGemini(where: "screening" | "text" | "lens", detail: string) {
 }
 
 export type Verdict =
-  | { result: "allowed"; scene?: Scene; seen?: string; title?: string; text?: string }
+  | { result: "allowed"; scene?: Scene; seen?: string; title?: string; text?: string; captions?: string[] }
   | { result: "blocked"; category: string; reason: string }
   | { result: "error"; reason: string };
 
@@ -75,7 +75,17 @@ const DESCRIBE = `
 
 Also write, in Arabic, a description of this shot for its public page: one warm, natural sentence (8 to 16 words) that says concretely what is seen — the place, food, occasion, weather or mood — the way a happy friend would caption it, so that someone searching for such a picture would find it. Never name or guess who the people are, never invent a city or country that is not clearly shown, no emoji, no quotation marks. Then 2 or 3 hashtags in Arabic that people really search for about what is seen (single words or joined with _, no spaces, for example غروب, قهوة_الصباح, عرس).
 
-Add them to the same JSON: "description":"<the sentence>","hashtags":["<tag>","<tag>"]`;
+Also suggest 3 different short lines the person could write ON the shot itself, like TikTok text: 2 to 6 words each, in simple Arabic understood across the Arab world, warm or playful or proud, about what is seen (for example «أحلى صبحية ☕», «ريحة البلاد 🌿», «لمّة ما بتنتسى ❤️»). Each may end with one fitting emoji. Never name or guess who the people are, no hashtags, no quotation marks.
+
+Add them to the same JSON: "description":"<the sentence>","hashtags":["<tag>","<tag>"],"captions":["<line>","<line>","<line>"]`;
+
+// Lines to write on the shot, offered in «✍️»: tidied, 2–40 characters, three at most.
+export function captionIdeasOf(raw: unknown) {
+  const lines = (Array.isArray(raw) ? raw : [])
+    .map((l) => (typeof l === "string" ? l.replace(/[#"«»\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim() : ""))
+    .filter((l) => [...l].length >= 2 && [...l].length <= 40);
+  return [...new Set(lines)].slice(0, 3);
+}
 
 // The description and its hashtags as one line (≤150, a moment description's limit).
 export function aiTextOf(description: unknown, hashtags: unknown) {
@@ -143,7 +153,7 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
 
   const text = candidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   try {
-    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string; description?: unknown; hashtags?: unknown };
+    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string; description?: unknown; hashtags?: unknown; captions?: unknown };
     if (parsed.verdict === "block") {
       return { result: "blocked", category: String(parsed.category ?? "other").slice(0, 40), reason: String(parsed.reason ?? "").slice(0, 300) };
     }
@@ -153,7 +163,8 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
       // A name to offer when the moment was started without one (the creator may change it).
       const title = typeof parsed.title === "string" ? parsed.title.replace(/["«»#]/g, "").replace(/\s+/g, " ").trim().slice(0, 40) : "";
       const described = aiTextOf(parsed.description, parsed.hashtags);
-      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}), ...(described ? { text: described } : {}) };
+      const captions = captionIdeasOf(parsed.captions);
+      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}), ...(described ? { text: described } : {}), ...(captions.length ? { captions } : {}) };
     }
   } catch {}
   return { result: "error", reason: `unreadable answer: ${text.slice(0, 200)}` };

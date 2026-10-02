@@ -213,7 +213,7 @@ export async function completeAngle(user: User, angleId: string) {
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: true } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
   // Already done (a retry): report what happened the first time.
-  if (angle.status === "DRAFT" || angle.status === "READY" || (angle.status === "HIDDEN" && angle.screening === "blocked")) return Object.assign(angle, { titleSuggestion: null as string | null });
+  if (angle.status === "DRAFT" || angle.status === "READY" || (angle.status === "HIDDEN" && angle.screening === "blocked")) return Object.assign(angle, { titleSuggestion: null as string | null, captionIdeas: [] as string[] });
   if (angle.status !== "PROCESSING") throw new AngleError("forbidden");
 
   const needed = [angle.mediaPath, angle.thumbPath].filter((p): p is string => !!p);
@@ -244,6 +244,8 @@ export async function completeAngle(user: User, angleId: string) {
   const now = new Date();
   // The lens's name for the shot, offered when the moment was started without one.
   const titleSuggestion = verdict?.result === "allowed" ? (verdict.title ?? null) : null;
+  // …and lines to write on it («✍️»), offered right after upload (not kept).
+  const captionIdeas = verdict?.result === "allowed" ? (verdict.captions ?? []) : [];
   const saved = await db.$transaction(async (tx) => {
     const done = await tx.angle.update({
       where: { id: angle.id },
@@ -265,7 +267,7 @@ export async function completeAngle(user: User, angleId: string) {
     }
     return done;
   });
-  return Object.assign(saved, { titleSuggestion });
+  return Object.assign(saved, { titleSuggestion, captionIdeas });
 }
 
 // A moment just became public: angles added before (unchecked, or checked while the

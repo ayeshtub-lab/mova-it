@@ -1,7 +1,7 @@
 // Unit test for how Gemini's answers become a verdict (src/server/screening.ts).
 // Run: npx tsx tests/screening.test.ts — no network, no database: fetch is simulated.
 import assert from "node:assert/strict";
-import { aiTextOf, askGemini, likeness, RETRY_DELAYS_MS } from "../src/server/screening";
+import { aiTextOf, askGemini, captionIdeasOf, likeness, RETRY_DELAYS_MS } from "../src/server/screening";
 
 process.env.GEMINI_API_KEY = "test-key";
 // No real waiting between retries here.
@@ -103,6 +103,11 @@ async function main() {
     assert.deepEqual(await askGemini(["a"]), { result: "allowed", text: "غروب ذهبي فوق البحر الهادئ #غروب #بحر_هادئ" });
     assert.equal(aiTextOf("", ["x"]), "", "no sentence, no line");
     assert.ok(aiTextOf("ك".repeat(200), ["وسم".repeat(9), "ثاني"]).length <= 150);
+  });
+  await check("lines to write on the shot come tidied, 2–40 characters, three at most", async () => {
+    sequence([[200, answer(JSON.stringify({ verdict: "allow", category: "none", reason: "ok", captions: [" «أحلى  صبحية» ☕ ", "#ريحة_البلاد", "ك", "ك".repeat(41), "أحلى صبحية ☕", "لمّة ❤️", "رابع"] }))]]);
+    assert.deepEqual(await askGemini(["a"]), { result: "allowed", captions: ["أحلى صبحية ☕", "ريحة_البلاد", "لمّة ❤️"] });
+    assert.deepEqual(captionIdeasOf("not a list"), []);
   });
   await check("still busy after three tries: an error, not a verdict", async () => {
     const calls = sequence([[503, { error: { message: "busy" } }]]);
