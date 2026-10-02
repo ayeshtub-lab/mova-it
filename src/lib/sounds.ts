@@ -60,17 +60,13 @@ export const SOUNDS: Sound[] = [
   { key: "s09", cat: "spiritual", ar: "دعاء للعروسين", en: "A prayer for the newlyweds", seconds: 9.8, credit: null },
   { key: "s10", cat: "spiritual", ar: "الحمد لله الذي بنعمته تتم الصالحات", en: "Alhamdulillah for good news", seconds: 7.5, credit: null },
   { key: "s11", cat: "spiritual", ar: "تقبّل الله منا ومنكم", en: "Eid greeting", seconds: 7.5, credit: null },
-  // Duaas recorded for Zawmo (voice disguised, or a checked AI voice) over a soft drone and a
+  // Duaas recorded for Zawmo (an AI voice, its wording checked word by word) over a soft drone and a
   // public-domain/CC0 nature sound from this library; each 40 s at most.
-  { key: "s13", cat: "spiritual", ar: "اللهم اجعلني شكورًا", en: "O Allah, make me grateful", seconds: 11.7, credit: null },
-  { key: "s14", cat: "spiritual", ar: "اللهم اجعلني شكورًا (صوت هادئ)", en: "O Allah, make me grateful (calm voice)", seconds: 19.3, credit: null },
-  { key: "s15", cat: "spiritual", ar: "اللهم ارفع ذكري وضع وزري", en: "Raise my mention, lift my burden", seconds: 21.3, credit: null },
-  { key: "s16", cat: "spiritual", ar: "اللهم ارفع ذكري وضع وزري (صوت هادئ)", en: "Raise my mention, lift my burden (calm voice)", seconds: 29.5, credit: null },
-  { key: "s17", cat: "spiritual", ar: "أعوذ بك من الجوع والكسل", en: "Refuge from hunger and laziness", seconds: 35.1, credit: null },
-  { key: "s18", cat: "spiritual", ar: "أعوذ بك من الجوع والخيانة (صوت هادئ)", en: "Refuge from hunger and betrayal (calm voice)", seconds: 20.2, credit: null },
-  { key: "s19", cat: "spiritual", ar: "اللهم أنت الأول فليس قبلك شيء (صوت هادئ)", en: "You are the First (calm voice)", seconds: 40, credit: null },
-  { key: "s20", cat: "spiritual", ar: "دعاء الكرب", en: "Duaa in distress", seconds: 16.1, credit: null },
-  { key: "s21", cat: "spiritual", ar: "دعاء الكرب (صوت هادئ)", en: "Duaa in distress (calm voice)", seconds: 23.3, credit: null },
+  { key: "s14", cat: "spiritual", ar: "اللهم اجعلني شكورًا", en: "O Allah, make me grateful", seconds: 19.3, credit: null },
+  { key: "s16", cat: "spiritual", ar: "اللهم ارفع ذكري وضع وزري", en: "Raise my mention, lift my burden", seconds: 29.5, credit: null },
+  { key: "s18", cat: "spiritual", ar: "أعوذ بك من الجوع والخيانة", en: "Refuge from hunger and betrayal", seconds: 20.2, credit: null },
+  { key: "s19", cat: "spiritual", ar: "اللهم أنت الأول فليس قبلك شيء", en: "You are the First", seconds: 40, credit: null },
+  { key: "s21", cat: "spiritual", ar: "دعاء الكرب", en: "Duaa in distress", seconds: 23.3, credit: null },
   { key: "s12", cat: "wisdom", ar: "الصبر مفتاح الفرج", en: "Patience is the key", seconds: 9.6, credit: null },
   { key: "t03", cat: "funny", ar: "ههههه لا والله؟!", en: "Hahaha, no way?!", seconds: 2.7, credit: null },
   { key: "t04", cat: "funny", ar: "يا سلااام!", en: "Ya salaam!", seconds: 3.3, credit: null },
