@@ -499,6 +499,13 @@ export function AngleGallery({
   }
 
   async function shareAngle(a: GalleryAngle) {
+    // Your own video goes out with the Zawmo mark (made in the background when it opened).
+    if (a.isMine && a.mediaType === "VIDEO") {
+      const mine = branded?.id === a.id ? branded : null;
+      if (mine?.file) return shareBranded(mine.file);
+      if (!mine) prepareBranded(a);
+      return flash(labels.branded.working);
+    }
     fetch(`/api/angles/${a.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
     const url = `${share.url}#angle-${a.id}`;
     if (navigator.share) {
@@ -516,7 +523,7 @@ export function AngleGallery({
   // Made on the server, then kept here as a file: the phone's share sheet needs a fresh tap
   // (iPhone refuses a share after a wait), so a first tap prepares, a second one shares.
   const [branded, setBranded] = useState<{ id: string; file: File | null } | null>(null);
-  async function prepareBranded(a: GalleryAngle) {
+  async function prepareBranded(a: GalleryAngle, quiet = false) {
     setBranded({ id: a.id, file: null });
     try {
       const res = await fetch(`/api/angles/${a.id}/branded`, { method: "POST" });
@@ -527,9 +534,18 @@ export function AngleGallery({
       setBranded((b) => (b?.id === a.id ? { id: a.id, file: new File([blob], `zawmo-${code}.mp4`, { type: "video/mp4" }) } : b));
     } catch {
       setBranded(null);
-      flash(labels.branded.failed);
+      if (!quiet) flash(labels.branded.failed);
     }
   }
+  // Your own video on screen: get its stamped copy ready, so the share arrow sends it at once
+  // (a phone refuses to share after a wait — the file must be here before the tap).
+  useEffect(() => {
+    const a = angles[current];
+    if (!opened || !a?.isMine || a.mediaType !== "VIDEO" || branded?.id === a.id) return;
+    prepareBranded(a, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per video on screen
+  }, [current, opened]);
+
   async function shareBranded(file: File) {
     fetch(`/api/angles/${branded?.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
     if (navigator.canShare?.({ files: [file] })) {
@@ -761,24 +777,6 @@ export function AngleGallery({
                 )}
                 <CaptionOverlay caption={captionOf(a.id)} framed />
 
-                {rain?.angleId === a.id && (
-                  // Its own layer, above the video: phones draw a playing video over moving
-                  // things that have none, and the hearts were lost behind it.
-                  <div key={rain.key} aria-hidden="true" className="pointer-events-none absolute inset-0 z-20 overflow-hidden [transform:translateZ(0)]">
-                    {rain.drops.map((d, i) => (
-                      <span
-                        key={i}
-                        className="heart-fall absolute top-0 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-black/45 py-1 pe-3 ps-1.5 text-xs font-bold text-white opacity-0 backdrop-blur-sm will-change-transform"
-                        style={{ left: `${d.left}%`, animationDelay: `${d.delay}s`, ["--fall" as string]: `${d.fall}s`, ["--sway" as string]: `${d.sway}px` }}
-                      >
-                        <svg viewBox="0 0 24 24" className="size-5 fill-accent">
-                          <path d={HEART} />
-                        </svg>
-                        {d.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
                 {/* The tap area over the picture: double-tap to like, tap a video to pause. */}
                 <div
                   aria-hidden="true"
@@ -949,6 +947,25 @@ export function AngleGallery({
           })}
         </div>
 
+        {/* Falling hearts with names: one layer over the whole viewer, above any playing video
+            (phones draw a video over what sits beside it inside the slide). */}
+        {rain && angles[current]?.id === rain.angleId && (
+          <div key={rain.key} aria-hidden="true" className="pointer-events-none fixed inset-0 z-50 overflow-hidden [transform:translateZ(0)]">
+            {rain.drops.map((d, i) => (
+              <span
+                key={i}
+                className="heart-fall absolute top-0 flex items-center gap-1.5 whitespace-nowrap rounded-full bg-black/45 py-1 pe-3 ps-1.5 text-xs font-bold text-white opacity-0 backdrop-blur-sm will-change-transform"
+                style={{ left: `${d.left}%`, animationDelay: `${d.delay}s`, ["--fall" as string]: `${d.fall}s`, ["--sway" as string]: `${d.sway}px` }}
+              >
+                <svg viewBox="0 0 24 24" className="size-5 fill-accent">
+                  <path d={HEART} />
+                </svg>
+                {d.name}
+              </span>
+            ))}
+          </div>
+        )}
+
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-3">
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-black/50 px-3 py-1 text-sm font-bold" aria-live="polite">
@@ -983,20 +1000,6 @@ export function AngleGallery({
                 {labels.edit.open}
               </button>
             )}
-            {angles[current]?.isMine && angles[current].mediaType === "VIDEO" && (() => {
-              const a = angles[current];
-              const mine = branded?.id === a.id ? branded : null;
-              return (
-                <button
-                  type="button"
-                  disabled={!!mine && !mine.file}
-                  onClick={() => (mine?.file ? shareBranded(mine.file) : prepareBranded(a))}
-                  className="pointer-events-auto flex min-h-11 items-center gap-1 rounded-full bg-accent/90 px-3 text-sm font-bold disabled:opacity-80"
-                >
-                  {mine ? (mine.file ? labels.branded.share : labels.branded.working) : labels.branded.make}
-                </button>
-              );
-            })()}
             {canReact && angles[current] && !angles[current].isMine && (
               <button
                 type="button"

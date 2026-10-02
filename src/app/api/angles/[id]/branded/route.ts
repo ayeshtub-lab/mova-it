@@ -11,7 +11,7 @@ export const maxDuration = 300;
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const slow = await limited("montage", request, user.id);
+  const slow = await limited("branded", request, user.id);
   if (slow) return slow;
   // The public host the visitor used, for the link burnt into the video.
   const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;

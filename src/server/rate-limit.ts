@@ -20,6 +20,7 @@ export const LIMITS = {
   moment: [30, 3600], // new moments
   invite: [60, 3600],
   montage: [20, 3600], // a montage render is heavy (ffmpeg)
+  branded: [60, 3600], // your stamped video, got ready whenever it is on screen (made once, then kept)
   avatar: [20, 3600], // checked by Gemini
   caption: [60, 3600], // checked by Gemini when public
   details: [30, 3600], // a public description is checked by Gemini

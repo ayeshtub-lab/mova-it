@@ -57,7 +57,10 @@ export function StreamVideo({ file, hls, load = true, ref, ...props }: Props) {
         player.loadSource(hls);
         player.attachMedia(video);
         const start = () => player.startLoad();
-        if (lazy) video.addEventListener("play", start, { once: true });
+        // Asked to play before hls.js arrived (the viewer plays at once): start now — the
+        // «play» event already went by, and waiting for it left the video frozen.
+        if (lazy && !video.paused) start();
+        else if (lazy) video.addEventListener("play", start, { once: true });
         stop = () => {
           video.removeEventListener("play", start);
           player.destroy();
