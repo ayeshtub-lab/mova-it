@@ -47,6 +47,18 @@ export default async function AdminPage() {
     <div className="flex flex-1 flex-col px-4 sm:px-8">
       <SiteHeader locale={locale} dict={dict} />
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-4 pb-16">
+        {/* The dashboards first, always in sight (the daily-theme forms are long). */}
+        <nav className="grid grid-cols-3 gap-2">
+          <Link href="/admin/stats" className="flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-secondary px-2 py-2 text-center text-sm font-extrabold text-white dark:text-background">
+            <span className="text-2xl">📊</span>لوحة القياس
+          </Link>
+          <Link href="/admin/members" className="flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-surface px-2 py-2 text-center text-sm font-extrabold">
+            <span className="text-2xl">👥</span>الأعضاء
+          </Link>
+          <Link href="/admin/daily" className="flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-surface px-2 py-2 text-center text-sm font-extrabold">
+            <span className="text-2xl">🎬</span>فيديو اليوم
+          </Link>
+        </nav>
         <section className="flex flex-col gap-3 rounded-3xl border border-line p-4">
           <h2 className="text-lg font-extrabold">☀️ لحظة اليوم</h2>
           {(
@@ -82,17 +94,6 @@ export default async function AdminPage() {
           ))}
         </section>
 
-        <nav className="grid grid-cols-3 gap-2">
-          <Link href="/admin/stats" className="flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-secondary px-2 py-2 text-center text-sm font-extrabold text-white dark:text-background">
-            <span className="text-2xl">📊</span>لوحة القياس
-          </Link>
-          <Link href="/admin/members" className="flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-surface px-2 py-2 text-center text-sm font-extrabold">
-            <span className="text-2xl">👥</span>الأعضاء
-          </Link>
-          <Link href="/admin/daily" className="flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-surface px-2 py-2 text-center text-sm font-extrabold">
-            <span className="text-2xl">🎬</span>فيديو اليوم
-          </Link>
-        </nav>
         <h1 className="text-2xl font-extrabold">الإشراف · {items.length} بلاغ مفتوح</h1>
         {items.length === 0 && <p className="rounded-2xl bg-surface p-6 text-center text-muted">لا توجد بلاغات مفتوحة 🎉</p>}
         {items.map((item) => (

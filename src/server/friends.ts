@@ -100,6 +100,9 @@ export async function friendsActivity(user: User, limit = 10): Promise<ActivityI
           creatorId: { in: friendIds },
           createdAt: { gt: since },
           status: "ACTIVE",
+          // «لحظة اليوم» has its own card at the top, and the account that starts it is no friend.
+          kind: { not: "DAILY" },
+          creator: { isSystem: false },
           visibility: { in: ["FRIENDS", "PUBLIC"] },
           participants: { none: { userId: user.id } },
         },

@@ -180,7 +180,7 @@
     "visibilityLink": "Only people with the link",
     "visibilityLinkHint": "Nobody sees it unless you send them the link.",
     "visibilityPublic": "Everyone 🌍",
-    "visibilityPublicHint": "Shows in Discover for every signed-in Zawmo user. Every photo is checked automatically.",
+    "visibilityPublicHint": "Everyone can see it: in Discover, visitors, and Google search results. Every photo is checked automatically.",
     "publicLockedHint": "Want everyone to see your shot? Sign in with Google in a second to make it public — everything you made as a guest stays with you.",
     "descriptionLabel": "Short description (optional)",
     "descriptionPlaceholder": "e.g. First winter sunset #sea #sunset",
@@ -405,6 +405,7 @@
     "youSent": "You sent “{title}” to {name}",
     "you": "You: ",
     "noReply": "No replies yet",
+    "sentQuiet": "📤 Moments you sent, no reply yet ({n})",
     "back": "Inbox",
     "withName": "With {name}",
     "openMoment": "Open moment",
@@ -579,7 +580,9 @@
   "tag": {
     "title": "#{tag}",
     "hint": "Public moments with this hashtag",
-    "empty": "No public moments with this hashtag yet."
+    "empty": "No public moments with this hashtag yet.",
+    "metaTitle": "#{tag} — real photos and moments | Zawmo",
+    "metaDescription": "Photos and videos of #{tag} from real people on Zawmo: {titles}. One moment, from every angle."
   },
   "sounds": {
     "title": "🎵 Pick a sound",
@@ -610,6 +613,9 @@
     "uses": "{n} uses",
     "by": "Sound by {author}",
     "byZawmo": "Sound by Zawmo",
+    "metaTitle": "{name} — a free sound for your photos and videos | Zawmo",
+    "metaTitleQuran": "{name} — recited by Sheikh Mishary Alafasy, for your photos and videos | Zawmo",
+    "metaDescription": "Listen to «{name}» ({cat}) and put it on your photos and videos on Zawmo for free, copyright-free, and see the shots that use it.",
     "license": "License: {license}",
     "source": "Source",
     "empty": "No public shots with this sound yet. Be the first!",

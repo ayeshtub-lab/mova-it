@@ -5,7 +5,7 @@
 import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
-import { listDiscover, publicShowcase } from "../src/server/discover";
+import { listDiscover, listTag, publicShowcase } from "../src/server/discover";
 import { latestMontageFor } from "../src/server/montage";
 import { dailyShots } from "../src/server/daily-video";
 
@@ -76,6 +76,16 @@ async function main() {
       await mk(person.id, { screening: "blocked" });
       await mk(person.id, { status: "HIDDEN" });
       assert.deepEqual((await dailyShots(day.id)).map((a) => a.id), [ok.id]);
+    });
+    await check("a hashtag page opens for visitors, and finds tags in a shot's line too", async () => {
+      const m = await moment({ description: "عشاء #زيتون_تست" });
+      const n2 = await moment({});
+      await shots(m.id, 1);
+      const [s2] = await shots(n2.id, 1);
+      await db.angle.update({ where: { id: s2.id }, data: { aiText: "صحن زيتون أخضر #زيتون_تست #مطبخ" } });
+      const codes = (await listTag(null, "زيتون_تست")).map((x) => x.code).sort();
+      assert.deepEqual(codes, [m.code, n2.code].sort());
+      assert.deepEqual(await listTag(null, "زيتون"), [], "exact tags only");
     });
   } finally {
     await db.montage.deleteMany({ where: { moment: { creatorId: { in: ids } } } });

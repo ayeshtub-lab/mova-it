@@ -11,7 +11,7 @@ import { sceneCards } from "@/server/places";
 import { SCENES, type Scene } from "@/lib/scenes";
 import { DiscoverFeed } from "./DiscoverFeed";
 
-export const metadata = { robots: { index: false } };
+export const metadata = { title: "اكتشف · زاومو", robots: { index: false } };
 
 // «اكتشف»: public moments, open to everyone to watch. The top (a title with live numbers,
 // the week's trending videos) scrolls away into the moments; a trending video opens a

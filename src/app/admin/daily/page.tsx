@@ -10,6 +10,7 @@ export const metadata = { title: "زاومو · فيديو لحظة اليوم",
 export const dynamic = "force-dynamic";
 
 const num = (n: number) => new Intl.NumberFormat("ar-EG").format(n);
+const photos = (n: number) => (n === 1 ? "صورة واحدة" : n === 2 ? "صورتين" : n >= 3 && n <= 10 ? `${num(n)} صور` : `${num(n)} صورة`);
 const dayAr = (d: Date) => new Intl.DateTimeFormat("ar-EG", { weekday: "long", day: "numeric", month: "short", timeZone: "Asia/Riyadh" }).format(d);
 
 export default async function DailyVideoPage() {
@@ -38,7 +39,7 @@ export default async function DailyVideoPage() {
                   {d.title}
                 </Link>
                 <span className="text-xs text-muted">
-                  {dayAr(d.createdAt)} · {num(d.inFilm)} صورة بالفيديو من {num(d.shots)}
+                  {dayAr(d.createdAt)} · {photos(d.inFilm)} بالفيديو من {num(d.shots)}
                 </span>
               </span>
               {d.inFilm >= DAILY_MIN_SHOTS ? (
@@ -46,7 +47,7 @@ export default async function DailyVideoPage() {
                   ⬇️ الفيديو
                 </a>
               ) : (
-                <span className="shrink-0 text-xs text-muted">بدها {num(DAILY_MIN_SHOTS)} صور</span>
+                <span className="shrink-0 text-xs text-muted">بدها {photos(DAILY_MIN_SHOTS)}</span>
               )}
             </li>
           ))}

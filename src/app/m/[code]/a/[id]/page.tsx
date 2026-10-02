@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]/a/[id]">
   const description = describe(shot, dict, locale);
   const image = `/i/${shot.id}.jpg`;
   return {
-    title: `${title} · ${dict.meta.brand}`,
+    title: title.endsWith(dict.meta.brand) ? title : `${title} · ${dict.meta.brand}`,
     description,
     alternates: { canonical: shotPath(shot) },
     openGraph: { title, description, type: "website", siteName: dict.meta.brand, images: [{ url: image, alt: title }] },

@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: PageProps<"/u/[id]">): Promis
   const profile = await getProfile(await getCurrentUser(), (await params).id);
   if (!profile) return {};
   const dict = await getDictionary(await getLocale());
-  return { title: `${profile.displayName} · ${dict.meta.brand}`, robots: { index: false } };
+  return { title: profile.displayName === dict.meta.brand ? dict.meta.brand : `${profile.displayName} · ${dict.meta.brand}`, robots: { index: false } };
 }
 
 async function rename(_prev: RenameState, formData: FormData): Promise<RenameState> {

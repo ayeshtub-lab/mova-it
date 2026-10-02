@@ -1,20 +1,38 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { cache } from "react";
 import { SiteHeader } from "@/app/SiteHeader";
 import { plural } from "@/i18n/plural";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { listTag } from "@/server/discover";
 
-export const metadata = { robots: { index: false } };
+// What a visitor sees (and a search engine): the same list for everyone not signed in.
+const visitorList = cache((tag: string) => listTag(null, tag));
+// A page worth listing in search: a few moments at least, else it stays out of the index.
+const INDEX_FROM = 3;
 
-// #hashtag: the public moments whose description carries it. Like «اكتشف», for
-// official accounts; others go to its sign-in invitation.
+export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Promise<Metadata> {
+  const tag = decodeURIComponent((await params).tag);
+  const [locale, moments] = await Promise.all([getLocale(), visitorList(tag)]);
+  const dict = await getDictionary(locale);
+  const title = dict.tag.metaTitle.replace("{tag}", tag);
+  const description = dict.tag.metaDescription.replace("{tag}", tag).replace("{titles}", moments.slice(0, 4).map((m) => m.title).join("، "));
+  return {
+    title,
+    description,
+    alternates: { canonical: `/tag/${encodeURIComponent(tag)}` },
+    robots: { index: moments.length >= INDEX_FROM, follow: true },
+    openGraph: { title, description, type: "website" },
+  };
+}
+
+// #hashtag: the public moments where it appears (a description, or a shot's line) — open to
+// everyone, since every hashtag on the site links here.
 export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
   const tag = decodeURIComponent((await params).tag);
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
-  if (!user || user.isGuest) redirect("/discover");
-  const [dict, moments] = await Promise.all([getDictionary(locale), listTag(user, tag)]);
+  const [dict, moments] = await Promise.all([getDictionary(locale), user ? listTag(user, tag) : visitorList(tag)]);
   const t = dict.tag;
 
   return (
@@ -34,7 +52,7 @@ export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
                 <Link href={`/m/${m.code}`} className="group relative block aspect-[3/4] overflow-hidden rounded-2xl bg-surface">
                   {m.coverUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
-                    <img src={m.coverUrl} alt="" loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
+                    <img src={m.coverUrl} alt={`${m.title} — #${tag}`} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
                   ) : (
                     <span aria-hidden="true" className="block size-full bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
                   )}

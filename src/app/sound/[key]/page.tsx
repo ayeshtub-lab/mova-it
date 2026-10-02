@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -6,6 +7,17 @@ import { getCurrentUser } from "@/lib/session";
 import { isQuran, SOUND_CATEGORIES, soundByKey, soundFile, soundName } from "@/lib/sounds";
 import { soundShots, soundUses } from "@/server/sounds";
 import { PlaySound, UseSoundButton } from "./UseSound";
+
+export async function generateMetadata({ params }: PageProps<"/sound/[key]">): Promise<Metadata> {
+  const sound = soundByKey((await params).key);
+  if (!sound) return {};
+  const locale = await getLocale();
+  const t = (await getDictionary(locale)).sounds;
+  const name = soundName(sound, locale);
+  const title = (isQuran(sound) ? t.metaTitleQuran : t.metaTitle).replace("{name}", name);
+  const description = t.metaDescription.replace("{name}", name).replace("{cat}", t.cats[sound.cat]);
+  return { title, description, alternates: { canonical: `/sound/${sound.key}` }, openGraph: { title, description, type: "website" } };
+}
 
 // A sound's page (the spinning disc in the viewer leads here): listen, who made it and
 // under which license, how many shots use it, its public shots, and «Use this sound».

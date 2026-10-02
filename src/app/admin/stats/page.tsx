@@ -201,7 +201,7 @@ export default async function StatsPage() {
                     <span className="truncate">
                       {num(i + 1)}. {m.title}
                     </span>
-                    <span className="shrink-0 text-sm text-muted tabular-nums">{num(m.shots)} لقطة</span>
+                    <span className="shrink-0 text-sm text-muted tabular-nums">{m.shots === 1 ? "لقطة واحدة" : m.shots === 2 ? "لقطتان" : m.shots >= 3 && m.shots <= 10 ? `${num(m.shots)} لقطات` : `${num(m.shots)} لقطة`}</span>
                   </Link>
                 </li>
               ))}
