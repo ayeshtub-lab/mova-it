@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { viewUrl } from "@/server/media";
 import { ffmpeg } from "@/server/ffmpeg";
 import { isScene, SCENES, type Scene } from "@/lib/scenes";
+import { recordGemini } from "@/server/costs";
 
 // Automatic content check with Gemini, run when an upload completes. Photos are sent
 // as they are (already ≤2048 px JPEG); for videos, four frames spread over the clip
@@ -18,7 +19,7 @@ const TIMEOUT_MS = 25_000;
 // hidden until an admin looks at it.
 const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
 export const RETRY_DELAYS_MS = [1500, 4500];
-export async function callGemini({ body }: { body: string }) {
+export async function callGemini({ body, purpose = "other" }: { body: string; purpose?: string }) {
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
       method: "POST",
@@ -26,6 +27,7 @@ export async function callGemini({ body }: { body: string }) {
       signal: AbortSignal.timeout(TIMEOUT_MS),
       body,
     });
+    if (res.ok) recordGemini(purpose, res); // counted for «💰 التكاليف»
     if (res.ok || !RETRY_STATUS.has(res.status) || attempt >= RETRY_DELAYS_MS.length) return res;
     await res.body?.cancel().catch(() => {});
     await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[attempt]));
@@ -115,6 +117,7 @@ async function videoFrames(url: string, durationSec: number | null) {
 
 export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
   const res = await callGemini({
+    purpose: "screening",
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: PROMPT + DESCRIBE }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
       generationConfig: { temperature: 0, responseMimeType: "application/json" },
@@ -185,6 +188,7 @@ export async function screenText(text: string): Promise<Verdict> {
   if (!screeningEnabled()) return { result: "error", reason: "screening off" };
   try {
     const res = await callGemini({
+    purpose: "text",
       body: JSON.stringify({
         contents: [
           {
@@ -238,6 +242,7 @@ export async function likeness(mine: string, others: string[]): Promise<Likeness
   if (!screeningEnabled() || !others.length) return none;
   try {
     const res = await callGemini({
+    purpose: "lens",
       body: JSON.stringify({
         // Every picture labelled with its number: counting unlabelled pictures, the model
         // sometimes answered one short (5 answers for 6 pictures) and the whole check was lost.
