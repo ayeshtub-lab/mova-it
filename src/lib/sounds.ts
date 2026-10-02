@@ -8,7 +8,7 @@
 // otherwise untouched. Keys are stored in the database — add freely, never rename or
 // remove a key that has been used.
 
-export type SoundCategory = "quran" | "nature" | "spiritual" | "wisdom" | "funny" | "warm" | "daf" | "calm" | "occasions" | "people";
+export type SoundCategory = "quran" | "nature" | "spiritual" | "nasheed" | "wisdom" | "funny" | "warm" | "daf" | "calm" | "occasions" | "people";
 type Credit = { author: string; license: string; url: string };
 export type Sound = { key: string; cat: SoundCategory; ar: string; en: string; seconds: number; credit: Credit | null };
 
@@ -67,6 +67,10 @@ export const SOUNDS: Sound[] = [
   { key: "s18", cat: "spiritual", ar: "أعوذ بك من الجوع والخيانة", en: "Refuge from hunger and betrayal", seconds: 20.2, credit: null },
   { key: "s19", cat: "spiritual", ar: "اللهم أنت الأول فليس قبلك شيء", en: "You are the First", seconds: 40, credit: null },
   { key: "s21", cat: "spiritual", ar: "دعاء الكرب", en: "Duaa in distress", seconds: 23.3, credit: null },
+  // Nasheeds made for Zawmo: our own words, a new melody generated with Google Lyria (checked
+  // against the song that inspired its feel: no shared melody or words); each 40 s at most.
+  { key: "h01", cat: "nasheed", ar: "عليكَ سلامْ (ابتسامته)", en: "Peace be upon you (his smile)", seconds: 39.2, credit: null },
+  { key: "h02", cat: "nasheed", ar: "عليكَ سلامْ (طَيبة)", en: "Peace be upon you (Taybah)", seconds: 39.2, credit: null },
   { key: "s12", cat: "wisdom", ar: "الصبر مفتاح الفرج", en: "Patience is the key", seconds: 9.6, credit: null },
   { key: "t03", cat: "funny", ar: "ههههه لا والله؟!", en: "Hahaha, no way?!", seconds: 2.7, credit: null },
   { key: "t04", cat: "funny", ar: "يا سلااام!", en: "Ya salaam!", seconds: 3.3, credit: null },
@@ -99,6 +103,7 @@ export const SOUND_CATEGORIES: { key: SoundCategory; emoji: string }[] = [
   { key: "quran", emoji: "🕋" },
   { key: "nature", emoji: "🌿" },
   { key: "spiritual", emoji: "🤲" },
+  { key: "nasheed", emoji: "🎙️" },
   { key: "wisdom", emoji: "📜" },
   { key: "funny", emoji: "😂" },
   { key: "warm", emoji: "🤍" },
@@ -115,8 +120,8 @@ const peopleSound = (key: string): Sound => ({ key, cat: "people", ar: "🎤 ص�
 export const soundByKey = (key: string | null | undefined) => (key ? (BY_KEY.get(key) ?? (isPeopleKey(key) ? peopleSound(key) : null)) : null);
 export const soundName = (s: Sound, locale: string) => (locale === "ar" ? s.ar : s.en);
 export const soundFile = (key: string) => (isPeopleKey(key) ? `/sounds/u/${key}.mp3` : `/sounds/${key}.mp3`);
-// Quran, remembrance and wisdom are heard alone: a video's own sound is always muted under them.
-export const isSolemn = (s: Sound | null) => s?.cat === "quran" || s?.cat === "spiritual" || s?.cat === "wisdom";
+// Quran, remembrance, nasheeds and wisdom are heard alone: a video's own sound is always muted under them.
+export const isSolemn = (s: Sound | null) => s?.cat === "quran" || s?.cat === "spiritual" || s?.cat === "nasheed" || s?.cat === "wisdom";
 // A verse is heard once, never looped, and never cut short.
 export const isQuran = (s: Sound | null) => s?.cat === "quran";
 // «Use this sound» on a sound's page leaves its key in the browser for the next upload.

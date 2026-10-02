@@ -11,7 +11,7 @@ const keys = Object.keys(data);
 
 test("every sound with words is in the library, and every verse and remembrance has words", () => {
   for (const key of keys) assert.ok(soundByKey(key), `${key} is not a library sound`);
-  for (const s of SOUNDS) if (s.cat === "quran" || s.cat === "spiritual" || s.cat === "wisdom") assert.ok(lyricsOf(s.key), `${s.key} has no words`);
+  for (const s of SOUNDS) if (s.cat === "quran" || s.cat === "spiritual" || s.cat === "nasheed" || s.cat === "wisdom") assert.ok(lyricsOf(s.key), `${s.key} has no words`);
   for (const key of keys) assert.equal(!!lyricsOf(key)?.quran, isQuran(soundByKey(key)), `${key}: verse flag`);
 });
 
