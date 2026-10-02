@@ -10,6 +10,7 @@ import { currentUnread } from "@/server/inbox";
 import { ActivityPing } from "./ActivityPing";
 import { PresencePing } from "./PresencePing";
 import { BottomNav } from "./BottomNav";
+import { FreshVersion } from "@/app/FreshVersion";
 import "./globals.css";
 
 const cairo = Cairo({
@@ -49,6 +50,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${cairo.variable} ${syne.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
+        <FreshVersion />
         {children}
         {user && <ActivityPing userId={user.id} />}
         <PresencePing />

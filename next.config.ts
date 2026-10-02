@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
+  // The version this build is (the commit), so an open page can tell a newer one is out.
+  env: { NEXT_PUBLIC_BUILD: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev" },
   // Required at runtime from node_modules (it locates its binary relative to itself).
   serverExternalPackages: ["ffmpeg-static"],
   outputFileTracingIncludes: {
