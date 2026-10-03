@@ -93,6 +93,9 @@ async function download(url: string, file: string) {
 // join cleanly, with that angle's overlay burnt in.
 const COVER = `scale=${FRAME.width}:${FRAME.height}:force_original_aspect_ratio=increase,crop=${FRAME.width}:${FRAME.height},setsar=1,fps=${FPS},format=yuv420p`;
 const ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "44100", "-ac", "2"];
+// The pieces a film is cut from (each shot, the cards, a shot with its sound): encoded as fast as
+// possible — they are encoded again into the film itself — so a big film fits the server's time.
+const PIECE = ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "44100", "-ac", "2"];
 
 // The shot's look (src/lib/filters.ts) goes right after the crop, before the overlay.
 const look = (filter: string | null) => `,${filterByKey(filter)?.ffmpeg ?? GRADE}`;
@@ -131,7 +134,7 @@ async function photoSegment(input: string, overlay: string, out: string, filter:
     "-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=44100:cl=stereo",
     ...captionInput(caption),
     "-filter_complex", `${withCaption(`[0:v]${moving}${look(filter)}`, caption, 3)}[b];[b][1:v]overlay=0:0[v]`,
-    "-map", "[v]", "-map", "2:a", ...ENCODE, "-t", String(seconds), out,
+    "-map", "[v]", "-map", "2:a", ...PIECE, "-t", String(seconds), out,
   ]);
   return seconds;
 }
@@ -144,7 +147,7 @@ async function cardSegment(card: string, out: string, seconds: number) {
     "-i", card,
     "-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=44100:cl=stereo",
     "-filter_complex", `[0:v]${BIG},${motion(0, frames, 0.06)}[v]`,
-    "-map", "[v]", "-map", "1:a", ...ENCODE, "-t", String(seconds), out,
+    "-map", "[v]", "-map", "1:a", ...PIECE, "-t", String(seconds), out,
   ]);
   return seconds;
 }
@@ -184,7 +187,7 @@ async function videoSegment(input: string, overlay: string, out: string, filter:
     "-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=44100:cl=stereo",
     ...captionInput(caption),
     "-filter_complex", `${withCaption(`[0:v]${COVER}${look(filter)}`, caption, 3)}[b];[b][1:v]overlay=0:0[v]`,
-    "-map", "[v]", "-map", hasAudio ? "0:a:0" : "2:a", ...ENCODE, "-shortest", out,
+    "-map", "[v]", "-map", hasAudio ? "0:a:0" : "2:a", ...PIECE, "-shortest", out,
   ]);
   return seconds;
 }
@@ -229,7 +232,7 @@ async function withShotSound(segment: string, soundPath: string, sound: Sound, m
     await ffmpeg([
       "-i", segment, "-i", soundPath, ...(words?.inputs ?? []),
       "-filter_complex", `[0:v]tpad=stop_mode=clone:stop_duration=${(total - seconds).toFixed(2)}[${words ? "vt" : "v"}];${words ? `${words.graph};` : ""}[0:a]anullsink;[1:a]aresample=44100,apad=whole_dur=${total.toFixed(2)}[a]`,
-      "-map", "[v]", "-map", "[a]", ...ENCODE, "-t", total.toFixed(2), out,
+      "-map", "[v]", "-map", "[a]", ...PIECE, "-t", total.toFixed(2), out,
     ]);
     return total;
   }
@@ -243,7 +246,7 @@ async function withShotSound(segment: string, soundPath: string, sound: Sound, m
     "-i", segment, "-stream_loop", "-1", "-i", soundPath, ...(words?.inputs ?? []),
     "-filter_complex", words ? `${words.graph};${mix}` : mix,
     // (Without words the picture is copied as it is.)
-    ...(words ? ["-map", "[v]", "-map", "[a]", ...ENCODE] : ["-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-ar", "44100", "-ac", "2"]),
+    ...(words ? ["-map", "[v]", "-map", "[a]", ...PIECE] : ["-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-ar", "44100", "-ac", "2"]),
     "-t", s, out,
   ]);
   return seconds;
@@ -402,7 +405,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   const output = join(dir, "montage.mp4");
   const inputs = segments.flatMap((s) => ["-i", s]);
   const run = (g: string) =>
-    ffmpeg([...inputs, ...soundInput, ...(words?.inputs ?? []), "-filter_complex", `${g}${words ? `;${words.graph}` : ""};${mix}`, "-map", words ? "[vw]" : "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output], 240_000);
+    ffmpeg([...inputs, ...soundInput, ...(words?.inputs ?? []), "-filter_complex", `${g}${words ? `;${words.graph}` : ""};${mix}`, "-map", words ? "[vw]" : "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output], 600_000);
   try {
     await run(graph);
   } catch (error) {
@@ -485,7 +488,7 @@ export async function buildBrandedShot(
     "-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=44100:cl=stereo",
     ...captionInput(caption),
     "-filter_complex", `${withCaption(base, caption, 3)}[b2];[b2][1:v]overlay=0:0[v]`,
-    "-map", "[v]", "-map", hasAudio ? "0:a:0" : "2:a", ...ENCODE, "-t", String(seconds), body,
+    "-map", "[v]", "-map", hasAudio ? "0:a:0" : "2:a", ...PIECE, "-t", String(seconds), body,
   ], 240_000);
 
   // The sound its owner put on it, as everywhere else on Zawmo (a verse whole, the clip's own
@@ -506,6 +509,6 @@ export async function buildBrandedShot(
   const durations = [shotSeconds, await cardSegment(card, outro, OUTRO_SECONDS)];
   const { graph } = joinGraph(durations, TRANSITION, ["fade"], "v");
   const output = join(dir, "zawmo.mp4");
-  await ffmpeg(["-i", shotBody, "-i", outro, "-filter_complex", `${graph};[orig]anull[a]`, "-map", "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output], 240_000);
+  await ffmpeg(["-i", shotBody, "-i", outro, "-filter_complex", `${graph};[orig]anull[a]`, "-map", "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output], 600_000);
   return output;
 }

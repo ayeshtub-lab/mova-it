@@ -5,7 +5,8 @@ import { MontageError, newShotsVideoUrl } from "@/server/montage";
 import { limited } from "@/server/rate-limit";
 
 // Made inside the request (it is short, and kept once made).
-export const maxDuration = 300;
+// A moment's film may be made here (big films take minutes on the server).
+export const maxDuration = 800;
 
 // «🆕 فيديو الجديد»: a short film of the shots the latest version of the moment's video added.
 // Returns { url } — a short-lived link to the file, to play, share or save.

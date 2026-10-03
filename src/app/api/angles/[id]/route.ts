@@ -5,7 +5,8 @@ import { AngleError, deleteAngle } from "@/server/angles";
 import { refreshMontage } from "@/server/montage";
 
 // The moment's video is remade without the deleted angle after the response.
-export const maxDuration = 300;
+// A moment's film may be made here (big films take minutes on the server).
+export const maxDuration = 800;
 
 // Delete an angle: its own contributor, or the creator of its moment.
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {

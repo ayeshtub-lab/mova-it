@@ -5,7 +5,8 @@ import { CANONICAL_HOST } from "@/lib/hosts";
 import { DailyVideoError, dailyVideoUrl } from "@/server/daily-video";
 
 // Making the film can take a minute or two the first time (it is kept afterwards).
-export const maxDuration = 300;
+// A moment's film may be made here (big films take minutes on the server).
+export const maxDuration = 800;
 
 // ?code=… — an admin downloads that day's «لحظة اليوم» film (redirected to the file).
 export async function GET(request: Request) {

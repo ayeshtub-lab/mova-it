@@ -6,7 +6,8 @@ import { refreshMontageForAngle } from "@/server/montage";
 import { limited } from "@/server/rate-limit";
 
 // The moment's video is remade with the new writing after the response.
-export const maxDuration = 300;
+// A moment's film may be made here (big films take minutes on the server).
+export const maxDuration = 800;
 
 const failure = (error: unknown) => {
   if (!(error instanceof CaptionError)) throw error;

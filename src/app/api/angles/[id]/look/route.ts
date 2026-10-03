@@ -5,7 +5,8 @@ import { refreshMontageForAngle } from "@/server/montage";
 import { setAngleLook, SoundError } from "@/server/sounds";
 
 // The moment's video is remade with the new look after the response.
-export const maxDuration = 300;
+// A moment's film may be made here (big films take minutes on the server).
+export const maxDuration = 800;
 
 // Body: { filter: "warm" | null, stamp: boolean } — only the angle's contributor.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

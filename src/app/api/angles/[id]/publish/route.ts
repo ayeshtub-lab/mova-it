@@ -6,7 +6,8 @@ import { offerVideo, refreshMontageForAngle } from "@/server/montage";
 import { notifyNewAngle } from "@/server/notifications";
 
 // Making a video's stamped copy runs after the response (a minute or so).
-export const maxDuration = 300;
+// A moment's film may be made here (big films take minutes on the server).
+export const maxDuration = 800;
 
 // «نشر»: the owner publishes a checked draft; the moment's people hear of it, and the
 // moment's video is remade after the response.

@@ -6,7 +6,8 @@ import { limited } from "@/server/rate-limit";
 
 // Rendering continues after the response (Fluid compute keeps the function alive);
 // the page polls GET until the video is ready.
-export const maxDuration = 300;
+// A moment's film may be made here (big films take minutes on the server).
+export const maxDuration = 800;
 
 const failure = (error: unknown) => {
   if (!(error instanceof MontageError)) throw error;

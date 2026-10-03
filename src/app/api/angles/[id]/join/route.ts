@@ -3,6 +3,9 @@ import { getCurrentUser } from "@/lib/session";
 import { joinMoment, JoinError } from "@/server/join";
 import { offerVideo, refreshMontageForAngle } from "@/server/montage";
 
+// A moment's film may be made here after the response (big films take minutes on the server).
+export const maxDuration = 800;
+
 // «صوّر معك»: the shot's owner adds it to the moment they were offered ({ code }).
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();

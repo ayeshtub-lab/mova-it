@@ -1,10 +1,56 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["fra1"],
+  "regions": [
+    "fra1"
+  ],
   "crons": [
-    { "path": "/api/cron/cleanup", "schedule": "30 * * * *" },
-    { "path": "/api/cron/montages", "schedule": "*/15 * * * *" },
-    { "path": "/api/cron/reminders", "schedule": "0 15 * * *" },
-    { "path": "/api/cron/branded", "schedule": "*/10 * * * *" }
-  ]
+    {
+      "path": "/api/cron/cleanup",
+      "schedule": "30 * * * *"
+    },
+    {
+      "path": "/api/cron/montages",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/branded",
+      "schedule": "*/10 * * * *"
+    }
+  ],
+  "functions": {
+    "src/app/api/cron/montages/route.ts": {
+      "memory": 3009
+    },
+    "src/app/api/moments/[code]/montage/route.ts": {
+      "memory": 3009
+    },
+    "src/app/api/moments/[code]/new-video/route.ts": {
+      "memory": 3009
+    },
+    "src/app/api/admin/daily-video/route.ts": {
+      "memory": 3009
+    },
+    "src/app/api/angles/[id]/caption/route.ts": {
+      "memory": 3009
+    },
+    "src/app/api/angles/[id]/look/route.ts": {
+      "memory": 3009
+    },
+    "src/app/api/angles/[id]/publish/route.ts": {
+      "memory": 3009
+    },
+    "src/app/api/angles/[id]/route.ts": {
+      "memory": 3009
+    },
+    "src/app/api/angles/[id]/sound/route.ts": {
+      "memory": 3009
+    },
+    "src/app/api/angles/[id]/join/route.ts": {
+      "memory": 3009
+    }
+  }
 }
