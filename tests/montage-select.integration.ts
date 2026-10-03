@@ -6,7 +6,7 @@
 import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
-import { bestShots, waitForMore } from "../src/server/montage";
+import { bestShots, failingLately, waitForMore } from "../src/server/montage";
 import { filmLimit, shotTimes } from "../src/server/montage/render";
 
 const TAG = "[montageselecttest]";
@@ -98,6 +98,23 @@ async function main() {
       await add(1);
       assert.equal(await waitForMore(moment.id), false, "three new shots: remake");
       assert.equal(await waitForMore(moment.id, new Date(Date.now() + 31 * 60_000)), false, "and once quiet, always");
+    });
+
+    await check("a film that keeps failing (or gets cut off mid-render) is not retried every quarter hour", async () => {
+      const moment = await db.moment.create({ data: { code: `MF${Date.now().toString(36).slice(-4).toUpperCase()}`, title: `${TAG} f`, creatorId: owner.id, visibility: "FRIENDS" } });
+      const attempt = (status: "FAILED" | "RENDERING", minutesAgo: number) =>
+        db.montage.create({ data: { momentId: moment.id, angleIds: [], signature: "test", status, createdAt: new Date(Date.now() - minutesAgo * 60_000) } });
+      const now = new Date();
+      assert.equal(await failingLately(moment.id, now), false, "never tried");
+      await attempt("RENDERING", 3);
+      assert.equal(await failingLately(moment.id, now), false, "still rendering: not a failure yet");
+      await db.montage.deleteMany({ where: { momentId: moment.id } });
+      await attempt("RENDERING", 20);
+      assert.equal(await failingLately(moment.id, now), true, "cut off 20 minutes ago: waits");
+      assert.equal(await failingLately(moment.id, new Date(now.getTime() + 6 * 3600_000)), false, "6 hours later: one more try");
+      await attempt("FAILED", 300);
+      await attempt("RENDERING", 600);
+      assert.equal(await failingLately(moment.id, new Date(now.getTime() + 6 * 3600_000)), true, "3 failures in a day: a day off");
     });
   } finally {
     const moments = await db.moment.findMany({ where: { creatorId: owner.id }, select: { id: true } });

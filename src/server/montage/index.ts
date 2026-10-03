@@ -232,11 +232,27 @@ export async function waitForMore(momentId: string, now = new Date()) {
   return added > 0 && added < BATCH_SHOTS && !quiet;
 }
 
+// Has this moment's film been failing lately? A try counts as failed when it says so, or when it
+// stopped without finishing (still «QUEUED»/«RENDERING» past the time a render takes).
+export async function failingLately(momentId: string, now: Date) {
+  const tries = await db.montage.findMany({
+    where: { momentId, status: { not: "READY" }, createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
+    orderBy: { createdAt: "desc" },
+    select: { status: true, createdAt: true },
+  });
+  const failed = tries.filter((t) => t.status === "FAILED" || now.getTime() - t.createdAt.getTime() >= STALE_RENDER_MS);
+  if (!failed.length) return false;
+  if (failed.length >= 3) return true; // a day off
+  return now.getTime() - failed[0].createdAt.getTime() < 6 * 60 * 60 * 1000;
+}
+
 // Every quarter hour (/api/cron/montages): videos left waiting for more shots are made once
 // things have gone quiet — and so are videos made before the way films are cut changed
-// (which shots, how long), so every moment catches up by itself. A few per run, so a run
-// stays short; one that just failed waits a while before it is tried again.
-export async function refreshPendingMontages(host: string, limit = 3, now = new Date()) {
+// (which shots, how long), so every moment catches up by itself. One per run, so a run stays
+// short. One that failed — or never finished (a render the platform cut off stays «RENDERING»)
+// — waits 6 hours before it is tried again, and after 3 such tries in a day it waits a day:
+// a film that can't be made must not be retried every quarter hour (each try costs minutes).
+export async function refreshPendingMontages(host: string, limit = 1, now = new Date()) {
   const quietSince = new Date(now.getTime() - QUIET_MS);
   const candidates = await db.moment.findMany({
     where: { montages: { some: { status: "READY" } } },
@@ -253,7 +269,7 @@ export async function refreshPendingMontages(host: string, limit = 3, now = new 
       db.angle.findFirst({ where: liveAngles(id), orderBy: { uploadedAt: "desc" }, select: { uploadedAt: true } }),
     ]);
     if (!ready || !newest || newest.uploadedAt > quietSince) continue;
-    if (last?.status === "FAILED" && now.getTime() - last.createdAt.getTime() < 6 * 60 * 60 * 1000) continue;
+    if (last && last.status !== "READY" && (await failingLately(id, now))) continue;
     const current = await currentContent(id, await chosenSound(id));
     if (newest.uploadedAt <= ready.createdAt && ready.signature === current.signature) continue;
     const before = await db.montage.count({ where: { momentId: id } });
