@@ -11,6 +11,7 @@ import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
 import { StreamVideo } from "@/app/StreamVideo";
 import { CaptionEditor, CaptionOverlay, type CaptionLabels } from "@/app/CaptionEditor";
 import { LyricsLine } from "@/app/LyricsLine";
+import { tagged } from "@/lib/source";
 import type { CaptionView } from "@/lib/caption";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { filterCss, stampText } from "@/lib/filters";
@@ -514,7 +515,7 @@ export function AngleGallery({
       return flash(labels.branded.working);
     }
     fetch(`/api/angles/${a.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
-    const url = `${share.url}#angle-${a.id}`;
+    const url = `${tagged(share.url, "share-shot")}#angle-${a.id}`;
     if (navigator.share) {
       await navigator.share({ title: share.title, text: labels.shareText, url }).catch(() => {});
       return;
@@ -576,7 +577,7 @@ export function AngleGallery({
   async function shareBranded(file: File) {
     fetch(`/api/angles/${branded?.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
     if (navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], text: share.url }).catch(() => {});
+      await navigator.share({ files: [file], text: tagged(share.url, "share-video") }).catch(() => {});
       return;
     }
     const href = URL.createObjectURL(file);

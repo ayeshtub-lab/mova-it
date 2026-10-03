@@ -2,7 +2,7 @@
 // tags, then the referring site by name — never Zawmo itself, never a full link.
 // Run: npx tsx tests/source.test.ts
 import assert from "node:assert/strict";
-import { sourceOf } from "../src/lib/source";
+import { sourceOf, tagged } from "../src/lib/source";
 
 const u = (q: string) => new URL(`https://zawmo.com/start${q}`);
 const out: string[] = [];
@@ -33,5 +33,11 @@ check("nothing for Zawmo itself, typed-in visits or junk", () => {
   assert.equal(sourceOf(u(""), "https://mova-it.vercel.app/", "zawmo.com"), null);
   assert.equal(sourceOf(u(""), null, "zawmo.com"), null);
   assert.equal(sourceOf(u(""), "not a url", "zawmo.com"), null);
+});
+check("links Zawmo hands out say which door they are (before the #, never twice)", () => {
+  assert.equal(tagged("https://zawmo.com/m/K7M2Q4", "wa-moment"), "https://zawmo.com/m/K7M2Q4?src=wa-moment");
+  assert.equal(tagged("https://zawmo.com/m/K7M2Q4#angle-x", "share-shot"), "https://zawmo.com/m/K7M2Q4?src=share-shot#angle-x");
+  assert.equal(tagged("/m/K7M2Q4?a=1", "video-link"), "/m/K7M2Q4?a=1&src=video-link");
+  assert.equal(tagged("/m/K7M2Q4?src=tiktok-house", "video-link"), "/m/K7M2Q4?src=tiktok-house");
 });
 console.log(out.join("\n"));

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { tagged } from "@/lib/source";
 
 type Labels = { share: string; copied: string; whatsapp: string };
 
@@ -10,7 +11,7 @@ export function ShareBar({ url, text, labels }: { url: string; text: string; lab
   async function share() {
     if (navigator.share) {
       try {
-        await navigator.share({ text, url });
+        await navigator.share({ text, url: tagged(url, "share-moment") });
         return;
       } catch (error) {
         // Closed by the person: nothing more. Unavailable: fall through to copying the link.
@@ -18,7 +19,7 @@ export function ShareBar({ url, text, labels }: { url: string; text: string; lab
       }
     }
     // Safari may refuse the clipboard after the share sheet (the tap has "expired").
-    const ok = await navigator.clipboard?.writeText(url).then(() => true, () => false);
+    const ok = await navigator.clipboard?.writeText(tagged(url, "share-moment")).then(() => true, () => false);
     if (!ok) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
@@ -29,7 +30,7 @@ export function ShareBar({ url, text, labels }: { url: string; text: string; lab
   return (
     <div className="flex gap-2">
       <a
-        href={`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`}
+        href={`https://wa.me/?text=${encodeURIComponent(`${text} ${tagged(url, "wa-moment")}`)}`}
         target="_blank"
         rel="noopener noreferrer"
         className="flex min-h-11 flex-1 items-center justify-center rounded-full bg-[#1a7a43] px-5 text-sm font-bold text-white"

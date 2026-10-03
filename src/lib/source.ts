@@ -28,6 +28,14 @@ const SITES: [RegExp, string][] = [
   [/(^|\.)bing\.com$/, "bing"],
 ];
 
+// Every link Zawmo hands out says which door it is («?src=wa-moment», «share-video»…), so the
+// numbers tell which one brings people (a link that already has a source keeps it).
+export function tagged(url: string, src: string) {
+  const [base, hash] = url.split("#", 2);
+  if (/[?&]src=/.test(base)) return url;
+  return `${base}${base.includes("?") ? "&" : "?"}src=${src}${hash !== undefined ? `#${hash}` : ""}`;
+}
+
 // «?src=tiktok-house» (our ad links), else utm_source[-utm_campaign], else the referring site.
 // Null when there is nothing to tell (typed in, or from Zawmo itself).
 export function sourceOf(url: URL, referrer: string | null, ownHost: string) {

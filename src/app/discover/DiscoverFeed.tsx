@@ -73,7 +73,7 @@ export function DiscoverFeed({
   }
 
   async function share(a: FeedAngle, code: string, title: string) {
-    const url = `${location.origin}/m/${code}#angle-${a.id}`;
+    const url = `${location.origin}/m/${code}?src=share-discover#angle-${a.id}`;
     const copy = () => navigator.clipboard.writeText(url).then(() => (flash(labels.copied), true), () => false);
     // The phone's share sheet; if it isn't there or fails (other than the person closing
     // it), the link is copied instead.

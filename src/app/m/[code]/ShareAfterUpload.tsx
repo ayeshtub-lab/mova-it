@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { tagged } from "@/lib/source";
 
 type Friend = { id: string; displayName: string };
 type Labels = {
@@ -37,7 +38,7 @@ export function ShareAfterUpload({ code, url, text, labels }: { code: string; ur
   async function share() {
     if (navigator.share) {
       try {
-        await navigator.share({ text, url });
+        await navigator.share({ text, url: tagged(url, "share-upload") });
         return;
       } catch (error) {
         // Closed by the person: nothing more. Unavailable: fall through to copying the link.
@@ -45,7 +46,7 @@ export function ShareAfterUpload({ code, url, text, labels }: { code: string; ur
       }
     }
     // Safari may refuse the clipboard after the share sheet (the tap has "expired").
-    const ok = await navigator.clipboard?.writeText(url).then(() => true, () => false);
+    const ok = await navigator.clipboard?.writeText(tagged(url, "share-upload")).then(() => true, () => false);
     if (!ok) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
@@ -81,7 +82,7 @@ export function ShareAfterUpload({ code, url, text, labels }: { code: string; ur
 
       <div className="flex gap-2">
         <a
-          href={`https://wa.me/?text=${encodeURIComponent(`${text} ${url}`)}`}
+          href={`https://wa.me/?text=${encodeURIComponent(`${text} ${tagged(url, "wa-upload")}`)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="flex min-h-11 flex-1 items-center justify-center rounded-full bg-[#1a7a43] px-4 text-sm font-bold text-white"

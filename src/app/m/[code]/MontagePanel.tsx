@@ -114,7 +114,7 @@ export function MontagePanel({
   async function share() {
     if (file && navigator.canShare?.({ files: [file] })) {
       // The short link goes along as text, for the apps that keep it (WhatsApp does).
-      await navigator.share({ files: [file], text: `${location.host}/${code}` }).catch(() => {});
+      await navigator.share({ files: [file], text: `${location.host}/${code}?src=share-film` }).catch(() => {});
     } else save();
   }
 
@@ -131,7 +131,7 @@ export function MontagePanel({
 
   async function shareFresh() {
     if (fresh.state !== "ready" || !fresh.file) return;
-    if (navigator.canShare?.({ files: [fresh.file] })) await navigator.share({ files: [fresh.file], text: `${location.host}/${code}` }).catch(() => {});
+    if (navigator.canShare?.({ files: [fresh.file] })) await navigator.share({ files: [fresh.file], text: `${location.host}/${code}?src=share-film` }).catch(() => {});
     else saveFile(fresh.file);
   }
 
