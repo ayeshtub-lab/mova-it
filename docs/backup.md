@@ -33,3 +33,6 @@ A failed run emails the repo owner. Run it by hand from GitHub → Actions →
 4. Only then point the app at it (Vercel `DATABASE_URL`) or copy the needed rows back.
 
 The pg_restore client must be Postgres 18 or newer.
+The target database must have the **pgvector** extension available (Neon has it; on your own
+Postgres install `postgresql-18-pgvector`, or use the `pgvector/pgvector:pg18` image) — the
+`AngleVector` table («📸 لقطات بتشبهها») uses it.
