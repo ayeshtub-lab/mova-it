@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { purgeStaleUploads } from "@/server/angles";
 import { purgeRateLimits } from "@/server/rate-limit";
+import { embedPending } from "@/server/similar";
 import { syncStream } from "@/server/stream";
 
 export const maxDuration = 300;
@@ -15,6 +16,8 @@ export async function GET(request: Request) {
     ...(await purgeStaleUploads()),
     stream: await syncStream().catch((error) => ({ error: String(error) })),
     rateLimitRows: await purgeRateLimits().catch(() => 0),
+    // «📸 لقطات بتشبهها»: public shots still without vectors (the older ones, then any missed).
+    embedded: await embedPending().catch(() => 0),
   };
   console.log("cleanup", done);
   return NextResponse.json(done);

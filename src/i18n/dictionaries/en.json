@@ -815,5 +815,12 @@
     "iosInstall": "On iPhone: tap Share ⬆️ then “Add to Home Screen”, open Zawmo from its icon, then turn notifications on here.",
     "unsupported": "This browser doesn't support notifications.",
     "failed": "Couldn't turn them on. Try again."
+  },
+  "similar": {
+    "find": "🔍 Shots like this",
+    "scanning": "🔍 Looking for shots like this…",
+    "title": "📸 Shots like this",
+    "empty": "No shots like this yet — more show up as Zawmo grows.",
+    "close": "Close"
   }
 }

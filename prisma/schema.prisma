@@ -292,6 +292,7 @@ model Angle {
   @@index([soundKey])
   @@index([placeId])
   @@index([scene, capturedAt])
+  vectors        AngleVector[] // «📸 لقطات بتشبهها» (src/server/similar.ts)
 }
 
 // ── Places ────────────────────────────────────────────────────────────────
@@ -727,4 +728,18 @@ model SourceVisit {
   tried  Int    @default(0)
 
   @@id([day, source])
+}
+
+// «📸 لقطات بتشبهها»: what a shot shows, as a point in Gemini's picture-and-text space, so shots
+// that look alike sit close. kind "image" — from the picture itself, only for scenes without
+// people (nature, sky, sea, food, pets); kind "text" — from its written line, for every shot.
+// Faces are never compared: a shot of people is only ever matched by its words.
+model AngleVector {
+  angleId   String
+  angle     Angle    @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  kind      String // "image" | "text"
+  vec       Unsupported("vector(768)")
+  createdAt DateTime @default(now())
+
+  @@id([angleId, kind])
 }

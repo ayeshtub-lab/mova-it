@@ -4,6 +4,7 @@ import { AngleError, completeAngle } from "@/server/angles";
 import { findJoinSuggestion } from "@/server/join";
 import { makeSmall } from "@/server/small";
 import { sendToStream } from "@/server/stream";
+import { embedAngle } from "@/server/similar";
 import { limited } from "@/server/rate-limit";
 
 // The automatic content check runs inside this request (a few seconds). A fine shot becomes
@@ -24,6 +25,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     after(() => makeSmall(angle.id).catch((error) => console.error("small copy failed", angle.id, error)));
     // Videos: a copy to Cloudflare Stream (every phone, adaptive quality), after the response.
     if (angle.mediaType === "VIDEO" && angle.status !== "HIDDEN") after(() => sendToStream(angle.id).catch((error) => console.error("stream copy failed", angle.id, error)));
+    // «📸 لقطات بتشبهها»: its vectors, after the response (from its words; from its picture only
+    // for a scene without people).
+    if (angle.status === "DRAFT") after(() => embedAngle(angle.id).catch((error) => console.error("embed failed", angle.id, error)));
     // «صوّر معك»: someone nearby shot the same moment just now? Offer to add this shot to it.
     const suggestion = angle.status === "DRAFT" ? await findJoinSuggestion(user.id, angle.id) : null;
     return NextResponse.json({ id: angle.id, status: angle.status, suggestion, titleSuggestion: angle.titleSuggestion, captionIdeas: angle.captionIdeas });

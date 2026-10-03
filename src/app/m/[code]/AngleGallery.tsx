@@ -89,6 +89,7 @@ type Labels = {
   branded: { make: string; working: string; share: string; failed: string };
   caption: CaptionLabels;
   sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
+  similar: { find: string; scanning: string; title: string; empty: string; close: string };
   delete: string;
   confirmDelete: string;
   deleteFailed: string;
@@ -423,6 +424,24 @@ export function AngleGallery({
   // with a heart where the finger was. `touch-action: manipulation` stops the zoom.
   const lastTap = useRef({ id: "", at: 0 });
   const singleTap = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // ── «📸 لقطات بتشبهها»: the picture is scanned (a second at least, so it is seen), then the
+  // public shots that look like it open in a sheet. ──
+  const [scanning, setScanning] = useState<string | null>(null);
+  const [similar, setSimilar] = useState<{ angleId: string; shots: { id: string; momentCode: string; title: string; video: boolean; coverUrl: string | null }[] } | null>(null);
+  async function findSimilar(a: GalleryAngle) {
+    if (scanning) return;
+    setScanning(a.id);
+    // The search, and the scan shown for 1.3 s at least.
+    const [body] = await Promise.all([
+      fetch(`/api/angles/${a.id}/similar`)
+        .then((r) => r.json())
+        .catch(() => null) as Promise<{ shots?: NonNullable<typeof similar>["shots"] } | null>,
+      new Promise((r) => setTimeout(r, 1300)),
+    ]);
+    setScanning(null);
+    setSimilar({ angleId: a.id, shots: body?.shots ?? [] });
+  }
+
   function onMediaTap(event: React.MouseEvent<HTMLElement>, a: GalleryAngle) {
     const now = event.timeStamp;
     const area = event.currentTarget; // React clears currentTarget once the handler returns
@@ -436,7 +455,9 @@ export function AngleGallery({
       return;
     }
     lastTap.current = { id: a.id, at: now };
+    // One tap: a video pauses; a photo is scanned for shots like it.
     if (a.mediaType === "VIDEO") singleTap.current = setTimeout(() => togglePlay(area.parentElement!), 260);
+    else singleTap.current = setTimeout(() => findSimilar(a), 260);
   }
 
   function togglePlay(figure: HTMLElement) {
@@ -781,6 +802,16 @@ export function AngleGallery({
                   </span>
                 )}
                 <CaptionOverlay caption={captionOf(a.id)} framed />
+                {scanning === a.id && (
+                  <div className="scan-grid pointer-events-none absolute inset-0 z-[3] overflow-hidden" aria-hidden="true">
+                    <span className="scan-line" />
+                  </div>
+                )}
+                {scanning === a.id && (
+                  <p role="status" className="pointer-events-none absolute inset-x-0 top-[12%] z-[3] mx-auto w-fit rounded-full bg-black/60 px-4 py-1.5 text-sm font-bold text-white">
+                    {labels.similar.scanning}
+                  </p>
+                )}
                 {angles[current]?.id === a.id && <LyricsLine player={player} soundKey={soundOf(a.id).key} on={soundOf(a.id).lyrics} />}
 
                 {/* The tap area over the picture: double-tap to like, tap a video to pause. */}
@@ -952,6 +983,10 @@ export function AngleGallery({
                       </button>
                     )
                   )}
+                  {/* «📸 لقطات بتشبهها» (a photo: one tap on it does the same) */}
+                  <button type="button" onClick={() => findSimilar(a)} disabled={!!scanning} aria-label={labels.similar.find} className={`${railButton} mt-2 text-2xl`}>
+                    <span aria-hidden="true">🔍</span>
+                  </button>
                 </div>
               </figure>
             );
@@ -1230,6 +1265,46 @@ export function AngleGallery({
             }}
             onClose={() => setCaptionFor(null)}
           />
+        )}
+        {similar && (
+          <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50" onClick={() => setSimilar(null)}>
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-label={labels.similar.title}
+              onClick={(e) => e.stopPropagation()}
+              className="flex max-h-[80dvh] w-full max-w-xl flex-col gap-3 overflow-y-auto rounded-t-3xl bg-background p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-foreground shadow-2xl"
+            >
+              <header className="flex items-center justify-between">
+                <h2 className="text-lg font-extrabold">{labels.similar.title}</h2>
+                <button type="button" onClick={() => setSimilar(null)} aria-label={labels.similar.close} className="flex size-10 items-center justify-center rounded-full hover:bg-surface">
+                  <svg viewBox="0 0 24 24" className="size-5 stroke-current" fill="none" strokeWidth="2.4" strokeLinecap="round">
+                    <path d="M6 6l12 12M18 6L6 18" />
+                  </svg>
+                </button>
+              </header>
+              {similar.shots.length ? (
+                <ul className="grid grid-cols-3 gap-1.5">
+                  {similar.shots.map((s) => (
+                    <li key={s.id} className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-surface">
+                      <Link href={`/m/${s.momentCode}#angle-${s.id}`} className="block size-full">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs */}
+                        {s.coverUrl && <img src={s.coverUrl} alt={s.title} loading="lazy" className="size-full object-cover" />}
+                        {s.video && (
+                          <span aria-hidden="true" className="absolute end-1.5 top-1.5 rounded-full bg-black/55 px-1.5 text-xs text-white">
+                            ▶
+                          </span>
+                        )}
+                        <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/75 to-transparent p-1.5 pt-5 text-xs font-bold text-white">{s.title}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="rounded-2xl bg-surface p-4 text-sm text-muted">{labels.similar.empty}</p>
+              )}
+            </section>
+          </div>
         )}
         {soundFor && (
           <SoundPicker
