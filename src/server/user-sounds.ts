@@ -1,26 +1,30 @@
 import { randomBytes } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { del, put } from "@vercel/blob";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { recordUsage } from "@/server/costs";
-import { ffmpeg } from "@/server/ffmpeg";
-import { viewUrl } from "@/server/media";
+import { ffmpeg, probeDuration } from "@/server/ffmpeg";
 import { callGemini, screeningEnabled } from "@/server/screening";
 
-// «🎤 صوتك الأصلي»: the owner of a video in a public moment makes its sound public, under their
-// name — anyone may then put it on their own shots (key «u…», played like a library sound).
-// Never by itself: always the owner's choice. Before it goes public it is checked twice:
+// «🎤 صوتك»: a member adds a sound of their own from the sound picker — recorded there with the
+// phone's microphone, or a sound file — under their name (key «u…», played like a library
+// sound). Its owner chooses: for everyone («👥 للكل», others may put it on their shots) or only
+// for themselves («🔒 خاص»). Either way it is checked twice before it can be used, since whoever
+// watches the owner's shots hears it:
 //  • rights — AudD's fingerprint database (copyrighted songs), while AUDD_API_TOKEN is set and
 //    has credit; without it, a strict rule instead: no recorded music at all;
 //  • content — Gemini listens for insults, hate or sexual talk (always).
+// (status "public" = checked and live — shared or not; "blocked"; "withdrawn".)
 
-const MAX_SECONDS = 30;
+export const MAX_SOUND_SECONDS = 40;
+// What a phone sends: a recording (webm/ogg/mp4) or a sound file — kept small for the upload.
+export const MAX_SOUND_BYTES = 4_000_000;
 
 export class UserSoundError extends Error {
-  constructor(public code: "not_found" | "not_public" | "has_library_sound" | "no_audio" | "already") {
+  constructor(public code: "not_found" | "no_audio" | "too_big" | "members_only") {
     super(code);
   }
 }
@@ -76,44 +80,60 @@ async function check(mp3: Buffer): Promise<Check> {
   return { ok: true, reason: null, name: listened.name };
 }
 
-// The owner makes their video's sound public. Returns the sound (public, or blocked with why).
-export async function offerSound(user: User, angleId: string) {
-  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { visibility: true, status: true } } } });
-  if (!angle || angle.contributorId !== user.id || angle.mediaType !== "VIDEO" || angle.status !== "READY" || !angle.mediaPath) throw new UserSoundError("not_found");
-  if (angle.moment.visibility !== "PUBLIC" || angle.moment.status !== "ACTIVE") throw new UserSoundError("not_public");
-  const existing = await db.userSound.findUnique({ where: { angleId } });
-  if (existing && existing.status !== "withdrawn") return existing;
-
-  const url = await viewUrl(angle.mediaPath);
+// The phone's recording or file as a clean mp3 of 40 s at most (a short fade in and out), and
+// its length. No sound in it (or not a sound at all) → no_audio.
+async function toMp3(file: Buffer) {
   const dir = await mkdtemp(join(tmpdir(), "zawmo-sound-"));
-  let mp3: Buffer;
-  let seconds: number;
   try {
+    const input = join(dir, "in");
     const out = join(dir, "sound.mp3");
-    await ffmpeg(["-i", url!, "-vn", "-t", String(MAX_SECONDS), "-ac", "2", "-ar", "44100", "-b:a", "128k", "-af", "afade=t=in:d=0.1", out], 60_000).catch(() => {
+    await writeFile(input, file);
+    const seconds = await probeDuration(input);
+    if (!seconds || seconds < 0.5) throw new UserSoundError("no_audio");
+    const length = Math.min(MAX_SOUND_SECONDS, seconds);
+    await ffmpeg(["-i", input, "-vn", "-t", String(length), "-ac", "2", "-ar", "44100", "-b:a", "128k", "-af", `afade=t=in:d=0.1,afade=t=out:st=${Math.max(0, length - 0.3).toFixed(2)}:d=0.3`, out], 60_000).catch(() => {
       throw new UserSoundError("no_audio");
     });
-    mp3 = await readFile(out);
+    const mp3 = await readFile(out);
     if (mp3.length < 4000) throw new UserSoundError("no_audio");
-    seconds = Math.min(MAX_SECONDS, angle.durationSec ?? MAX_SECONDS);
+    return { mp3, seconds: Math.round(length * 10) / 10 };
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
 
+const cleanName = (raw: unknown) => (typeof raw === "string" ? raw.replace(/[\u0000-\u001f\u007f"«»#]/g, "").replace(/\s+/g, " ").trim().slice(0, 40) : "");
+
+// A member adds a sound (recorded in the picker, or a file). Returns it — live, or blocked with
+// why. Its own name if given, else the one Gemini heard.
+export async function addSound(user: User, file: Buffer, raw: { name?: unknown; shared?: unknown }) {
+  if (user.isGuest) throw new UserSoundError("members_only");
+  if (file.length > MAX_SOUND_BYTES) throw new UserSoundError("too_big");
+  if (file.length < 1000) throw new UserSoundError("no_audio");
+  const { mp3, seconds } = await toMp3(file);
   const result = await check(mp3);
-  const key = existing?.key ?? `u${randomBytes(6).toString("hex")}`;
+  const key = `u${randomBytes(6).toString("hex")}`;
   const path = `sounds/u/${key}.mp3`;
   if (result.ok) await put(path, mp3, { access: "private", contentType: "audio/mpeg", addRandomSuffix: false, allowOverwrite: true });
-  const data = {
-    status: result.ok ? "public" : "blocked",
-    reason: result.reason,
-    name: result.name || `صوت ${user.displayName}`.slice(0, 40),
-    seconds,
-    path: result.ok ? path : null,
-  };
-  return existing
-    ? db.userSound.update({ where: { id: existing.id }, data })
-    : db.userSound.create({ data: { key, ownerId: user.id, angleId, ...data } });
+  return db.userSound.create({
+    data: {
+      key,
+      ownerId: user.id,
+      status: result.ok ? "public" : "blocked",
+      reason: result.reason,
+      name: cleanName(raw.name) || result.name || `صوت ${user.displayName}`.slice(0, 40),
+      seconds,
+      path: result.ok ? path : null,
+      shared: raw.shared !== false && raw.shared !== "false",
+    },
+  });
+}
+
+// Its owner switches it between everyone and only them.
+export async function setSoundShared(user: User, key: string, shared: boolean) {
+  const sound = await db.userSound.findUnique({ where: { key } });
+  if (!sound || sound.ownerId !== user.id || sound.status === "withdrawn") throw new UserSoundError("not_found");
+  return db.userSound.update({ where: { id: sound.id }, data: { shared } });
 }
 
 // The owner takes it back: no new shot can pick it (shots that already use it keep playing it
@@ -125,10 +145,11 @@ export async function withdrawSound(user: User, key: string) {
   return db.userSound.update({ where: { id: sound.id }, data: { status: "withdrawn", path: null } });
 }
 
-// «🎤 من الناس» in the sound picker: public sounds, the most used this week first.
-export async function peopleSounds(take = 40) {
+// «🎤 من الناس» in the sound picker: the viewer's own sounds first (shared or «🔒 خاص»), then
+// everyone's shared ones, the most used this week first.
+export async function peopleSounds(viewerId: string | null, take = 40) {
   const sounds = await db.userSound.findMany({
-    where: { status: "public" },
+    where: { status: "public", OR: [{ shared: true }, ...(viewerId ? [{ ownerId: viewerId }] : [])] },
     orderBy: { createdAt: "desc" },
     take: 200,
     include: { owner: { select: { displayName: true } } },
@@ -138,8 +159,8 @@ export async function peopleSounds(take = 40) {
   const uses = await db.angle.groupBy({ by: ["soundKey"], where: { soundKey: { in: sounds.map((s) => s.key) }, uploadedAt: { gte: since } }, _count: { _all: true } });
   const count = new Map(uses.map((u) => [u.soundKey, u._count._all]));
   return sounds
-    .map((s) => ({ key: s.key, name: s.name, author: s.owner.displayName, seconds: s.seconds, uses: count.get(s.key) ?? 0 }))
-    .sort((a, b) => b.uses - a.uses)
+    .map((s) => ({ key: s.key, name: s.name, author: s.owner.displayName, seconds: s.seconds, uses: count.get(s.key) ?? 0, mine: s.ownerId === viewerId, shared: s.shared }))
+    .sort((a, b) => Number(b.mine) - Number(a.mine) || b.uses - a.uses)
     .slice(0, take);
 }
 
@@ -147,6 +168,7 @@ export async function peopleSounds(take = 40) {
 export function userSound(key: string) {
   return db.userSound.findUnique({ where: { key }, include: { owner: { select: { id: true, displayName: true } } } });
 }
-export async function isPublicSound(key: string) {
-  return (await db.userSound.count({ where: { key, status: "public" } })) > 0;
+// May this person put it on a shot? Live, and shared — or theirs.
+export async function usableSound(userId: string, key: string) {
+  return (await db.userSound.count({ where: { key, status: "public", OR: [{ shared: true }, { ownerId: userId }] } })) > 0;
 }

@@ -55,7 +55,6 @@ export type GalleryAngle = {
   views: number;
   isNew: boolean; // first 24 hours
   picked?: boolean; // «⭐ اختيار زاومو»
-  ownSound?: { key: string; status: string } | null; // «🎤 صوتك الأصلي» (the viewer's own video)
   caption: CaptionView | null; // writing on the shot
 };
 
@@ -89,7 +88,7 @@ type Labels = {
   edit: ShotEditorLabels & { open: string; failed: string };
   branded: { make: string; working: string; share: string; failed: string };
   caption: CaptionLabels;
-  sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string; offer: string; offerConfirm: string; offering: string; offerPublic: string; offerBlocked: string; offerShown: string; whyCopyright: string; whyMusic: string; whyOffensive: string; whyFailed: string; whyNoAudio: string; whyNotPublic: string };
+  sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
   delete: string;
   confirmDelete: string;
   deleteFailed: string;
@@ -138,7 +137,6 @@ export function AngleGallery({
   labels,
   canReact,
   canPick = false,
-  publicMoment = false,
   viewerId,
   share,
   momentEdit,
@@ -151,7 +149,6 @@ export function AngleGallery({
   labels: Labels;
   canReact: boolean;
   canPick?: boolean; // an official account: may mark «⭐ اختيار زاومو»
-  publicMoment?: boolean; // a public moment: its videos' owners may make their sound public
   viewerId: string | null;
   share: { url: string; title: string };
   // The moment's creator edits its title and description from «تعديل» too.
@@ -525,26 +522,6 @@ export function AngleGallery({
       () => false,
     );
     flash(copied ? labels.copied : url);
-  }
-
-  // ── «🎤 صوتك الأصلي»: the owner of a video in a public moment makes its sound public ──
-  const [offered, setOffered] = useState(() => new Map(angles.filter((a) => a.ownSound).map((a) => [a.id, a.ownSound!])));
-  const [offering, setOffering] = useState<string | null>(null);
-  async function offerSound(a: GalleryAngle) {
-    const t = labels.sounds;
-    const mine = offered.get(a.id);
-    if (mine?.status === "public") return router.push(`/sound/${mine.key}`);
-    if (!window.confirm(t.offerConfirm)) return;
-    setOffering(a.id);
-    flash(t.offering);
-    const res = await fetch(`/api/angles/${a.id}/offer-sound`, { method: "POST" }).catch(() => null);
-    setOffering(null);
-    const body = (await res?.json().catch(() => null)) as { key?: string; status?: string; reason?: string; name?: string; error?: string } | null;
-    const why = (code?: string) =>
-      ({ copyright: t.whyCopyright, music: t.whyMusic, offensive: t.whyOffensive, no_audio: t.whyNoAudio, not_public: t.whyNotPublic } as Record<string, string>)[code ?? ""] ?? t.whyFailed;
-    if (body?.key && body.status) setOffered((m) => new Map(m).set(a.id, { key: body.key!, status: body.status! }));
-    if (body?.status === "public") flash(t.offerPublic.replace("{name}", body.name ?? ""));
-    else flash(t.offerBlocked.replace("{why}", why(body?.reason ?? body?.error)));
   }
 
   // ── «📤 شارك بختم زاومو» (the owner's video, with the Zawmo mark and closing card) ──
@@ -974,18 +951,6 @@ export function AngleGallery({
                         <span aria-hidden="true">🎵</span>
                       </button>
                     )
-                  )}
-                  {/* «🎤»: your video in a public moment — make its own sound public (or see it, once it is). */}
-                  {a.isMine && publicMoment && a.mediaType === "VIDEO" && (
-                    <button
-                      type="button"
-                      onClick={() => offerSound(a)}
-                      disabled={offering === a.id}
-                      aria-label={offered.get(a.id)?.status === "public" ? labels.sounds.offerShown : labels.sounds.offer}
-                      className={`${railButton} mt-2 text-2xl ${offered.get(a.id)?.status === "public" ? "ring-2 ring-accent" : ""}`}
-                    >
-                      {offering === a.id ? <span aria-hidden="true" className="size-7 animate-spin rounded-full border-4 border-white/30 border-t-white" /> : <span aria-hidden="true">🎤</span>}
-                    </button>
                   )}
                 </div>
               </figure>

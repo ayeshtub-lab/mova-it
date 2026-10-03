@@ -375,6 +375,9 @@ model UserSound {
   path      String? // the mp3 in the private Blob store (gone once withdrawn)
   status    String
   reason    String? // why blocked: copyright | music | offensive | check_failed
+  // Everyone may put it on their shots (true), or only its owner (false, «🔒 خاص»). Either way it
+  // is checked the same: whoever watches the owner's shots hears it.
+  shared    Boolean  @default(true)
   createdAt DateTime @default(now())
 
   owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AddSound, type OwnSoundLabels } from "@/app/AddSound";
 import { lyricsOf } from "@/lib/lyrics";
 import { isSolemn, SOUND_CATEGORIES, SOUNDS, soundByKey, soundFile, soundName, type SoundCategory } from "@/lib/sounds";
 
@@ -18,11 +19,19 @@ export type SoundLabels = {
   peopleEmpty?: string;
   peopleBy?: string;
   lyrics?: string;
+  // «➕ أضف صوتك» (and why a sound was not added)
+  own?: OwnSoundLabels;
+  whyCopyright?: string;
+  whyMusic?: string;
+  whyOffensive?: string;
+  whyFailed?: string;
+  whyNoAudio?: string;
 };
 
 // A bottom sheet over the page: browse the library by category, listen, pick one (or
 // none). For a video, choose whether its own sound is muted under it — always muted
-// under remembrance.
+// under remembrance. «➕ أضف صوتك» adds a sound of your own (recorded or a file), for
+// everyone or «🔒 خاص» — shown in «🎤 من الناس», a private one in its own colour.
 export function SoundPicker({
   locale,
   labels,
@@ -52,7 +61,8 @@ export function SoundPicker({
   const [cat, setCat] = useState<SoundCategory>(soundByKey(initialKey)?.cat ?? SOUND_CATEGORIES[0].key);
   const [playing, setPlaying] = useState<string | null>(null);
   // «🎤 من الناس»: fetched when the tab is first opened.
-  const [people, setPeople] = useState<{ key: string; name: string; author: string; seconds: number }[] | null>(null);
+  const [people, setPeople] = useState<{ key: string; name: string; author: string; seconds: number; mine?: boolean; shared?: boolean }[] | null>(null);
+  const [adding, setAdding] = useState(false);
   useEffect(() => {
     if (cat !== "people" || people) return;
     fetch("/api/sounds/people")
@@ -61,8 +71,14 @@ export function SoundPicker({
   }, [cat, people]);
   const rows =
     cat === "people"
-      ? (people ?? []).map((p) => ({ key: p.key, name: p.name, sub: (labels.peopleBy ?? "{name}").replace("{name}", p.author), seconds: p.seconds }))
-      : SOUNDS.filter((s) => s.cat === cat).map((s) => ({ key: s.key, name: soundName(s, locale), sub: null as string | null, seconds: s.seconds }));
+      ? (people ?? []).map((p) => ({
+          key: p.key,
+          name: p.name,
+          sub: p.mine ? (p.shared ? (labels.own?.mineTag ?? null) : (labels.own?.privateTag ?? null)) : (labels.peopleBy ?? "{name}").replace("{name}", p.author),
+          seconds: p.seconds,
+          private: !!p.mine && p.shared === false,
+        }))
+      : SOUNDS.filter((s) => s.cat === cat).map((s) => ({ key: s.key, name: soundName(s, locale), sub: null as string | null, seconds: s.seconds, private: false }));
   const audio = useRef<HTMLAudioElement | null>(null);
   const solemn = isSolemn(soundByKey(key));
 
@@ -118,6 +134,11 @@ export function SoundPicker({
               {c.emoji} {labels.cats[c.key]}
             </button>
           ))}
+          {labels.own && (
+            <button type="button" onClick={() => setAdding(true)} className="min-h-9 shrink-0 rounded-full border-2 border-accent px-3.5 text-sm font-extrabold text-accent-ink">
+              {labels.own.add}
+            </button>
+          )}
         </div>
 
         <ul className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-5 py-2">
@@ -132,11 +153,18 @@ export function SoundPicker({
               {labels.none}
             </button>
           </li>
+          {cat === "people" && labels.own && (
+            <li>
+              <button type="button" onClick={() => setAdding(true)} className="flex min-h-12 w-full items-center justify-center rounded-2xl border-2 border-dashed border-accent px-3 font-extrabold text-accent-ink">
+                {labels.own.add}
+              </button>
+            </li>
+          )}
           {cat === "people" && people?.length === 0 && <li className="rounded-2xl bg-surface p-4 text-sm text-muted">{labels.peopleEmpty}</li>}
           {rows.map((s) => {
             const on = key === s.key;
             return (
-              <li key={s.key} className={`flex min-h-12 items-center gap-3 rounded-2xl border-2 px-3 ${on ? "border-accent bg-accent-soft/40" : "border-line"}`}>
+              <li key={s.key} className={`flex min-h-12 items-center gap-3 rounded-2xl border-2 px-3 ${on ? "border-accent bg-accent-soft/40" : s.private ? "border-violet-400/70 bg-violet-500/10" : "border-line"}`}>
                 <button
                   type="button"
                   onClick={() => preview(s.key)}
@@ -150,7 +178,7 @@ export function SoundPicker({
                 <button type="button" onClick={() => setKey(s.key)} aria-pressed={on} className="flex min-h-11 flex-1 items-center justify-between gap-2 text-start">
                   <span className="flex min-w-0 flex-col">
                     <span className="font-bold leading-snug">{s.name}</span>
-                    {s.sub && <span className="truncate text-xs text-muted">{s.sub}</span>}
+                    {s.sub && <span className={`truncate text-xs ${s.private ? "font-bold text-violet-600 dark:text-violet-300" : "text-muted"}`}>{s.sub}</span>}
                   </span>
                   <span className="shrink-0 text-xs text-muted">{on ? labels.chosen : `${Math.round(s.seconds)}″`}</span>
                 </button>
@@ -185,6 +213,20 @@ export function SoundPicker({
           </button>
         </footer>
       </section>
+      {adding && labels.own && (
+        <AddSound
+          labels={labels.own}
+          why={{ whyCopyright: labels.whyCopyright ?? "", whyMusic: labels.whyMusic ?? "", whyOffensive: labels.whyOffensive ?? "", whyFailed: labels.whyFailed ?? "", whyNoAudio: labels.whyNoAudio ?? "" }}
+          onAdded={(sound) => {
+            // Ready: it shows under «🎤 من الناس», chosen.
+            setAdding(false);
+            setPeople(null);
+            setCat("people");
+            setKey(sound.key);
+          }}
+          onClose={() => setAdding(false)}
+        />
+      )}
     </div>
   );
 }

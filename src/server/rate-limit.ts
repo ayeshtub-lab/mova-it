@@ -26,6 +26,7 @@ export const LIMITS = {
   details: [30, 3600], // a public description is checked by Gemini
   places: [120, 60], // place search while typing, per minute
   guest: [20, 3600], // new guest accounts from one network
+  sound: [12, 3600], // «🎤 صوتك» added (each checked by Gemini, and AudD while it has credit)
 } as const satisfies Record<string, readonly [number, number]>;
 export type Action = keyof typeof LIMITS;
 

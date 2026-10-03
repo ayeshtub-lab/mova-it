@@ -72,3 +72,23 @@ export function WithdrawSound({ soundKey, labels }: { soundKey: string; labels: 
     </button>
   );
 }
+
+// The owner switches their sound between «👥 للكل» and «🔒 خاص».
+export function SharedSwitch({ soundKey, shared, labels }: { soundKey: string; shared: boolean; labels: { isShared: string; isPrivate: string; makeShared: string; makePrivate: string } }) {
+  const [on, setOn] = useState(shared);
+  const [busy, setBusy] = useState(false);
+  async function flip() {
+    setBusy(true);
+    const res = await fetch(`/api/sounds/${soundKey}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ shared: !on }) }).catch(() => null);
+    setBusy(false);
+    if (res?.ok) setOn(!on);
+  }
+  return (
+    <div className={`flex flex-col gap-2 rounded-2xl p-3 text-sm ${on ? "bg-surface" : "bg-violet-500/10"}`}>
+      <p className={on ? "" : "font-bold text-violet-700 dark:text-violet-300"}>{on ? labels.isShared : labels.isPrivate}</p>
+      <button type="button" disabled={busy} onClick={flip} className="min-h-10 self-start rounded-full border border-line bg-background px-4 font-bold disabled:opacity-50">
+        {on ? labels.makePrivate : labels.makeShared}
+      </button>
+    </div>
+  );
+}

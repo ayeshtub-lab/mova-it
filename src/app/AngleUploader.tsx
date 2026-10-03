@@ -137,6 +137,8 @@ export function AngleUploader({
     } catch {}
   }, []);
   const [picking, setPicking] = useState<number | null>(null);
+  // «🎵 اختار الصوت أول»: the picker before any shot — the sound waits for the next one.
+  const [choosingFirst, setChoosingFirst] = useState(false);
   const soundAsked = useRef(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [captioning, setCaptioning] = useState<number | null>(null);
@@ -301,6 +303,12 @@ export function AngleUploader({
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Like TikTok: the sound first, then shoot or pick — it goes on the shot by itself. */}
+      {!pending && soundLabels.own?.chooseFirst && (
+        <button type="button" onClick={() => setChoosingFirst(true)} className="min-h-11 rounded-full border-2 border-accent px-5 text-sm font-extrabold text-accent-ink">
+          {soundLabels.own.chooseFirst}
+        </button>
+      )}
       {/* `capture` opens the camera directly, but only with a single media type: with
           "image/*,video/*" many Android browsers show the gallery or a chooser instead. */}
       <div className="flex gap-2">
@@ -509,6 +517,22 @@ export function AngleUploader({
             router.refresh();
           }}
           onClose={() => setCaptioning(null)}
+        />
+      )}
+      {choosingFirst && (
+        <SoundPicker
+          locale={locale}
+          labels={soundLabels}
+          initialKey={null}
+          onSave={(key) => {
+            setChoosingFirst(false);
+            if (!key) return clearPending();
+            setPending(key);
+            try {
+              localStorage.setItem(PENDING_SOUND, key);
+            } catch {}
+          }}
+          onClose={() => setChoosingFirst(false)}
         />
       )}
       {picking !== null && items[picking]?.angleId && (

@@ -142,16 +142,13 @@ export async function getMomentView(code: string, viewer: User | null) {
   const visibleIds = visible.map((a) => a.id);
   // Views and likes are shown to everyone.
   const contributorIds = [...new Set(visible.map((a) => a.contributorId))];
-  const [reactions, comments, views, saved, follows, ownSounds] = await Promise.all([
+  const [reactions, comments, views, saved, follows] = await Promise.all([
     reactionsFor(visibleIds, viewer),
     commentCounts(visibleIds),
     viewCounts(visibleIds),
     savedFor(visibleIds, viewer),
     viewer ? db.follow.findMany({ where: { followerId: viewer.id, followingId: { in: contributorIds } }, select: { followingId: true } }) : [],
-    // «🎤 صوتك الأصلي»: the viewer's own videos whose sound they made public (or tried to).
-    viewer ? db.userSound.findMany({ where: { ownerId: viewer.id, angleId: { in: visibleIds }, status: { not: "withdrawn" } }, select: { angleId: true, key: true, status: true } }) : [],
   ]);
-  const ownSound = new Map(ownSounds.map((s) => [s.angleId, { key: s.key, status: s.status }]));
   const following = new Set(follows.map((f) => f.followingId));
   const places = await placeViews([moment.placeId, ...visible.map((a) => a.placeId)]);
 
@@ -198,7 +195,6 @@ export async function getMomentView(code: string, viewer: User | null) {
         uploadedAt: a.uploadedAt,
         isNew: isNew(a.uploadedAt, now),
         picked: !!a.pickedAt,
-        ownSound: ownSound.get(a.id) ?? null,
         durationSec: a.durationSec,
         width: a.width,
         height: a.height,

@@ -617,19 +617,14 @@
     "by": "Sound by {author}",
     "byZawmo": "Sound by Zawmo",
 
-    "peopleEmpty": "No sounds from people yet. The first video sound someone makes public shows up here.",
+    "peopleEmpty": "No sounds from people yet. Be the first: «➕ Add your sound».",
 
     "peopleBy": "{name}'s sound",
 
-    "offer": "🎤 Make this video's sound public",
 
-    "offerConfirm": "This video's sound becomes public under your name, and anyone can put it on their shots on Zawmo. You can take it back anytime. OK?",
 
-    "offering": "⏳ Listening to the sound and checking it…",
 
-    "offerPublic": "✅ Your sound is public! «{name}»",
 
-    "offerBlocked": "Couldn't make it public: {why}",
 
     "whyCopyright": "it contains a copyrighted song",
 
@@ -639,11 +634,9 @@
 
     "whyFailed": "we couldn't check it now, try again shortly",
 
-    "whyNoAudio": "the video has no sound",
+    "whyNoAudio": "There is no clear sound in it",
 
-    "whyNotPublic": "only videos in public moments can share their sound",
 
-    "offerShown": "🎤 Your sound is public · see who used it",
 
     "withdraw": "Take my sound back",
 
@@ -662,7 +655,35 @@
     "montage": "Montage sound",
     "openSound": "Sound page: {name}",
     "useHint": "Pick a moment and upload your shot — the sound is added to it.",
-    "recitedBy": "Recited by {author}"
+    "recitedBy": "Recited by {author}",
+    "own": {
+      "add": "➕ Add your sound",
+      "title": "🎤 Add your sound",
+      "hint": "Record your voice or upload a sound file — 40 seconds at most. It's checked before it's added (no copyrighted songs, nothing offensive).",
+      "record": "🎙️ Record",
+      "recording": "⏺ Recording… {s}s",
+      "stop": "⏹ Stop",
+      "again": "🔁 Record again",
+      "upload": "📁 Upload a sound file",
+      "ready": "✓ Sound ready ({s}s)",
+      "name": "Sound name (optional)",
+      "shared": "👥 Everyone — others can use it",
+      "private": "🔒 Just me — private",
+      "submit": "Add the sound",
+      "checking": "⏳ Listening to it and checking…",
+      "added": "✅ Your sound is ready: «{name}»",
+      "blocked": "We couldn't add it: {why}",
+      "tooBig": "The file is too big — it must be under 4 MB",
+      "micDenied": "We couldn't open the microphone. Allow it for Zawmo, or upload a file.",
+      "membersOnly": "Adding sounds is for members.",
+      "privateTag": "🔒 Private",
+      "mineTag": "Yours",
+      "makePrivate": "🔒 Make it private",
+      "makeShared": "👥 Make it everyone's",
+      "isPrivate": "🔒 This sound is private — only you can use it.",
+      "isShared": "👥 This sound is everyone's — anyone can use it.",
+      "chooseFirst": "🎵 Choose the sound first"
+    }
   },
   "deleteAccount": {
     "title": "Delete my account",

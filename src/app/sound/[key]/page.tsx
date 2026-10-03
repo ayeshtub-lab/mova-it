@@ -7,16 +7,16 @@ import { getCurrentUser } from "@/lib/session";
 import { isQuran, SOUND_CATEGORIES, soundByKey, soundFile, soundName } from "@/lib/sounds";
 import { soundShots, soundUses } from "@/server/sounds";
 import { userSound } from "@/server/user-sounds";
-import { PlaySound, UseSoundButton, WithdrawSound } from "./UseSound";
+import { PlaySound, SharedSwitch, UseSoundButton, WithdrawSound } from "./UseSound";
 
 export async function generateMetadata({ params }: PageProps<"/sound/[key]">): Promise<Metadata> {
   const sound = soundByKey((await params).key);
   if (!sound) return {};
   const locale = await getLocale();
   const t = (await getDictionary(locale)).sounds;
-  // A people's sound: its own name (and only while it is public).
+  // A person's sound: its own name — and in search only while it is live and for everyone.
   const people = sound.cat === "people" ? await userSound(sound.key) : null;
-  if (sound.cat === "people" && people?.status !== "public") return { robots: { index: false } };
+  if (sound.cat === "people" && (people?.status !== "public" || !people.shared)) return { robots: { index: false } };
   const name = people?.name ?? soundName(sound, locale);
   const title = (isQuran(sound) ? t.metaTitleQuran : t.metaTitle).replace("{name}", name);
   const description = t.metaDescription.replace("{name}", name).replace("{cat}", t.cats[sound.cat]);
@@ -28,10 +28,12 @@ export async function generateMetadata({ params }: PageProps<"/sound/[key]">): P
 export default async function SoundPage({ params }: PageProps<"/sound/[key]">) {
   const sound = soundByKey((await params).key);
   if (!sound) notFound();
-  // «🎤 صوتك الأصلي»: a people's sound has its own name and owner; gone once withdrawn or blocked.
+  // «🎤 صوتك»: a person's sound has its own name and owner; gone once withdrawn or blocked, and a
+  // «🔒 خاص» one is only its owner's to see.
   const people = sound.cat === "people" ? await userSound(sound.key) : null;
   if (sound.cat === "people" && people?.status !== "public") notFound();
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
+  if (people && !people.shared && user?.id !== people.owner.id) notFound();
   const [dict, uses, shots] = await Promise.all([getDictionary(locale), soundUses(sound.key), soundShots(user, sound.key)]);
   const t = dict.sounds;
   const cat = SOUND_CATEGORIES.find((c) => c.key === sound.cat)!;
@@ -68,6 +70,13 @@ export default async function SoundPage({ params }: PageProps<"/sound/[key]">) {
         </div>
         {user ? <UseSoundButton soundKey={sound.key} label={t.useThis} /> : null}
         {user && <p className="-mt-3 text-xs text-muted">{t.useHint}</p>}
+        {people && user?.id === people.owner.id && (
+          <SharedSwitch
+            soundKey={people.key}
+            shared={people.shared}
+            labels={{ isShared: dict.sounds.own.isShared, isPrivate: dict.sounds.own.isPrivate, makeShared: dict.sounds.own.makeShared, makePrivate: dict.sounds.own.makePrivate }}
+          />
+        )}
         {people && user?.id === people.owner.id && <WithdrawSound soundKey={people.key} labels={{ withdraw: t.withdraw, confirm: t.withdrawConfirm }} />}
 
         {shots.length ? (
