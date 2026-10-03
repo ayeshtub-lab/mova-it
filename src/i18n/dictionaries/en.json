@@ -664,7 +664,7 @@
       "recording": "⏺ Recording… {s}s",
       "stop": "⏹ Stop",
       "again": "🔁 Record again",
-      "upload": "📁 Upload a sound file",
+      "upload": "📁 Upload a sound or video file",
       "ready": "✓ Sound ready ({s}s)",
       "name": "Sound name (optional)",
       "shared": "👥 Everyone — others can use it",
@@ -673,7 +673,7 @@
       "checking": "⏳ Listening to it and checking…",
       "added": "✅ Your sound is ready: «{name}»",
       "blocked": "We couldn't add it: {why}",
-      "tooBig": "The file is too big — it must be under 4 MB",
+      "tooBig": "The file is too big — try a shorter video",
       "micDenied": "We couldn't open the microphone. Allow it for Zawmo, or upload a file.",
       "membersOnly": "Adding sounds is for members.",
       "privateTag": "🔒 Private",
@@ -682,7 +682,12 @@
       "makeShared": "👥 Make it everyone's",
       "isPrivate": "🔒 This sound is private — only you can use it.",
       "isShared": "👥 This sound is everyone's — anyone can use it.",
-      "chooseFirst": "🎵 Choose the sound first"
+      "chooseFirst": "🎵 Choose the sound first",
+      "preparing": "⏳ Taking the sound out of the file…",
+      "unreadable": "We couldn't read this file's sound — try another file, or record.",
+      "delete": "🗑",
+      "deleteLabel": "Delete my sound",
+      "deleteConfirm": "Your sound will be deleted and stop being used. Sure?"
     }
   },
   "deleteAccount": {

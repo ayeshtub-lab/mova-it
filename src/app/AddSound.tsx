@@ -25,11 +25,62 @@ export type OwnSoundLabels = {
   privateTag: string;
   mineTag: string;
   chooseFirst?: string;
+  preparing?: string;
+  unreadable?: string;
+  deleteLabel?: string;
+  deleteConfirm?: string;
+  makePrivate?: string;
+  makeShared?: string;
 };
 export type WhyLabels = { whyCopyright: string; whyMusic: string; whyOffensive: string; whyFailed: string; whyNoAudio: string };
 
 const MAX_SECONDS = 40;
-const MAX_BYTES = 4_000_000;
+const MAX_BYTES = 4_000_000; // what the server takes
+const MAX_PICK_BYTES = 300_000_000; // a file picked on the phone (its sound is taken out here)
+const RATE = 22050;
+
+// A WAV file (16-bit, mono) from samples.
+function wavOf(samples: Float32Array, rate: number) {
+  const data = new DataView(new ArrayBuffer(44 + samples.length * 2));
+  const text = (at: number, s: string) => [...s].forEach((c, i) => data.setUint8(at + i, c.charCodeAt(0)));
+  text(0, "RIFF");
+  data.setUint32(4, 36 + samples.length * 2, true);
+  text(8, "WAVE");
+  text(12, "fmt ");
+  data.setUint32(16, 16, true);
+  data.setUint16(20, 1, true);
+  data.setUint16(22, 1, true);
+  data.setUint32(24, rate, true);
+  data.setUint32(28, rate * 2, true);
+  data.setUint16(32, 2, true);
+  data.setUint16(34, 16, true);
+  text(36, "data");
+  data.setUint32(40, samples.length * 2, true);
+  samples.forEach((v, i) => data.setInt16(44 + i * 2, Math.max(-1, Math.min(1, v)) * 0x7fff, true));
+  return new Blob([data.buffer], { type: "audio/wav" });
+}
+
+// The sound of a sound file or a video, read by the phone: its first 40 s, mono. Null when the
+// phone can't read it (or there is no sound in it).
+async function soundOf(file: Blob): Promise<{ blob: Blob; seconds: number } | null> {
+  try {
+    const Context = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Context();
+    const decoded = await ctx.decodeAudioData(await file.arrayBuffer());
+    void ctx.close();
+    const seconds = Math.min(MAX_SECONDS, decoded.duration);
+    if (!(seconds > 0.5)) return null;
+    const offline = new OfflineAudioContext(1, Math.ceil(seconds * RATE), RATE);
+    const source = offline.createBufferSource();
+    source.buffer = decoded;
+    source.connect(offline.destination);
+    source.start(0);
+    const rendered = await offline.startRendering();
+    return { blob: wavOf(rendered.getChannelData(0), RATE), seconds: Math.round(seconds * 10) / 10 };
+  } catch {
+    return null;
+  }
+}
 // What this phone records in (Safari: mp4; the rest: webm/ogg).
 const recorderType = () => ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t));
 
@@ -88,17 +139,21 @@ export function AddSound({ labels, why, onAdded, onClose }: { labels: OwnSoundLa
     }, 250);
   }
 
-  function pickFile(file: File | undefined) {
+  // A sound file or a video: its sound is taken out here on the phone (its first 40 s, as a
+  // small mono file), so a big video goes as ~1.5 MB. If the phone can't read it, a small
+  // sound file still goes as it is (the server converts it).
+  async function pickFile(file: File | undefined) {
     setMessage(null);
     if (!file) return;
-    if (file.size > MAX_BYTES) return setMessage(labels.tooBig);
-    const url = URL.createObjectURL(file);
-    setClip({ blob: file, url, seconds: null });
-    // Its length, for the «ready» line (the server cuts it to 40 s anyway).
-    const probe = new Audio();
-    probe.preload = "metadata";
-    probe.onloadedmetadata = () => setClip((c) => (c?.url === url && Number.isFinite(probe.duration) ? { ...c, seconds: Math.min(MAX_SECONDS, Math.round(probe.duration * 10) / 10) } : c));
-    probe.src = url;
+    if (file.size > MAX_PICK_BYTES) return setMessage(labels.tooBig);
+    setBusy(true);
+    setMessage(labels.preparing ?? null);
+    const sound = await soundOf(file);
+    setBusy(false);
+    setMessage(null);
+    if (sound) return setClip({ blob: sound.blob, url: URL.createObjectURL(sound.blob), seconds: sound.seconds });
+    if (file.type.startsWith("audio/") && file.size <= MAX_BYTES) return setClip({ blob: file, url: URL.createObjectURL(file), seconds: null });
+    setMessage(labels.unreadable ?? labels.tooBig);
   }
 
   async function submit() {
@@ -155,7 +210,7 @@ export function AddSound({ labels, why, onAdded, onClose }: { labels: OwnSoundLa
             {!recording && (
               <label className="flex min-h-12 cursor-pointer items-center justify-center rounded-full border border-line px-5 font-bold hover:bg-surface">
                 {labels.upload}
-                <input type="file" accept="audio/*" className="sr-only" onChange={(e) => pickFile(e.target.files?.[0])} />
+                <input type="file" accept="audio/*,video/*" className="sr-only" onChange={(e) => pickFile(e.target.files?.[0])} />
               </label>
             )}
           </div>

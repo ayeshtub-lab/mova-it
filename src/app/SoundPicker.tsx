@@ -77,10 +77,29 @@ export function SoundPicker({
           sub: p.mine ? (p.shared ? (labels.own?.mineTag ?? null) : (labels.own?.privateTag ?? null)) : (labels.peopleBy ?? "{name}").replace("{name}", p.author),
           seconds: p.seconds,
           private: !!p.mine && p.shared === false,
+          mine: !!p.mine,
         }))
-      : SOUNDS.filter((s) => s.cat === cat).map((s) => ({ key: s.key, name: soundName(s, locale), sub: null as string | null, seconds: s.seconds, private: false }));
+      : SOUNDS.filter((s) => s.cat === cat).map((s) => ({ key: s.key, name: soundName(s, locale), sub: null as string | null, seconds: s.seconds, private: false, mine: false }));
   const audio = useRef<HTMLAudioElement | null>(null);
   const solemn = isSolemn(soundByKey(key));
+  const [changing, setChanging] = useState<string | null>(null);
+
+  // Your own sound, right here: everyone ↔ «🔒 خاص», or delete it.
+  async function setShared(soundKey: string, shared: boolean) {
+    setChanging(soundKey);
+    const res = await fetch(`/api/sounds/${soundKey}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ shared }) }).catch(() => null);
+    setChanging(null);
+    if (res?.ok) setPeople((list) => list?.map((p) => (p.key === soundKey ? { ...p, shared } : p)) ?? null);
+  }
+  async function remove(soundKey: string) {
+    if (!window.confirm(labels.own?.deleteConfirm ?? "?")) return;
+    setChanging(soundKey);
+    const res = await fetch(`/api/sounds/${soundKey}`, { method: "DELETE" }).catch(() => null);
+    setChanging(null);
+    if (!res?.ok) return;
+    setPeople((list) => list?.filter((p) => p.key !== soundKey) ?? null);
+    if (key === soundKey) setKey(null);
+  }
 
   useEffect(() => () => audio.current?.pause(), []);
 
@@ -182,6 +201,30 @@ export function SoundPicker({
                   </span>
                   <span className="shrink-0 text-xs text-muted">{on ? labels.chosen : `${Math.round(s.seconds)}″`}</span>
                 </button>
+                {s.mine && labels.own && (
+                  <span className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={changing === s.key}
+                      onClick={() => setShared(s.key, s.private)}
+                      aria-label={s.private ? labels.own.makeShared : labels.own.makePrivate}
+                      title={s.private ? labels.own.makeShared : labels.own.makePrivate}
+                      className="flex size-9 items-center justify-center rounded-full bg-background text-base shadow-sm disabled:opacity-40"
+                    >
+                      {s.private ? "🔒" : "👥"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={changing === s.key}
+                      onClick={() => remove(s.key)}
+                      aria-label={labels.own.deleteLabel}
+                      title={labels.own.deleteLabel}
+                      className="flex size-9 items-center justify-center rounded-full bg-background text-base shadow-sm disabled:opacity-40"
+                    >
+                      🗑
+                    </button>
+                  </span>
+                )}
               </li>
             );
           })}
