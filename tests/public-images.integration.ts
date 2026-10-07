@@ -42,6 +42,7 @@ async function main() {
     await check("a public moment's shots show at their lasting address", async () => {
       const view = await getMomentView(open.code, null);
       assert.equal(view?.angles[0].gridUrl, `/i/${a.id}-small.jpg`);
+      assert.equal(view?.angles[0].mediaUrl, `/i/${a.id}.jpg`, "and full size in the viewer");
     });
 
     await check("/i/ID-small.jpg is the small copy, /i/ID.jpg the full one", async () => {
@@ -54,6 +55,7 @@ async function main() {
     await check("friends' moments and «لحظة اليوم»: private links, and /i/ says not found", async () => {
       const view = await getMomentView(friends.code, owner);
       assert.ok(view?.angles[0].gridUrl?.includes("vercel-storage.com"), "a private, expiring link");
+      assert.ok(view?.angles[0].mediaUrl?.includes("vercel-storage.com"));
       for (const s of [f, d]) {
         assert.equal((await get(`${s.id}-small.jpg`)).status, 404);
         assert.equal((await get(`${s.id}.jpg`)).status, 404);

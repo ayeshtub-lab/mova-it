@@ -199,7 +199,8 @@ export async function getMomentView(code: string, viewer: User | null) {
         durationSec: a.durationSec,
         width: a.width,
         height: a.height,
-        mediaUrl: await viewUrl(a.mediaPath),
+        // A public photo full size: the lasting address too (src/app/i); a video plays from storage.
+        mediaUrl: everyone && a.screening === "allowed" && a.mediaType === "PHOTO" ? `/i/${a.id}.jpg` : await viewUrl(a.mediaPath),
         // Videos: the adaptive stream once Cloudflare has it (the file above stays the fallback).
         hlsUrl: a.mediaType === "VIDEO" ? hlsUrl(a) : null,
         thumbUrl: await viewUrl(a.thumbPath),

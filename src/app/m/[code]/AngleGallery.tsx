@@ -794,7 +794,7 @@ export function AngleGallery({
                   />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
-                  <img src={a.mediaUrl ?? ""} alt={a.contributorName} className="max-h-full max-w-full object-contain" style={{ filter: filterCss(lookOf(a.id).filter) }} />
+                  <img src={a.mediaUrl ?? ""} alt={[altBase, a.aiText?.replace(/#\S+/g, "").trim(), a.contributorName].filter(Boolean).join(" — ")} className="max-h-full max-w-full object-contain" style={{ filter: filterCss(lookOf(a.id).filter) }} />
                 )}
                 {lookOf(a.id).stamp && (
                   <span className="stamp absolute bottom-24 left-4 z-10 text-base">
