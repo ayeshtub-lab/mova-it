@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { remindStories } from "@/server/stories";
 import { remindDaily, SUMMARY_WEEKDAY, weeklySummary } from "@/server/nudges";
+import { sendWeatherAlerts } from "@/server/weather-alerts";
 
 export const maxDuration = 120;
 
@@ -15,6 +16,8 @@ export async function GET(request: Request) {
   const daily = await remindDaily().catch((error) => (console.error("daily reminder failed", error), -1));
   const friday = new Date(Date.now() + 3 * 3600e3).getUTCDay() === SUMMARY_WEEKDAY;
   const summaries = friday ? await weeklySummary().catch((error) => (console.error("weekly summary failed", error), -1)) : 0;
-  console.log("reminders", { stories, daily, summaries });
-  return NextResponse.json({ stories, daily, summaries });
+  // Snow or real rain on the way (src/server/weather-alerts.ts): members there are told tonight.
+  const weather = await sendWeatherAlerts().catch((error) => (console.error("weather alerts failed", error), -1));
+  console.log("reminders", { stories, daily, summaries, weather });
+  return NextResponse.json({ stories, daily, summaries, weather });
 }

@@ -27,6 +27,10 @@ export const LIMITS = {
   places: [120, 60], // place search while typing, per minute
   guest: [20, 3600], // new guest accounts from one network
   sound: [12, 3600], // «🎤 صوتك» added (each checked by Gemini, and AudD while it has credit)
+  // Weather alerts (src/server/weather-alerts.ts): the count marks one as sent, so each is once per window.
+  snowAlert: [1, 48 * 3600], // per governorate
+  rainAlert: [1, 7 * 24 * 3600], // per governorate: not every rainy day of the winter
+  weatherAlert: [1, 48 * 3600], // per person, whatever the weather
 } as const satisfies Record<string, readonly [number, number]>;
 export type Action = keyof typeof LIMITS;
 

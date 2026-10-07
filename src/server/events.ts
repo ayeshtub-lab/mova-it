@@ -46,7 +46,7 @@ const dayRange = (day: string) => {
 // A sky is shared by a whole region: an event's area is the governorate (or, where there is
 // none, the town — never a neighbourhood).
 type PlaceNode = { id: string; kind: string; parentId: string | null };
-async function areasOf(placeIds: string[]) {
+export async function areasOf(placeIds: string[]) {
   const nodes = new Map<string, PlaceNode>();
   let frontier = [...new Set(placeIds)];
   for (let depth = 0; depth < 5 && frontier.length; depth++) {

@@ -33,10 +33,10 @@ export function weatherKind(symbol: string): WeatherKind | null {
   return null;
 }
 
-type Hour = { time: string; data: { instant: { details: { air_temperature?: number } }; next_1_hours?: { summary: { symbol_code: string } } } };
+export type Hour = { time: string; data: { instant: { details: { air_temperature?: number } }; next_1_hours?: { summary: { symbol_code: string } } } };
 
 // The forecast hours for a point (rounded to ~1 km, as MET Norway asks: fewer, cacheable calls).
-async function forecast(lat: number, lng: number): Promise<Hour[] | null> {
+export async function forecast(lat: number, lng: number): Promise<Hour[] | null> {
   const url = `${API}?lat=${lat.toFixed(2)}&lon=${lng.toFixed(2)}`;
   const res = await fetch(url, { headers: { "user-agent": USER_AGENT, accept: "application/json" }, signal: AbortSignal.timeout(8000) }).catch(() => null);
   if (!res?.ok) return null;
@@ -71,6 +71,7 @@ export async function stampWeather(limit = 40, now = new Date()) {
     orderBy: { uploadedAt: "asc" },
     take: limit,
   });
+  // (updateMany: a shot deleted meanwhile is simply skipped, never an error for the rest.)
   const calls = new Map<string, Promise<Hour[] | null>>();
   let stamped = 0;
   for (const s of shots) {
@@ -78,7 +79,7 @@ export async function stampWeather(limit = 40, now = new Date()) {
     const place = s.place ?? s.moment.place;
     // Taken too long ago for a forecast to say (an old photo): none, and not asked again.
     if (!place || now.getTime() - at.getTime() > FRESH_MS) {
-      await db.angle.update({ where: { id: s.id }, data: { weatherCheckedAt: now } });
+      await db.angle.updateMany({ where: { id: s.id }, data: { weatherCheckedAt: now } });
       continue;
     }
     const key = `${place.lat.toFixed(2)},${place.lng.toFixed(2)}`;
@@ -86,7 +87,7 @@ export async function stampWeather(limit = 40, now = new Date()) {
     const hours = await calls.get(key)!;
     if (!hours) continue; // the service didn't answer: the next run tries again (until FRESH_MS)
     const w = weatherAt(hours, at);
-    await db.angle.update({ where: { id: s.id }, data: { weather: w?.kind ?? null, weatherTemp: w?.temp ?? null, weatherCheckedAt: now } });
+    await db.angle.updateMany({ where: { id: s.id }, data: { weather: w?.kind ?? null, weatherTemp: w?.temp ?? null, weatherCheckedAt: now } });
     if (w) stamped++;
   }
   return stamped;
