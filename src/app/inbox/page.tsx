@@ -10,6 +10,7 @@ import { listThreads, markThreadsSeen } from "@/server/inbox";
 import { listNotifications, markNotificationsRead, type NotificationView } from "@/server/notifications";
 import { PushToggle } from "@/app/PushToggle";
 import { GiveBack } from "./GiveBack";
+import { unplacedCount } from "@/server/unplaced";
 import { RefreshOnFocus } from "./RefreshOnFocus";
 
 export const metadata = { title: "زاومو · 📥", robots: { index: false } };
@@ -19,7 +20,7 @@ const fill = (template: string, values: Record<string, string>) => template.repl
 export default async function InboxPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/");
-  const [locale, threads, activity] = await Promise.all([getLocale(), listThreads(user), listNotifications(user)]);
+  const [locale, threads, activity, unplaced] = await Promise.all([getLocale(), listThreads(user), listNotifications(user), unplacedCount(user.id)]);
   const dict = await getDictionary(locale);
   const t = dict.inbox;
   // Shown highlighted this once, then read (the badge clears on the next page).
@@ -82,6 +83,12 @@ export default async function InboxPage() {
       <main className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-16">
         <h1 className="text-3xl font-extrabold">{t.title}</h1>
         <PushToggle labels={dict.push} locale={locale} />
+        {/* «📍 وين صوّرتهن؟»: public shots without a place (src/server/unplaced.ts). */}
+        {unplaced > 0 && (
+          <Link href="/places" className="flex min-h-12 items-center rounded-2xl bg-secondary-soft px-4 py-2 text-sm font-bold">
+            {dict.unplaced.card}
+          </Link>
+        )}
 
         <section className="flex flex-col gap-2" aria-labelledby="messages">
           <h2 id="messages" className="text-lg font-extrabold">

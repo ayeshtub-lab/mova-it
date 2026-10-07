@@ -83,6 +83,7 @@
     "serverError": "Something went wrong on our side. Please try again in a moment."
   },
   "event": {"title":"{scene} in {area}","today":"today","hint":"Real photos by the people who were there, in the order they were taken.","metaDescription":"{scene} in {area} on {date}: {shots} {people} — real photos with time and weather on Zawmo.","cta":"Were you there? Add your angle 📸","allPlace":"📍 All photos of {area}","weatherBy":"Weather by"},
+  "unplaced": {"title":"📍 Where were these taken?","hint":"These shots of yours have no place. Pick the town for each moment in one tap: they show on the town's page, and sunsets, moons and rain join everyone's photos of that day.","done":"📍 {place} ✓ — done","failed":"Couldn't save, try again.","empty":"All your shots have a place ✓","back":"Back to inbox","card":"📍 Some of your shots have no place — add it in one tap"},
   "upload": {
     "place": { "ask": "📍 Where did you take it?", "hint": "Type the town or tap «📍 My location»: your shot gets its place and that hour's weather, and shows on the town's page.", "failed": "Couldn't save the place, try again." },
     "join": {
