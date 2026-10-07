@@ -103,6 +103,7 @@ export const SOUNDS: Sound[] = [
   // against the song that inspired its feel: no shared melody or words); each 40 s at most.
   { key: "h01", cat: "nasheed", ar: "عليكَ سلامْ (ابتسامته)", en: "Peace be upon you (his smile)", seconds: 39.2, credit: null },
   { key: "h02", cat: "nasheed", ar: "عليكَ سلامْ (طَيبة)", en: "Peace be upon you (Taybah)", seconds: 39.2, credit: null },
+  { key: "h03", cat: "nasheed", ar: "في مديح الهادي", en: "In praise of the Guide", seconds: 39.8, credit: null },
   { key: "s12", cat: "wisdom", ar: "الصبر مفتاح الفرج", en: "Patience is the key", seconds: 9.6, credit: null },
   { key: "t03", cat: "funny", ar: "ههههه لا والله؟!", en: "Hahaha, no way?!", seconds: 2.7, credit: null },
   { key: "t04", cat: "funny", ar: "يا سلااام!", en: "Ya salaam!", seconds: 3.3, credit: null },
