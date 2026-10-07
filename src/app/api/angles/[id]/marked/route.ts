@@ -3,9 +3,11 @@ import { getCurrentUser } from "@/lib/session";
 import { MarkedError, markedPhotoUrl } from "@/server/marked";
 import { limited } from "@/server/rate-limit";
 
-export const maxDuration = 60;
+// A photo with a sound is made into a video (usually ahead; up to a minute or two if not).
+export const maxDuration = 300;
 
-// «📤 شارك بختم زاومو» for a photo: { url } of the marked copy (made once, then kept).
+// «📤 شارك بختم زاومو» for a photo: { url } of the marked copy (made once, then kept) — a
+// picture, or a video when the photo has a sound.
 // Anyone who can see the photo — visitors too, for public moments.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();

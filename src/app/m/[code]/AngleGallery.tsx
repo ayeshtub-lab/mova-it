@@ -90,7 +90,7 @@ type Labels = {
   actionFailed: string;
   isNew: string;
   edit: ShotEditorLabels & { open: string; failed: string };
-  branded: { make: string; working: string; share: string; failed: string };
+  branded: { make: string; working: string; share: string; failed: string; photoWorking: string };
   caption: CaptionLabels;
   sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
   similar: { find: string; scanning: string; title: string; empty: string; close: string };
@@ -376,6 +376,9 @@ export function AngleGallery({
     const saved = (await res.json()) as { soundKey: string | null; muteOriginal: boolean; lyrics: boolean };
     setSounds((m) => new Map(m).set(angleId, { key: saved.soundKey, mute: saved.muteOriginal, lyrics: saved.lyrics }));
     setSoundFor(null);
+    // A photo's shared copy carries its sound: the one fetched before is out of date.
+    const shot = byId.get(angleId);
+    if (shot?.mediaType === "PHOTO" && marked?.id === angleId) loadMarked(shot);
   }
 
   function flash(text: string) {
@@ -544,8 +547,15 @@ export function AngleGallery({
     }
     fetch(`/api/angles/${a.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
     // A photo goes out as a picture with the Zawmo mark (ready since it opened) — for a story or
-    // a status — with the link beside it; the plain link when the phone can't share files.
-    const photo = a.mediaType === "PHOTO" && marked?.id === a.id ? marked.file : null;
+    // a status — with the link beside it; the plain link when the phone can't share files. A
+    // photo with a sound goes out as a short video carrying it: while that is still being made,
+    // the tap waits for it (a link would lose the sound) — unless making it failed.
+    const mine = a.mediaType === "PHOTO" && marked?.id === a.id ? marked : null;
+    const photo = mine?.file ?? null;
+    if (a.mediaType === "PHOTO" && soundOf(a.id).key && !photo && !mine?.failed && "canShare" in navigator) {
+      if (!mine) loadMarked(a);
+      return flash(labels.branded.photoWorking);
+    }
     if (photo && navigator.canShare?.({ files: [photo] })) {
       await navigator.share({ files: [photo], text: `${share.title} — ${tagged(share.url, "share-photo")}` }).catch(() => {});
       return;
@@ -591,24 +601,24 @@ export function AngleGallery({
 
   // ── «📤 شارك بختم زاومو» for a photo (anyone's, for whoever can see it): the marked picture is
   // fetched when the photo is on screen, so the share arrow sends it at once (src/server/marked.ts).
-  const [marked, setMarked] = useState<{ id: string; file: File | null } | null>(null);
+  // (A photo with a sound comes back as a video — src/server/marked.ts.)
+  const [marked, setMarked] = useState<{ id: string; file: File | null; failed?: boolean } | null>(null);
+  async function loadMarked(a: GalleryAngle) {
+    setMarked({ id: a.id, file: null });
+    const res = await fetch(`/api/angles/${a.id}/marked`, { method: "POST" }).catch(() => null);
+    const url = res?.ok ? ((await res.json()) as { url?: string }).url : null;
+    const blob = url ? await fetch(url).then((r) => (r.ok ? r.blob() : null), () => null) : null;
+    const code = share.url.split("/").pop() ?? "zawmo";
+    const video = blob?.type === "video/mp4";
+    setMarked((m) =>
+      m?.id !== a.id ? m : blob ? { id: a.id, file: new File([blob], `zawmo-${code}.${video ? "mp4" : "jpg"}`, { type: video ? "video/mp4" : "image/jpeg" }) } : { id: a.id, file: null, failed: true },
+    );
+  }
   useEffect(() => {
     const a = angles[current];
     if (!opened || !a || a.mediaType !== "PHOTO" || marked?.id === a.id) return;
-    let gone = false;
-    const timer = setTimeout(async () => {
-      setMarked({ id: a.id, file: null });
-      const res = await fetch(`/api/angles/${a.id}/marked`, { method: "POST" }).catch(() => null);
-      const url = res?.ok ? ((await res.json()) as { url?: string }).url : null;
-      const blob = url ? await fetch(url).then((r) => (r.ok ? r.blob() : null), () => null) : null;
-      if (gone || !blob) return;
-      const code = share.url.split("/").pop() ?? "zawmo";
-      setMarked((m) => (m?.id === a.id ? { id: a.id, file: new File([blob], `zawmo-${code}.jpg`, { type: "image/jpeg" }) } : m));
-    }, 800); // a photo only flicked past isn't made
-    return () => {
-      gone = true;
-      clearTimeout(timer);
-    };
+    const timer = setTimeout(() => loadMarked(a), 800); // a photo only flicked past isn't made
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per photo on screen
   }, [current, opened]);
 

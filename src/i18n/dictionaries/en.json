@@ -747,7 +747,8 @@
     "make": "📤 Share with Zawmo mark",
     "working": "⏳ Getting your video ready with the Zawmo mark… tap share again in a moment",
     "share": "📤 Share the video",
-    "failed": "Couldn't prepare the video — try again."
+    "failed": "Couldn't prepare the video — try again.",
+    "photoWorking": "⏳ Turning the photo and its sound into a video… tap share again in a moment"
   },
   "editShot": {
     "open": "✏️ Edit",

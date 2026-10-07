@@ -535,6 +535,32 @@ export async function buildMarkedPhoto(
   return output;
 }
 
+// A photo with a sound, shared: a picture can't carry the sound to TikTok or a status, so the
+// marked picture (above) becomes a 9:16 video as long as the sound — the sound whole (a verse
+// whole), its words on it when they're on, no closing card (the mark has the link). Null: no sound.
+export async function buildMarkedPhotoVideo(picture: string, soundKey: string | null, lyrics: boolean, siteHost: string, dir: string) {
+  const sound = soundByKey(soundKey);
+  if (!sound) return null;
+  const soundPath = join(dir, `sound-${sound.key}.mp3`);
+  await download(`${siteHost.startsWith("localhost") ? "http" : "https"}://${siteHost}${soundFile(sound.key)}`, soundPath);
+  const seconds = Math.min(MAX_FILM_SECONDS, sound.seconds);
+  const still = join(dir, "still.mp4");
+  await ffmpeg([
+    "-loop", "1", "-framerate", String(FPS), "-t", seconds.toFixed(2), "-i", picture,
+    "-f", "lavfi", "-t", seconds.toFixed(2), "-i", "anullsrc=r=44100:cl=stereo",
+    // (A JPEG is full-range colour; a video phones and TikTok read right is the standard range.)
+    "-vf", "scale=in_range=pc:out_range=tv,format=yuv420p", "-color_range", "tv",
+    "-map", "0:v", "-map", "1:a", ...PIECE, "-tune", "stillimage", "-t", seconds.toFixed(2), still,
+  ], 120_000);
+  const voiced = join(dir, "voiced.mp4");
+  const total = await withShotSound(still, soundPath, sound, true, seconds, voiced, lyrics);
+  // (A verse gets a breath after it — never past the 40 s every Zawmo film keeps to, beyond the
+  // hundredths a whole verse may run over.)
+  const output = join(dir, "zawmo.mp4");
+  await ffmpeg(["-i", voiced, "-c", "copy", "-movflags", "+faststart", "-t", Math.min(total, Math.max(MAX_FILM_SECONDS, sound.seconds)).toFixed(2), output], 60_000);
+  return output;
+}
+
 export async function buildBrandedShot(
   shot: { mediaPath: string; filter: string | null; caption: Parameters<typeof parseCaption>[0]; stamp: boolean; uploadedAt: Date; momentCode: string; momentTitle: string; soundKey?: string | null; muteOriginal?: boolean; lyrics?: boolean },
   siteHost: string,

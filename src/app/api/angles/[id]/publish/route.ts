@@ -24,8 +24,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     after(() => offerVideo(angle.id).catch((error) => console.error("video offer failed", angle.id, error)));
     const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;
     after(() => refreshMontageForAngle(angle.id, host).catch((error) => console.error("montage refresh failed", angle.id, error)));
-    // A video: its stamped copy made now, so sharing it never waits.
-    if (angle.mediaType === "VIDEO") after(() => brandAfterChange(angle.id));
+    // A video (or a photo with a sound): its stamped copy made now, so sharing it never waits.
+    after(() => brandAfterChange(angle.id));
     return NextResponse.json({ id: angle.id, status: angle.status });
   } catch (error) {
     if (error instanceof AngleError) return NextResponse.json({ error: error.code }, { status: error.code === "not_found" ? 404 : error.code === "needs_title" ? 400 : 409 });

@@ -9,6 +9,7 @@ import { parseCaption } from "@/lib/caption";
 import { wordsMark } from "@/lib/lyrics";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { blobExists, viewUrl } from "@/server/media";
+import { ensureMarked } from "@/server/marked";
 import { buildBrandedShot } from "@/server/montage/render";
 
 // «شارك بختم زاومو»: a video shot with the Zawmo mark, its sound and the closing card — what is
@@ -76,9 +77,12 @@ export async function brandedShotUrl(user: User, angleId: string) {
 }
 
 // After any change to a video (published, new look, writing, sound): make its new version
-// now, in the background. Never throws.
+// now, in the background — and for a photo with a sound, its shared video (src/server/marked.ts).
+// Never throws.
 export async function brandAfterChange(angleId: string) {
   await ensureBranded(angleId).catch((error) => console.error("branded ahead failed", angleId, error));
+  const photo = await db.angle.findUnique({ where: { id: angleId }, select: { mediaType: true, soundKey: true } });
+  if (photo?.mediaType === "PHOTO" && photo.soundKey) await ensureMarked(angleId).catch((error) => console.error("marked ahead failed", angleId, error));
 }
 
 // The cron: older videos without their current stamped copy, a few per run.
