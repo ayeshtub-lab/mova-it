@@ -155,3 +155,10 @@ export async function shotOrdinal(shot: PublicShot, now = new Date()) {
 export async function sitemapShots(now = new Date(), take = 5000) {
   return db.angle.findMany({ where: shownAngle(now), select: shotSelect, orderBy: { uploadedAt: "desc" }, take });
 }
+
+// The library sounds that public shots use: a sound's page lists those shots, so one nobody
+// used yet is an empty page — left out of the sitemap until someone does.
+export async function sitemapSoundKeys(now = new Date()) {
+  const used = await db.angle.groupBy({ by: ["soundKey"], where: { ...shownAngle(now), soundKey: { not: null } }, _max: { uploadedAt: true } });
+  return new Map(used.map((u) => [u.soundKey!, u._max.uploadedAt!]));
+}

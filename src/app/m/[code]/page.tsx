@@ -383,6 +383,26 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           </div>
         )}
 
+        {/* What the pictures show, in words — folded away for people; search engines read it,
+            since a page of pictures alone gives them nothing to go on. Public moments only. */}
+        {momentIndexable(view) && view.angles.some((a) => a.aiText) && (
+          <details className="rounded-3xl bg-surface px-5 py-3 text-sm">
+            <summary className="cursor-pointer font-bold">📝 {locale === "ar" ? "شو في باللحظة" : "In this moment"}</summary>
+            <ul className="mt-2 flex flex-col gap-1.5 leading-relaxed text-muted">
+              {view.angles
+                .filter((a) => a.aiText)
+                .map((a) => (
+                  <li key={a.id}>
+                    <Link href={`/m/${view.code}/a/${a.id}`} className="hover:underline">
+                      {a.aiText!.replace(/#\S+/g, "").trim()}
+                    </Link>{" "}
+                    — {a.contributorName}
+                  </li>
+                ))}
+            </ul>
+          </details>
+        )}
+
         {view.angleCount > 0 && !montage && (!story || view.angleCount < STORY_MIN) && <p data-nosnippet className="rounded-2xl bg-surface p-4 text-sm text-muted">{story ? dict.story.video.locked : dict.montage.locked}</p>}
 
         {view.lockedCount > 0 && (
