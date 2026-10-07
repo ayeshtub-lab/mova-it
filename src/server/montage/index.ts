@@ -238,9 +238,11 @@ export async function failingLately(momentId: string, now: Date) {
   const tries = await db.montage.findMany({
     where: { momentId, status: { not: "READY" }, createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
     orderBy: { createdAt: "desc" },
-    select: { status: true, createdAt: true },
+    select: { status: true, createdAt: true, error: true },
   });
-  const failed = tries.filter((t) => t.status === "FAILED" || now.getTime() - t.createdAt.getTime() >= STALE_RENDER_MS);
+  // (A film made over several runs stops with «partial n/m»: progress, not a failure.)
+  if (tries[0]?.status === "FAILED" && tries[0].error?.startsWith("partial ")) return false;
+  const failed = tries.filter((t) => (t.status === "FAILED" && !t.error?.startsWith("partial ")) || ((t.status === "QUEUED" || t.status === "RENDERING") && now.getTime() - t.createdAt.getTime() >= STALE_RENDER_MS));
   if (!failed.length) return false;
   if (failed.length >= 3) return true; // a day off
   return now.getTime() - failed[0].createdAt.getTime() < 6 * 60 * 60 * 1000;

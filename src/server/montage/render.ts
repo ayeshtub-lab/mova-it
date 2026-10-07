@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import ar from "@/i18n/dictionaries/ar.json";
 import en from "@/i18n/dictionaries/en.json";
 import { plural } from "@/i18n/plural";
@@ -12,7 +13,7 @@ import { filterByKey, stampText } from "@/lib/filters";
 import { lyricsOf, lyricTimes } from "@/lib/lyrics";
 import { isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
-import { viewUrl } from "@/server/media";
+import { blobExists, viewUrl } from "@/server/media";
 import { isArabic } from "@/server/og-text";
 import { FRAME, renderIntro, renderLyric, renderOutro, renderOverlay, renderWatermark } from "./overlay";
 
@@ -271,12 +272,30 @@ type MontageInput = {
   soundKey: string | null;
   siteHost: string; // where library sounds are fetched from, and the link on screen
   kicker?: string; // the line over the opening title, when not the usual one («🆕 الجديد»)
+  // Stop making new pieces after this moment (ms since epoch): a big film is made over several
+  // runs — each run keeps the pieces it made, the next one picks up there (see PartialFilm).
+  stopAt?: number;
 };
+
+// A big film (many shots from phone videos) takes longer than one server run allows. Its pieces —
+// each shot ready to join, with its frame, look, writing and sound — are kept in Blob under a
+// name made of everything that shapes them, so the next run reuses them instead of starting
+// over; the film itself is joined once every piece is there. The pieces go once it is made.
+const PIECE_STYLE = "piece-1";
+const piecePath = (momentId: string, parts: unknown[]) =>
+  `m/${momentId}/pieces/${createHash("sha256").update(JSON.stringify([PIECE_STYLE, ...parts])).digest("hex").slice(0, 24)}.mp4`;
+
+// Thrown when the run stopped before every piece was made: not a failure — the next run goes on.
+export class PartialFilm extends Error {
+  constructor(public done: number, public total: number) {
+    super(`partial ${done}/${total}`);
+  }
+}
 
 // Builds the film in `dir`: an opening title, every shot moving (photos drift and zoom,
 // videos play) under the Zawmo frame, flowing into each other, a closing card with the
 // link, and a sound under it all. Returns the file and its length in seconds.
-export async function buildMontageVideo({ moment, angles: ordered, participants, soundKey, siteHost, kicker }: MontageInput, dir: string) {
+export async function buildMontageVideo({ moment, angles: ordered, participants, soundKey, siteHost, kicker, stopAt }: MontageInput, dir: string) {
   const story = moment.kind === "STORY";
   const arabic = isArabic(moment.title);
   const dict = arabic ? ar : en;
@@ -303,33 +322,53 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   let background: string | null = null; // the first shot's picture, for the opening card
   let shotSounds = false;
   const times = shotTimes(ordered.filter((a) => a.mediaType !== "VIDEO").length, ordered.filter((a) => a.mediaType === "VIDEO").length, story, filmLimit(soundKey));
+  const pieces: string[] = [];
+  let made = 0;
   for (const [i, angle] of ordered.entries()) {
     const url = await viewUrl(angle.mediaPath);
     if (!url) continue;
     const input = join(dir, `in-${i}`);
     const overlay = join(dir, `ov-${i}.png`);
     const out = join(dir, `seg-${i}.mp4`);
+    const frame = {
+      title: moment.title,
+      meta,
+      label: (story ? dict.montage.storyLabel : dict.montage.label)
+        .replace("{i}", String(i + 1))
+        .replace("{n}", String(ordered.length))
+        .replace("{name}", angle.contributor.displayName),
+      cta: story ? dict.montage.storyCta : dict.montage.cta,
+      // «مع الوقت»: each shot's date, big — the dates tell the story.
+      date: story ? storyDate(angle.capturedAt ?? angle.uploadedAt, locale) : undefined,
+      // The short link (zawmo.com/K7M2Q4): easy to read off a video and type in.
+      link: `${publicHost(siteHost)}/${moment.code}`,
+      stamp: angle.stamp ? stampText(angle.uploadedAt, locale, "Asia/Riyadh") : undefined,
+    };
+    // A story moves too fast for each shot's own sound: only the video's sound plays.
+    const shotSound = soundKey || story ? null : soundByKey(angle.soundKey);
+    if (shotSound) shotSounds = true;
+    const writing = parseCaption(angle.caption);
+    const kept = piecePath(moment.id, [angle.id, angle.mediaPath, angle.mediaType, angle.filter, writing?.path ?? null, frame, times, story, i, shotSound?.key ?? null, angle.muteOriginal, angle.lyrics]);
+    pieces.push(kept);
+    // Made in an earlier run: just fetched.
+    if (await blobExists(kept)) {
+      const keptUrl = await viewUrl(kept);
+      if (keptUrl) {
+        const piece = join(dir, `piece-${i}.mp4`);
+        await download(keptUrl, piece);
+        background ??= await stillOf(piece, join(dir, "still.jpg"));
+        durations.push((await probe(piece)).duration);
+        segments.push(piece);
+        continue;
+      }
+    }
+    // Out of time for this run (once it made at least one piece, so every run moves on): keep
+    // what is made, the next run goes on.
+    if (stopAt && made > 0 && Date.now() > stopAt) throw new PartialFilm(segments.length, ordered.length);
     await download(url, input);
     background ??= angle.mediaType === "VIDEO" ? await stillOf(input, join(dir, "still.jpg")) : input;
-    await writeFile(
-      overlay,
-      await renderOverlay({
-        title: moment.title,
-        meta,
-        label: (story ? dict.montage.storyLabel : dict.montage.label)
-          .replace("{i}", String(i + 1))
-          .replace("{n}", String(ordered.length))
-          .replace("{name}", angle.contributor.displayName),
-        cta: story ? dict.montage.storyCta : dict.montage.cta,
-        // «مع الوقت»: each shot's date, big — the dates tell the story.
-        date: story ? storyDate(angle.capturedAt ?? angle.uploadedAt, locale) : undefined,
-        // The short link (zawmo.com/K7M2Q4): easy to read off a video and type in.
-        link: `${publicHost(siteHost)}/${moment.code}`,
-        stamp: angle.stamp ? stampText(angle.uploadedAt, locale, "Asia/Riyadh") : undefined,
-      }),
-    );
+    await writeFile(overlay, await renderOverlay(frame));
     // The shot's writing, fetched next to its picture.
-    const writing = parseCaption(angle.caption);
     let caption: CaptionFile | undefined;
     const writingUrl = writing ? await viewUrl(writing.path) : null;
     if (writing && writingUrl) {
@@ -341,15 +380,17 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
         ? await videoSegment(input, overlay, out, angle.filter, caption, times.video)
         : await photoSegment(input, overlay, out, angle.filter, caption, times.photo, story ? null : i);
     let segment = out;
-    // A story moves too fast for each shot's own sound: only the video's sound plays.
-    const shotSound = soundKey || story ? null : soundByKey(angle.soundKey);
     if (shotSound) {
-      shotSounds = true;
       segment = join(dir, `seg-${i}-sound.mp4`);
       seconds = await withShotSound(out, await soundAt(shotSound), shotSound, angle.muteOriginal, seconds, segment, angle.lyrics);
     }
     durations.push(seconds);
     segments.push(segment);
+    // Kept for a later run, should this one run out of time before the film is joined.
+    if (stopAt) {
+      await put(kept, await readFile(segment), { access: "private", contentType: "video/mp4", addRandomSuffix: false, allowOverwrite: true });
+      made++;
+    }
   }
   if (!segments.length || !background) throw new Error("no angles");
 
@@ -415,6 +456,9 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
     const plain = joinGraph(durations, t, durations.map(() => "fade"), quranHold ? "vc" : "v").graph;
     await run(quranHold ? graph.replace(joined.graph, plain) : plain);
   }
+  // The film is made: its kept pieces are no longer needed.
+  if (stopAt) await Promise.all(pieces.map((p) => del(p).catch(() => {})));
+  void made;
   return { output, total };
 }
 
@@ -430,7 +474,8 @@ export async function renderMontage(montageId: string, siteHost: string) {
     const ordered = montage.angleIds.map((id) => angles.find((a) => a.id === id)).filter((a) => !!a);
     if (!ordered.length) throw new Error("no angles");
     const participants = await db.participant.count({ where: { momentId: montage.moment.id } });
-    const { output, total } = await buildMontageVideo({ moment: montage.moment, angles: ordered, participants, soundKey: montage.soundKey, siteHost }, dir);
+    // Pieces are made for about 7 minutes, leaving the rest of the run for joining the film.
+    const { output, total } = await buildMontageVideo({ moment: montage.moment, angles: ordered, participants, soundKey: montage.soundKey, siteHost, stopAt: Date.now() + 7 * 60_000 }, dir);
 
     const path = `m/${montage.moment.id}/montage-${montage.id}.mp4`;
     await put(path, await readFile(output), { access: "private", contentType: "video/mp4", addRandomSuffix: false, allowOverwrite: true });
@@ -443,6 +488,8 @@ export async function renderMontage(montageId: string, siteHost: string) {
       where: { id: montage.id },
       data: { status: "FAILED", error: String(error instanceof Error ? error.message : error).slice(0, 1000), finishedAt: new Date() },
     });
+    // Out of time with its pieces kept: the next run goes on — not an error.
+    if (error instanceof PartialFilm) return;
     throw error;
   } finally {
     await rm(dir, { recursive: true, force: true });

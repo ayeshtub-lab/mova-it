@@ -115,6 +115,9 @@ async function main() {
       await attempt("FAILED", 300);
       await attempt("RENDERING", 600);
       assert.equal(await failingLately(moment.id, new Date(now.getTime() + 6 * 3600_000)), true, "3 failures in a day: a day off");
+      // A big film made over several runs stops with «partial»: the next run goes straight on.
+      await db.montage.create({ data: { momentId: moment.id, angleIds: [], signature: "test", status: "FAILED", error: "partial 5/22", createdAt: new Date() } });
+      assert.equal(await failingLately(moment.id, new Date()), false, "partial: not a failure");
     });
   } finally {
     const moments = await db.moment.findMany({ where: { creatorId: owner.id }, select: { id: true } });
