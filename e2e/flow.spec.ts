@@ -50,6 +50,11 @@ test("guest → moment → photo → publish → shows → delete", async ({ pag
     await page.getByRole("button", { name: "اعتمد الصوت" }).click();
   }
   await expect(page.getByText("جاهزة، اضغط «نشر»")).toBeVisible({ timeout: 90_000 });
+  // «📍 وين صوّرت؟»: the moment has no place, so it is asked; picking a town places the shot.
+  await expect(page.getByText("📍 وين صوّرت؟")).toBeVisible();
+  await page.getByRole("combobox").last().fill("بيت لحم");
+  await page.getByRole("option").first().click();
+  await expect(page.getByText(/📍 .+ ✓/)).toBeVisible();
   await page.getByRole("button", { name: /^🚀 نشر/ }).click();
   await expect(page.getByText("انتشرت ✓")).toBeVisible();
 
@@ -57,6 +62,10 @@ test("guest → moment → photo → publish → shows → delete", async ({ pag
   await page.goto(`/m/${code}`);
   await expect(page.locator(`[id^="angle-"]`).first()).toBeVisible();
   expect(await page.locator(`[id^="angle-"]`).count()).toBe(1);
+  // Its place shows in the viewer.
+  await page.locator(`[id^="angle-"] button`).first().click();
+  await expect(page.locator("figcaption").first()).toContainText("بيت لحم");
+  await page.keyboard.press("Escape");
 
   // 5. The creator deletes the whole moment; the page is gone.
   page.once("dialog", (d) => d.accept());

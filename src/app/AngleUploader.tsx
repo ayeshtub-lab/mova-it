@@ -8,6 +8,7 @@ import { CaptionEditor, type CaptionLabels } from "@/app/CaptionEditor";
 import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
 import type { CaptionView } from "@/lib/caption";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
+import { PlaceField, type PlaceOption } from "@/app/PlaceField";
 import { filterCss, stampText } from "@/lib/filters";
 import { MAX_VIDEO_SECONDS, PrepareError, prepareAngleFile, type PreparedAngle } from "@/lib/media-client";
 import { firstSeconds } from "@/lib/recording";
@@ -60,7 +61,10 @@ type ItemState = {
   caption?: CaptionView | null;
   ideas?: string[]; // lines to write on it, from the lens («✍️»)
   suggestion?: JoinSuggestion | null; // «صوّر معك», offered once right after upload
+  placed?: boolean; // it has a place (from the photo itself or the moment)
 };
+// «📍 وين صوّرت؟»: asked when a shot has no place (phones strip a photo's location on the web).
+type PlaceLabels = { ask: string; hint: string; failed: string; placeholder: string; here: { label: string; why: string; finding: string; denied: string; blocked: string; outside: string; approx: string } };
 type UploaderSoundLabels = SoundLabels & { add: string; failed: string; pending: string; pendingClear: string };
 
 async function postJson(url: string, body?: unknown) {
@@ -79,6 +83,7 @@ export function AngleUploader({
   soundLabels,
   editLabels,
   captionLabels,
+  placeLabels,
   needsName = false,
 }: {
   code: string;
@@ -89,6 +94,7 @@ export function AngleUploader({
   soundLabels: UploaderSoundLabels;
   editLabels: ShotEditorLabels & { open: string; failed: string };
   captionLabels?: CaptionLabels; // «✍️ كتابة على اللقطة» after upload
+  placeLabels?: PlaceLabels;
 }) {
   const [uploaded, setUploaded] = useState(false);
   const inputId = useId();
@@ -104,6 +110,24 @@ export function AngleUploader({
   const [typed, setTyped] = useState(false);
   const [named, setNamed] = useState(!needsName);
   const missingName = !named && !name.trim();
+  // The place picked for this visit's shots, and whether saving it failed.
+  const [place, setPlace] = useState<PlaceOption | null>(null);
+  const [placeFailed, setPlaceFailed] = useState(false);
+  const unplaced = drafts.filter(({ it }) => !it.placed);
+
+  // One answer places every shot of this visit that has none (they were taken in one place).
+  async function placeAll(picked: PlaceOption | null) {
+    if (!picked) return;
+    setPlaceFailed(false);
+    let failed = false;
+    for (const { it, i } of unplaced) {
+      const res = await fetch(`/api/angles/${it.angleId}/place`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ placeId: picked.id }) }).catch(() => null);
+      if (res?.ok) update(i, { placed: true });
+      else failed = true;
+    }
+    if (failed) setPlaceFailed(true);
+    else setPlace(picked);
+  }
 
   // «نشر»: every checked draft of this visit goes up (the first one names the moment).
   async function publishAll() {
@@ -246,6 +270,7 @@ export function AngleUploader({
         filter: "auto", // «✨ تحسين», set on the server when the shot was created
         stamp: false,
         suggestion: result.suggestion ?? null,
+        placed: !!result.placeId,
         ideas: Array.isArray(result.captionIdeas) ? result.captionIdeas.filter((l: unknown) => typeof l === "string") : [],
       });
       if (pending && (await saveSound(index, angleId, pending, false))) clearPending();
@@ -439,6 +464,31 @@ export function AngleUploader({
               />
               <span className="text-xs font-normal text-muted">{name.trim() && !typed ? labels.nameSuggested : missingName && drafts.length > 0 ? labels.nameNeeded : " "}</span>
             </label>
+          )}
+          {placeLabels && drafts.length > 0 && (unplaced.length > 0 || place) && (
+            <div className="flex flex-col gap-1.5 rounded-2xl bg-surface p-3 text-sm">
+              <span className="font-bold">{placeLabels.ask}</span>
+              {place ? (
+                <span className="font-semibold text-secondary">📍 {place.name} ✓</span>
+              ) : (
+                <>
+                  <span className="text-xs text-muted">{placeLabels.hint}</span>
+                  <PlaceField
+                    textName="shotPlaceName"
+                    idName="shotPlaceId"
+                    placeholder={placeLabels.placeholder}
+                    className="min-h-11 w-full rounded-full border border-line bg-background px-4 outline-none focus:border-accent"
+                    here={placeLabels.here}
+                    onPick={placeAll}
+                  />
+                </>
+              )}
+              {placeFailed && (
+                <span role="alert" className="text-xs font-semibold text-accent-ink">
+                  {placeLabels.failed}
+                </span>
+              )}
+            </div>
           )}
           {drafts.length > 0 && !busy && (
             <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-2">

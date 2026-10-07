@@ -447,6 +447,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 soundLabels={dict.sounds}
                 editLabels={dict.editShot}
                 captionLabels={dict.caption}
+                placeLabels={{ ...dict.upload.place, placeholder: dict.create.placePlaceholder, here: dict.create.placeHere }}
                 code={view.code}
                 labels={dict.upload}
                 needsName={view.viewer.isCreator && !view.named}

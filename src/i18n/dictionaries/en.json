@@ -83,6 +83,7 @@
     "serverError": "Something went wrong on our side. Please try again in a moment."
   },
   "upload": {
+    "place": { "ask": "📍 Where did you take it?", "hint": "Type the town or tap «📍 My location»: your shot gets its place and that hour's weather, and shows on the town's page.", "failed": "Couldn't save the place, try again." },
     "join": {
       "headline": "{emoji} {name} just shot the same {scene} {place}!",
       "headlineNamed": "📸 {name} also shot “{title}” {place} just now!",
