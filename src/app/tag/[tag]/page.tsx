@@ -1,4 +1,4 @@
-import { clip } from "@/lib/clip";
+import { clip, plain } from "@/lib/clip";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
@@ -53,7 +53,7 @@ export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
                 <Link href={`/m/${m.code}`} className="group relative block aspect-[3/4] overflow-hidden rounded-2xl bg-surface">
                   {m.coverUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
-                    <img src={m.coverUrl} alt={`${m.title} — #${tag}`} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
+                    <img src={m.coverUrl} alt={plain(`${m.title} — #${tag}`)} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
                   ) : (
                     <span aria-hidden="true" className="block size-full bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
                   )}

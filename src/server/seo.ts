@@ -1,4 +1,5 @@
 import { parseCaption } from "@/lib/caption";
+import { plain } from "@/lib/clip";
 import { db } from "@/lib/db";
 import { hashtagsIn } from "@/lib/hashtags";
 import { isScene, SCENES } from "@/lib/scenes";
@@ -113,7 +114,7 @@ const placeName = (p: { nameAr: string; kind: string }) => (p.kind === "GOVERNOR
 // «غيوم وسماء جميلة — سما وقمر في بيت لحم».
 export function shotLabel(shot: PublicShot, locale: string) {
   const ar = locale === "ar";
-  const text = parseCaption(shot.caption)?.text?.replace(/\s+/g, " ").trim() || shot.moment.title;
+  const text = plain(parseCaption(shot.caption)?.text?.replace(/\s+/g, " ").trim() || shot.moment.title);
   const scene = isScene(shot.scene) && shot.scene !== "other" ? SCENES[shot.scene][ar ? "ar" : "en"] : null;
   const where = shot.place ? placeName(shot.place) : null;
   const tail = [scene, where && `${ar ? "في" : "in"} ${where}`].filter(Boolean).join(" ");

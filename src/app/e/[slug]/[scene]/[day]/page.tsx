@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { plain } from "@/lib/clip";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { JsonLd } from "@/app/JsonLd";
@@ -116,7 +117,7 @@ export default async function EventPage({ params }: PageProps<"/e/[slug]/[scene]
             <li key={x.id} className="flex flex-col gap-1">
               <Link href={`/m/${x.momentCode}#angle-${x.id}`} className="group relative block aspect-[3/4] overflow-hidden rounded-2xl bg-surface">
                 {/* eslint-disable-next-line @next/next/no-img-element -- lasting /i/ address, cached */}
-                <img src={x.imageUrl} alt={[x.line ?? heading, x.place, x.name].join(" — ")} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(x.filter) }} />
+                <img src={x.imageUrl} alt={plain([x.line ?? heading, x.place, x.name].join(" — "))} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(x.filter) }} />
                 {x.video && (
                   <span aria-hidden="true" className="absolute end-2 top-2 flex size-7 items-center justify-center rounded-full bg-black/55">
                     <svg viewBox="0 0 24 24" className="size-3.5 fill-white">

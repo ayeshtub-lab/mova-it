@@ -6,6 +6,7 @@ import { Description } from "@/app/Description";
 import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
+import { plain } from "@/lib/clip";
 import { hashtagsIn } from "@/lib/hashtags";
 import { filterCss } from "@/lib/filters";
 import { CANONICAL_HOST } from "@/lib/hosts";
@@ -22,14 +23,14 @@ const placeName = (p: { nameAr: string; kind: string }) => (p.kind === "GOVERNOR
 
 function describe(shot: PublicShot, dict: Dictionary, locale: string) {
   const t = dict.shotPage;
-  // The line written for the shot first (Arabic), then where it is from.
-  if (shot.aiText) return `${shot.aiText} — ${fill(t.from, { title: shot.moment.title })}`;
-  return fill(t.description, {
+  // The line written for the shot first (Arabic), then where it is from — as plain words.
+  if (shot.aiText) return plain(`${shot.aiText} — ${fill(t.from, { title: shot.moment.title })}`);
+  return plain(fill(t.description, {
     label: shotLabel(shot, locale),
     kind: shot.mediaType === "VIDEO" ? t.video : t.photo,
     name: shot.contributor.displayName,
     title: shot.moment.title,
-  });
+  }));
 }
 
 export async function generateMetadata({ params }: PageProps<"/m/[code]/a/[id]">): Promise<Metadata> {
@@ -94,14 +95,14 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         "@type": "ImageObject",
         ...common,
         contentUrl: image,
-        caption: shot.aiText ?? label,
+        caption: plain(shot.aiText ?? label),
         datePublished: shot.uploadedAt.toISOString(),
         ...(shot.width && shot.height ? { width: shot.width, height: shot.height } : {}),
       };
   const crumbs = [
     { name: dict.meta.brand, item: site },
     ...(shot.place ? [{ name: placeName(shot.place), item: `${site}/p/${encodeURIComponent(shot.place.slug)}` }] : []),
-    { name: shot.moment.title, item: momentUrl },
+    { name: plain(shot.moment.title), item: momentUrl },
     { name: label, item: url },
   ];
   const structured = {

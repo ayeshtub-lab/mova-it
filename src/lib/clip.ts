@@ -1,5 +1,12 @@
-// Search results show about 160 characters of a description: cut at a word, with «…».
-export function clip(text: string, max = 158) {
+// What search engines and alt text get: a hashtag reads as its words («#بر_الوالدين» →
+// «بر الوالدين») — a «#» in a search title looks cheap and wastes letters. On Zawmo the tags stay.
+export function plain(text: string) {
+  return text.replace(/#([\p{L}\p{N}_]+)/gu, (_, word: string) => word.replace(/_+/g, " ")).replace(/\s{2,}/g, " ").trim();
+}
+
+// Search results show about 160 characters of a description: cut at a word, with «…» (as plain words).
+export function clip(raw: string, max = 158) {
+  const text = plain(raw);
   if (text.length <= max) return text;
   const cut = text.slice(0, max);
   const at = cut.lastIndexOf(" ");

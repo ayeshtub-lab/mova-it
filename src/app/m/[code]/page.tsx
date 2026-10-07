@@ -1,4 +1,4 @@
-import { clip } from "@/lib/clip";
+import { clip, plain } from "@/lib/clip";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -54,7 +54,8 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
   const dict = await getDictionary(locale);
   // Where it was, when known: two moments called «حلويات» don't share one title.
   const where = view.place?.name ?? view.placeName;
-  const title = `${where && !view.title.includes(where) ? `${view.title} ${dict.moment.metaIn} ${where}` : view.title} · ${dict.meta.brand}`;
+  const name = plain(view.title);
+  const title = `${where && !name.includes(where) ? `${name} ${dict.moment.metaIn} ${where}` : name} · ${dict.meta.brand}`;
   const description = momentDescription(view, dict, locale);
   return {
     title,
@@ -62,7 +63,7 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
     alternates: { canonical: `/m/${view.code}` },
     // Friends-only moments are for the people holding the link, never for search results.
     robots: momentIndexable(view) ? undefined : { index: false, follow: false },
-    openGraph: { title: view.title, description, type: "website", siteName: dict.meta.brand },
+    openGraph: { title: name, description, type: "website", siteName: dict.meta.brand },
   };
 }
 
@@ -71,7 +72,8 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
 function momentDescription(view: NonNullable<Awaited<ReturnType<typeof loadMoment>>>, dict: Dictionary, locale: string) {
   const where = view.place?.name ?? view.placeName;
   const counts = countsLine(dict, locale, view.angleCount, view.participantCount);
-  const head = where && !view.title.includes(where) ? `${view.title} ${dict.moment.metaIn} ${where}` : view.title;
+  const name = plain(view.title);
+  const head = where && !name.includes(where) ? `${name} ${dict.moment.metaIn} ${where}` : name;
   const text = view.visibility === "PUBLIC" && view.description ? `${head}. ${view.description.slice(0, 120)}` : head;
   return clip(`${text} — ${counts}`);
 }
@@ -84,7 +86,7 @@ function momentStructured(view: NonNullable<Awaited<ReturnType<typeof loadMoment
   const crumbs = [
     { name: dict.meta.brand, item: site },
     ...(view.place ? [{ name: view.place.name, item: `${site}/p/${encodeURIComponent(view.place.slug)}` }] : []),
-    { name: view.title, item: url },
+    { name: plain(view.title), item: url },
   ];
   return {
     "@context": "https://schema.org",
@@ -94,7 +96,7 @@ function momentStructured(view: NonNullable<Awaited<ReturnType<typeof loadMoment
         "@id": `${url}#post`,
         url,
         mainEntityOfPage: url,
-        headline: view.title.slice(0, 110),
+        headline: plain(view.title).slice(0, 110),
         description: momentDescription(view, dict, locale),
         inLanguage: locale,
         datePublished: view.createdAt.toISOString(),
@@ -376,7 +378,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}
               story={story}
-              altBase={[view.title, view.place?.name ?? view.placeName].filter(Boolean).join(" — ")}
+              altBase={[plain(view.title), view.place?.name ?? view.placeName].filter(Boolean).join(" — ")}
               momentEdit={view.viewer.isCreator && view.kind !== "DAILY" ? { code: view.code, title: view.title, description: view.description, labels: dict.momentDetails } : undefined}
             />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (
