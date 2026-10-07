@@ -1,0 +1,42 @@
+# Is zawmo.com up? Checked hourly from outside (GitHub), so a whole-site outage is caught even
+# when the site's own 15-minute health cron (/api/cron/health) can't run. A failed run makes
+# GitHub email the repo owner. Read-only: plain GET requests, no secrets.
+name: Uptime
+
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Site answers
+        run: |
+          set -u
+          check() {
+            for i in 1 2 3; do
+              code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 -A "zawmo-uptime" "$1")
+              [ "$code" = "$2" ] && { echo "ok   $1 → $code"; return 0; }
+              sleep 20 # a cold start or a blip: try again before calling it down
+            done
+            echo "::error::$1 answered $code (expected $2)"
+            return 1
+          }
+          fail=0
+          check https://zawmo.com/ 200 || fail=1
+          check https://zawmo.com/api/version 200 || fail=1
+          check https://zawmo.com/sitemap.xml 200 || fail=1
+          # A shared link's card (WhatsApp): the first public moment's card image.
+          moment=$(curl -s --max-time 30 https://zawmo.com/sitemap.xml | grep -o 'https://zawmo.com/m/[A-Z0-9]\{6\}<' | head -1 | tr -d '<')
+          if [ -n "$moment" ]; then check "$moment/opengraph-image" 200 || fail=1; fi
+          exit $fail

@@ -12,7 +12,9 @@
     "postinstall": "prisma generate && node scripts-build/fetch-ffmpeg.cjs",
     "migrate:test-db": "node scripts/migrate-test-db.mjs",
     "test": "node tests/run-all.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "deploy": "node tests/deploy.mjs",
+    "smoke": "tsx tests/smoke.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",

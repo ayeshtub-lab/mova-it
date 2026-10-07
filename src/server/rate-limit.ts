@@ -31,6 +31,7 @@ export const LIMITS = {
   snowAlert: [1, 48 * 3600], // per governorate
   rainAlert: [1, 7 * 24 * 3600], // per governorate: not every rainy day of the winter
   weatherAlert: [1, 48 * 3600], // per person, whatever the weather
+  healthAlert: [1, 6 * 3600], // /api/cron/health: one push per problem every 6 hours
 } as const satisfies Record<string, readonly [number, number]>;
 export type Action = keyof typeof LIMITS;
 
