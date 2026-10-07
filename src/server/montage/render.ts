@@ -179,6 +179,30 @@ function joinGraph(durations: number[], t: number, kinds: string[], videoOut: st
   return { graph: [...prep, ...chain].join(";"), total };
 }
 
+// A film of many shots is joined in two steps: runs of a few segments first (each with its own
+// transitions), then those runs with the transitions between them — the same film, frame for
+// frame in length. One ffmpeg reading every segment at once holds them all in memory (xfade
+// buffers each input until its turn): 13 shots took 12 minutes, 15 and more ran the server out
+// of memory (Vercel log 2026-10-07) and the film was never made again.
+const JOIN_RUN = 5;
+const RUN_ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2"];
+async function joinInRuns(segments: string[], durations: number[], t: number, kinds: string[], dir: string) {
+  if (segments.length <= JOIN_RUN + 1) return { segments, durations, kinds };
+  const runs: { segment: string; seconds: number }[] = [];
+  const between: string[] = [];
+  for (let from = 0; from < segments.length; from += JOIN_RUN) {
+    const to = Math.min(from + JOIN_RUN, segments.length);
+    const part = segments.slice(from, to);
+    const run = joinGraph(durations.slice(from, to), t, kinds.slice(from, to - 1), "v");
+    const out = join(dir, `run-${from}.mp4`);
+    if (part.length === 1) await ffmpeg(["-i", part[0], ...RUN_ENCODE, out]);
+    else await ffmpeg([...part.flatMap((s) => ["-i", s]), "-filter_complex", `${run.graph};[orig]anull[a]`, "-map", "[v]", "-map", "[a]", ...RUN_ENCODE, out], 300_000);
+    runs.push({ segment: out, seconds: run.total });
+    if (to < segments.length) between.push(kinds[to - 1]);
+  }
+  return { segments: runs.map((r) => r.segment), durations: runs.map((r) => r.seconds), kinds: between };
+}
+
 async function videoSegment(input: string, overlay: string, out: string, filter: string | null, caption?: CaptionFile, max = VIDEO_MAX_SECONDS) {
   const { duration, hasAudio } = await probe(input);
   const seconds = Math.min(duration || max, max);
@@ -410,6 +434,8 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   const t = story ? STORY_TRANSITION : TRANSITION;
   const between = story ? STORY_TRANSITIONS : TRANSITIONS;
   const kinds = durations.slice(1).map((_, i) => (i === 0 || i === durations.length - 2 ? "fade" : between[(i - 1) % between.length]));
+  // (Many shots: joined a few at a time first, so memory stays small — see joinInRuns.)
+  const film = await joinInRuns(segments, durations, t, kinds, dir);
 
   // A library sound runs (looped) under the whole film, fading out at the end; the clips'
   // own sound stays, softer — or goes, under remembrance. With no sound chosen and none on
@@ -418,7 +444,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   const auto = !chosen && !shotSounds;
   const sound = chosen ?? (auto ? soundByKey(SOLEMN_WORDS.test(moment.title) ? AUTO_SOUND_SOLEMN : AUTO_SOUND) : null);
   const quranHold = sound && isQuran(sound);
-  const joined = joinGraph(durations, t, kinds, quranHold ? "vc" : "v");
+  const joined = joinGraph(film.durations, t, film.kinds, quranHold ? "vc" : "v");
   let total = joined.total;
   let graph = joined.graph;
   let mix = "[orig]anull[a]";
@@ -431,20 +457,20 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
       const hold = Math.max(0, sound.seconds + 0.8 - total);
       graph += `;[vc]tpad=stop_mode=clone:stop_duration=${hold.toFixed(2)}[v]`;
       total += hold;
-      mix = `[orig]anullsink;[${segments.length}:a]aresample=44100,apad=whole_dur=${total.toFixed(2)}[a]`;
+      mix = `[orig]anullsink;[${film.segments.length}:a]aresample=44100,apad=whole_dur=${total.toFixed(2)}[a]`;
     } else {
       soundInput.push("-stream_loop", "-1", "-i", soundPath);
       const fade = `afade=t=in:d=0.6,afade=t=out:st=${Math.max(0, total - 1.5).toFixed(2)}:d=1.5`;
-      const bed = `[${segments.length}:a]aresample=44100,atrim=0:${total.toFixed(2)},${fade}${auto ? ",volume=0.55" : ""}[bed]`;
+      const bed = `[${film.segments.length}:a]aresample=44100,atrim=0:${total.toFixed(2)},${fade}${auto ? ",volume=0.55" : ""}[bed]`;
       mix = isSolemn(sound)
         ? `${bed};[orig]anullsink;[bed]anull[a]`
         : `${bed};[orig]volume=${auto ? "0.9" : "0.35"}[soft];[soft][bed]amix=inputs=2:duration=first:normalize=0[a]`;
     }
   }
   // «📝»: the chosen sound's words over the whole film, as they are heard (from its start).
-  const words = sound && !auto ? await lyricLayers(sound, total, dir, segments.length + 1, "v", "vw") : null;
+  const words = sound && !auto ? await lyricLayers(sound, total, dir, film.segments.length + 1, "v", "vw") : null;
   const output = join(dir, "montage.mp4");
-  const inputs = segments.flatMap((s) => ["-i", s]);
+  const inputs = film.segments.flatMap((s) => ["-i", s]);
   const run = (g: string) =>
     ffmpeg([...inputs, ...soundInput, ...(words?.inputs ?? []), "-filter_complex", `${g}${words ? `;${words.graph}` : ""};${mix}`, "-map", words ? "[vw]" : "[v]", "-map", "[a]", ...ENCODE, "-movflags", "+faststart", output], 600_000);
   try {
@@ -453,7 +479,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
     // Safety net: should a transition ever fail on the server's ffmpeg, the film is made
     // with plain fades rather than not at all.
     console.error("montage transitions failed, retrying with fades", error);
-    const plain = joinGraph(durations, t, durations.map(() => "fade"), quranHold ? "vc" : "v").graph;
+    const plain = joinGraph(film.durations, t, film.durations.map(() => "fade"), quranHold ? "vc" : "v").graph;
     await run(quranHold ? graph.replace(joined.graph, plain) : plain);
   }
   // The film is made: its kept pieces are no longer needed.
