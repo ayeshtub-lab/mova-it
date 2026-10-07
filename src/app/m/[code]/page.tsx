@@ -32,6 +32,7 @@ import { ShareBar } from "./ShareBar";
 import { DeleteMoment } from "./DeleteMoment";
 import { PushAsk } from "@/app/PushAsk";
 import { VoteBox } from "./VoteBox";
+import { WEATHER_CREDIT, weatherLine } from "@/lib/weather";
 
 // Shared by generateMetadata and the page within one request.
 const loadMoment = cache(async (code: string) => getMomentView(code, await getCurrentUser()));
@@ -354,6 +355,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 gridUrl: a.gridUrl,
                 place: a.place ? { slug: a.place.slug, name: a.place.name } : null,
                 placeVerified: a.placeVerified,
+                weather: a.weather,
+                weatherTemp: a.weatherTemp,
                 likes: a.likes,
                 commentCount: a.commentCount,
                 canDelete: a.canDelete,
@@ -396,10 +399,18 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                     <Link href={`/m/${view.code}/a/${a.id}`} className="hover:underline">
                       {a.aiText!.replace(/#\S+/g, "").trim()}
                     </Link>{" "}
-                    — {a.contributorName}
+                    {weatherLine(a.weather, a.weatherTemp, locale) ? ` · ${weatherLine(a.weather, a.weatherTemp, locale)}` : ""} — {a.contributorName}
                   </li>
                 ))}
             </ul>
+            {view.angles.some((a) => a.weather) && (
+              <p className="mt-2 text-xs text-muted">
+                {locale === "ar" ? "الطقس من" : "Weather by"}{" "}
+                <a href={WEATHER_CREDIT.url} rel="noopener" target="_blank" className="underline underline-offset-2">
+                  {WEATHER_CREDIT.name}
+                </a>
+              </p>
+            )}
           </details>
         )}
 

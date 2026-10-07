@@ -80,6 +80,8 @@ const shotSelect = {
   mediaPath: true,
   thumbPath: true,
   smallPath: true,
+  weather: true,
+  weatherTemp: true,
   streamUid: true,
   streamReady: true,
   durationSec: true,

@@ -256,6 +256,12 @@ model Angle {
   ipCountryMatch Boolean?
   // What it shows (src/lib/scenes.ts), from the content check: «غروب», «مطر»… Drives «صوّر معك».
   scene          String?
+  // The weather where and when it was taken (src/server/weather.ts, MET Norway): a kind from
+  // src/lib/weather.ts («clearsky», «rain», «snow»…) and the temperature in °C. Only for shots
+  // with a place, taken shortly before upload (the service has no past); checked once.
+  weather          String?
+  weatherTemp      Float?
+  weatherCheckedAt DateTime?
   // «⭐ اختيار زاومو»: when an official (verified) account picked this public shot; picked
   // shots carry a badge and lead the home wheel, the showcase and «اكتشف».
   pickedAt       DateTime?

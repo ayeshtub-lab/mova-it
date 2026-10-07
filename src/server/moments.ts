@@ -209,6 +209,9 @@ export async function getMomentView(code: string, viewer: User | null) {
         // Where it was taken («📍 بيت لحم ✓»); its owner may remove or change it.
         place: a.placeId ? (places.get(a.placeId) ?? null) : null,
         placeVerified: a.placeVerified,
+        // The weather it was taken in (src/server/weather.ts), when known.
+        weather: a.weather,
+        weatherTemp: a.weatherTemp,
         likes: reactions.get(a.id)!,
         saved: saved.has(a.id),
         // Follow straight from the viewer (official accounts, not yourself).

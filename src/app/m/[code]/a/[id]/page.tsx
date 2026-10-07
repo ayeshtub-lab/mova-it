@@ -9,6 +9,7 @@ import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { hashtagsIn } from "@/lib/hashtags";
 import { filterCss } from "@/lib/filters";
 import { CANONICAL_HOST } from "@/lib/hosts";
+import { WEATHER_CREDIT, weatherLine } from "@/lib/weather";
 import { publicShot, shotLabel, shotOrdinal, shotPath, shotTitle, type PublicShot } from "@/server/seo";
 
 // One public shot on its own page: what Google Images and Google Video list (a moment's page
@@ -60,6 +61,8 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   const isVideo = shot.mediaType === "VIDEO";
   const where = shot.place ? placeName(shot.place) : null;
   const at = shot.capturedAt ?? shot.uploadedAt;
+  // The weather it was taken in («🌧️ مطر · 12°»), when known (src/server/weather.ts).
+  const weather = weatherLine(shot.weather, shot.weatherTemp, locale);
   const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Riyadh" }).format(at);
 
   const site = `https://${CANONICAL_HOST}`;
@@ -152,6 +155,14 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
             {" · "}
             <time dateTime={at.toISOString()}>{date}</time>
           </p>
+          {weather && (
+            <p className="text-sm text-muted">
+              {weather}{" "}
+              <a href={WEATHER_CREDIT.url} rel="noopener" target="_blank" className="text-xs underline underline-offset-2">
+                {WEATHER_CREDIT.name}
+              </a>
+            </p>
+          )}
           {shot.aiText && <Description text={shot.aiText} className="mt-1 text-base" />}
           <p className="text-sm text-muted">{fill(t.from, { title: shot.moment.title })}</p>
         </header>

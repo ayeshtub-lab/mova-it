@@ -17,6 +17,7 @@ import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { filterCss, stampText } from "@/lib/filters";
 import { StampText } from "@/app/StampText";
 import { isQuran, soundByKey, soundFile, soundName } from "@/lib/sounds";
+import { weatherLine } from "@/lib/weather";
 import { ReportSheet, type ReportLabels } from "./ReportSheet";
 
 type Likes = { count: number; liked: boolean };
@@ -48,6 +49,8 @@ export type GalleryAngle = {
   gridUrl: string | null; // small copy for the grid
   place: { slug: string; name: string } | null; // where it was taken
   placeVerified: boolean; // the place came from the (recent) photo itself
+  weather?: string | null; // the weather it was taken in (src/lib/weather.ts), when known
+  weatherTemp?: number | null;
   likes: Likes;
   commentCount: number;
   canDelete: boolean;
@@ -876,6 +879,9 @@ export function AngleGallery({
                         </span>
                       )}
                     </Link>
+                  )}
+                  {weatherLine(a.weather, a.weatherTemp, locale) && (
+                    <span className="shrink-0 rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">{weatherLine(a.weather, a.weatherTemp, locale)}</span>
                   )}
                   {a.capturedAt && (
                     <span className="ms-auto font-normal text-white/80">
