@@ -59,7 +59,11 @@ async function main() {
       for (const m of [old, again, today]) await shots(m.id, 1);
       const feed = await listDiscover(null);
       const codes = feed.map((m) => m.code);
-      assert.equal(codes[0], today.code, "today leads");
+      // Other tests share this database and may add a «لحظة اليوم» of their own at the same time:
+      // what leads is the newest one there was, and of this test's three, today's.
+      const newest = await db.moment.findFirst({ where: { kind: "DAILY", code: { in: codes } }, orderBy: { createdAt: "desc" }, select: { code: true } });
+      assert.equal(codes[0], newest?.code, "the newest «لحظة اليوم» leads");
+      assert.equal(codes.filter((c) => [old.code, again.code, today.code].includes(c))[0], today.code, "today leads");
       assert.ok(codes.includes(again.code), "the newest of a repeated question stays");
       assert.ok(!codes.includes(old.code), "the older one is dropped");
     });

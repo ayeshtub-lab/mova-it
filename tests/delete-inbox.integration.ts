@@ -9,7 +9,7 @@ import { db } from "../src/lib/db";
 import { AngleError, deleteMoment, deleteMyShots } from "../src/server/angles";
 import { markThreadsSeen, messagesSince, sendMessage, unreadCount } from "../src/server/inbox";
 
-const TAG = "[deltest]";
+const TAG = "[delinboxtest]";
 const out: string[] = [];
 const check = async (name: string, fn: () => Promise<void>) => {
   await fn();
@@ -24,7 +24,7 @@ async function main() {
   const moment = (data: Record<string, unknown> = {}) =>
     db.moment.create({ data: { code: `DL${Date.now().toString(36).slice(-4).toUpperCase()}${n++}`, title: `${TAG} m`, creatorId: owner.id, ...data } as never });
   const shot = (momentId: string, contributorId: string) =>
-    db.angle.create({ data: { momentId, contributorId, mediaType: "PHOTO", status: "READY", screening: "allowed", mediaPath: `deltest/${Math.random()}.jpg` } });
+    db.angle.create({ data: { momentId, contributorId, mediaType: "PHOTO", status: "READY", screening: "allowed", mediaPath: `delinboxtest/${Math.random()}.jpg` } });
   try {
     await check("someone else deletes all of their own shots at once — nobody else's", async () => {
       const m = await moment();

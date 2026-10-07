@@ -10,7 +10,9 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate deploy",
     "postinstall": "prisma generate && node scripts-build/fetch-ffmpeg.cjs",
-    "migrate:test-db": "node scripts/migrate-test-db.mjs"
+    "migrate:test-db": "node scripts/migrate-test-db.mjs",
+    "test": "node tests/run-all.mjs",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.0",
@@ -31,6 +33,7 @@
     "web-push": "3.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@types/node": "^20.0.0",
     "@types/pg": "^8.11.0",
     "@types/qrcode": "^1.5.6",
