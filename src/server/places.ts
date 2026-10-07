@@ -167,6 +167,7 @@ export async function placePage(slug: string, viewerId: string | null, take = 60
         momentCode: a.moment.code,
         title: a.moment.title,
         name: a.contributor.displayName,
+        line: a.aiText?.replace(/#\S+/g, "").trim() || null, // what it shows, in words
       })),
     ),
   };

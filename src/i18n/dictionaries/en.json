@@ -273,6 +273,7 @@
     "failed": "Couldn't save, try again."
   },
   "place": {
+    "inWords": "📝 What people shot in {name}",
     "events": "📅 Days to remember here",
     "hint": "People's public shots from {name}",
     "people": "{n} people shot here",
@@ -650,7 +651,7 @@
 
     "originalBy": "🎤 Original sound — {name}",
     "metaTitle": "{name} — a free sound for your photos and videos | Zawmo",
-    "metaTitleQuran": "{name} — recited by Sheikh Mishary Alafasy, for your photos and videos | Zawmo",
+    "metaTitleQuran": "{name} — Mishary Alafasy | Zawmo",
     "metaDescription": "Listen to «{name}» ({cat}) and put it on your photos and videos on Zawmo for free, copyright-free, and see the shots that use it.",
     "license": "License: {license}",
     "source": "Source",

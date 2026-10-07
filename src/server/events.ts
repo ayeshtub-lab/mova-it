@@ -185,4 +185,9 @@ export async function eventPage(slug: string, scene: string, day: string, now = 
   };
 }
 
+// A place page's «📅 أحداث صارت هون»: its area's events of the last year.
+export function placeEvents(areaId: string, now = new Date()) {
+  return findEvents({ since: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000), areaId, now, take: 12 });
+}
+
 export const eventPath = (e: { slug: string; scene: string; day: string }) => `/e/${encodeURIComponent(e.slug)}/${e.scene}/${e.day}`;

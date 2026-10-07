@@ -10,8 +10,7 @@ import { filterCss } from "@/lib/filters";
 import { matchable, SCENES } from "@/lib/scenes";
 import { getCurrentUser } from "@/lib/session";
 import { placePage } from "@/server/places";
-import { eventPath, findEvents } from "@/server/events";
-import { db } from "@/lib/db";
+import { eventPath, placeEvents } from "@/server/events";
 
 const fill = (text: string, name: string) => text.replaceAll("{name}", name);
 
@@ -42,8 +41,7 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/p/
   if (!data) notFound();
   const t = dict.place;
   // «📅 أحداث»: this area's rainy, snowy… days of the last year, each with its own page.
-  const area = await db.place.findUnique({ where: { slug: data.place.slug }, select: { id: true } });
-  const events = area ? await findEvents({ since: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), areaId: area.id, take: 12 }) : [];
+  const events = await placeEvents(data.place.id);
   const name = data.place.name;
   // The trail as search engines read it: فلسطين › محافظة بيت لحم › بيت لحم.
   const crumbs = [...data.trail, { slug: data.place.slug, name }].map((p, i) => ({
@@ -154,6 +152,26 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/p/
           </ul>
         ) : (
           <p className="rounded-3xl bg-surface p-6 text-center text-muted">{fill(t.empty, name)}</p>
+        )}
+
+        {/* What people shot here, in words — folded away for people; search engines read it. */}
+        {data.shots.some((s) => s.line) && (
+          <details className="rounded-3xl bg-surface px-5 py-3 text-sm">
+            <summary className="cursor-pointer font-bold">{fill(t.inWords, name)}</summary>
+            <ul className="mt-2 flex flex-col gap-1.5 leading-relaxed text-muted">
+              {data.shots
+                .filter((s) => s.line)
+                .slice(0, 30)
+                .map((s) => (
+                  <li key={s.id}>
+                    <Link href={`/m/${s.momentCode}#angle-${s.id}`} className="hover:underline">
+                      {s.line}
+                    </Link>{" "}
+                    — {s.name}
+                  </li>
+                ))}
+            </ul>
+          </details>
         )}
       </main>
     </div>

@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   env: { NEXT_PUBLIC_BUILD: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev" },
   // Required at runtime from node_modules (it locates its binary relative to itself).
   serverExternalPackages: ["ffmpeg-static"],
+  // Search engines and link previews (WhatsApp, Facebook…) get the title, description and
+  // canonical in <head> even when a page's data is slow; people still get it streamed.
+  htmlLimitedBots: /bot|crawler|spider|slurp|google-inspectiontool|facebookexternalhit|facebot|whatsapp|telegram|twitter|linkedin|pinterest|skypeuripreview|embedly|preview/i,
   outputFileTracingIncludes: {
     // The share card and the montage frames read the Arabic font from disk.
     "/m/**": ["./public/Cairo-Bold.ttf"],

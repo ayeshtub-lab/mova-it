@@ -1,3 +1,4 @@
+import { clip } from "@/lib/clip";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -51,7 +52,9 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
   if (!view) return {};
   const locale = await getLocale();
   const dict = await getDictionary(locale);
-  const title = `${view.title} · ${dict.meta.brand}`;
+  // Where it was, when known: two moments called «حلويات» don't share one title.
+  const where = view.place?.name ?? view.placeName;
+  const title = `${where && !view.title.includes(where) ? `${view.title} ${dict.moment.metaIn} ${where}` : view.title} · ${dict.meta.brand}`;
   const description = momentDescription(view, dict, locale);
   return {
     title,
@@ -70,7 +73,7 @@ function momentDescription(view: NonNullable<Awaited<ReturnType<typeof loadMomen
   const counts = countsLine(dict, locale, view.angleCount, view.participantCount);
   const head = where && !view.title.includes(where) ? `${view.title} ${dict.moment.metaIn} ${where}` : view.title;
   const text = view.visibility === "PUBLIC" && view.description ? `${head}. ${view.description.slice(0, 120)}` : head;
-  return `${text} — ${counts}`;
+  return clip(`${text} — ${counts}`);
 }
 
 // For search engines (public moments only): the moment as a post, and where it sits —

@@ -1,3 +1,4 @@
+import { clip } from "@/lib/clip";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
@@ -17,7 +18,7 @@ export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Pro
   const [locale, moments] = await Promise.all([getLocale(), visitorList(tag)]);
   const dict = await getDictionary(locale);
   const title = dict.tag.metaTitle.replace("{tag}", tag);
-  const description = dict.tag.metaDescription.replace("{tag}", tag).replace("{titles}", moments.slice(0, 4).map((m) => m.title).join("، "));
+  const description = clip(dict.tag.metaDescription.replace("{tag}", tag).replace("{titles}", moments.slice(0, 4).map((m) => m.title).join("، ")));
   return {
     title,
     description,
