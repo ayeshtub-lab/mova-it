@@ -104,6 +104,8 @@ export const SOUNDS: Sound[] = [
   { key: "h01", cat: "nasheed", ar: "عليكَ سلامْ (ابتسامته)", en: "Peace be upon you (his smile)", seconds: 39.2, credit: null },
   { key: "h02", cat: "nasheed", ar: "عليكَ سلامْ (طَيبة)", en: "Peace be upon you (Taybah)", seconds: 39.2, credit: null },
   { key: "h03", cat: "nasheed", ar: "في مديح الهادي", en: "In praise of the Guide", seconds: 39.8, credit: null },
+  { key: "h04", cat: "nasheed", ar: "دُعاءُ أُمّي", en: "My mother's prayer", seconds: 39.4, credit: null },
+  { key: "h05", cat: "nasheed", ar: "أُمّي (الأمان)", en: "My mother (safety)", seconds: 39.8, credit: null },
   { key: "s12", cat: "wisdom", ar: "الصبر مفتاح الفرج", en: "Patience is the key", seconds: 9.6, credit: null },
   { key: "t03", cat: "funny", ar: "ههههه لا والله؟!", en: "Hahaha, no way?!", seconds: 2.7, credit: null },
   { key: "t04", cat: "funny", ar: "يا سلااام!", en: "Ya salaam!", seconds: 3.3, credit: null },
