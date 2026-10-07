@@ -3,7 +3,7 @@ import { normalize, withoutAl } from "@/lib/arabic";
 import { SKY_SCENES } from "@/lib/scenes";
 import { blockedIdsFor } from "@/server/moderation";
 import { captionView } from "@/server/caption";
-import { coverOf } from "@/server/media";
+import { publicCover } from "@/server/media";
 
 // Zawmo law for places (see the privacy page): a city/village/neighbourhood name only, never
 // coordinates; friends-only moments never show on a place's page; a place with fewer than
@@ -161,7 +161,7 @@ export async function placePage(slug: string, viewerId: string | null, take = 60
         id: a.id,
         video: a.mediaType === "VIDEO",
         filter: a.filter,
-        imageUrl: await coverOf(a),
+        imageUrl: await publicCover(a),
         caption: await captionView(a.caption), // the words written on the shot
         verified: a.placeVerified,
         momentCode: a.moment.code,
@@ -231,7 +231,7 @@ export async function sceneCards(viewerId: string | null, take = 8) {
       slug: places.get(g.areaId)?.slug ?? "",
       placeName: places.get(g.areaId)?.name ?? "",
       count: g.angles.length,
-      coverUrl: await coverOf(g.angles[0]),
+      coverUrl: await publicCover(g.angles[0]),
     })),
   );
 }

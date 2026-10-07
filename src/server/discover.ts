@@ -2,7 +2,7 @@ import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { captionView } from "@/server/caption";
 import { computeWhyNowScore } from "@/lib/movaEngine";
-import { coverOf, viewUrl } from "@/server/media";
+import { coverOf, publicCover, viewUrl } from "@/server/media";
 import { placeViews } from "@/server/places";
 import { hlsUrl } from "@/server/stream";
 import { commentCounts } from "@/server/comments";
@@ -194,7 +194,7 @@ export async function listTag(viewer: User | null, rawTag: string) {
           code: m.code,
           title: m.title,
           angleCount: m._count.angles,
-          coverUrl: a ? await coverOf(a) : null,
+          coverUrl: a ? await (m.kind === "DAILY" ? coverOf(a) : publicCover(a)) : null,
         };
       }),
   );
@@ -238,7 +238,7 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
       filter: a.filter,
       mediaUrl: a.mediaType === "VIDEO" ? await viewUrl(a.mediaPath) : null,
       hlsUrl: a.mediaType === "VIDEO" ? hlsUrl(a) : null,
-      imageUrl: await coverOf(a),
+      imageUrl: await publicCover(a),
       momentCode: a.moment.code,
       title: a.moment.title,
       name: a.contributor.displayName,
@@ -301,7 +301,7 @@ export async function wheelShots(take = 12) {
       title: s.moment.title,
       name: firstName(s.contributor.displayName),
       avatarUrl: s.contributor.avatarUrl,
-      imageUrl: await coverOf(s),
+      imageUrl: await publicCover(s),
     })),
   );
 }

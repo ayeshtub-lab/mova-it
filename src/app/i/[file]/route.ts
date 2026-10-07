@@ -2,12 +2,14 @@ import { viewUrl } from "@/server/media";
 import { publicShot } from "@/server/seo";
 
 // zawmo.com/i/ID.jpg: a public shot's picture (a video's poster) at an address that stays
-// the same, for search engines and link previews. Anything not public is "not found".
+// the same, for search engines and link previews; ID-small.jpg its small copy, for the grids of
+// public pages (src/server/media.ts publicCover). Anything not public is "not found".
 // Cached for an hour only, so a shot made private or deleted leaves the cache soon after.
 export async function GET(_request: Request, { params }: { params: Promise<{ file: string }> }) {
-  const id = /^([a-z0-9]+)\.jpg$/.exec((await params).file)?.[1];
+  const [, id, small] = /^([a-z0-9]+)(-small)?\.jpg$/.exec((await params).file) ?? [];
   const shot = id ? await publicShot(id) : null;
-  const path = shot && (shot.mediaType === "PHOTO" ? shot.mediaPath : shot.thumbPath);
+  const full = shot && (shot.mediaType === "PHOTO" ? shot.mediaPath : shot.thumbPath);
+  const path = small ? (shot?.smallPath ?? full) : full;
   const url = path ? await viewUrl(path) : null;
   if (!url) return new Response("Not found", { status: 404 });
 

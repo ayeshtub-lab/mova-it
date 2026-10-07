@@ -36,6 +36,14 @@ export function coverOf(a: Coverable) {
   return viewUrl(a.smallPath ?? (a.mediaType === "VIDEO" ? a.thumbPath : a.mediaPath));
 }
 
+// The same picture of a public shot at an address on zawmo.com that never changes
+// (src/app/i): search engines list a picture by the address they find on the page, and the
+// signed storage links above change on every visit and expire. Only for shots anyone can
+// open, outside «لحظة اليوم» — the /i/ route serves exactly those and nothing else.
+export async function publicCover(a: { id: string }) {
+  return `/i/${a.id}-small.jpg`;
+}
+
 export async function blobExists(pathname: string) {
   try {
     await head(pathname);

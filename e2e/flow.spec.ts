@@ -15,6 +15,8 @@ async function photo() {
 }
 
 test("guest → moment → photo → publish → shows → delete", async ({ page }) => {
+  // A fresh dev server compiles each page on first visit: the whole flow can take minutes.
+  test.setTimeout(300_000);
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   // What went wrong inside the page, shown when a step fails.

@@ -7,7 +7,7 @@ import { placeViews, resolvePlaceText, validPlaceId } from "@/server/places";
 import { hlsUrl } from "@/server/stream";
 import { captionView } from "@/server/caption";
 import { computeWhyNowScore } from "@/lib/movaEngine";
-import { coverOf, viewUrl } from "@/server/media";
+import { coverOf, publicCover, viewUrl } from "@/server/media";
 import { commentCounts } from "@/server/comments";
 import { viewCounts } from "@/server/profile";
 import { reactionsFor, savedFor } from "@/server/reactions";
@@ -151,6 +151,7 @@ export async function getMomentView(code: string, viewer: User | null) {
   ]);
   const following = new Set(follows.map((f) => f.followingId));
   const places = await placeViews([moment.placeId, ...visible.map((a) => a.placeId)]);
+  const everyone = moment.visibility === Visibility.PUBLIC && moment.status === "ACTIVE" && moment.kind !== "DAILY" && !moment.demo;
 
   return {
     id: moment.id,
@@ -202,7 +203,8 @@ export async function getMomentView(code: string, viewer: User | null) {
         // Videos: the adaptive stream once Cloudflare has it (the file above stays the fallback).
         hlsUrl: a.mediaType === "VIDEO" ? hlsUrl(a) : null,
         thumbUrl: await viewUrl(a.thumbPath),
-        gridUrl: await coverOf(a),
+        // A public moment's shots: at their lasting address, for search engines (see publicCover).
+        gridUrl: everyone && a.screening === "allowed" ? await publicCover(a) : await coverOf(a),
         // Where it was taken («📍 بيت لحم ✓»); its owner may remove or change it.
         place: a.placeId ? (places.get(a.placeId) ?? null) : null,
         placeVerified: a.placeVerified,

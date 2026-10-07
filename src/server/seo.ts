@@ -79,6 +79,7 @@ const shotSelect = {
   mediaType: true,
   mediaPath: true,
   thumbPath: true,
+  smallPath: true,
   streamUid: true,
   streamReady: true,
   durationSec: true,
