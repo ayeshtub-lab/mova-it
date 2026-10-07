@@ -5,6 +5,24 @@ import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { soundByKey, soundName } from "@/lib/sounds";
 import type { MontageView } from "@/server/montage";
 
+// A film opens from black: before it plays, its title card shows instead (a second in), and
+// pressing play still starts it from the beginning.
+const STILL_AT = 1.2;
+const stillFrame = {
+  onLoadedMetadata: (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const v = e.currentTarget;
+    if (v.paused && v.currentTime === 0 && v.duration > STILL_AT * 2) {
+      v.dataset.still = "1";
+      v.currentTime = STILL_AT;
+    }
+  },
+  onPlay: (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const v = e.currentTarget;
+    if (v.dataset.still && Math.abs(v.currentTime - STILL_AT) < 0.05) v.currentTime = 0;
+    delete v.dataset.still;
+  },
+};
+
 type Labels = {
   title: string;
   hint: string;
@@ -190,7 +208,7 @@ export function MontagePanel({
       {showBox && (
         <div className="relative mx-auto aspect-[9/16] w-full max-w-xs overflow-hidden rounded-2xl bg-black">
           {video.videoUrl ? (
-            <video key={video.id} src={video.videoUrl} controls playsInline preload="metadata" className="size-full" />
+            <video key={video.id} src={video.videoUrl} controls playsInline preload="metadata" className="size-full" {...stillFrame} />
           ) : (
             <div className="flex size-full flex-col items-center justify-center gap-3 p-6 text-center text-sm font-semibold text-white/85">
               {busy || waiting ? (
@@ -240,7 +258,7 @@ export function MontagePanel({
         <div data-nosnippet className="flex flex-col gap-2 rounded-2xl bg-background p-3">
           {fresh.state === "ready" ? (
             <>
-              <video src={fresh.url} controls playsInline preload="metadata" className="mx-auto aspect-[9/16] w-full max-w-[12rem] rounded-xl bg-black" />
+              <video src={fresh.url} controls playsInline preload="metadata" {...stillFrame} className="mx-auto aspect-[9/16] w-full max-w-[12rem] rounded-xl bg-black" />
               <div className="flex gap-2">
                 <button type="button" onClick={shareFresh} disabled={!fresh.file} className="min-h-11 flex-1 rounded-full bg-accent px-4 text-sm font-extrabold text-white disabled:opacity-50">
                   📤 {labels.share}
