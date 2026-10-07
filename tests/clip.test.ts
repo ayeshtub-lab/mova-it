@@ -7,6 +7,9 @@ import { clip, plain } from "../src/lib/clip";
 test("a hashtag reads as its words; the rest is untouched", () => {
   assert.equal(plain("اجمل باقة #زهور في محافظة رام الله"), "اجمل باقة زهور في محافظة رام الله");
   assert.equal(plain("#بر_الوالدين #زاومو"), "بر الوالدين زاومو");
+  assert.equal(plain("#اجمل باقة#زهور"), "اجمل باقة زهور", "a tag stuck to a word gets its space");
+  assert.equal(plain("صور و#زاومو"), "صور وزاومو", "after a one-letter «و» it stays joined");
+  assert.equal(plain("#قهوة_الصباح#روقان"), "قهوة الصباح روقان");
   assert.equal(plain("Sunset #golden_hour in #Jerusalem"), "Sunset golden hour in Jerusalem");
   assert.equal(plain("عرس قبل 19 سنة — زفة وطربوش ودبكة"), "عرس قبل 19 سنة — زفة وطربوش ودبكة");
   assert.equal(plain("رقم # وحده"), "رقم # وحده", "a lone # is not a tag");
