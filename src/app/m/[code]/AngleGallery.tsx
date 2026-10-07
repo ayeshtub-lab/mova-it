@@ -18,6 +18,7 @@ import { filterCss, stampText } from "@/lib/filters";
 import { StampText } from "@/app/StampText";
 import { isQuran, soundByKey, soundFile, soundName } from "@/lib/sounds";
 import { weatherLine } from "@/lib/weather";
+import { useFreshLikes } from "@/lib/fresh-likes";
 import { ReportSheet, type ReportLabels } from "./ReportSheet";
 
 type Likes = { count: number; liked: boolean };
@@ -168,6 +169,12 @@ export function AngleGallery({
   const [deleting, setDeleting] = useState(false);
   const [reportTarget, setReportTarget] = useState<{ angleId: string } | { commentId: string } | null>(null);
   const [likes, setLikes] = useState(() => new Map(angles.map((a) => [a.id, a.likes])));
+  // Shown from an old copy (back button…)? The hearts as they are now.
+  useFreshLikes(angles.map((a) => a.id).slice(0, 100), (fresh) => setLikes((m) => {
+    const next = new Map(m);
+    for (const [id, l] of fresh) next.set(id, l);
+    return next;
+  }));
   const [saved, setSaved] = useState(() => new Set(angles.filter((a) => a.saved).map((a) => a.id)));
   const [picks, setPicks] = useState(() => new Set(angles.filter((a) => a.picked).map((a) => a.id)));
   const [following, setFollowing] = useState(() => new Set(angles.filter((a) => a.following && a.profileId).map((a) => a.profileId!)));

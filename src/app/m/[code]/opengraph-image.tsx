@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import sharp from "sharp";
 import ar from "@/i18n/dictionaries/ar.json";
 import en from "@/i18n/dictionaries/en.json";
 import { plural } from "@/i18n/plural";
@@ -11,7 +12,8 @@ import { isArabic, Line, satoriFonts, wrap } from "@/server/og-text";
 export const runtime = "nodejs";
 export const alt = "Zawmo";
 export const size = { width: 1200, height: 630 };
-export const contentType = "image/png";
+// JPEG, not PNG: a photo card as PNG weighs 1–2 MB, and WhatsApp drops a preview image that heavy.
+export const contentType = "image/jpeg";
 
 const fullBox = { position: "absolute", top: 0, left: 0, width: 1200, height: 630 } as const;
 
@@ -32,7 +34,7 @@ export default async function Image({ params }: { params: Promise<{ code: string
         .replace("{people}", plural(locale, dict.plurals.people, view.participantCount))
     : "";
 
-  return new ImageResponse(
+  const card = new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", background: "#2A1F4F", fontFamily: "Cairo" }}>
         {background ? (
@@ -58,4 +60,6 @@ export default async function Image({ params }: { params: Promise<{ code: string
     ),
     { ...size, fonts: satoriFonts() },
   );
+  const jpeg = await sharp(Buffer.from(await card.arrayBuffer())).jpeg({ quality: 82, mozjpeg: true }).toBuffer();
+  return new Response(new Uint8Array(jpeg), { headers: { "content-type": contentType, "cache-control": card.headers.get("cache-control") ?? "public, max-age=3600" } });
 }

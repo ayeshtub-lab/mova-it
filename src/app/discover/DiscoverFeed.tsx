@@ -12,6 +12,7 @@ import { compact, Rail } from "./Rail";
 import { Viewer } from "./Viewer";
 import type { DiscoverLabels, FeedAngle, FeedItem, FeedMoment, Likes, TrendingItem } from "./feed-types";
 import { StreamVideo } from "@/app/StreamVideo";
+import { useFreshLikes } from "@/lib/fresh-likes";
 
 type UploaderProps = Omit<React.ComponentProps<typeof AngleUploader>, "code" | "afterUpload">;
 type Sheet = { kind: "comments"; angleId: string } | { kind: "add"; code: string } | { kind: "signin" } | null;
@@ -46,6 +47,12 @@ export function DiscoverFeed({
   const [sheet, setSheet] = useState<Sheet>(null);
   const [viewerAt, setViewerAt] = useState<number | null>(null);
   const [likes, setLikes] = useState(() => new Map<string, Likes>());
+  // Shown from an old copy (back button…)? The hearts as they are now.
+  useFreshLikes([...new Set([...trending.map((t) => t.id), ...moments.flatMap((m) => m.angles.map((a) => a.id))])].slice(0, 100), (fresh) => setLikes((m) => {
+    const next = new Map(m);
+    for (const [id, l] of fresh) next.set(id, l);
+    return next;
+  }));
   const [shares, setShares] = useState(() => new Map<string, number>());
   const [commentCounts, setCommentCounts] = useState(() => new Map<string, number>());
   const [toast, setToast] = useState<string | null>(null);
