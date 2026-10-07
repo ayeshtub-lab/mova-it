@@ -100,6 +100,46 @@ export async function countryStats(since: Date) {
   return [...rows.values()].sort((a, b) => b.joined - a.joined || b.members - a.members);
 }
 
+// The two weekly numbers Zawmo grows by, this week against the one before:
+// - strangers: people who added a shot to someone else's moment without knowing them on Zawmo
+//   (no invite between them, neither follows the other) — the moment reached past its circle;
+// - next-day return: of the week's newcomers, how many were back the day after they joined.
+// A week is 7 Mecca days; this week's newest cohort is still being measured (today isn't over).
+async function strangers(from: Date, to: Date) {
+  const shots = await db.angle.findMany({
+    where: { status: "READY", uploadedAt: { gte: from, lt: to }, contributor: { isSystem: false } },
+    select: { contributorId: true, moment: { select: { creatorId: true } } },
+  });
+  const others = shots.filter((s) => s.contributorId !== s.moment.creatorId);
+  if (!others.length) return 0;
+  const people = [...new Set(others.flatMap((s) => [s.contributorId, s.moment.creatorId]))];
+  const [invites, follows] = await Promise.all([
+    db.momentInvite.findMany({ where: { fromUserId: { in: people }, toUserId: { in: people } }, select: { fromUserId: true, toUserId: true } }),
+    db.follow.findMany({ where: { followerId: { in: people }, followingId: { in: people } }, select: { followerId: true, followingId: true } }),
+  ]);
+  const pair = (x: string, y: string) => [x, y].sort().join(":");
+  const known = new Set([...invites.map((i) => pair(i.fromUserId, i.toUserId)), ...follows.map((f) => pair(f.followerId, f.followingId))]);
+  return new Set(others.filter((s) => !known.has(pair(s.contributorId, s.moment.creatorId))).map((s) => s.contributorId)).size;
+}
+
+async function weekReturn(lastCohort: string) {
+  const cohorts = await Promise.all(Array.from({ length: 7 }, (_, i) => returnRate(shift(lastCohort, -i), 1)));
+  const joined = cohorts.reduce((s, c) => s + c.joined, 0);
+  const returned = cohorts.reduce((s, c) => s + c.returned, 0);
+  return { joined, returned, rate: joined ? returned / joined : null };
+}
+
+export async function weeklyNumbers(now = new Date()) {
+  const today = activityDay(now);
+  const [thisStrangers, lastStrangers, thisReturn, lastReturn] = await Promise.all([
+    strangers(dayStart(shift(today, -6)), dayStart(shift(today, 1))),
+    strangers(dayStart(shift(today, -13)), dayStart(shift(today, -6))),
+    weekReturn(shift(today, -1)),
+    weekReturn(shift(today, -8)),
+  ]);
+  return { strangers: { thisWeek: thisStrangers, lastWeek: lastStrangers }, nextDay: { thisWeek: thisReturn, lastWeek: lastReturn } };
+}
+
 export async function getStats(viewer: User | null, now = new Date(), days = 14) {
   assertAdmin(viewer);
   const today = activityDay(now);
@@ -137,7 +177,7 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
   const joinedSum = cohorts.reduce((s, c) => s + c.joined, 0);
   const [yesterday, week] = await Promise.all([returnRate(shift(today, -1), 1), returnRate(shift(today, -7), 7)]);
 
-  const [sources, countries] = await Promise.all([sourceStats(since), countryStats(since)]);
+  const [sources, countries, weekly] = await Promise.all([sourceStats(since), countryStats(since), weeklyNumbers(now)]);
   const top = await db.moment.findMany({ where: { id: { in: weekAngles.map((w) => w.momentId) } }, select: { id: true, code: true, title: true } });
   return {
     today,
@@ -154,6 +194,7 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
       average: { joined: joinedSum, returned: cohorts.reduce((s, c) => s + c.returned, 0), rate: joinedSum ? cohorts.reduce((s, c) => s + c.returned, 0) / joinedSum : null },
       week,
     },
+    weekly,
     series,
     sources,
     countries,

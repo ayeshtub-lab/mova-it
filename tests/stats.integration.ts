@@ -3,7 +3,7 @@
 import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
-import { activityDay, getStats, recordActivity } from "../src/server/stats";
+import { activityDay, getStats, recordActivity, weeklyNumbers } from "../src/server/stats";
 
 const TAG = "[stattest]";
 const out: string[] = [];
@@ -56,11 +56,38 @@ async function main() {
       assert.equal(s.series.length, 14);
     });
 
+    await check("weekly: strangers who added a shot (not friends, not invited, not their own)", async () => {
+      const m = await db.moment.create({ data: { code: `ST${Date.now().toString(36).slice(-4).toUpperCase()}`, title: `${TAG} m`, creatorId: a.id, visibility: "PUBLIC" } });
+      const shot = (who: string, day: string) =>
+        db.angle.create({ data: { momentId: m.id, contributorId: who, mediaType: "PHOTO", status: "READY", screening: "allowed", mediaPath: `stattest/${Math.random()}.jpg`, uploadedAt: noon(day) } });
+      await db.momentInvite.create({ data: { momentId: m.id, fromUserId: a.id, toUserId: c.id } });
+      await db.follow.create({ data: { followerId: a.id, followingId: d.id } });
+      await shot(a.id, "2099-01-16"); // their own moment
+      await shot(b.id, "2099-01-16"); // a stranger: counts
+      await shot(b.id, "2099-01-15"); // the same stranger again: once
+      await shot(c.id, "2099-01-16"); // invited
+      await shot(d.id, "2099-01-16"); // followed
+      await shot(late.id, "2099-01-08"); // a stranger, the week before
+      const w = await weeklyNumbers(noon("2099-01-17"));
+      assert.deepEqual(w.strangers, { thisWeek: 1, lastWeek: 1 });
+      // This week = the cohorts of the 10th–16th: the 10th's 4 newcomers, 2 back the next day (late
+      // joined today: measured tomorrow). The week before: nobody joined.
+      assert.deepEqual(w.nextDay.thisWeek, { joined: 4, returned: 2, rate: 0.5 });
+      assert.deepEqual(w.nextDay.lastWeek, { joined: 0, returned: 0, rate: null });
+      assert.deepEqual((await weeklyNumbers(noon("2099-01-18"))).nextDay.lastWeek, { joined: 4, returned: 2, rate: 0.5 }, "a week on, it is last week's");
+    });
+
     await check("admins only", async () => {
       await assert.rejects(getStats(a));
       await assert.rejects(getStats(null));
     });
   } finally {
+    // Everyone with this test's tag, leftovers of an earlier interrupted run included.
+    ids.splice(0, ids.length, ...(await db.user.findMany({ where: { displayName: { startsWith: TAG } }, select: { id: true } })).map((u) => u.id));
+    await db.angle.deleteMany({ where: { contributorId: { in: ids } } });
+    await db.momentInvite.deleteMany({ where: { fromUserId: { in: ids } } });
+    await db.follow.deleteMany({ where: { followerId: { in: ids } } });
+    await db.moment.deleteMany({ where: { creatorId: { in: ids } } });
     await db.user.deleteMany({ where: { id: { in: ids } } });
     const left = await db.user.count({ where: { displayName: { startsWith: TAG } } });
     out.push(left === 0 ? "CLEANUP ok" : `CLEANUP left ${left} test users`);

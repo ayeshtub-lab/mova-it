@@ -105,6 +105,26 @@ export default async function StatsPage() {
           <p className="text-xs text-muted">«—» يعني ما انضم أحد في ذاك اليوم. تسجيل النشاط بدأ ٢٦ سبتمبر ٢٠٢٦.</p>
         </section>
 
+        {/* The two weekly numbers: is Zawmo reaching past friends, and do newcomers come back? */}
+        <section className="flex flex-col gap-3 rounded-3xl bg-surface p-5">
+          <h2 className="font-extrabold">📅 هالأسبوع مقابل اللي قبله</h2>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-2xl bg-background p-3">
+              <p className="text-xs text-muted">🌍 غرباء أضافوا لقطة</p>
+              <p className="text-3xl font-extrabold tabular-nums">{num(s.weekly.strangers.thisWeek)}</p>
+              <p className="text-xs text-muted">الأسبوع اللي قبله {num(s.weekly.strangers.lastWeek)}</p>
+            </div>
+            <div className="rounded-2xl bg-background p-3">
+              <p className="text-xs text-muted">🔁 رجعوا تاني يوم</p>
+              <p className={`text-3xl font-extrabold tabular-nums ${tone(s.weekly.nextDay.thisWeek.rate)}`}>{pct(s.weekly.nextDay.thisWeek.rate)}</p>
+              <p className="text-xs text-muted">
+                {num(s.weekly.nextDay.thisWeek.returned)} من {num(s.weekly.nextDay.thisWeek.joined)} · قبله {pct(s.weekly.nextDay.lastWeek.rate)}
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-muted">«غريب»: ضاف لقطة للحظة شخص ما بيعرفه بزاومو (ما في دعوة بينهم ولا متابعة). الأسبوع = آخر ٧ أيام.</p>
+        </section>
+
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {tiles.map(([icon, label, value]) => (
             <div key={label} className="flex flex-col gap-1 rounded-2xl bg-surface p-4">
