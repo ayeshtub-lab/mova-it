@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 import ar from "@/i18n/dictionaries/ar.json";
 import en from "@/i18n/dictionaries/en.json";
 import { plural } from "@/i18n/plural";
+import { CANONICAL_HOST } from "@/lib/hosts";
 import { getMomentView } from "@/server/moments";
 import { isArabic, Line, satoriFonts, wrap } from "@/server/og-text";
 
@@ -21,7 +22,10 @@ export default async function Image({ params }: { params: Promise<{ code: string
   const dict = arabic ? ar : en;
   const locale = arabic ? "ar" : "en";
   const first = view?.angles[0];
-  const background = first ? (first.mediaType === "VIDEO" ? first.thumbUrl : first.mediaUrl) : null;
+  const picture = first ? (first.mediaType === "VIDEO" ? first.thumbUrl : first.mediaUrl) : null;
+  // A public photo's address is on Zawmo itself («/i/ID.jpg»): the card is drawn on the server,
+  // so it needs the whole address.
+  const background = picture?.startsWith("/") ? `https://${CANONICAL_HOST}${picture}` : picture;
   const meta = view
     ? dict.moment.meta
         .replace("{angles}", plural(locale, dict.plurals.angles, view.angleCount))
