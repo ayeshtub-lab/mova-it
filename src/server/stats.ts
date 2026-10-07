@@ -107,7 +107,8 @@ export async function countryStats(since: Date) {
 // A week is 7 Mecca days; this week's newest cohort is still being measured (today isn't over).
 async function strangers(from: Date, to: Date) {
   const shots = await db.angle.findMany({
-    where: { status: "READY", uploadedAt: { gte: from, lt: to }, contributor: { isSystem: false } },
+    // Not «لحظة اليوم» (everyone answers that one; it is no one's moment), nor the team.
+    where: { status: "READY", uploadedAt: { gte: from, lt: to }, contributor: { isSystem: false, isAdmin: false }, moment: { kind: { not: "DAILY" } } },
     select: { contributorId: true, moment: { select: { creatorId: true } } },
   });
   const others = shots.filter((s) => s.contributorId !== s.moment.creatorId);

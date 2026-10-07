@@ -68,6 +68,9 @@ async function main() {
       await shot(c.id, "2099-01-16"); // invited
       await shot(d.id, "2099-01-16"); // followed
       await shot(late.id, "2099-01-08"); // a stranger, the week before
+      const daily = await db.moment.create({ data: { code: `SD${Date.now().toString(36).slice(-4).toUpperCase()}`, title: `${TAG} d`, creatorId: a.id, kind: "DAILY", visibility: "PUBLIC" } });
+      await db.angle.create({ data: { momentId: daily.id, contributorId: c.id, mediaType: "PHOTO", status: "READY", screening: "allowed", mediaPath: "stattest/d.jpg", uploadedAt: noon("2099-01-16") } }); // «لحظة اليوم»: not counted
+      await shot(admin.id, "2099-01-16"); // the team: not counted
       const w = await weeklyNumbers(noon("2099-01-17"));
       assert.deepEqual(w.strangers, { thisWeek: 1, lastWeek: 1 });
       // This week = the cohorts of the 10th–16th: the 10th's 4 newcomers, 2 back the next day (late

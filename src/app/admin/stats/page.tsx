@@ -122,7 +122,7 @@ export default async function StatsPage() {
               </p>
             </div>
           </div>
-          <p className="text-xs text-muted">«غريب»: ضاف لقطة للحظة شخص ما بيعرفه بزاومو (ما في دعوة بينهم ولا متابعة). الأسبوع = آخر ٧ أيام.</p>
+          <p className="text-xs text-muted">«غريب»: ضاف لقطة للحظة شخص ما بيعرفه بزاومو (ما في دعوة بينهم ولا متابعة)، من غير «لحظة اليوم» وفريق زاومو. الأسبوع = آخر ٧ أيام.</p>
         </section>
 
         <section className="grid grid-cols-2 gap-2 sm:grid-cols-3">
