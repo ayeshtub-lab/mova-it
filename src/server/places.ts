@@ -96,7 +96,7 @@ export async function placeViews(ids: (string | null | undefined)[]) {
 }
 
 // A place and everything inside it (a governorate's villages, a city's neighbourhoods).
-async function withDescendants(id: string) {
+export async function withDescendants(id: string) {
   const all = [id];
   let frontier = [id];
   for (let depth = 0; depth < 4 && frontier.length; depth++) {

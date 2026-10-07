@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { SOUNDS } from "@/lib/sounds";
+import { eventPath, findEvents } from "@/server/events";
 import { sitemapEntries, sitemapShots, sitemapSoundKeys, sitemapTags, shotOrdinals, shotPath, shotTitle } from "@/server/seo";
 
 // The pages Google should know about: the home page, public moments (with all their shots'
@@ -14,7 +15,13 @@ export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = `https://${CANONICAL_HOST}`;
-  const [{ moments, places }, shots, tags, sounds] = await Promise.all([sitemapEntries(), sitemapShots(), sitemapTags(), sitemapSoundKeys()]);
+  const [{ moments, places }, shots, tags, sounds, events] = await Promise.all([
+    sitemapEntries(),
+    sitemapShots(),
+    sitemapTags(),
+    sitemapSoundKeys(),
+    findEvents({ since: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }),
+  ]);
   const ordinals = shotOrdinals(shots);
   // A moment lists its shots' pictures too (newest first; Google reads up to 1000 a page).
   const pictures = new Map<string, string[]>();
@@ -42,6 +49,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         videos: [{ title, description: `${title} — ${s.contributor.displayName}`, thumbnail_loc: image, content_loc: `${base}/v/${s.id}.mp4`, publication_date: s.uploadedAt.toISOString(), ...(s.durationSec ? { duration: Math.max(1, Math.round(s.durationSec)) } : {}) }],
       };
     }),
+    // A day's rain, snow, sunset… in one area (src/server/events.ts): 3 shots by 2 people at least.
+    ...events.map((e) => ({ url: `${base}${eventPath(e)}`, lastModified: e.updatedAt, changeFrequency: "daily" as const, priority: 0.7 })),
     ...tags.map((t) => ({ url: `${base}/tag/${encodeURIComponent(t.tag)}`, lastModified: t.updatedAt, changeFrequency: "daily" as const, priority: 0.6 })),
     ...SOUNDS.filter((s) => sounds.has(s.key)).map((s) => ({ url: `${base}/sound/${s.key}`, lastModified: sounds.get(s.key), changeFrequency: "weekly" as const, priority: 0.4 })),
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.2 },

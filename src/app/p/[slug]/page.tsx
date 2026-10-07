@@ -10,6 +10,8 @@ import { filterCss } from "@/lib/filters";
 import { matchable, SCENES } from "@/lib/scenes";
 import { getCurrentUser } from "@/lib/session";
 import { placePage } from "@/server/places";
+import { eventPath, findEvents } from "@/server/events";
+import { db } from "@/lib/db";
 
 const fill = (text: string, name: string) => text.replaceAll("{name}", name);
 
@@ -39,6 +41,9 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/p/
   const [dict, data] = await Promise.all([getDictionary(locale), placePage(slug, user?.id ?? null, 60, scene)]);
   if (!data) notFound();
   const t = dict.place;
+  // «📅 أحداث»: this area's rainy, snowy… days of the last year, each with its own page.
+  const area = await db.place.findUnique({ where: { slug: data.place.slug }, select: { id: true } });
+  const events = area ? await findEvents({ since: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), areaId: area.id, take: 12 }) : [];
   const name = data.place.name;
   // The trail as search engines read it: فلسطين › محافظة بيت لحم › بيت لحم.
   const crumbs = [...data.trail, { slug: data.place.slug, name }].map((p, i) => ({
@@ -91,6 +96,21 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/p/
                 <li key={p.slug}>
                   <Link href={`/p/${encodeURIComponent(p.slug)}`} className="flex min-h-9 items-center rounded-full bg-surface px-3 text-sm font-semibold">
                     📍 {p.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {events.length > 0 && (
+          <section aria-label={t.events} className="flex flex-col gap-2">
+            <h2 className="text-sm font-bold">{t.events}</h2>
+            <ul className="flex flex-wrap gap-2">
+              {events.map((e) => (
+                <li key={eventPath(e)}>
+                  <Link href={eventPath(e)} className="flex min-h-9 items-center gap-1 rounded-full bg-surface px-3 text-sm font-semibold">
+                    {SCENES[e.scene].emoji} {locale === "ar" ? SCENES[e.scene].ar : SCENES[e.scene].en} {e.areaName} · {new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${e.day}T12:00:00Z`))}
                   </Link>
                 </li>
               ))}
