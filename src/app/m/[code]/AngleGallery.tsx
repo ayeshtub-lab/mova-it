@@ -543,6 +543,13 @@ export function AngleGallery({
       return flash(labels.branded.working);
     }
     fetch(`/api/angles/${a.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
+    // A photo goes out as a picture with the Zawmo mark (ready since it opened) — for a story or
+    // a status — with the link beside it; the plain link when the phone can't share files.
+    const photo = a.mediaType === "PHOTO" && marked?.id === a.id ? marked.file : null;
+    if (photo && navigator.canShare?.({ files: [photo] })) {
+      await navigator.share({ files: [photo], text: `${share.title} — ${tagged(share.url, "share-photo")}` }).catch(() => {});
+      return;
+    }
     const url = `${tagged(share.url, "share-shot")}#angle-${a.id}`;
     if (navigator.share) {
       await navigator.share({ title: share.title, text: labels.shareText, url }).catch(() => {});
@@ -580,6 +587,29 @@ export function AngleGallery({
     if (!opened || !a?.isMine || a.mediaType !== "VIDEO" || branded?.id === a.id) return;
     prepareBranded(a, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per video on screen
+  }, [current, opened]);
+
+  // ── «📤 شارك بختم زاومو» for a photo (anyone's, for whoever can see it): the marked picture is
+  // fetched when the photo is on screen, so the share arrow sends it at once (src/server/marked.ts).
+  const [marked, setMarked] = useState<{ id: string; file: File | null } | null>(null);
+  useEffect(() => {
+    const a = angles[current];
+    if (!opened || !a || a.mediaType !== "PHOTO" || marked?.id === a.id) return;
+    let gone = false;
+    const timer = setTimeout(async () => {
+      setMarked({ id: a.id, file: null });
+      const res = await fetch(`/api/angles/${a.id}/marked`, { method: "POST" }).catch(() => null);
+      const url = res?.ok ? ((await res.json()) as { url?: string }).url : null;
+      const blob = url ? await fetch(url).then((r) => (r.ok ? r.blob() : null), () => null) : null;
+      if (gone || !blob) return;
+      const code = share.url.split("/").pop() ?? "zawmo";
+      setMarked((m) => (m?.id === a.id ? { id: a.id, file: new File([blob], `zawmo-${code}.jpg`, { type: "image/jpeg" }) } : m));
+    }, 800); // a photo only flicked past isn't made
+    return () => {
+      gone = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per photo on screen
   }, [current, opened]);
 
   async function shareBranded(file: File) {

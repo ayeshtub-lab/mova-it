@@ -62,9 +62,11 @@ test("guest → moment → photo → publish → shows → delete", async ({ pag
   await page.goto(`/m/${code}`);
   await expect(page.locator(`[id^="angle-"]`).first()).toBeVisible();
   expect(await page.locator(`[id^="angle-"]`).count()).toBe(1);
-  // Its place shows in the viewer.
+  // Its place shows in the viewer, and its picture with the Zawmo mark gets ready to share.
+  const marked = page.waitForResponse((r) => r.url().includes("/marked") && r.request().method() === "POST", { timeout: 60_000 });
   await page.locator(`[id^="angle-"] button`).first().click();
   await expect(page.locator("figcaption").first()).toContainText("بيت لحم");
+  expect((await marked).status()).toBe(200);
   await page.keyboard.press("Escape");
 
   // 5. The creator deletes the whole moment; the page is gone.

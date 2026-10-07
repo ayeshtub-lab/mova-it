@@ -500,6 +500,41 @@ export async function renderMontage(montageId: string, siteHost: string) {
 // video sits on a blurred copy of itself, nothing cropped), its look and writing, a small
 // Zawmo mark with the moment's link, and the closing card flowing in at the end. The
 // video's own sound stays. Returns the file.
+// «📤 شارك بختم زاومو» for a photo: one 9:16 picture ready for a story or a status — the photo
+// whole on a blurred fill of itself, its look and writing, and the Zawmo mark with the moment's
+// short link and who took it. A JPEG, made in a second or two (src/server/marked.ts keeps it).
+export async function buildMarkedPhoto(
+  shot: { mediaPath: string; filter: string | null; caption: Parameters<typeof parseCaption>[0]; stamp: boolean; uploadedAt: Date; momentCode: string; momentTitle: string; by: string },
+  siteHost: string,
+  dir: string,
+) {
+  const url = await viewUrl(shot.mediaPath);
+  if (!url) throw new Error("no photo");
+  const input = join(dir, "in");
+  await download(url, input);
+  const locale = isArabic(shot.momentTitle) ? "ar" : "en";
+  const mark = join(dir, "mark.png");
+  await writeFile(mark, await renderWatermark({ link: `${publicHost(siteHost)}/${shot.momentCode}`, stamp: shot.stamp ? stampText(shot.uploadedAt, locale, "Asia/Riyadh") : undefined, by: locale === "ar" ? `بعدسة ${shot.by}` : `by ${shot.by}` }));
+  const writing = parseCaption(shot.caption);
+  const writingUrl = writing ? await viewUrl(writing.path) : null;
+  let caption: CaptionFile | undefined;
+  if (writing && writingUrl) {
+    caption = { file: join(dir, "cap.png"), y: writing.y, w: writing.w };
+    await download(writingUrl, caption.file);
+  }
+  const fit = `scale=${FRAME.width}:${FRAME.height}:force_original_aspect_ratio=decrease,setsar=1`;
+  const base = `[0:v]split[a][b];[a]scale=${FRAME.width}:${FRAME.height}:force_original_aspect_ratio=increase,crop=${FRAME.width}:${FRAME.height},setsar=1,boxblur=24:2,eq=brightness=-0.12[bg];[b]${fit}[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p${look(shot.filter)}`;
+  const output = join(dir, "zawmo.jpg");
+  await ffmpeg([
+    "-i", input,
+    "-i", mark,
+    ...captionInput(caption),
+    "-filter_complex", `${withCaption(base, caption, 2)}[b2];[b2][1:v]overlay=0:0,format=yuvj420p[v]`,
+    "-map", "[v]", "-frames:v", "1", "-q:v", "3", output,
+  ], 60_000);
+  return output;
+}
+
 export async function buildBrandedShot(
   shot: { mediaPath: string; filter: string | null; caption: Parameters<typeof parseCaption>[0]; stamp: boolean; uploadedAt: Date; momentCode: string; momentTitle: string; soundKey?: string | null; muteOriginal?: boolean; lyrics?: boolean },
   siteHost: string,
