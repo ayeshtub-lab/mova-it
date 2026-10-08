@@ -106,6 +106,18 @@ export async function withDescendants(id: string) {
   return all;
 }
 
+// The chain above a place: فلسطين › محافظة بيت لحم (from the top; `parentId` is the place's own parent).
+export async function placeTrail(parentId: string | null) {
+  const trail: { slug: string; name: string }[] = [];
+  for (let up = parentId; up; ) {
+    const p = await db.place.findUnique({ where: { id: up }, select: { slug: true, nameAr: true, kind: true, parentId: true } });
+    if (!p) break;
+    trail.unshift({ slug: p.slug, name: p.kind === "GOVERNORATE" ? `محافظة ${p.nameAr}` : p.nameAr });
+    up = p.parentId;
+  }
+  return trail;
+}
+
 // A place's public page: its public shots (checked, not «لحظة اليوم»), the places inside it
 // that have shots, and — only from PEOPLE_SHOWN_FROM people up — how many people shot there.
 // With a scene («?scene=sunset», from a Discover card): only that scene, from the last 24 hours.
@@ -134,15 +146,7 @@ export async function placePage(slug: string, viewerId: string | null, take = 60
     db.angle.groupBy({ by: ["placeId"], where: shown, _count: { _all: true } }),
   ]);
 
-  // The chain above it: فلسطين › محافظة بيت لحم › بيت لحم.
-  const trail: { slug: string; name: string }[] = [];
-  let up = place.parentId;
-  while (up) {
-    const p = await db.place.findUnique({ where: { id: up }, select: { slug: true, nameAr: true, kind: true, parentId: true } });
-    if (!p) break;
-    trail.unshift({ slug: p.slug, name: p.kind === "GOVERNORATE" ? `محافظة ${p.nameAr}` : p.nameAr });
-    up = p.parentId;
-  }
+  const trail = await placeTrail(place.parentId);
 
   // Places directly inside this one that have shots (a city's neighbourhoods, a governorate's towns).
   const withShots = new Set(childCounts.map((c) => c.placeId));

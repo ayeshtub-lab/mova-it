@@ -12,6 +12,7 @@ import { matchable, SCENES } from "@/lib/scenes";
 import { getCurrentUser } from "@/lib/session";
 import { placePage } from "@/server/places";
 import { eventPath, placeEvents } from "@/server/events";
+import { placeTopics, topicPath } from "@/server/topics";
 
 const fill = (text: string, name: string) => text.replaceAll("{name}", name);
 
@@ -42,7 +43,8 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/p/
   if (!data) notFound();
   const t = dict.place;
   // «📅 أحداث»: this area's rainy, snowy… days of the last year, each with its own page.
-  const events = await placeEvents(data.place.id);
+  // «🏷️ خيار · قهوة الصباح…»: this place's topic pages (src/server/topics.ts).
+  const [events, topics] = await Promise.all([placeEvents(data.place.id), placeTopics(data.place.id)]);
   const name = data.place.name;
   // The trail as search engines read it: فلسطين › محافظة بيت لحم › بيت لحم.
   const crumbs = [...data.trail, { slug: data.place.slug, name }].map((p, i) => ({
@@ -95,6 +97,21 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/p/
                 <li key={p.slug}>
                   <Link href={`/p/${encodeURIComponent(p.slug)}`} className="flex min-h-9 items-center rounded-full bg-surface px-3 text-sm font-semibold">
                     📍 {p.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {topics.length > 0 && (
+          <section aria-label={fill(dict.topic.placeTopics, name)} className="flex flex-col gap-2">
+            <h2 className="text-sm font-bold">{fill(dict.topic.placeTopics, name)}</h2>
+            <ul className="flex flex-wrap gap-2">
+              {topics.map((x) => (
+                <li key={x.topic}>
+                  <Link href={topicPath(x.slug, x.topic)} className="flex min-h-9 items-center rounded-full bg-surface px-3 text-sm font-semibold">
+                    🏷️ {x.words} · {x.shotIds.length}
                   </Link>
                 </li>
               ))}

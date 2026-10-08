@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { SOUNDS } from "@/lib/sounds";
 import { eventPath, findEvents } from "@/server/events";
+import { topicIndex, topicPath } from "@/server/topics";
 import { sitemapEntries, sitemapShots, sitemapSoundKeys, sitemapTags, shotOrdinals, shotPath, shotTitle } from "@/server/seo";
 
 // The pages Google should know about: the home page, public moments (with all their shots'
@@ -15,12 +16,13 @@ export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = `https://${CANONICAL_HOST}`;
-  const [{ moments, places }, shots, tags, sounds, events] = await Promise.all([
+  const [{ moments, places }, shots, tags, sounds, events, topics] = await Promise.all([
     sitemapEntries(),
     sitemapShots(),
     sitemapTags(),
     sitemapSoundKeys(),
     findEvents({ since: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }),
+    topicIndex(),
   ]);
   const ordinals = shotOrdinals(shots);
   // A moment lists its shots' pictures too (newest first; Google reads up to 1000 a page).
@@ -36,6 +38,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/guide/house`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${base}/guide/plant`, changeFrequency: "monthly", priority: 0.8 },
     ...places.map((p) => ({ url: `${base}/p/${encodeURIComponent(p.slug)}`, lastModified: p.updatedAt, changeFrequency: "daily" as const, priority: 0.8 })),
+    // «خيار في الخضر»: a place's topic pages (real ones only — src/server/topics.ts).
+    ...topics.map((x) => ({ url: `${base}${topicPath(x.slug, x.topic)}`, lastModified: x.updatedAt, changeFrequency: "weekly" as const, priority: 0.7 })),
     ...moments.map((m) => ({ url: `${base}/m/${m.code}`, lastModified: m.updatedAt, changeFrequency: "weekly" as const, priority: 0.6, images: pictures.get(m.code) })),
     ...shots.filter((s) => s.mediaType === "VIDEO").map((s) => {
       const title = shotTitle(s, "ar", ordinals.get(s.id));
