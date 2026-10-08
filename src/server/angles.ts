@@ -248,8 +248,9 @@ export async function completeAngle(user: User, angleId: string) {
   const captionIdeas = verdict?.result === "allowed" ? (verdict.captions ?? []) : [];
   // Clearly someone else's (another app's watermark, a TV logo, a film, a captured screen): it
   // stays with its owner and the moment's creator — never shown to everyone, never in a film —
-  // and an admin looks at it (screening «repost»).
-  const repost = verdict?.result === "allowed" && verdict.repost ? verdict.repost : null;
+  // and an admin looks at it (screening «repost»). Never an official account's (✓): Zawmo's own
+  // promos and ads are ours to post.
+  const repost = verdict?.result === "allowed" && verdict.repost && !user.verified ? verdict.repost : null;
   const saved = await db.$transaction(async (tx) => {
     const done = await tx.angle.update({
       where: { id: angle.id },
@@ -283,13 +284,14 @@ export async function screenForPublic(momentId: string) {
   if (moment?.description && (await screenText(moment.description)).result !== "allowed") {
     await db.moment.update({ where: { id: momentId }, data: { description: null } });
   }
-  const angles = await db.angle.findMany({ where: { momentId, status: "READY", OR: [{ screening: null }, { screening: { not: "allowed" } }] } });
+  const angles = await db.angle.findMany({ where: { momentId, status: "READY", OR: [{ screening: null }, { screening: { not: "allowed" } }] }, include: { contributor: { select: { verified: true } } } });
   for (const angle of angles) {
     const verdict = screeningEnabled() ? await screenAngle(angle) : null;
     const now = new Date();
     if (verdict?.result === "allowed") {
-      await db.angle.update({ where: { id: angle.id }, data: { screening: verdict.repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null } });
-      if (verdict.repost && !(await db.report.count({ where: { angleId: angle.id, reason: "REPOST", resolvedAt: null } }))) {
+      const repost = verdict.repost && !angle.contributor.verified; // (an official account's: never)
+      await db.angle.update({ where: { id: angle.id }, data: { screening: repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null } });
+      if (verdict.repost && repost && !(await db.report.count({ where: { angleId: angle.id, reason: "REPOST", resolvedAt: null } }))) {
         await db.report.create({ data: { momentId, angleId: angle.id, reason: "REPOST", note: verdict.repost.slice(0, 500) } });
       }
       continue;

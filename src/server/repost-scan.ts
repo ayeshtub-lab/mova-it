@@ -5,14 +5,15 @@ import { screenAngle } from "@/server/screening";
 // (2026-10-08, see DESCRIBE in src/server/screening.ts): each is looked at once more, and only
 // that answer is used — a shot clearly someone else's becomes «repost» (kept from everyone but
 // its owner and the moment's creator, and filed for an admin); nothing else about any shot
-// changes. A few per run of the montages cron, until none are left — then an empty query.
+// changes. Official accounts' (✓) shots are Zawmo's own: never looked at for this. A few per
+// run of the montages cron, until none are left — then an empty query.
 const ASKED_FROM = new Date("2026-10-08T07:45:00Z");
 const AT_ONCE = 4;
 
 export async function rescanReposts(limit = 20, budgetMs = 90_000) {
   const started = Date.now();
   const shots = await db.angle.findMany({
-    where: { screening: "allowed", status: { in: ["READY", "DRAFT"] }, screenedAt: { lt: ASKED_FROM } },
+    where: { screening: "allowed", status: { in: ["READY", "DRAFT"] }, screenedAt: { lt: ASKED_FROM }, contributor: { verified: false } },
     orderBy: { uploadedAt: "desc" },
     take: limit,
     select: { id: true, momentId: true, mediaType: true, mediaPath: true, thumbPath: true, durationSec: true },
@@ -35,5 +36,5 @@ export async function rescanReposts(limit = 20, budgetMs = 90_000) {
       checked++;
     }
   }
-  return { checked, flagged, left: (await db.angle.count({ where: { screening: "allowed", status: { in: ["READY", "DRAFT"] }, screenedAt: { lt: ASKED_FROM } } })) };
+  return { checked, flagged, left: (await db.angle.count({ where: { screening: "allowed", status: { in: ["READY", "DRAFT"] }, screenedAt: { lt: ASKED_FROM }, contributor: { verified: false } } })) };
 }

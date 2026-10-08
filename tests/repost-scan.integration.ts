@@ -18,6 +18,7 @@ const out: string[] = [];
 async function main() {
   if (!process.env.GEMINI_API_KEY) return console.log("SKIP (no GEMINI_API_KEY)");
   const owner = await db.user.create({ data: { displayName: `${TAG} owner`, isGuest: false } });
+  const official = await db.user.create({ data: { displayName: `${TAG} زاومو`, isGuest: false, verified: true } });
   const files: string[] = [];
   try {
     const moment = await db.moment.create({ data: { code: `RS${Date.now().toString(36).slice(-4).toUpperCase()}`, title: "قهوة", creatorId: owner.id, visibility: "PUBLIC" } as never });
@@ -29,12 +30,14 @@ async function main() {
       .composite([{ input: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200"><g fill="#fff" font-family="Arial" font-weight="bold" opacity="0.85"><text x="40" y="120" font-size="64">♪ TikTok</text><text x="40" y="180" font-size="40">@coffee_daily_77</text></g></svg>') }])
       .jpeg()
       .toBuffer();
-    const shot = async (name: string, jpg: Buffer) => {
+    const shot = async (name: string, jpg: Buffer, by = owner.id) => {
       const path = `rescantest/${moment.id}/${name}.jpg`;
       await put(path, jpg, { access: "private", addRandomSuffix: false, allowOverwrite: true, contentType: "image/jpeg" });
       files.push(path);
-      return db.angle.create({ data: { momentId: moment.id, contributorId: owner.id, mediaType: "PHOTO", status: "READY", screening: "allowed", screenedAt: new Date("2026-10-01T00:00:00Z"), mediaPath: path } as never });
+      return db.angle.create({ data: { momentId: moment.id, contributorId: by, mediaType: "PHOTO", status: "READY", screening: "allowed", screenedAt: new Date("2026-10-01T00:00:00Z"), mediaPath: path } as never });
     };
+    // An official account's promo (Zawmo's own) is never looked at for this.
+    const promo = await shot("promo", watermarked, official.id);
     const plain = await shot("plain", base);
     const copied = await shot("copied", watermarked);
 
@@ -48,13 +51,16 @@ async function main() {
     out.push("PASS an older shot with another app's watermark becomes «repost»; an ordinary one stays");
     const left = await db.angle.count({ where: { id: { in: [plain.id, copied.id] }, screenedAt: { lt: new Date("2026-10-08T07:45:00Z") } } });
     assert.equal(left, 0, "neither is in the queue any more");
-    out.push("PASS each shot is looked at once");
+    const untouched = await db.angle.findUniqueOrThrow({ where: { id: promo.id } });
+    assert.equal(untouched.screening, "allowed");
+    assert.equal(untouched.screenedAt!.toISOString(), "2026-10-01T00:00:00.000Z", "an official account's: not looked at");
+    out.push("PASS each shot is looked at once; an official account's never");
   } finally {
     await Promise.all(files.map((f) => del(f).catch(() => {})));
     await db.report.deleteMany({ where: { moment: { creatorId: owner.id } } });
-    await db.angle.deleteMany({ where: { contributorId: owner.id } });
+    await db.angle.deleteMany({ where: { contributorId: { in: [owner.id, official.id] } } });
     await db.moment.deleteMany({ where: { creatorId: owner.id } });
-    await db.user.delete({ where: { id: owner.id } });
+    await db.user.deleteMany({ where: { id: { in: [owner.id, official.id] } } });
     out.push((await db.user.count({ where: { displayName: { startsWith: TAG } } })) === 0 ? "CLEANUP ok" : "CLEANUP left users");
     await db.$disconnect();
   }
