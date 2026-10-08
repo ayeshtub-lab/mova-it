@@ -56,11 +56,8 @@ tests/.tmp/
 /test-results/
 /playwright-report/
 
-# Android app signing (android/README.md): never in git
-android/*.keystore
-android/*.jks
-android/app/
-android/build/
-android/.gradle/
-android/*.aab
-android/*.apk
+# Android app (android/README.md): only its config is kept; the generated project, the
+# signing key and the builds never go in git.
+android/*
+!android/twa-manifest.json
+!android/README.md
