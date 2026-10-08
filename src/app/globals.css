@@ -277,3 +277,15 @@ body {
     background: #fff !important;
   }
 }
+
+/* Inside the app (added to the home screen, or the Android app — src/app/AppShell.tsx): the
+   website's footer goes (its links are on your own profile), and the page leaves room for the
+   bottom bar. */
+@media (display-mode: standalone) {
+  .site-footer {
+    display: none;
+  }
+}
+html[data-app] .site-footer {
+  display: none;
+}

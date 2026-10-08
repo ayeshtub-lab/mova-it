@@ -1,3 +1,4 @@
+import { CONTACT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import { VerifiedBadge } from "@/app/VerifiedBadge";
 import Link from "next/link";
@@ -154,6 +155,26 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
           <Link href="/account/delete" className="self-center text-xs font-bold text-muted underline-offset-4 hover:text-accent-ink hover:underline">
             {dict.deleteAccount.link}
           </Link>
+        )}
+        {/* The site's links, here too: inside the app the footer is gone. */}
+        {profile.isMe && (
+          <p className="self-center text-xs text-muted">
+            <Link href="/privacy" className="underline-offset-4 hover:underline">
+              {dict.footer.privacy}
+            </Link>
+            <span className="mx-2" aria-hidden>
+              ·
+            </span>
+            <Link href="/terms" className="underline-offset-4 hover:underline">
+              {dict.footer.terms}
+            </Link>
+            <span className="mx-2" aria-hidden>
+              ·
+            </span>
+            <a href={`mailto:${CONTACT_EMAIL}`} className="underline-offset-4 hover:underline">
+              {dict.footer.contact}
+            </a>
+          </p>
         )}
       </main>
     </div>

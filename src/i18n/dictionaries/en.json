@@ -152,6 +152,8 @@
     "by": "Started by {name}"
   },
   "create": {
+    "shared": "📥 {n} from your gallery are ready — name your moment and start it, and they're added by themselves.",
+    "sharedNone": "The files from your gallery didn't arrive. Open Zawmo once, then share from the gallery again.",
     "title": "Start a new moment",
     "titleLabel": "What is the moment?",
     "titlePlaceholder": "e.g. Sunset at the beach today",

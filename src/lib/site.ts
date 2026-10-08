@@ -11,6 +11,9 @@ export async function siteOrigin() {
 // Where people reach Zawmo (privacy page, footer).
 export const CONTACT_EMAIL = "info@zawmo.com";
 
+// The Android app on Google Play (a Trusted Web Activity of zawmo.com: android/twa-manifest.json).
+export const ANDROID_PACKAGE = "com.zawmo.app";
+
 // A shot counts as new for its first 24 hours (the «جديد» badge).
 export const NEW_FOR_MS = 24 * 60 * 60 * 1000;
 export const isNew = (uploadedAt: Date, now = new Date()) => now.getTime() - uploadedAt.getTime() < NEW_FOR_MS;

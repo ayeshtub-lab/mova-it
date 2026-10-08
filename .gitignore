@@ -55,3 +55,12 @@ tests/.tmp/
 # playwright
 /test-results/
 /playwright-report/
+
+# Android app signing (android/README.md): never in git
+android/*.keystore
+android/*.jks
+android/app/
+android/build/
+android/.gradle/
+android/*.aab
+android/*.apk

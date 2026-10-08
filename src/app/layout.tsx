@@ -11,6 +11,7 @@ import { ActivityPing } from "./ActivityPing";
 import { PresencePing } from "./PresencePing";
 import { BottomNav } from "./BottomNav";
 import { FreshVersion } from "@/app/FreshVersion";
+import { AppShell } from "@/app/AppShell";
 import "./globals.css";
 
 const cairo = Cairo({
@@ -51,10 +52,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col font-sans">
         <FreshVersion />
+        <AppShell />
         {children}
         {user && <ActivityPing userId={user.id} />}
         <PresencePing />
-        <footer className={`px-4 py-6 text-center text-xs text-muted print:hidden ${user ? "pb-28 sm:pb-6" : ""}`}>
+        {/* The website's footer (hidden inside the app: its links are on your own profile). */}
+        <footer className={`site-footer px-4 py-6 text-center text-xs text-muted print:hidden ${user ? "pb-28 sm:pb-6" : ""}`}>
           <Link href="/album" className="font-bold underline-offset-4 hover:underline">
             {dict.footer.album}
           </Link>

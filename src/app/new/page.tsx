@@ -8,6 +8,7 @@ import { ZMark } from "@/app/Logo";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
+import { SharedArrival } from "./SharedArrival";
 
 export const metadata = { robots: { index: false } };
 
@@ -17,7 +18,9 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
   if (!user) redirect("/");
   const locale = await getLocale();
   const dict = await getDictionary(locale);
-  const { kind } = await searchParams;
+  const { kind, shared } = await searchParams;
+  // «/new?shared=3»: photos or videos shared to Zawmo from the gallery (public/sw.js).
+  const sharedCount = typeof shared === "string" ? Math.min(10, Math.max(0, Number.parseInt(shared, 10) || 0)) : null;
   const inApp = isInAppBrowser((await headers()).get("user-agent"));
 
   return (
@@ -31,6 +34,9 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
             <p className="text-sm text-muted">{dict.home.createHint}</p>
           </div>
         </header>
+        {sharedCount !== null && (
+          <SharedArrival count={sharedCount} text={sharedCount > 0 ? dict.create.shared.replace("{n}", String(sharedCount)) : dict.create.sharedNone} />
+        )}
         <div className="rounded-3xl border border-line bg-surface/60 p-5">
           {/* «/new?kind=story»: straight to «مع الوقت» (from a story's «ابدأ قصتك»). */}
           <CreateMomentForm

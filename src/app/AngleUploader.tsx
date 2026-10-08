@@ -13,6 +13,7 @@ import { filterCss, stampText } from "@/lib/filters";
 import { MAX_VIDEO_SECONDS, PrepareError, prepareAngleFile, type PreparedAngle } from "@/lib/media-client";
 import { firstSeconds } from "@/lib/recording";
 import { PENDING_SOUND, soundByKey, soundName } from "@/lib/sounds";
+import { SHARED_MARK } from "@/app/new/SharedArrival";
 
 
 type Labels = {
@@ -66,6 +67,26 @@ type ItemState = {
 // «📍 وين صوّرت؟»: asked when a shot has no place (phones strip a photo's location on the web).
 type PlaceLabels = { ask: string; hint: string; failed: string; placeholder: string; here: { label: string; why: string; finding: string; denied: string; blocked: string; outside: string; approx: string } };
 type UploaderSoundLabels = SoundLabels & { add: string; failed: string; pending: string; pendingClear: string };
+
+// The files shared from the gallery (kept by public/sw.js), when this visit started a moment from
+// the share: its mark (set on /new) under 30 minutes old, files under an hour. Taken once.
+async function takeSharedFiles() {
+  let mark = 0;
+  try {
+    mark = Number(sessionStorage.getItem(SHARED_MARK) ?? 0);
+    sessionStorage.removeItem(SHARED_MARK);
+  } catch {}
+  if (!mark || Date.now() - mark > 30 * 60_000 || !("caches" in window)) return [];
+  const cache = await caches.open("zawmo-share");
+  const files: File[] = [];
+  for (const key of await cache.keys()) {
+    const kept = await cache.match(key);
+    if (!kept || Date.now() - Number(kept.headers.get("x-at") ?? 0) > 60 * 60_000) continue;
+    files.push(new File([await kept.blob()], decodeURIComponent(kept.headers.get("x-name") ?? "zawmo"), { type: kept.headers.get("content-type") ?? "" }));
+  }
+  await caches.delete("zawmo-share");
+  return files;
+}
 
 async function postJson(url: string, body?: unknown) {
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
@@ -316,6 +337,10 @@ export function AngleUploader({
   async function onPick(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
+    await addFiles(files);
+  }
+
+  async function addFiles(files: File[]) {
     if (!files.length) return;
     const start = items.length;
     setItems((all) => [...all, ...files.map((f) => ({ name: f.name, status: "preparing" as const, pct: 0 }))]);
@@ -323,6 +348,16 @@ export function AngleUploader({
     for (const [i, file] of files.entries()) await send(file, start + i);
     router.refresh();
   }
+
+  // «شارك لزاومو» from the gallery: the files kept by the service worker (public/sw.js) are added
+  // here by themselves — only right after starting a moment from the share (its mark, set on
+  // /new, is under 30 minutes old), and only once.
+  useEffect(() => {
+    takeSharedFiles()
+      .then(addFiles)
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the uploader first shows
+  }, []);
 
   const disabled = busy ? "pointer-events-none opacity-60" : "";
 
