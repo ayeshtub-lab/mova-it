@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/session";
 import { ModerationError, reportContent } from "@/server/moderation";
 import { limited } from "@/server/rate-limit";
 
-// Body: { angleId | commentId, reason: "OFFENSIVE"|"SPAM"|"PRIVACY"|"OTHER", note?, block? }
+// Body: { angleId | commentId, reason: "OFFENSIVE"|"SPAM"|"PRIVACY"|"COPYRIGHT"|"OTHER", note?, block? }
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });

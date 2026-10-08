@@ -15,7 +15,7 @@ async function act(formData: FormData) {
   const user = await getCurrentUser();
   if (!user?.isAdmin) notFound();
   const action = formData.get("action");
-  if (action !== "hide" && action !== "delete" && action !== "dismiss") return;
+  if (action !== "hide" && action !== "delete" && action !== "dismiss" && action !== "keep") return;
   await resolveReports(user, String(formData.get("key")), action);
   revalidatePath("/admin");
 }
@@ -146,8 +146,14 @@ export default async function AdminPage() {
                   حذف التعليق
                 </button>
               )}
+              {/* A suspected repost: keep it with its owner and the moment's creator only. */}
+              {item.reasons.includes("REPOST") && item.angleStatus !== "HIDDEN" && (
+                <button name="action" value="keep" className="min-h-11 rounded-full border border-line px-5 text-sm font-bold">
+                  🔒 مش من تصويره، خليها خاصة
+                </button>
+              )}
               <button name="action" value="dismiss" className="min-h-11 rounded-full border border-line px-5 text-sm font-bold">
-                {item.kind === "angle" && item.angleStatus === "HIDDEN" ? "لا مشكلة، أعِدها" : "لا مشكلة، تجاهل"}
+                {item.kind === "angle" && item.angleStatus === "HIDDEN" ? "لا مشكلة، أعِدها" : item.reasons.includes("REPOST") ? "من تصويره، خليها للكل" : "لا مشكلة، تجاهل"}
               </button>
             </form>
           </article>

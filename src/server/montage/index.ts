@@ -120,7 +120,8 @@ export async function bestShots<T extends Candidate>(shots: T[], max: number, li
 async function currentContent(momentId: string, soundKey: string | null) {
   const size = await sizeFor(momentId);
   const found = await db.angle.findMany({
-    where: { momentId, status: "READY", mediaPath: { not: null }, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+    // (Never a shot that is clearly someone else's — a film goes out to everyone.)
+    where: { momentId, status: "READY", mediaPath: { not: null }, AND: [{ OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, { OR: [{ screening: null }, { screening: { not: "repost" } }] }] },
     orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
     select: { id: true, filter: true, stamp: true, soundKey: true, muteOriginal: true, lyrics: true, caption: true, contributorId: true, mediaType: true, capturedAt: true, uploadedAt: true, pickedAt: true },
   });

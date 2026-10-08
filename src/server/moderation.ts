@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { visibleAngle } from "@/server/access";
 import { coverOf } from "@/server/media";
 
-export const REPORT_REASONS = ["OFFENSIVE", "SPAM", "PRIVACY", "OTHER"] as const;
+// COPYRIGHT: «this is mine (or someone else's), shared without permission». (The automatic
+// check files «AI» and «REPOST» itself.)
+export const REPORT_REASONS = ["OFFENSIVE", "SPAM", "PRIVACY", "COPYRIGHT", "OTHER"] as const;
 type Reason = (typeof REPORT_REASONS)[number];
 const MAX_REPORTS_PER_HOUR = 10;
 
@@ -120,20 +122,35 @@ export async function openReports(admin: User) {
 
 // Act on a reported item: hide the angle (reversible), delete the comment, or dismiss.
 // Every open report about the same item is closed with the same outcome.
-export async function resolveReports(admin: User, key: string, action: "hide" | "delete" | "dismiss") {
+// «keep» (a suspected repost, confirmed): it stays with its owner and the moment's creator only.
+export async function resolveReports(admin: User, key: string, action: "hide" | "delete" | "dismiss" | "keep") {
   assertAdmin(admin);
   const [type, id] = key.split(":");
   if (!id || (type !== "a" && type !== "c")) throw new ModerationError("invalid");
   // Angles are hidden (reversible); comments are deleted. Anything else is a mistake.
-  if ((type === "a" && action === "delete") || (type === "c" && action === "hide")) throw new ModerationError("invalid");
+  if ((type === "a" && action === "delete") || (type === "c" && (action === "hide" || action === "keep"))) throw new ModerationError("invalid");
   const where = type === "c" ? { commentId: id, resolvedAt: null } : { angleId: id, commentId: null, resolvedAt: null };
 
   if (action === "hide" && type === "a") await db.angle.update({ where: { id }, data: { status: "HIDDEN" } });
   // "No problem" on an angle the automatic check hid: a false alarm, so put it back.
   // An admin's "no problem" also counts as a passed check (so it may show in Discover).
   if (action === "dismiss" && type === "a") await db.angle.updateMany({ where: { id, status: "HIDDEN" }, data: { status: "READY", screening: "allowed" } });
+  // …and on a suspected repost: it is the owner's own after all, so it may go public.
+  if (action === "dismiss" && type === "a") await db.angle.updateMany({ where: { id, screening: "repost" }, data: { screening: "allowed" } });
   // A deleted comment takes its reports with it (cascade), so close them first.
-  const resolution = action === "hide" ? "hidden" : action === "delete" ? "deleted" : "dismissed";
+  const resolution = action === "hide" ? "hidden" : action === "delete" ? "deleted" : action === "keep" ? "kept" : "dismissed";
   await db.report.updateMany({ where, data: { resolvedAt: new Date(), resolution } });
   if (action === "delete" && type === "c") await db.comment.delete({ where: { id } }).catch(() => {});
+}
+
+// «من تصويري، راجعوها»: the owner of a shot the check took for someone else's (screening
+// «repost») asks a person to look again — added to its open report, or a new one.
+const OWNER_SAYS_MINE = "صاحبها بيقول إنها من تصويره";
+export async function askRepostReview(user: User, angleId: string) {
+  const angle = await db.angle.findUnique({ where: { id: angleId }, select: { contributorId: true, screening: true, momentId: true } });
+  if (!angle || angle.contributorId !== user.id || angle.screening !== "repost") throw new ModerationError("not_found");
+  const open = await db.report.findFirst({ where: { angleId, reason: "REPOST", resolvedAt: null } });
+  if (open?.note?.includes(OWNER_SAYS_MINE)) return;
+  if (open) await db.report.update({ where: { id: open.id }, data: { note: `${open.note ? `${open.note} · ` : ""}${OWNER_SAYS_MINE}`.slice(0, 500) } });
+  else await db.report.create({ data: { momentId: angle.momentId, angleId, reason: "REPOST", note: OWNER_SAYS_MINE } });
 }

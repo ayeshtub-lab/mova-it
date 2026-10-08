@@ -134,11 +134,14 @@ export async function getMomentView(code: string, viewer: User | null) {
 
   const isCreator = viewer?.id === moment.creatorId;
   const hasContributed = !!viewer && angles.some((a) => a.contributorId === viewer.id);
+  // A shot that is clearly someone else's (screening «repost») stays with its owner and the
+  // moment's creator when the moment is public: everyone else never sees it.
+  const shown = moment.visibility === Visibility.PUBLIC ? angles.filter((a) => a.screening !== "repost" || isCreator || a.contributorId === viewer?.id) : angles;
   // Public moments are open to everyone; "give to get" is for friends/link moments —
   // and for «لحظة اليوم», where seeing everyone's angle is the reward for adding yours.
   // A «مع الوقت» story is its owner's alone to add to: whoever holds it sees all of it.
   const unlocked = isCreator || hasContributed || moment.kind === "STORY" || (moment.visibility === Visibility.PUBLIC && moment.kind !== "DAILY");
-  const visible = unlocked ? angles : angles.slice(0, 1);
+  const visible = unlocked ? shown : shown.slice(0, 1);
   const visibleIds = visible.map((a) => a.id);
   // Views and likes are shown to everyone.
   const contributorIds = [...new Set(visible.map((a) => a.contributorId))];
@@ -168,8 +171,8 @@ export async function getMomentView(code: string, viewer: User | null) {
     lastActivityAt: moment.lastActivityAt,
     creatorName: creator?.displayName ?? null,
     participantCount,
-    angleCount: angles.length,
-    lockedCount: angles.length - visible.length,
+    angleCount: shown.length,
+    lockedCount: shown.length - visible.length,
     viewer: { isCreator, hasContributed, canPick: !!viewer?.verified && moment.visibility === Visibility.PUBLIC && moment.kind !== "DAILY" && !moment.demo },
     angles: await Promise.all(
       visible.map(async (a) => ({
@@ -219,6 +222,8 @@ export async function getMomentView(code: string, viewer: User | null) {
         commentCount: comments.get(a.id) ?? 0,
         canDelete: !!viewer && (a.contributorId === viewer.id || isCreator),
         isMine: !!viewer && a.contributorId === viewer.id,
+        // «🔒 مش من تصويرك؟»: shown to its owner (src/server/screening.ts, «repost»).
+        repost: a.screening === "repost",
         views: views.get(a.id) ?? 0,
       })),
     ),

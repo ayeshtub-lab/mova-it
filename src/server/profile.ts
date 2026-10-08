@@ -27,6 +27,8 @@ export class ProfileError extends Error {
 }
 
 const live = () => ({ status: "READY" as const, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] });
+// A moment's cover is never a shot that is clearly someone else's (screening «repost»).
+const ownShot = { AND: [{ OR: [{ screening: null }, { screening: { not: "repost" } }] }] };
 const cover = coverOf;
 
 type MomentLite = { id: string; visibility: string; creatorId: string; kind: string };
@@ -97,7 +99,7 @@ export async function getProfile(viewer: User | null, userId: string) {
             creatorId: true,
             kind: true,
             lastActivityAt: true,
-            angles: { where: live(), orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } },
+            angles: { where: { ...live(), ...ownShot }, orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } },
           },
         },
       },
@@ -105,7 +107,8 @@ export async function getProfile(viewer: User | null, userId: string) {
   ]);
 
   const can = await visibilityFor(viewer, owner, [...angles.map((a) => a.moment), ...participations.map((p) => p.moment)]);
-  const shownAngles = angles.filter((a) => can.angle(a));
+  // (Shots that are clearly someone else's show on their owner's own profile only.)
+  const shownAngles = angles.filter((a) => can.angle(a) && (isMe || a.screening !== "repost"));
   const views = await viewCounts(shownAngles.map((a) => a.id));
 
   const shots = await Promise.all(

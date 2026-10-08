@@ -366,6 +366,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 commentCount: a.commentCount,
                 canDelete: a.canDelete,
                 isMine: a.isMine,
+                repost: a.repost,
                 views: a.views,
                 isNew: a.isNew,
                 picked: a.picked,

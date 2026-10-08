@@ -1,6 +1,7 @@
 // The core flow on a phone, as a new person does it: start as a guest → start a moment → add a
 // photo → «نشر» → it shows on the moment → delete the moment. Against the TEST database and Blob
 // store only (e2e/guard.ts); the moment is «أصحابي» (never public), and deleted at the end.
+import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 import sharp from "sharp";
 import { E2E_NAME } from "./names";
@@ -67,6 +68,16 @@ test("guest → moment → photo → publish → shows → delete", async ({ pag
   await page.locator(`[id^="angle-"] button`).first().click();
   await expect(page.locator("figcaption").first()).toContainText("بيت لحم");
   expect((await marked).status()).toBe(200);
+  await page.keyboard.press("Escape");
+
+  // 4b. Had the check taken it for someone else's (another app's watermark…), its owner is told
+  // why only they see it, and can ask for a review (src/server/screening.ts, «repost»).
+  execFileSync(`npx tsx e2e/mark-repost.ts ${code}`, { stdio: "inherit", shell: true });
+  await page.reload();
+  await page.locator(`[id^="angle-"] button`).first().click();
+  await expect(page.getByText(/باين إنها مش من تصويرك/)).toBeVisible();
+  await page.getByRole("button", { name: "من تصويري، راجعوها" }).click();
+  await expect(page.getByRole("button", { name: /وصل طلبك/ })).toBeDisabled();
   await page.keyboard.press("Escape");
 
   // 5. The creator deletes the whole moment; the page is gone.

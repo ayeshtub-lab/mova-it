@@ -319,6 +319,11 @@
       "cancelReply": "Cancel",
       "like": "Like comment"
     },
+    "repost": {
+      "note": "🔒 This shot looks like it wasn't taken by you (for example another app's logo, a TV channel, or a captured screen), so only you and the moment's creator see it — not everyone, and not in the moment's video.",
+      "ask": "I took it — please review",
+      "asked": "✓ Got it, we'll take a look"
+    },
     "reportAngle": "Report this angle",
     "reportComment": "Report",
     "report": {
@@ -327,8 +332,10 @@
         "OFFENSIVE": "Offensive or inappropriate",
         "SPAM": "Spam or ads",
         "PRIVACY": "I am in it and do not want it shared",
+        "COPYRIGHT": "Copyright: this is mine (or someone else's) and shared without permission",
         "OTHER": "Something else",
-        "AI": "🤖 Automatic check"
+        "AI": "🤖 Automatic check",
+        "REPOST": "🔁 Not shot by its owner (automatic check)"
       },
       "note": "Details (optional)",
       "block": "Also block this person",

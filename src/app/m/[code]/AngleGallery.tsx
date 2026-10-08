@@ -56,6 +56,7 @@ export type GalleryAngle = {
   commentCount: number;
   canDelete: boolean;
   isMine: boolean;
+  repost: boolean; // clearly someone else's (src/server/screening.ts): kept from everyone else
   views: number;
   isNew: boolean; // first 24 hours
   picked?: boolean; // «⭐ اختيار زاومو»
@@ -91,6 +92,7 @@ type Labels = {
   isNew: string;
   edit: ShotEditorLabels & { open: string; failed: string };
   branded: { make: string; working: string; share: string; failed: string; photoWorking: string };
+  repost: { note: string; ask: string; asked: string };
   caption: CaptionLabels;
   sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
   similar: { find: string; scanning: string; title: string; empty: string; close: string };
@@ -379,6 +381,14 @@ export function AngleGallery({
     // A photo's shared copy carries its sound: the one fetched before is out of date.
     const shot = byId.get(angleId);
     if (shot?.mediaType === "PHOTO" && marked?.id === angleId) loadMarked(shot);
+  }
+
+  // «من تصويري، راجعوها»: an admin looks at the shot again (src/server/moderation.ts).
+  const [reviewAsked, setReviewAsked] = useState<Set<string>>(() => new Set());
+  async function askReview(angleId: string) {
+    const res = await fetch(`/api/angles/${angleId}/repost-review`, { method: "POST" }).catch(() => null);
+    if (!res?.ok) return flash(labels.edit.failed);
+    setReviewAsked((s) => new Set(s).add(angleId));
   }
 
   function flash(text: string) {
@@ -1137,6 +1147,22 @@ export function AngleGallery({
             </button>
           </div>
         </div>
+
+        {/* «🔒 مش من تصويرك؟»: the owner of a shot the check took for someone else's (another
+            app's watermark, a TV logo, a captured screen) — why only they see it, and a way to ask. */}
+        {angles[current]?.isMine && angles[current].repost && (
+          <div className="absolute inset-x-3 top-16 z-10 flex flex-col gap-2 rounded-2xl bg-black/70 p-3 text-sm">
+            <p>{labels.repost.note}</p>
+            <button
+              type="button"
+              disabled={reviewAsked.has(angles[current].id)}
+              onClick={() => askReview(angles[current].id)}
+              className="min-h-11 self-start rounded-full bg-white px-4 font-bold text-black disabled:opacity-60"
+            >
+              {reviewAsked.has(angles[current].id) ? labels.repost.asked : labels.repost.ask}
+            </button>
+          </div>
+        )}
 
         {/* Desktop arrows, kept above the rail. */}
         {angles.length > 1 && (

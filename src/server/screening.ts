@@ -45,7 +45,8 @@ function reportGemini(where: "screening" | "text" | "lens", detail: string) {
 }
 
 export type Verdict =
-  | { result: "allowed"; scene?: Scene; seen?: string; title?: string; text?: string; captions?: string[] }
+  // repost: clearly not shot by the person uploading it (why, in a few words) — see DESCRIBE.
+  | { result: "allowed"; scene?: Scene; seen?: string; title?: string; text?: string; captions?: string[]; repost?: string }
   | { result: "blocked"; category: string; reason: string }
   | { result: "error"; reason: string };
 
@@ -77,7 +78,11 @@ Also write, in Arabic, a description of this shot for its public page: one warm,
 
 Also suggest 3 different short lines the person could write ON the shot itself, like TikTok text: 2 to 6 words each, in simple Arabic understood across the Arab world, warm or playful or proud, about what is seen (for example «أحلى صبحية ☕», «ريحة البلاد 🌿», «لمّة ما بتنتسى ❤️»). Each may end with one fitting emoji. Never name or guess who the people are, no hashtags, no quotation marks.
 
-Add them to the same JSON: "description":"<the sentence>","hashtags":["<tag>","<tag>"],"captions":["<line>","<line>","<line>"]`;
+Add them to the same JSON: "description":"<the sentence>","hashtags":["<tag>","<tag>"],"captions":["<line>","<line>","<line>"]
+
+Also judge where it comes from: was it clearly NOT shot by the person uploading it? Say so only on clear signs — a watermark or logo of another app with an account name (TikTok, Instagram, Snapchat, YouTube, Likee, a CapCut template), a TV channel logo or broadcast graphics, a scene from a film, series, music video, cartoon or advertisement, or a screen captured or filmed (a phone status bar, another app's buttons and comments, a TV or monitor filmed as the subject). NOT a repost: an ordinary phone photo or video, one with the person's own text, stickers or filters, a photo of an old printed family photo, people in front of a TV where the screen is not the subject. When unsure, it is not a repost.
+
+Add to the same JSON: "repost":"" when it is not a repost, else a short English reason naming the sign (for example "TikTok watermark @name").`;
 
 // Lines to write on the shot, offered in «✍️»: tidied, 2–40 characters, three at most.
 export function captionIdeasOf(raw: unknown) {
@@ -153,7 +158,7 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
 
   const text = candidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   try {
-    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string; description?: unknown; hashtags?: unknown; captions?: unknown };
+    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string; description?: unknown; hashtags?: unknown; captions?: unknown; repost?: unknown };
     if (parsed.verdict === "block") {
       return { result: "blocked", category: String(parsed.category ?? "other").slice(0, 40), reason: String(parsed.reason ?? "").slice(0, 300) };
     }
@@ -164,7 +169,8 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
       const title = typeof parsed.title === "string" ? parsed.title.replace(/["«»#]/g, "").replace(/\s+/g, " ").trim().slice(0, 40) : "";
       const described = aiTextOf(parsed.description, parsed.hashtags);
       const captions = captionIdeasOf(parsed.captions);
-      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}), ...(described ? { text: described } : {}), ...(captions.length ? { captions } : {}) };
+      const repost = typeof parsed.repost === "string" ? parsed.repost.trim().slice(0, 160) : "";
+      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}), ...(described ? { text: described } : {}), ...(captions.length ? { captions } : {}), ...(repost ? { repost } : {}) };
     }
   } catch {}
   return { result: "error", reason: `unreadable answer: ${text.slice(0, 200)}` };

@@ -156,7 +156,8 @@ export async function todayCard(viewer: User | null) {
   const [angleCount, joined, first, vote] = await Promise.all([
     db.angle.count({ where: live }),
     viewer ? db.angle.count({ where: { ...live, contributorId: viewer.id } }).then((n) => n > 0) : false,
-    db.angle.findFirst({ where: live, orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } }),
+    // (The cover everyone sees: never a shot that is clearly someone else's.)
+    db.angle.findFirst({ where: { ...live, AND: [{ OR: [{ screening: null }, { screening: { not: "repost" } }] }] }, orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } }),
     viewer ? db.dailyVote.findUnique({ where: { day_userId: { day: tomorrow, userId: viewer.id } } }) : null,
   ]);
   return {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const REASONS = ["OFFENSIVE", "SPAM", "PRIVACY", "OTHER"] as const;
+const REASONS = ["OFFENSIVE", "SPAM", "PRIVACY", "COPYRIGHT", "OTHER"] as const;
 type Reason = (typeof REASONS)[number];
 
 export type ReportLabels = {

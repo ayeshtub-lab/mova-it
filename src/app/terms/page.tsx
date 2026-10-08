@@ -62,6 +62,8 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "تستطيع التبليغ عن أي لقطة أو تعليق، وحظر أي شخص.",
           "قد نحذف ما يخالف هذه الشروط، أو نوقف حسابًا يخالفها، خصوصًا عند التكرار أو الخطورة. إن رأيت أننا أخطأنا، راسلنا.",
           "لطلب حذف لقطة تظهر فيها ولم تنشرها أنت، بلّغ عنها أو راسلنا.",
+          "حقوق النشر: انشر فقط ما صوّرته أنت أو عندك إذن بنشره. الفحص التلقائي ينتبه للقطات التي يظهر أنها ليست من تصوير صاحبها (مثل شعار تطبيق آخر أو قناة، أو تصوير شاشة)، فتبقى لصاحبها ولصاحب اللحظة فقط ولا تظهر للعامة حتى نراجعها.",
+          "إن وجدت في زاومو صورة أو فيديو لك (أو لجهة تمثّلها) منشورًا دون إذن، اختر «حقوق نشر» عند التبليغ عنه، أو راسلنا على info@zawmo.com مع رابط اللقطة وما يثبت ملكيتك، فنحذفه بعد التحقق. ومن يكرر نشر ما لا يملكه قد نوقف حسابه.",
         ],
       },
       {
@@ -154,6 +156,8 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "You can report any shot or comment, and block anyone.",
           "We may remove what breaks these terms, or suspend an account that does, especially when it's repeated or serious. If you think we got it wrong, write to us.",
           "To ask for a shot you appear in (that you didn't post) to be removed, report it or write to us.",
+          "Copyright: post only what you shot yourself or have permission to share. The automatic check notices shots that look like they weren't taken by their owner (another app's or a channel's logo, a captured screen): they stay with their owner and the moment's creator only, never shown to everyone, until we review them.",
+          "If you find a photo or video of yours (or of someone you represent) on Zawmo shared without permission, choose «Copyright» when reporting it, or write to info@zawmo.com with the link and proof that it's yours, and we'll remove it once checked. Accounts that keep posting what they don't own may be suspended.",
         ],
       },
       {

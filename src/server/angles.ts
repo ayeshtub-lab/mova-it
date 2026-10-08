@@ -246,6 +246,10 @@ export async function completeAngle(user: User, angleId: string) {
   const titleSuggestion = verdict?.result === "allowed" ? (verdict.title ?? null) : null;
   // …and lines to write on it («✍️»), offered right after upload (not kept).
   const captionIdeas = verdict?.result === "allowed" ? (verdict.captions ?? []) : [];
+  // Clearly someone else's (another app's watermark, a TV logo, a film, a captured screen): it
+  // stays with its owner and the moment's creator — never shown to everyone, never in a film —
+  // and an admin looks at it (screening «repost»).
+  const repost = verdict?.result === "allowed" && verdict.repost ? verdict.repost : null;
   const saved = await db.$transaction(async (tx) => {
     const done = await tx.angle.update({
       where: { id: angle.id },
@@ -253,7 +257,7 @@ export async function completeAngle(user: User, angleId: string) {
         // Fine → a draft only its owner sees, until they press «نشر» (after «صوّر معك» looked).
         status: blocked ? "HIDDEN" : "DRAFT",
         expiresAt: null, // shots are kept until their owner deletes them
-        screening: verdict?.result ?? null,
+        screening: repost ? "repost" : (verdict?.result ?? null),
         durationSec: angle.durationSec,
         scene: verdict?.result === "allowed" ? (verdict.scene ?? null) : null,
         seenText: verdict?.result === "allowed" ? (verdict.seen ?? null) : null,
@@ -265,6 +269,7 @@ export async function completeAngle(user: User, angleId: string) {
       const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : `public, not checked: ${verdict?.result === "error" ? verdict.reason : "screening off"}`;
       await tx.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "AI", note: note.slice(0, 500) } });
     }
+    if (repost && !blocked) await tx.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "REPOST", note: repost.slice(0, 500) } });
     return done;
   });
   return Object.assign(saved, { titleSuggestion, captionIdeas });
@@ -283,7 +288,10 @@ export async function screenForPublic(momentId: string) {
     const verdict = screeningEnabled() ? await screenAngle(angle) : null;
     const now = new Date();
     if (verdict?.result === "allowed") {
-      await db.angle.update({ where: { id: angle.id }, data: { screening: "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null } });
+      await db.angle.update({ where: { id: angle.id }, data: { screening: verdict.repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null } });
+      if (verdict.repost && !(await db.report.count({ where: { angleId: angle.id, reason: "REPOST", resolvedAt: null } }))) {
+        await db.report.create({ data: { momentId, angleId: angle.id, reason: "REPOST", note: verdict.repost.slice(0, 500) } });
+      }
       continue;
     }
     const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : `public, not checked: ${verdict?.result === "error" ? verdict.reason : "screening off"}`;
