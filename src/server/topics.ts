@@ -7,8 +7,9 @@ import { placeTrail } from "@/server/places";
 
 // «خيار في الخضر — 17 صورة من 4 أشخاص»: what people shot in one place, by topic. The answer to
 // a search like «زهور رام الله» or «قهوة الصباح أرطاس»: a page of its own (/p/[place]/[topic])
-// with only real public shots. A topic is a shot's hashtag (its AI line's, its moment's title
-// and description) or the word for its scene («أكل», «غروب»). A page exists only when it is real:
+// with only real public shots. A topic is what the shot itself shows: a hashtag of its own line
+// (the moment's title and description only for a one-shot moment), or the word for a scene that
+// names a thing («غروب», «ثلج», «عرس»). A page exists only when it is real:
 // at least 4 shots by at least 2 people — and never twice for the same shots (two topics, or a
 // town and its governorate, that show nearly the same shots make one page: the bigger topic,
 // the closer place).
@@ -18,21 +19,17 @@ export const TOPIC_MIN_PEOPLE = 2;
 // Two pages showing this much of the same shots (shared ÷ all of both) are one page.
 const SAME = 0.8;
 
+// (Only scenes that name a thing: «أكل» or «طبيعة» would gather a coffee, a salad and a field
+// under one title — the shot's own hashtags say it better.)
 const SCENE_TOPIC: Record<string, string> = {
   sunset: "غروب",
   sunrise: "شروق",
   rain: "مطر",
   snow: "ثلج",
   sea: "بحر",
-  nature: "طبيعة",
-  food: "أكل",
   wedding: "عرس",
-  celebration: "احتفال",
   match: "مباراة",
   concert: "حفلة",
-  gathering: "لمة",
-  street: "شارع",
-  pets: "حيوانات",
 };
 // Words that say nothing about what was shot.
 const NOT_TOPICS = new Set(["زاومو", "zawmo", "لحظة", "لحظات", "لحظاتك", "صورة", "صور", "تصويري", "اكسبلور", "explore", "explorepage", "fyp", "foryou", "viral", "ترند", "reels"]);
@@ -58,7 +55,7 @@ type Node = { id: string; slug: string; nameAr: string; kind: string; parentId: 
 export const topicIndex = cache(async (now = new Date()): Promise<Topic[]> => {
   const shots = await db.angle.findMany({
     where: shownPublic(now),
-    select: { id: true, scene: true, aiText: true, contributorId: true, placeId: true, uploadedAt: true, moment: { select: { title: true, description: true } } },
+    select: { id: true, scene: true, aiText: true, contributorId: true, placeId: true, uploadedAt: true, moment: { select: { title: true, description: true, _count: { select: { angles: true } } } } },
     orderBy: { uploadedAt: "desc" },
     take: 10000,
   });
@@ -79,8 +76,12 @@ export const topicIndex = cache(async (now = new Date()): Promise<Topic[]> => {
 
   const groups = new Map<string, { place: Node; topic: string; ids: string[]; people: Set<string>; updatedAt: Date }>();
   for (const s of shots) {
+    // What this shot itself shows: its own line's tags and its scene. A moment's title and
+    // description speak for all its shots («#خيار» on a farm moment is not every shot's), so
+    // they count only for a moment of one shot.
+    const own = s.moment._count.angles === 1 ? [...hashtagsIn(s.moment.title), ...hashtagsIn(s.moment.description)] : [];
     const topics = new Set(
-      [...hashtagsIn(s.aiText), ...hashtagsIn(s.moment.title), ...hashtagsIn(s.moment.description), ...(s.scene && SCENE_TOPIC[s.scene] ? [normalizeTag(SCENE_TOPIC[s.scene])] : [])].filter(
+      [...hashtagsIn(s.aiText), ...own, ...(s.scene && SCENE_TOPIC[s.scene] ? [normalizeTag(SCENE_TOPIC[s.scene])] : [])].filter(
         (t) => [...t].length >= 2 && !/^\d+$/.test(t) && !NOT_TOPICS.has(t),
       ),
     );

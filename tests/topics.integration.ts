@@ -65,7 +65,7 @@ async function main() {
           visibility,
         } as never,
       });
-    const pub = await moment("PUBLIC", "من الأرض");
+    const pub = await moment("PUBLIC", "من الأرض #بندورة");
     const friends = await moment("FRIENDS", "خاص");
     let n = 0;
     const shot = (
@@ -148,6 +148,7 @@ async function main() {
           "the place's own name",
         );
         assert.ok(!topics.includes("زاومو"));
+      assert.ok(!topics.includes("بندورة"), "a many-shot moment's own tag is not every shot's topic");
         assert.ok(topics.includes("أكل") === false);
       },
     );
