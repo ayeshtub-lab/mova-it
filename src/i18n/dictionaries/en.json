@@ -740,7 +740,7 @@
   },
   "filmPage": {
     "title": "«{title}» from every angle — the video",
-    "description": "«{title}»{where}: {n} angles from people who were there, in one video on Zawmo.",
+    "description": "«{title}»{where}: {angles} from people who were there, in one video on Zawmo.",
     "open": "See the moment and all its angles",
     "link": "The video's page"
   },

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
+import { plural } from "@/i18n/plural";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { plain } from "@/lib/clip";
 import { CANONICAL_HOST } from "@/lib/hosts";
@@ -26,11 +27,12 @@ const fill = (template: string, values: Record<string, string>) => template.repl
 export async function generateMetadata({ params }: PageProps<"/m/[code]/film">): Promise<Metadata> {
   const found = await load((await params).code);
   if (!found) return {};
-  const dict = await getDictionary(await getLocale());
+  const locale = await getLocale();
+  const dict = await getDictionary(locale);
   const name = plain(found.view.title);
   const where = found.view.place?.name ?? found.view.placeName;
   const title = fill(dict.filmPage.title, { title: name });
-  const description = fill(dict.filmPage.description, { title: name, where: where ? ` ${dict.moment.metaIn} ${where}` : "", n: String(found.view.angleCount) });
+  const description = fill(dict.filmPage.description, { title: name, where: where ? ` ${dict.moment.metaIn} ${where}` : "", angles: plural(locale, dict.plurals.angles, found.view.angleCount) });
   return {
     title: `${title} · ${dict.meta.brand}`,
     description,
@@ -49,7 +51,7 @@ export default async function FilmPage({ params }: PageProps<"/m/[code]/film">) 
   const name = plain(view.title);
   const where = view.place?.name ?? view.placeName;
   const title = fill(t.title, { title: name });
-  const description = fill(t.description, { title: name, where: where ? ` ${dict.moment.metaIn} ${where}` : "", n: String(view.angleCount) });
+  const description = fill(t.description, { title: name, where: where ? ` ${dict.moment.metaIn} ${where}` : "", angles: plural(locale, dict.plurals.angles, view.angleCount) });
 
   const site = `https://${CANONICAL_HOST}`;
   const momentUrl = `${site}/m/${view.code}`;
