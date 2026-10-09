@@ -3,6 +3,12 @@
   "regions": [
     "fra1"
   ],
+  "git": {
+    "deploymentEnabled": {
+      "v2": false,
+      "spotlight": false
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/cleanup",
