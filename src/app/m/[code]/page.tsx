@@ -1,4 +1,5 @@
 import { clip, plain } from "@/lib/clip";
+import { soundSearch } from "@/lib/sound-search";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -81,7 +82,9 @@ function momentDescription(view: NonNullable<Awaited<ReturnType<typeof loadMomen
   const counts = countsLine(dict, locale, view.angleCount, view.participantCount);
   const name = plain(view.title);
   const head = where && !name.includes(where) ? `${name} ${dict.moment.metaIn} ${where}` : name;
-  const text = view.visibility === "PUBLIC" && view.description ? `${head}. ${view.description.slice(0, 120)}` : head;
+  // What it's heard with, when a shot has a library sound («مع تلاوة سورة الشرح»): words people search.
+  const heard = view.angles.map((a) => soundSearch(a.soundKey)).find((s) => !!s);
+  const text = [head, view.visibility === "PUBLIC" && view.description ? view.description.slice(0, 120) : null, heard?.phrase].filter(Boolean).join(". ");
   return clip(`${text} — ${counts}`);
 }
 
@@ -411,7 +414,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                   <li key={a.id}>
                     <Link href={`/m/${view.code}/a/${a.id}`} className="hover:underline">
                       {a.aiText!.replace(/#\S+/g, "").trim()}
-                    </Link>{" "}
+                    </Link>
+                    {soundSearch(a.soundKey) ? ` · ${soundSearch(a.soundKey)!.phrase}` : ""}{" "}
                     {weatherLine(a.weather, a.weatherTemp, locale) ? ` · ${weatherLine(a.weather, a.weatherTemp, locale)}` : ""} — {a.contributorName}
                   </li>
                 ))}

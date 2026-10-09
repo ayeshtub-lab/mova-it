@@ -86,6 +86,7 @@ export async function sitemapEntries(now = new Date()) {
 
 const shotSelect = {
   id: true,
+  soundKey: true, // its library sound's search words (src/lib/sound-search.ts)
   mediaType: true,
   mediaPath: true,
   thumbPath: true,

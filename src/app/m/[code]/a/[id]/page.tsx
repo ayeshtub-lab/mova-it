@@ -8,6 +8,7 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { plain } from "@/lib/clip";
 import { hashtagsIn } from "@/lib/hashtags";
+import { soundSearch } from "@/lib/sound-search";
 import { filterCss } from "@/lib/filters";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { WEATHER_CREDIT, weatherLine } from "@/lib/weather";
@@ -24,7 +25,9 @@ const placeName = (p: { nameAr: string; kind: string }) => (p.kind === "GOVERNOR
 function describe(shot: PublicShot, dict: Dictionary, locale: string) {
   const t = dict.shotPage;
   // The line written for the shot first (Arabic), then where it is from — as plain words.
-  if (shot.aiText) return plain(`${shot.aiText} — ${fill(t.from, { title: shot.moment.title })}`);
+  // (Its library sound's words too — «مع تلاوة …»: what it is heard with, for search.)
+  const heard = soundSearch(shot.soundKey);
+  if (shot.aiText) return plain(`${shot.aiText}${heard ? ` — ${heard.phrase}` : ""} — ${fill(t.from, { title: shot.moment.title })}`);
   return plain(fill(t.description, {
     label: shotLabel(shot, locale),
     kind: shot.mediaType === "VIDEO" ? t.video : t.photo,
@@ -64,6 +67,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   const at = shot.capturedAt ?? shot.uploadedAt;
   // The weather it was taken in («🌧️ مطر · 12°»), when known (src/server/weather.ts).
   const weather = weatherLine(shot.weather, shot.weatherTemp, locale);
+  const sound = soundSearch(shot.soundKey);
   const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Riyadh" }).format(at);
 
   const site = `https://${CANONICAL_HOST}`;
@@ -76,7 +80,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
     name: shotTitle(shot, locale, await shotOrdinal(shot)),
     description: describe(shot, dict, locale),
     inLanguage: locale,
-    ...(shot.aiText ? { keywords: hashtagsIn(shot.aiText).join(", ") } : {}),
+    ...(shot.aiText || sound ? { keywords: [...new Set([...hashtagsIn(shot.aiText), ...(sound?.tags ?? [])])].map((k) => k.replace(/_/g, " ")).join(", ") } : {}),
     author: { "@type": "Person", name: shot.contributor.displayName },
     ...(where ? { contentLocation: { "@type": "Place", name: where } } : {}),
     isPartOf: { "@id": `${momentUrl}#post` },
@@ -87,6 +91,8 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         "@type": "VideoObject",
         ...common,
         thumbnailUrl: [image],
+        // The words heard on it, when its sound is from the library (a verse, a duaa, a nasheed).
+        ...(sound?.words ? { transcript: sound.words } : {}),
         uploadDate: shot.uploadedAt.toISOString(),
         contentUrl: `${site}/v/${shot.id}.mp4`,
         ...(shot.durationSec ? { duration: `PT${Math.max(1, Math.round(shot.durationSec))}S` } : {}),
@@ -165,6 +171,13 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
             </p>
           )}
           {shot.aiText && <Description text={shot.aiText} className="mt-1 text-base" />}
+          {/* What it's heard with, in words — the verse, the duaa, the birds (src/lib/sound-search.ts). */}
+          {sound && (
+            <p className="text-sm text-muted">
+              🎵 {sound.phrase}
+              {sound.words && sound.words !== sound.phrase && <span className="mt-1 block leading-relaxed">{sound.words}</span>}
+            </p>
+          )}
           <p className="text-sm text-muted">{fill(t.from, { title: shot.moment.title })}</p>
         </header>
         <Link
