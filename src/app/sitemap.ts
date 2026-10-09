@@ -69,5 +69,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...SOUNDS.filter((s) => sounds.has(s.key)).map((s) => ({ url: `${base}/sound/${s.key}`, lastModified: sounds.get(s.key), changeFrequency: "weekly" as const, priority: 0.4 })),
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${base}/terms`, changeFrequency: "yearly", priority: 0.2 },
+    { url: `${base}/child-safety`, changeFrequency: "yearly", priority: 0.2 },
   ];
 }
