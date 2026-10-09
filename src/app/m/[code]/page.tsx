@@ -55,7 +55,13 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
   // Where it was, when known: two moments called «حلويات» don't share one title.
   const where = view.place?.name ?? view.placeName;
   const name = plain(view.title);
-  const whose = view.creatorName && (await titleTwin(view.id, view.title)) ? ` — ${view.creatorName}` : "";
+  const twin = await titleTwin(view);
+  const whose =
+    twin === "by" && view.creatorName && view.creatorName !== dict.meta.brand
+      ? ` — ${view.creatorName}`
+      : twin
+        ? ` — ${new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Riyadh" }).format(view.createdAt)}`
+        : "";
   const title = `${where && !name.includes(where) ? `${name} ${dict.moment.metaIn} ${where}` : name}${whose} · ${dict.meta.brand}`;
   const description = momentDescription(view, dict, locale);
   return {

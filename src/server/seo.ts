@@ -23,9 +23,12 @@ const shownAngle = (now: Date) => ({
 // #hashtag pages worth listing: tags in public moments' descriptions or their shots' lines,
 // on `min` moments at least (a tag page lets itself be indexed from 3 — /tag/[tag]).
 // Another public moment with the very same name (two «حلويات»): the search title then also says
-// whose, so the two pages don't compete as one.
-export async function titleTwin(momentId: string, title: string) {
-  return (await db.moment.count({ where: { id: { not: momentId }, title, visibility: "PUBLIC", status: "ACTIVE", demo: false } })) > 0;
+// whose («by» — someone else made the other one), or, when the same person made both, when
+// («when»), so the two pages don't compete as one. Null: the name is its own.
+export async function titleTwin(moment: { id: string; title: string; creatorId: string }) {
+  const twins = await db.moment.findMany({ where: { id: { not: moment.id }, title: moment.title, visibility: "PUBLIC", status: "ACTIVE", demo: false }, select: { creatorId: true } });
+  if (!twins.length) return null;
+  return twins.some((t) => t.creatorId === moment.creatorId) ? ("when" as const) : ("by" as const);
 }
 
 export async function sitemapTags(now = new Date(), min = 3) {

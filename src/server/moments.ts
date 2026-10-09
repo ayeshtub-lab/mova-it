@@ -170,6 +170,7 @@ export async function getMomentView(code: string, viewer: User | null) {
     createdAt: moment.createdAt,
     lastActivityAt: moment.lastActivityAt,
     creatorName: creator?.displayName ?? null,
+    creatorId: moment.creatorId,
     participantCount,
     angleCount: shown.length,
     lockedCount: shown.length - visible.length,

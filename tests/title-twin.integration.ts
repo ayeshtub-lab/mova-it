@@ -16,11 +16,19 @@ async function main() {
     const a = await moment(`TW${n}A`, name, "PUBLIC");
     const alone = await moment(`TW${n}B`, `${name} وحدها`, "PUBLIC");
     await moment(`TW${n}C`, `${name} وحدها`, "FRIENDS");
-    assert.equal(await titleTwin(a.id, name), false, "no twin yet");
-    assert.equal(await titleTwin(alone.id, alone.title), false, "a friends-only twin doesn't count");
-    await moment(`TW${n}D`, name, "PUBLIC");
-    assert.equal(await titleTwin(a.id, name), true, "a public twin");
-    console.log("PASS two public moments with one name are told apart; a friends-only twin isn't counted");
+    const other = await db.user.create({ data: { displayName: `${TAG} يسرى`, isGuest: false } });
+    try {
+      assert.equal(await titleTwin(a), null, "no twin yet");
+      assert.equal(await titleTwin(alone), null, "a friends-only twin doesn't count");
+      await db.moment.create({ data: { code: `TW${n}E`, title: name, creatorId: other.id, visibility: "PUBLIC" } as never });
+      assert.equal(await titleTwin(a), "by", "someone else's twin: say whose");
+      await moment(`TW${n}D`, name, "PUBLIC");
+      assert.equal(await titleTwin(a), "when", "the same person's twin: say when");
+    } finally {
+      await db.moment.deleteMany({ where: { creatorId: other.id } });
+      await db.user.delete({ where: { id: other.id } });
+    }
+    console.log("PASS twins are told apart — by whose, or by when for the same person's; a friends-only twin isn't counted");
   } finally {
     await db.moment.deleteMany({ where: { creatorId: owner.id } });
     await db.user.delete({ where: { id: owner.id } });
