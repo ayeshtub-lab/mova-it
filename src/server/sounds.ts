@@ -56,7 +56,7 @@ export async function soundShots(viewer: User | null, key: string, take = 30) {
     },
     orderBy: { uploadedAt: "desc" },
     take,
-    include: { moment: { select: { code: true } } },
+    include: { moment: { select: { code: true, title: true } } },
   });
   return Promise.all(
     angles.map(async (a) => ({
@@ -64,6 +64,8 @@ export async function soundShots(viewer: User | null, key: string, take = 30) {
       mediaType: a.mediaType,
       momentCode: a.moment.code,
       coverUrl: await publicCover(a),
+      // What it shows, in words (its picture's alt text, for Google Images).
+      label: a.aiText?.replace(/#\S+/g, "").trim() || a.moment.title,
     })),
   );
 }

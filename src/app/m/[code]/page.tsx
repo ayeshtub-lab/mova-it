@@ -24,7 +24,7 @@ import { screenForPublic } from "@/server/angles";
 import { dailyFor, tomorrowVote } from "@/server/daily";
 import { themeHint, themeText } from "@/lib/dailyThemes";
 import { getMomentView, MomentError, setMomentVisibility } from "@/server/moments";
-import { momentIndexable } from "@/server/seo";
+import { momentIndexable, titleTwin } from "@/server/seo";
 import { AngleGallery } from "./AngleGallery";
 import { AngleWheel } from "./AngleWheel";
 import { MontagePanel } from "./MontagePanel";
@@ -55,7 +55,8 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
   // Where it was, when known: two moments called «حلويات» don't share one title.
   const where = view.place?.name ?? view.placeName;
   const name = plain(view.title);
-  const title = `${where && !name.includes(where) ? `${name} ${dict.moment.metaIn} ${where}` : name} · ${dict.meta.brand}`;
+  const whose = view.creatorName && (await titleTwin(view.id, view.title)) ? ` — ${view.creatorName}` : "";
+  const title = `${where && !name.includes(where) ? `${name} ${dict.moment.metaIn} ${where}` : name}${whose} · ${dict.meta.brand}`;
   const description = momentDescription(view, dict, locale);
   return {
     title,

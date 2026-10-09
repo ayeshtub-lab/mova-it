@@ -22,6 +22,12 @@ const shownAngle = (now: Date) => ({
 // The sitemap's moments and places, each with when it last changed.
 // #hashtag pages worth listing: tags in public moments' descriptions or their shots' lines,
 // on `min` moments at least (a tag page lets itself be indexed from 3 — /tag/[tag]).
+// Another public moment with the very same name (two «حلويات»): the search title then also says
+// whose, so the two pages don't compete as one.
+export async function titleTwin(momentId: string, title: string) {
+  return (await db.moment.count({ where: { id: { not: momentId }, title, visibility: "PUBLIC", status: "ACTIVE", demo: false } })) > 0;
+}
+
 export async function sitemapTags(now = new Date(), min = 3) {
   const moments = await db.moment.findMany({
     where: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false, angles: { some: shownAngle(now) } },

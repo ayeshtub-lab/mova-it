@@ -24,7 +24,8 @@ export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Pro
     description,
     alternates: { canonical: `/tag/${encodeURIComponent(tag)}` },
     robots: { index: moments.length >= INDEX_FROM, follow: true },
-    openGraph: { title, description, type: "website" },
+    // Its link shared anywhere shows the newest moment's picture (full size).
+    openGraph: { title, description, type: "website", images: moments.find((m) => m.coverUrl?.startsWith("/i/"))?.coverUrl?.replace("-small.jpg", ".jpg") },
   };
 }
 

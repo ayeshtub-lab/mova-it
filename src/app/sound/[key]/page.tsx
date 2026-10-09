@@ -1,3 +1,4 @@
+import { plain } from "@/lib/clip";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -20,7 +21,10 @@ export async function generateMetadata({ params }: PageProps<"/sound/[key]">): P
   const name = people?.name ?? soundName(sound, locale);
   const title = (isQuran(sound) ? t.metaTitleQuran : t.metaTitle).replace("{name}", name);
   const description = t.metaDescription.replace("{name}", name).replace("{cat}", t.cats[sound.cat]);
-  return { title, description, alternates: { canonical: `/sound/${sound.key}` }, openGraph: { title, description, type: "website" } };
+  // Its link shared anywhere shows a shot made with it (the newest public one).
+  const [shot] = await soundShots(null, sound.key, 1);
+  const images = shot ? [`/i/${shot.id}.jpg`] : undefined;
+  return { title, description, alternates: { canonical: `/sound/${sound.key}` }, openGraph: { title, description, type: "website", images } };
 }
 
 // A sound's page (the spinning disc in the viewer leads here): listen, who made it and
@@ -86,7 +90,7 @@ export default async function SoundPage({ params }: PageProps<"/sound/[key]">) {
                 <Link href={`/m/${s.momentCode}#angle-${s.id}`} className="relative block aspect-[3/4] overflow-hidden rounded-xl bg-surface">
                   {s.coverUrl && (
                     // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
-                    <img src={s.coverUrl} alt="" loading="lazy" className="size-full object-cover" />
+                    <img src={s.coverUrl} alt={plain(`${s.label} — ${soundName(sound, locale)}`)} loading="lazy" className="size-full object-cover" />
                   )}
                   {s.mediaType === "VIDEO" && <span aria-hidden="true" className="absolute end-1.5 top-1.5 rounded-full bg-black/50 px-1.5 text-xs text-white">▶</span>}
                 </Link>
