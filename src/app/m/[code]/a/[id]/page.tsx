@@ -6,7 +6,7 @@ import { Description } from "@/app/Description";
 import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
-import { plain } from "@/lib/clip";
+import { imageRights, plain } from "@/lib/clip";
 import { hashtagsIn } from "@/lib/hashtags";
 import { soundSearch } from "@/lib/sound-search";
 import { filterCss } from "@/lib/filters";
@@ -103,12 +103,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         ...common,
         contentUrl: image,
         caption: plain(shot.aiText ?? label),
-        // Whose picture it is (Google Images shows it): theirs, shared on Zawmo under its terms —
-        // anyone wanting to use it elsewhere asks through them (the terms' copyright section).
-        creditText: shot.contributor.displayName,
-        copyrightNotice: `© ${shot.contributor.displayName}`,
-        license: `${site}/terms`,
-        acquireLicensePage: `${site}/terms`,
+        ...imageRights(shot.contributor.displayName, site),
         datePublished: shot.uploadedAt.toISOString(),
         ...(shot.width && shot.height ? { width: shot.width, height: shot.height } : {}),
       };

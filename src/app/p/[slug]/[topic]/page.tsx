@@ -6,7 +6,7 @@ import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { plural } from "@/i18n/plural";
-import { clip, plain } from "@/lib/clip";
+import { clip, imageRights, plain } from "@/lib/clip";
 import { filterCss } from "@/lib/filters";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { getCurrentUser } from "@/lib/session";
@@ -70,6 +70,7 @@ export default async function TopicPage({ params }: PageProps<"/p/[slug]/[topic]
           caption: plain(x.line ?? `${heading} — ${x.name}`),
           dateCreated: x.at.toISOString(),
           creator: { "@type": "Person", name: x.name },
+          ...imageRights(x.name, site),
           contentLocation: { "@type": "Place", name: x.place },
         })),
       },

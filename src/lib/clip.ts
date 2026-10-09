@@ -20,3 +20,12 @@ export function clip(raw: string, max = 158) {
   const at = cut.lastIndexOf(" ");
   return `${(at > max * 0.6 ? cut.slice(0, at) : cut).replace(/[\s،,.—-]+$/, "")}…`;
 }
+
+// Whose picture it is, for search engines (Google Images shows it): its owner's, shared on Zawmo
+// under its terms — anyone wanting to use it elsewhere asks through them (the terms' copyright part).
+export const imageRights = (owner: string, site: string) => ({
+  creditText: owner,
+  copyrightNotice: `© ${owner}`,
+  license: `${site}/terms`,
+  acquireLicensePage: `${site}/terms`,
+});

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { plain } from "@/lib/clip";
+import { imageRights, plain } from "@/lib/clip";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { JsonLd } from "@/app/JsonLd";
@@ -76,6 +76,7 @@ export default async function EventPage({ params }: PageProps<"/e/[slug]/[scene]
           caption: x.line ?? `${heading} — ${x.name}`,
           dateCreated: x.at.toISOString(),
           creator: { "@type": "Person", name: x.name },
+          ...imageRights(x.name, site),
           contentLocation: { "@type": "Place", name: x.place },
         })),
       },
