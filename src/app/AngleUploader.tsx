@@ -52,6 +52,7 @@ type Labels = {
   leaveLater: string;
   leaveBusy: string;
   published: string;
+  remove: string;
 };
 
 type ItemState = {
@@ -59,7 +60,8 @@ type ItemState = {
   // long: a gallery video past 40 s, waiting for "send its first 40 seconds";
   // trimming: those seconds being taken (pct = seconds done).
   // draft: checked and fine, waiting for «نشر»; done: published.
-  status: "preparing" | "long" | "trimming" | "uploading" | "checking" | "draft" | "done" | "error";
+  // removed: taken out of the sheet with its ✕ (kept in the list so the others keep their places).
+  status: "preparing" | "long" | "trimming" | "uploading" | "checking" | "draft" | "done" | "error" | "removed";
   pct: number;
   error?: keyof Labels["errors"];
   angleId?: string;
@@ -143,7 +145,9 @@ export function AngleUploader({
   const [published, setPublished] = useState(false);
   // Several shots in the sheet: the one the tools work on (the first until another is tapped).
   const [selected, setSelected] = useState(0);
-  const current = Math.min(selected, Math.max(items.length - 1, 0));
+  // The shots in the sheet (not those taken out), and the one the tools work on.
+  const shown = items.map((it, i) => ({ it, i })).filter(({ it }) => it.status !== "removed");
+  const current = shown.some(({ i }) => i === selected) ? selected : (shown[0]?.i ?? 0);
   const busy = items.some((i) => i.status === "preparing" || i.status === "uploading" || i.status === "checking");
   const drafts = items.map((it, i) => ({ it, i })).filter(({ it }) => it.status === "draft" && it.angleId);
   const [publishing, setPublishing] = useState(false);
@@ -200,7 +204,7 @@ export function AngleUploader({
     setLeaving(false);
     setPublished(true);
     // The next sheet starts fresh: what is up now is in the moment, not here.
-    setItems((all) => all.filter((it) => it.status !== "done" && it.status !== "error"));
+    setItems((all) => all.filter((it) => it.status !== "done" && it.status !== "error" && it.status !== "removed"));
     setSelected(0);
     const first = drafts[0]?.it.angleId;
     // (The refreshed moment takes a moment to arrive: look for the shot for up to 8 seconds.)
@@ -223,6 +227,24 @@ export function AngleUploader({
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [unsaved]);
+
+  // «✕» on a shot: added by mistake — gone from the sheet, and from the server once it got there.
+  async function remove(index: number) {
+    const item = items[index];
+    if (!item || item.status === "removed") return;
+    update(index, { status: "removed" });
+    // Its sound list, writing or look, if open, go with it.
+    if (picking === index) setPicking(null);
+    if (editing === index) setEditing(null);
+    if (captioning === index) setCaptioning(null);
+    if (shown.length <= 1) setOpen(false);
+    if (!item.angleId) return;
+    const res = await fetch(`/api/angles/${item.angleId}`, { method: "DELETE" }).catch(() => null);
+    if (!res?.ok && res?.status !== 404) {
+      update(index, { status: item.status });
+      setOpen(true);
+    }
+  }
 
   function close() {
     if (busy || (drafts.length > 0 && !publishing)) return setLeaving(true);
@@ -480,10 +502,10 @@ export function AngleUploader({
           {labels.published}
         </p>
       )}
-      {open && items.length > 0 && (
+      {open && shown.length > 0 && (
         <div role="dialog" aria-modal="true" aria-label={labels.composeTitle} className="fixed inset-0 z-[45] flex flex-col bg-background">
           <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
-            <h2 className="text-lg font-extrabold">{items.length > 1 ? labels.composeMany.replace("{n}", String(items.length)) : labels.composeTitle}</h2>
+            <h2 className="text-lg font-extrabold">{shown.length > 1 ? labels.composeMany.replace("{n}", String(shown.length)) : labels.composeTitle}</h2>
             <button type="button" onClick={close} aria-label={labels.close} className="flex size-11 items-center justify-center rounded-full text-2xl text-muted hover:bg-surface">
               ✕
             </button>
@@ -491,12 +513,13 @@ export function AngleUploader({
           <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
             {/* The shots themselves, big — not file names. One fills the screen; several share it
                 (two columns, three from five), and a tap picks the one the tools below work on. */}
-            <ul className={items.length === 1 ? "flex flex-col" : `grid gap-2 ${items.length >= 5 ? "grid-cols-3" : "grid-cols-2"}`} aria-live="polite">
-              {items.map((item, i) => {
-                const one = items.length === 1;
+            <ul className={shown.length === 1 ? "flex flex-col" : `grid gap-2 ${shown.length >= 5 ? "grid-cols-3" : "grid-cols-2"}`} aria-live="polite">
+              {shown.map(({ it: item, i }) => {
+                const one = shown.length === 1;
                 const picked = !one && i === current;
+                const removable = (item.status === "draft" || item.status === "error" || item.status === "long") && !publishing;
                 return (
-                  <li key={i}>
+                  <li key={i} className="relative">
                     <button
                       type="button"
                       onClick={() => setSelected(i)}
@@ -514,8 +537,12 @@ export function AngleUploader({
                         // eslint-disable-next-line @next/next/no-img-element -- the writing on the shot, as saved
                         <img src={item.caption.url} alt={item.caption.text} className="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ top: `${item.caption.y * 100}%`, width: `${item.caption.w * 100}%` }} />
                       )}
-                      {item.isVideo && <span className="absolute start-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-bold text-white">▶︎</span>}
-                      {!one && soundByKey(item.soundKey) && <span className="absolute end-2 top-2 rounded-full bg-black/60 px-1.5 py-0.5 text-xs">🎵</span>}
+                      {(item.isVideo || (!one && soundByKey(item.soundKey))) && (
+                        <span className="absolute start-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-bold text-white">
+                          {item.isVideo ? "▶︎" : ""}
+                          {!one && soundByKey(item.soundKey) ? "🎵" : ""}
+                        </span>
+                      )}
                       <span
                         className={`absolute rounded-full text-center font-bold ${one ? "inset-x-3 bottom-3 px-3 py-1.5 text-sm" : "inset-x-1.5 bottom-1.5 truncate px-2 py-1 text-[11px]"} ${item.status === "error" ? "bg-accent text-white" : item.status === "draft" ? "bg-secondary text-white dark:text-background" : "bg-black/65 text-white"}`}
                       >
@@ -529,6 +556,16 @@ export function AngleUploader({
                         {item.status === "long" && labels.longNotice}
                       </span>
                     </button>
+                    {removable && (
+                      <button
+                        type="button"
+                        onClick={() => remove(i)}
+                        aria-label={labels.remove}
+                        className="absolute end-2 top-2 flex size-9 items-center justify-center rounded-full bg-black/65 text-lg font-bold text-white shadow-md hover:bg-black/80"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </li>
                 );
               })}
