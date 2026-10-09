@@ -129,7 +129,7 @@ export async function getMomentView(code: string, viewer: User | null) {
       orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
     }),
     db.participant.count({ where: { momentId: moment.id } }),
-    db.user.findUnique({ where: { id: moment.creatorId }, select: { displayName: true } }),
+    db.user.findUnique({ where: { id: moment.creatorId }, select: { displayName: true, isGuest: true } }),
   ]);
 
   const isCreator = viewer?.id === moment.creatorId;
@@ -171,6 +171,8 @@ export async function getMomentView(code: string, viewer: User | null) {
     lastActivityAt: moment.lastActivityAt,
     creatorName: creator?.displayName ?? null,
     creatorId: moment.creatorId,
+    // Their profile (/u/ID), when they have one — guests don't.
+    creatorProfileId: creator && !creator.isGuest ? moment.creatorId : null,
     participantCount,
     angleCount: shown.length,
     lockedCount: shown.length - visible.length,

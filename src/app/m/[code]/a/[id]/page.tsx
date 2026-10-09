@@ -81,7 +81,8 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
     description: describe(shot, dict, locale),
     inLanguage: locale,
     ...(shot.aiText || sound ? { keywords: [...new Set([...hashtagsIn(shot.aiText), ...(sound?.tags ?? [])])].map((k) => k.replace(/_/g, " ")).join(", ") } : {}),
-    author: { "@type": "Person", name: shot.contributor.displayName },
+    // Who shot it, and their page (a guest has none).
+    author: { "@type": "Person", name: shot.contributor.displayName, ...(shot.contributor.isGuest ? {} : { url: `${site}/u/${shot.contributorId}` }) },
     ...(where ? { contentLocation: { "@type": "Place", name: where } } : {}),
     isPartOf: { "@id": `${momentUrl}#post` },
     publisher: { "@id": `${site}/#org` },
@@ -102,6 +103,12 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         ...common,
         contentUrl: image,
         caption: plain(shot.aiText ?? label),
+        // Whose picture it is (Google Images shows it): theirs, shared on Zawmo under its terms —
+        // anyone wanting to use it elsewhere asks through them (the terms' copyright section).
+        creditText: shot.contributor.displayName,
+        copyrightNotice: `© ${shot.contributor.displayName}`,
+        license: `${site}/terms`,
+        acquireLicensePage: `${site}/terms`,
         datePublished: shot.uploadedAt.toISOString(),
         ...(shot.width && shot.height ? { width: shot.width, height: shot.height } : {}),
       };

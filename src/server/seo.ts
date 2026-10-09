@@ -124,7 +124,7 @@ const shotSelect = {
   uploadedAt: true,
   contributorId: true,
   moment: { select: { id: true, code: true, title: true } },
-  contributor: { select: { displayName: true } },
+  contributor: { select: { displayName: true, isGuest: true } },
   place: { select: { slug: true, nameAr: true, kind: true } },
 } as const;
 

@@ -27,7 +27,7 @@ import { dailyFor, tomorrowVote } from "@/server/daily";
 import { themeHint, themeText } from "@/lib/dailyThemes";
 import { getMomentView, MomentError, setMomentVisibility } from "@/server/moments";
 import { myDrafts } from "@/server/drafts";
-import { momentIndexable, publicMontage, titleTwin } from "@/server/seo";
+import { momentIndexable, titleTwin } from "@/server/seo";
 import { momentTopics, topicPath } from "@/server/topics";
 import { AngleGallery } from "./AngleGallery";
 import { AngleWheel } from "./AngleWheel";
@@ -101,7 +101,7 @@ function momentDescription(view: NonNullable<Awaited<ReturnType<typeof loadMomen
 
 // For search engines (public moments only): the moment as a post, and where it sits —
 // الرئيسية › المكان › اللحظة.
-function momentStructured(view: NonNullable<Awaited<ReturnType<typeof loadMoment>>>, dict: Dictionary, locale: string, film: Awaited<ReturnType<typeof publicMontage>>) {
+function momentStructured(view: NonNullable<Awaited<ReturnType<typeof loadMoment>>>, dict: Dictionary, locale: string) {
   const site = `https://${CANONICAL_HOST}`;
   const url = `${site}/m/${view.code}`;
   const crumbs = [
@@ -123,29 +123,12 @@ function momentStructured(view: NonNullable<Awaited<ReturnType<typeof loadMoment
         datePublished: view.createdAt.toISOString(),
         dateModified: view.lastActivityAt.toISOString(),
         image: `${url}/opengraph-image`,
-        ...(view.creatorName ? { author: { "@type": "Person", name: view.creatorName } } : {}),
+        ...(view.creatorName ? { author: { "@type": "Person", name: view.creatorName, ...(view.creatorProfileId ? { url: `${site}/u/${view.creatorProfileId}` } : {}) } } : {}),
         ...(view.place ? { contentLocation: { "@type": "Place", name: view.place.name } } : {}),
         publisher: { "@id": `${site}/#org` },
       },
       { "@type": "BreadcrumbList", itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, ...c })) },
-      // The moment's film — every angle in one video — for Google Video, at a lasting address.
-      ...(film
-        ? [
-            {
-              "@type": "VideoObject",
-              "@id": `${url}#film`,
-              name: plain(view.title),
-              description: momentDescription(view, dict, locale),
-              thumbnailUrl: [`${url}/opengraph-image`],
-              uploadDate: film.at.toISOString(),
-              contentUrl: `${site}/v/${view.code}.mp4`,
-              ...(film.durationSec ? { duration: `PT${Math.max(1, Math.round(film.durationSec))}S` } : {}),
-              inLanguage: locale,
-              isPartOf: { "@id": `${url}#post` },
-              publisher: { "@id": `${site}/#org` },
-            },
-          ]
-        : []),
+      // (Its film has a page of its own — /m/CODE/film — where it is the main content.)
     ],
   };
 }
@@ -231,7 +214,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
-      {momentIndexable(view) && <JsonLd data={momentStructured(view, dict, locale, await publicMontage(view.code))} />}
+      {momentIndexable(view) && <JsonLd data={momentStructured(view, dict, locale)} />}
       <SiteHeader locale={locale} dict={dict} />
 
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-16">
@@ -332,6 +315,12 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         {/* The moment's ready video comes first, for those who may see it. */}
         {view.angleCount > 0 && montage && (
           <MontagePanel code={view.code} initial={montage} labels={story ? { ...dict.montage, ...dict.story.video } : dict.montage} locale={locale} soundLabels={dict.sounds} />
+        )}
+        {/* The film's own page (where search engines list it as a video). */}
+        {montage?.videoUrl && momentIndexable(view) && (
+          <Link href={`/m/${view.code}/film`} className="-mt-2 self-start text-sm font-bold text-secondary underline-offset-4 hover:underline">
+            ▶︎ {dict.filmPage.link}
+          </Link>
         )}
 
         {!story && <AngleWheel
