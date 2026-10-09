@@ -37,8 +37,11 @@ test("a photo shared from the gallery lands in the new moment", async ({ page })
   await page.locator('input[name="title"]').fill(`${E2E_NAME} من المعرض`);
   await page.getByRole("button", { name: "ابدأ اللحظة" }).click();
   await page.waitForURL(/\/m\/[A-Z0-9]{6}/);
-  // The uploader takes the shared photo by itself, and the kept copy is gone.
-  await expect(page.getByText("from-gallery.jpg")).toBeVisible({ timeout: 60_000 });
+  // The uploader takes the shared photo by itself — the publish sheet opens with it, big — and
+  // the kept copy is gone.
+  const sheet = page.getByRole("dialog", { name: "زاويتك الجديدة" });
+  await expect(sheet).toBeVisible({ timeout: 60_000 });
+  await expect(sheet.locator("img").first()).toBeVisible();
   expect(await page.evaluate(async () => (await caches.keys()).includes("zawmo-share"))).toBe(false);
 
   expect(errors, "no browser errors").toEqual([]);

@@ -45,19 +45,19 @@ test("guest → moment → photo → publish → shows → delete", async ({ pag
   await page.locator('input[type="file"]').first().setInputFiles({ name: "sunset.jpg", mimeType: "image/jpeg", buffer: await photo() });
   // The sounds open by themselves after the first shot (like TikTok): close them.
   const noSound = page.getByRole("button", { name: /بدون صوت/ });
-  await noSound.or(page.getByText("جاهزة، اضغط «نشر»")).first().waitFor({ timeout: 90_000 });
+  await noSound.or(page.getByText("✓ جاهزة")).first().waitFor({ timeout: 90_000 });
   if (await noSound.isVisible()) {
     await noSound.click();
     await page.getByRole("button", { name: "اعتمد الصوت" }).click();
   }
-  await expect(page.getByText("جاهزة، اضغط «نشر»")).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByText("✓ جاهزة")).toBeVisible({ timeout: 90_000 });
   // «📍 وين صوّرت؟»: the moment has no place, so it is asked; picking a town places the shot.
   await expect(page.getByText("📍 وين صوّرت؟")).toBeVisible();
   await page.getByRole("combobox").last().fill("بيت لحم");
   await page.getByRole("option").first().click();
   await expect(page.getByText(/📍 .+ ✓/)).toBeVisible();
   await page.getByRole("button", { name: /^🚀 نشر/ }).click();
-  await expect(page.getByText("انتشرت ✓")).toBeVisible();
+  await expect(page.getByText("✅ انضافت زاويتك للحظة")).toBeVisible();
 
   // 4. It shows on the moment.
   await page.goto(`/m/${code}`);

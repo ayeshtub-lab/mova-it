@@ -26,6 +26,7 @@ import { screenForPublic } from "@/server/angles";
 import { dailyFor, tomorrowVote } from "@/server/daily";
 import { themeHint, themeText } from "@/lib/dailyThemes";
 import { getMomentView, MomentError, setMomentVisibility } from "@/server/moments";
+import { myDrafts } from "@/server/drafts";
 import { momentIndexable, publicMontage, titleTwin } from "@/server/seo";
 import { momentTopics, topicPath } from "@/server/topics";
 import { AngleGallery } from "./AngleGallery";
@@ -212,6 +213,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   const ballot = daily?.isToday ? await tomorrowVote(user) : null;
   // The ready video, for the creator and those who added an angle (null for everyone else).
   const montage = view.angleCount > 0 ? await latestMontageFor(user, view.code) : null;
+  // Their own shots here still waiting for «نشر» (they left before it): back in the publish sheet.
+  const drafts = await myDrafts(user, view.id);
   // The topic pages its shots are in («طماطم في الخضر») — linked below, for public moments.
   const topics = momentIndexable(view) ? await momentTopics(view.angles.map((a) => a.id)) : [];
   // «لحظة «روااااق» في بيت لحم، صوّرها عزالدين وNareman Ayesh.»
@@ -514,6 +517,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 code={view.code}
                 labels={dict.upload}
                 needsName={view.viewer.isCreator && !view.named}
+                initialDrafts={drafts}
                 afterUpload={
                   <ShareAfterUpload code={view.code} url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={{ ...dict.afterUpload, copied: t.copied }} />
                 }

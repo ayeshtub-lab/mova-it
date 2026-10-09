@@ -59,8 +59,12 @@ async function main() {
       assert.ok(!(await friendsActivity(salma)).some((i) => i.code === lone.code));
     });
 
-    await check("home: a friend's new friends-only moment shows as 'started'", async () => {
+    await check("home: a friend's new friends-only moment shows as 'started' — once something in it is up", async () => {
       const fm = await createMoment(karim, { title: "friends", visibility: "FRIENDS" });
+      assert.ok(!(await friendsActivity(salma)).some((i) => i.code === fm.code), "never an empty moment");
+      await db.angle.create({ data: { momentId: fm.id, contributorId: karim.id, mediaType: "PHOTO", status: "DRAFT", screening: "allowed", mediaPath: `friendtest/${Math.random()}.jpg` } });
+      assert.ok(!(await friendsActivity(salma)).some((i) => i.code === fm.code), "nor one whose only shot waits for «نشر»");
+      await db.angle.updateMany({ where: { momentId: fm.id }, data: { status: "READY" } });
       const item = (await friendsActivity(salma)).find((i) => i.code === fm.code);
       assert.equal(item?.reason, "friend");
       assert.ok(!(await friendsActivity(stranger)).some((i) => i.code === fm.code));
@@ -71,6 +75,7 @@ async function main() {
       assert.ok(!(await friendsActivity(karim)).some((i) => i.code === now.code));
     });
   } finally {
+    await db.angle.deleteMany({ where: { contributorId: { in: ids } } });
     await db.moment.deleteMany({ where: { creatorId: { in: ids } } });
     await db.user.deleteMany({ where: { id: { in: ids } } });
     const left = await db.user.count({ where: { displayName: { startsWith: TAG } } });

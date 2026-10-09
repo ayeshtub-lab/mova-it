@@ -105,6 +105,9 @@ export async function friendsActivity(user: User, limit = 10): Promise<ActivityI
           creator: { isSystem: false },
           visibility: { in: ["FRIENDS", "PUBLIC"] },
           participants: { none: { userId: user.id } },
+          // Only once something is published: never an empty moment, nor one whose only shot
+          // still waits for «نشر» (src/server/drafts.ts).
+          angles: { some: { status: "READY" } },
         },
         orderBy: { createdAt: "desc" },
         take: 30,

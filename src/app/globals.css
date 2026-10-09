@@ -162,6 +162,27 @@ body {
 }
 
 /* Viewer: the heart that pops where you double-tapped, and the rail icons' little bounce. */
+/* A shot just published: lit for a moment where it landed in the moment (AngleUploader). */
+@keyframes just-added {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  30%,
+  70% {
+    box-shadow: 0 0 0 4px var(--accent);
+  }
+}
+.just-added {
+  animation: just-added 2.4s ease-in-out 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .just-added {
+    animation: none;
+    outline: 3px solid var(--accent);
+  }
+}
+
 @keyframes heart-burst {
   0% {
     opacity: 0;

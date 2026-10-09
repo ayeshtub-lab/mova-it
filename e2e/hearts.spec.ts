@@ -19,13 +19,13 @@ test("a heart survives leaving the page and coming back", async ({ page }) => {
   const jpeg = await sharp({ create: { width: 900, height: 1200, channels: 3, background: "#d77a4a" } }).jpeg().toBuffer();
   await page.locator('input[type="file"]').first().setInputFiles({ name: "h.jpg", mimeType: "image/jpeg", buffer: jpeg });
   const noSound = page.getByRole("button", { name: /بدون صوت/ });
-  await noSound.or(page.getByText("جاهزة، اضغط «نشر»")).first().waitFor({ timeout: 90_000 });
+  await noSound.or(page.getByText("✓ جاهزة")).first().waitFor({ timeout: 90_000 });
   if (await noSound.isVisible()) {
     await noSound.click();
     await page.getByRole("button", { name: "اعتمد الصوت" }).click();
   }
   await page.getByRole("button", { name: /^🚀 نشر/ }).click();
-  await expect(page.getByText("انتشرت ✓")).toBeVisible();
+  await expect(page.getByText("✅ انضافت زاويتك للحظة")).toBeVisible();
   await page.goto(`/m/${code}`);
 
   // Like it in the viewer.

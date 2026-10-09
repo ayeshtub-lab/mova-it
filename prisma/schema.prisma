@@ -571,6 +571,7 @@ enum NotificationKind {
   STORY_REMINDER // «مع الوقت»: a week since the last shot of your story (from Zawmo)
   VIDEO_READY // your moment reached enough shots for its video: make it (from Zawmo, once)
   PICKED // «⭐ اختيار زاومو»: an official account picked your shot
+  DRAFT_WAITING // a shot you added an hour ago still waits for «نشر» (from Zawmo, once per shot)
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.

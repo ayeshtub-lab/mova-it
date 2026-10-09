@@ -1,6 +1,6 @@
 // Integration test for «نشر»: a checked shot is a draft only its owner sees until published;
 // joining another moment publishes it there; unpublished drafts and empty new moments are
-// cleaned up after a day; the creator edits the moment's title and description.
+// cleaned up (a draft after 48 hours, an empty moment after 3); the creator edits the moment's title and description.
 // Run: npx tsx tests/publish.integration.ts — every row it creates is removed.
 import "./env";
 import assert from "node:assert/strict";
@@ -61,8 +61,11 @@ async function main() {
     });
 
     await check("the hourly clean-up: old drafts and empty moments go; published and fresh ones stay", async () => {
-      const old = await moment(new Date(Date.now() - 2 * DAY));
-      const oldDraft = await draft(old.id, new Date(Date.now() - 2 * DAY));
+      const old = await moment(new Date(Date.now() - 3 * DAY));
+      const oldDraft = await draft(old.id, new Date(Date.now() - 3 * DAY));
+      // Left without «نشر» this morning: still waiting for its owner (48 hours).
+      const waiting = await moment(new Date(Date.now() - 5 * 3600 * 1000));
+      const waitingDraft = await draft(waiting.id, new Date(Date.now() - 5 * 3600 * 1000));
       const kept = await moment(new Date(Date.now() - 2 * DAY));
       const keptShot = await draft(kept.id, new Date(Date.now() - 2 * DAY));
       await publishAngle(owner, keptShot.id);
@@ -72,7 +75,9 @@ async function main() {
 
       // As if «نشر» had existed for a week (the real start date leaves older moments alone).
       await purgeStaleUploads(new Date(), new Date(Date.now() - 7 * DAY));
-      assert.equal(await db.angle.findUnique({ where: { id: oldDraft.id } }), null, "a day-old draft is gone");
+      assert.equal(await db.angle.findUnique({ where: { id: oldDraft.id } }), null, "a 3-day-old draft is gone");
+      assert.ok(await db.angle.findUnique({ where: { id: waitingDraft.id } }), "a 5-hour-old draft still waits");
+      assert.ok(await db.moment.findUnique({ where: { id: waiting.id } }), "and so does its moment");
       assert.equal(await db.moment.findUnique({ where: { id: old.id } }), null, "and its now-empty moment");
       assert.ok(await db.angle.findUnique({ where: { id: keptShot.id } }), "a published shot stays");
       assert.ok(await db.angle.findUnique({ where: { id: freshDraft.id } }), "a fresh draft stays");

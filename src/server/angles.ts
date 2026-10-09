@@ -329,16 +329,25 @@ export async function publishAngle(user: User, angleId: string, title?: unknown)
   return done;
 }
 
-// Uploads nobody published: drafts (and uploads that never finished) older than 3 hours are
-// deleted with their files; moments left with no shot at all go too («لا لقطة فارغة» — the
-// owner of the site asked that a moment never published never stays). Run hourly by
-// /api/cron/cleanup. Never «لحظة اليوم», never anything published. (Home already hides them.)
+// Uploads nobody published: a checked draft waits 48 hours for «نشر» (its owner is reminded
+// after an hour — src/server/drafts.ts — and finds it waiting on the moment), an upload that
+// never finished 3 hours; then they are deleted with their files. Moments with no shot at all
+// go after 3 hours («لا لقطة فارغة» — the owner of the site asked that a moment never
+// published never stays; a draft is never seen by anyone but its owner meanwhile). Run hourly
+// by /api/cron/cleanup. Never «لحظة اليوم», never anything published.
+export const DRAFT_KEPT_MS = 48 * 60 * 60 * 1000;
 const STALE_UPLOAD_MS = 3 * 60 * 60 * 1000;
 const EMPTY_MOMENTS_FROM = new Date(0);
 export async function purgeStaleUploads(now = new Date(), emptyMomentsFrom = EMPTY_MOMENTS_FROM) {
   const before = new Date(now.getTime() - STALE_UPLOAD_MS);
+  const draftsBefore = new Date(now.getTime() - DRAFT_KEPT_MS);
   const stale = await db.angle.findMany({
-    where: { status: { in: ["DRAFT", "PROCESSING"] }, uploadedAt: { lt: before } },
+    where: {
+      OR: [
+        { status: "DRAFT", uploadedAt: { lt: draftsBefore } },
+        { status: "PROCESSING", uploadedAt: { lt: before } },
+      ],
+    },
     select: { id: true, mediaPath: true, thumbPath: true, smallPath: true, caption: true, streamUid: true },
   });
   if (stale.length) {

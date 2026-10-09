@@ -14,6 +14,7 @@ import { MAX_VIDEO_SECONDS, PrepareError, prepareAngleFile, type PreparedAngle }
 import { firstSeconds } from "@/lib/recording";
 import { PENDING_SOUND, soundByKey, soundName } from "@/lib/sounds";
 import { SHARED_MARK } from "@/app/new/SharedArrival";
+import type { DraftView } from "@/server/drafts";
 
 
 type Labels = {
@@ -40,6 +41,17 @@ type Labels = {
   namePlaceholder: string;
   nameSuggested: string;
   nameNeeded: string;
+  composeTitle: string;
+  composeMany: string;
+  close: string;
+  addMore: string;
+  ready: string;
+  checkingShort: string;
+  leaveTitle: string;
+  leaveText: string;
+  leaveLater: string;
+  leaveBusy: string;
+  published: string;
 };
 
 type ItemState = {
@@ -106,6 +118,7 @@ export function AngleUploader({
   captionLabels,
   placeLabels,
   needsName = false,
+  initialDrafts = [],
 }: {
   code: string;
   needsName?: boolean; // the viewer started this moment without a name: asked for before «نشر»
@@ -116,11 +129,21 @@ export function AngleUploader({
   editLabels: ShotEditorLabels & { open: string; failed: string };
   captionLabels?: CaptionLabels; // «✍️ كتابة على اللقطة» after upload
   placeLabels?: PlaceLabels;
+  // Shots this person added here before and left without «نشر» (kept 48 hours): back, ready.
+  initialDrafts?: DraftView[];
 }) {
   const [uploaded, setUploaded] = useState(false);
   const inputId = useId();
   const router = useRouter();
-  const [items, setItems] = useState<ItemState[]>([]);
+  const [items, setItems] = useState<ItemState[]>(() => initialDrafts.map((d) => ({ name: "", status: "draft" as const, pct: 100, suggestion: null, ...d, preview: d.preview ?? undefined })));
+  // The publish sheet (like WhatsApp's): the shots big, their tools above, one «نشر» below —
+  // open while something is on its way or waiting; closing it first says the shot isn't up yet.
+  const [open, setOpen] = useState(initialDrafts.length > 0);
+  const [leaving, setLeaving] = useState(false);
+  const [published, setPublished] = useState(false);
+  // Several shots in the sheet: the one the tools work on (the first until another is tapped).
+  const [selected, setSelected] = useState(0);
+  const current = Math.min(selected, Math.max(items.length - 1, 0));
   const busy = items.some((i) => i.status === "preparing" || i.status === "uploading" || i.status === "checking");
   const drafts = items.map((it, i) => ({ it, i })).filter(({ it }) => it.status === "draft" && it.angleId);
   const [publishing, setPublishing] = useState(false);
@@ -171,6 +194,40 @@ export function AngleUploader({
     setPublishFailed(failed);
     setUploaded(true);
     router.refresh();
+    if (failed) return;
+    // Up: back on the moment, the new shot in sight and lit for a moment, and a word that it's in.
+    setOpen(false);
+    setLeaving(false);
+    setPublished(true);
+    // The next sheet starts fresh: what is up now is in the moment, not here.
+    setItems((all) => all.filter((it) => it.status !== "done" && it.status !== "error"));
+    setSelected(0);
+    const first = drafts[0]?.it.angleId;
+    // (The refreshed moment takes a moment to arrive: look for the shot for up to 8 seconds.)
+    let tries = 0;
+    const light = () => {
+      const tile = first ? document.getElementById(`angle-${first}`) : null;
+      if (!tile) return void (++tries < 40 && setTimeout(light, 200));
+      tile.scrollIntoView({ behavior: "smooth", block: "center" });
+      tile.classList.add("just-added");
+    };
+    light();
+    setTimeout(() => setPublished(false), 5000);
+  }
+
+  // Leaving the page with a shot not yet up (or still uploading): the browser asks first.
+  const unsaved = drafts.length > 0 || busy;
+  useEffect(() => {
+    if (!unsaved) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [unsaved]);
+
+  function close() {
+    if (busy || (drafts.length > 0 && !publishing)) return setLeaving(true);
+    setOpen(false);
+    setItems((all) => all.filter((it) => it.status === "done"));
   }
   // A sound chosen on a sound's page, waiting for the next shot.
   const [pending, setPending] = useState<string | null>(null);
@@ -184,7 +241,7 @@ export function AngleUploader({
   const [picking, setPicking] = useState<number | null>(null);
   // «🎵 اختار الصوت أول»: the picker before any shot — the sound waits for the next one.
   const [choosingFirst, setChoosingFirst] = useState(false);
-  const soundAsked = useRef(false);
+  const soundAsked = useRef(initialDrafts.length > 0);
   const [editing, setEditing] = useState<number | null>(null);
   const [captioning, setCaptioning] = useState<number | null>(null);
   const longFiles = useRef(new Map<number, File>());
@@ -342,8 +399,12 @@ export function AngleUploader({
 
   async function addFiles(files: File[]) {
     if (!files.length) return;
+    setOpen(true);
+    setLeaving(false);
     const start = items.length;
-    setItems((all) => [...all, ...files.map((f) => ({ name: f.name, status: "preparing" as const, pct: 0 }))]);
+    setSelected(start);
+    // A photo shows at once, big, while it goes up (a video once its poster is made).
+    setItems((all) => [...all, ...files.map((f) => ({ name: f.name, status: "preparing" as const, pct: 0, preview: f.type.startsWith("image/") ? URL.createObjectURL(f) : undefined }))]);
     // One at a time: phones on weak connections do better than with parallel uploads.
     for (const [i, file] of files.entries()) await send(file, start + i);
     router.refresh();
@@ -414,144 +475,208 @@ export function AngleUploader({
         </p>
       )}
 
-      {items.length > 0 && (
-        <ul className="flex flex-col gap-2" aria-live="polite">
-          {items.map((item, i) => (
-            <li key={i} className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-2.5 text-sm">
-              <span className="min-w-0 truncate" dir="ltr">
-                {item.name}
-              </span>
-              <span className={`shrink-0 font-semibold ${item.status === "error" ? "text-accent-ink" : "text-muted"}`}>
-                {item.status === "preparing" && labels.preparing}
-                {item.status === "trimming" && labels.trimming.replace("{s}", String(item.pct)).replaceAll("{max}", String(MAX_VIDEO_SECONDS))}
-                {item.status === "uploading" && labels.uploading.replace("{pct}", String(item.pct))}
-                {item.status === "checking" && labels.checking}
-                {item.status === "draft" && labels.draft}
-                {item.status === "done" && labels.done}
-                {item.status === "error" && labels.errors[item.error ?? "failed"]}
-              </span>
-              {item.status === "long" && (
-                <span className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-xs text-muted">{labels.longNotice}</span>
-                  <button type="button" onClick={() => sendFirstSeconds(i)} className="min-h-9 rounded-full bg-accent px-3 text-xs font-bold text-white">
-                    {labels.longAction}
-                  </button>
-                </span>
-              )}
-              {(item.status === "done" || item.status === "draft") && item.angleId && (
-                <span className="flex shrink-0 items-center gap-1.5">
-                  {/* The sound, in sight (not inside «تعديل»): its name once chosen. */}
-                  <button type="button" onClick={() => setPicking(i)} className="min-h-9 max-w-36 truncate rounded-full bg-accent px-3 text-xs font-bold text-white shadow-sm">
-                    {soundByKey(item.soundKey) ? `🎵 ${soundName(soundByKey(item.soundKey)!, locale)}` : soundLabels.add}
-                  </button>
-                  {/* Writing on it, in sight too (like TikTok): ✓ once written. */}
-                  {captionLabels && (
-                    <button type="button" onClick={() => setCaptioning(i)} className="min-h-9 rounded-full bg-background px-3 text-xs font-bold text-secondary shadow-sm">
-                      {captionLabels.add}
-                      {item.caption ? " ✓" : ""}
-                    </button>
-                  )}
-                  <button type="button" onClick={() => setEditing(i)} className="min-h-9 rounded-full bg-background px-3 text-xs font-bold text-secondary shadow-sm">
-                    {editLabels.open}
-                  </button>
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
+      {published && (
+        <p role="status" className="rounded-2xl bg-secondary-soft px-4 py-3 text-center font-extrabold text-secondary">
+          {labels.published}
+        </p>
       )}
-      {(() => {
-        // One suggestion at a time, for the first shot that has one.
-        const i = items.findIndex((it) => it.status === "draft" && it.angleId && it.suggestion);
-        if (i < 0) return null;
-        const it = items[i];
-        return (
-          <JoinCard
-            angleId={it.angleId!}
-            suggestion={it.suggestion!}
-            locale={locale}
-            labels={labels.join}
-            onKeep={() => update(i, { suggestion: null })}
-            onJoined={(momentCode) => {
-              // Joining publishes it there; go there unless other shots still wait for «نشر».
-              update(i, { status: "done", suggestion: null });
-              setUploaded(true);
-              if (drafts.length <= 1) router.push(`/m/${momentCode}#angle-${it.angleId}`);
-            }}
-          />
-        );
-      })()}
-      {(drafts.length > 0 || (busy && items.length > 0)) && (
-        <div className="flex flex-col gap-1.5">
-          {!named && (
-            <label className="flex flex-col gap-1.5 rounded-2xl bg-surface p-3 text-sm font-bold">
-              {labels.nameLabel}
-              <input
-                value={name}
-                maxLength={80}
-                placeholder={labels.namePlaceholder}
-                onChange={(e) => {
-                  setTyped(true);
-                  setName(e.target.value);
-                }}
-                aria-invalid={missingName && drafts.length > 0}
-                className="min-h-11 w-full rounded-full border border-line bg-background px-4 font-normal outline-none focus:border-accent"
-              />
-              <span className="text-xs font-normal text-muted">{name.trim() && !typed ? labels.nameSuggested : missingName && drafts.length > 0 ? labels.nameNeeded : " "}</span>
-            </label>
-          )}
-          {placeLabels && drafts.length > 0 && (unplaced.length > 0 || place) && (
-            <div className="flex flex-col gap-1.5 rounded-2xl bg-surface p-3 text-sm">
-              <span className="font-bold">{placeLabels.ask}</span>
-              {place ? (
-                <span className="font-semibold text-secondary">📍 {place.name} ✓</span>
-              ) : (
-                <>
-                  <span className="text-xs text-muted">{placeLabels.hint}</span>
-                  <PlaceField
-                    textName="shotPlaceName"
-                    idName="shotPlaceId"
-                    placeholder={placeLabels.placeholder}
-                    className="min-h-11 w-full rounded-full border border-line bg-background px-4 outline-none focus:border-accent"
-                    here={placeLabels.here}
-                    onPick={placeAll}
-                  />
-                </>
-              )}
-              {placeFailed && (
-                <span role="alert" className="text-xs font-semibold text-accent-ink">
-                  {placeLabels.failed}
+      {open && items.length > 0 && (
+        <div role="dialog" aria-modal="true" aria-label={labels.composeTitle} className="fixed inset-0 z-[45] flex flex-col bg-background">
+          <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
+            <h2 className="text-lg font-extrabold">{items.length > 1 ? labels.composeMany.replace("{n}", String(items.length)) : labels.composeTitle}</h2>
+            <button type="button" onClick={close} aria-label={labels.close} className="flex size-11 items-center justify-center rounded-full text-2xl text-muted hover:bg-surface">
+              ✕
+            </button>
+          </header>
+          <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+            {/* The shots themselves, big — not file names. One fills the screen; several share it
+                (two columns, three from five), and a tap picks the one the tools below work on. */}
+            <ul className={items.length === 1 ? "flex flex-col" : `grid gap-2 ${items.length >= 5 ? "grid-cols-3" : "grid-cols-2"}`} aria-live="polite">
+              {items.map((item, i) => {
+                const one = items.length === 1;
+                const picked = !one && i === current;
+                return (
+                  <li key={i}>
+                    <button
+                      type="button"
+                      onClick={() => setSelected(i)}
+                      disabled={one}
+                      aria-pressed={one ? undefined : picked}
+                      className={`relative flex w-full items-center justify-center overflow-hidden bg-black ${one ? "aspect-[4/5] max-h-[52vh] rounded-3xl" : "aspect-square rounded-2xl"} ${picked ? "ring-4 ring-accent ring-offset-2 ring-offset-background" : ""}`}
+                    >
+                      {item.preview ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- a local picture of the shot (blob: or a signed link)
+                        <img src={item.preview} alt="" className={`size-full ${one ? "object-contain" : "object-cover"}`} style={{ filter: filterCss(item.filter) }} />
+                      ) : (
+                        <span aria-hidden="true" className="size-10 animate-spin rounded-full border-4 border-white/25 border-t-white" />
+                      )}
+                      {item.caption && (
+                        // eslint-disable-next-line @next/next/no-img-element -- the writing on the shot, as saved
+                        <img src={item.caption.url} alt={item.caption.text} className="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ top: `${item.caption.y * 100}%`, width: `${item.caption.w * 100}%` }} />
+                      )}
+                      {item.isVideo && <span className="absolute start-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-bold text-white">▶︎</span>}
+                      {!one && soundByKey(item.soundKey) && <span className="absolute end-2 top-2 rounded-full bg-black/60 px-1.5 py-0.5 text-xs">🎵</span>}
+                      <span
+                        className={`absolute rounded-full text-center font-bold ${one ? "inset-x-3 bottom-3 px-3 py-1.5 text-sm" : "inset-x-1.5 bottom-1.5 truncate px-2 py-1 text-[11px]"} ${item.status === "error" ? "bg-accent text-white" : item.status === "draft" ? "bg-secondary text-white dark:text-background" : "bg-black/65 text-white"}`}
+                      >
+                        {item.status === "preparing" && labels.preparing}
+                        {item.status === "trimming" && labels.trimming.replace("{s}", String(item.pct)).replaceAll("{max}", String(MAX_VIDEO_SECONDS))}
+                        {item.status === "uploading" && labels.uploading.replace("{pct}", String(item.pct))}
+                        {item.status === "checking" && labels.checkingShort}
+                        {item.status === "draft" && labels.ready}
+                        {item.status === "done" && labels.done}
+                        {item.status === "error" && labels.errors[item.error ?? "failed"]}
+                        {item.status === "long" && labels.longNotice}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {/* The tools, once, for the shot picked (the only one, or the one tapped). */}
+            {items[current]?.status === "long" && (
+              <button type="button" onClick={() => sendFirstSeconds(current)} className="min-h-11 rounded-full bg-accent px-4 text-sm font-bold text-white">
+                {labels.longAction}
+              </button>
+            )}
+            {items[current]?.status === "draft" && items[current].angleId && (
+              <div className="flex flex-wrap justify-center gap-2">
+                {/* The sound, in sight: its name once chosen. */}
+                <button type="button" onClick={() => setPicking(current)} className="min-h-11 max-w-48 truncate rounded-full bg-accent px-4 text-sm font-bold text-white shadow-sm">
+                  {soundByKey(items[current].soundKey) ? `🎵 ${soundName(soundByKey(items[current].soundKey)!, locale)}` : soundLabels.add}
+                </button>
+                {captionLabels && (
+                  <button type="button" onClick={() => setCaptioning(current)} className="min-h-11 rounded-full bg-surface px-4 text-sm font-bold text-secondary">
+                    {captionLabels.add}
+                    {items[current].caption ? " ✓" : ""}
+                  </button>
+                )}
+                <button type="button" onClick={() => setEditing(current)} className="min-h-11 rounded-full bg-surface px-4 text-sm font-bold text-secondary">
+                  {editLabels.open}
+                </button>
+              </div>
+            )}
+            {(() => {
+              // One suggestion at a time, for the first shot that has one.
+              const i = items.findIndex((it) => it.status === "draft" && it.angleId && it.suggestion);
+              if (i < 0) return null;
+              const it = items[i];
+              return (
+                <JoinCard
+                  angleId={it.angleId!}
+                  suggestion={it.suggestion!}
+                  locale={locale}
+                  labels={labels.join}
+                  onKeep={() => update(i, { suggestion: null })}
+                  onJoined={(momentCode) => {
+                    // Joining publishes it there; go there unless other shots still wait for «نشر».
+                    update(i, { status: "done", suggestion: null });
+                    setUploaded(true);
+                    if (drafts.length <= 1) router.push(`/m/${momentCode}#angle-${it.angleId}`);
+                  }}
+                />
+              );
+            })()}
+
+            {!named && (
+              <label className="flex flex-col gap-1.5 rounded-2xl bg-surface p-3 text-sm font-bold">
+                {labels.nameLabel}
+                <input
+                  value={name}
+                  maxLength={80}
+                  placeholder={labels.namePlaceholder}
+                  onChange={(e) => {
+                    setTyped(true);
+                    setName(e.target.value);
+                  }}
+                  aria-invalid={missingName && drafts.length > 0}
+                  className="min-h-11 w-full rounded-full border border-line bg-background px-4 font-normal outline-none focus:border-accent"
+                />
+                <span className="text-xs font-normal text-muted">{name.trim() && !typed ? labels.nameSuggested : missingName && drafts.length > 0 ? labels.nameNeeded : " "}</span>
+              </label>
+            )}
+            {placeLabels && drafts.length > 0 && (unplaced.length > 0 || place) && (
+              <div className="flex flex-col gap-1.5 rounded-2xl bg-surface p-3 text-sm">
+                <span className="font-bold">{placeLabels.ask}</span>
+                {place ? (
+                  <span className="font-semibold text-secondary">📍 {place.name} ✓</span>
+                ) : (
+                  <>
+                    <span className="text-xs text-muted">{placeLabels.hint}</span>
+                    <PlaceField
+                      textName="shotPlaceName"
+                      idName="shotPlaceId"
+                      placeholder={placeLabels.placeholder}
+                      className="min-h-11 w-full rounded-full border border-line bg-background px-4 outline-none focus:border-accent"
+                      here={placeLabels.here}
+                      onPick={placeAll}
+                    />
+                  </>
+                )}
+                {placeFailed && (
+                  <span role="alert" className="text-xs font-semibold text-accent-ink">
+                    {placeLabels.failed}
+                  </span>
+                )}
+              </div>
+            )}
+            {drafts.length > 0 && !busy && (
+              <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-2">
+                <span className="flex flex-col">
+                  <span className="text-sm font-bold">🕐 {editLabels.stampSuggest}</span>
+                  <span className="stamp mt-1 self-start text-[10px]">{stampText(new Date(drafts[0].it.stampAt!), locale)}</span>
                 </span>
-              )}
-            </div>
-          )}
-          {drafts.length > 0 && !busy && (
-            <label className="flex min-h-12 cursor-pointer items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-2">
-              <span className="flex flex-col">
-                <span className="text-sm font-bold">🕐 {editLabels.stampSuggest}</span>
-                <span className="stamp mt-1 self-start text-[10px]">{stampText(new Date(drafts[0].it.stampAt!), locale)}</span>
-              </span>
-              <input type="checkbox" checked={stampAll} disabled={saving || publishing} onChange={(e) => setStampAll(e.target.checked)} className="size-5 accent-[var(--accent)]" />
+                <input type="checkbox" checked={stampAll} disabled={saving || publishing} onChange={(e) => setStampAll(e.target.checked)} className="size-5 accent-[var(--accent)]" />
+              </label>
+            )}
+            <label htmlFor={inputId} className={`flex min-h-11 cursor-pointer items-center justify-center self-center rounded-full border border-line px-5 text-sm font-bold ${disabled}`}>
+              {labels.addMore}
             </label>
-          )}
-          <button
-            type="button"
-            onClick={publishAll}
-            disabled={busy || publishing || saving || drafts.length === 0 || missingName}
-            className="min-h-12 rounded-full bg-accent px-6 font-extrabold text-white shadow-sm transition-opacity disabled:opacity-50"
-          >
-            {publishing
-              ? labels.publishing
-              : busy
-                ? items.some((it) => it.status === "checking")
-                  ? labels.searching
-                  : labels.waitUpload
-                : labels.publish.replace("{n}", drafts.length > 1 ? `(${drafts.length})` : "")}
-          </button>
-          {publishFailed && (
-            <p role="alert" className="text-sm font-semibold text-accent-ink">
-              {labels.publishFailed}
-            </p>
+          </div>
+          {/* «نشر», always in sight at the bottom (like WhatsApp's send). */}
+          <footer className="flex flex-col gap-1.5 border-t border-line bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <button
+              type="button"
+              onClick={publishAll}
+              disabled={busy || publishing || saving || drafts.length === 0 || missingName}
+              className="min-h-14 w-full rounded-full bg-accent px-6 text-lg font-extrabold text-white shadow-md transition-opacity disabled:opacity-50"
+            >
+              {publishing
+                ? labels.publishing
+                : busy
+                  ? items.some((it) => it.status === "checking")
+                    ? labels.searching
+                    : labels.waitUpload
+                  : labels.publish.replace("{n}", drafts.length > 1 ? `(${drafts.length})` : "")}
+            </button>
+            {publishFailed && (
+              <p role="alert" className="text-sm font-semibold text-accent-ink">
+                {labels.publishFailed}
+              </p>
+            )}
+          </footer>
+          {leaving && (
+            <div className="absolute inset-0 z-10 flex items-end justify-center bg-black/50 p-4" onClick={() => setLeaving(false)}>
+              <div role="alertdialog" aria-label={labels.leaveTitle} onClick={(e) => e.stopPropagation()} className="flex w-full max-w-md flex-col gap-3 rounded-3xl bg-background p-5 shadow-xl">
+                <h3 className="text-lg font-extrabold">{busy ? labels.waitUpload : labels.leaveTitle}</h3>
+                <p className="text-sm leading-relaxed text-muted">{busy ? labels.leaveBusy : labels.leaveText}</p>
+                {!busy && (
+                  <button type="button" onClick={publishAll} disabled={publishing || saving || missingName} className="min-h-12 rounded-full bg-accent px-6 font-extrabold text-white disabled:opacity-50">
+                    {labels.publish.replace("{n}", drafts.length > 1 ? `(${drafts.length})` : "")}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLeaving(false);
+                    if (!busy) setOpen(false);
+                  }}
+                  className="min-h-11 rounded-full border border-line px-6 font-bold"
+                >
+                  {busy ? labels.close : labels.leaveLater}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
