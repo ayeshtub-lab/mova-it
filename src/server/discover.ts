@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { captionView } from "@/server/caption";
@@ -367,3 +368,9 @@ export async function trendingVideos(viewer: User | null, take = 10) {
     })),
   );
 }
+
+// The visitor home's shots and wheel, kept 5 minutes for everyone: a visitor's home page then
+// needs no database at all — no wait while the database wakes after a quiet while (the home
+// page's occasional 4 seconds) — and the video links in it (good for 30 minutes) stay good.
+export const visitorShowcase = unstable_cache(() => publicShowcase(12), ["visitor-showcase-1"], { revalidate: 300 });
+export const visitorWheel = unstable_cache(() => wheelShots(12), ["visitor-wheel-1"], { revalidate: 300 });

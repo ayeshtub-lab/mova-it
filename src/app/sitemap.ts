@@ -40,7 +40,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...places.map((p) => ({ url: `${base}/p/${encodeURIComponent(p.slug)}`, lastModified: p.updatedAt, changeFrequency: "daily" as const, priority: 0.8 })),
     // «خيار في الخضر»: a place's topic pages (real ones only — src/server/topics.ts).
     ...topics.map((x) => ({ url: `${base}${topicPath(x.slug, x.topic)}`, lastModified: x.updatedAt, changeFrequency: "weekly" as const, priority: 0.7 })),
-    ...moments.map((m) => ({ url: `${base}/m/${m.code}`, lastModified: m.updatedAt, changeFrequency: "weekly" as const, priority: 0.6, images: pictures.get(m.code) })),
+    // A moment: its pictures, and its film (every angle in one video) when it has one.
+    ...moments.map((m) => ({
+      url: `${base}/m/${m.code}`,
+      lastModified: m.updatedAt,
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+      images: pictures.get(m.code),
+      ...(m.film
+        ? { videos: [{ title: m.title, description: `${m.title} — فيديو اللحظة من كل الزوايا على زاومو`, thumbnail_loc: `${base}/m/${m.code}/opengraph-image`, content_loc: `${base}/v/${m.code}.mp4`, publication_date: m.film.at.toISOString(), ...(m.film.durationSec ? { duration: Math.max(1, Math.round(m.film.durationSec)) } : {}) }] }
+        : {}),
+    })),
     ...shots.filter((s) => s.mediaType === "VIDEO").map((s) => {
       const title = shotTitle(s, "ar", ordinals.get(s.id));
       const image = `${base}/i/${s.id}.jpg`;

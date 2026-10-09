@@ -166,3 +166,15 @@ export async function topicPage(slug: string, rawTopic: string, viewerId: string
     ),
   };
 }
+
+// The topic pages a moment's shots are in («طماطم في الخضر»), those with the most of them first:
+// linked from the moment's page, so readers — and search engines — find them.
+export async function momentTopics(shotIds: string[], take = 8) {
+  const mine = new Set(shotIds);
+  return (await topicIndex())
+    .map((t) => ({ t, shared: t.shotIds.filter((id) => mine.has(id)).length }))
+    .filter((x) => x.shared > 0)
+    .sort((a, b) => b.shared - a.shared || b.t.shotIds.length - a.t.shotIds.length)
+    .slice(0, take)
+    .map((x) => x.t);
+}

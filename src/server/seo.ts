@@ -47,11 +47,29 @@ export async function sitemapTags(now = new Date(), min = 3) {
   return [...byTag].filter(([, t]) => t.count >= min).map(([tag, t]) => ({ tag, updatedAt: t.at }));
 }
 
+// A public moment's film (its latest finished montage), for search engines: Google Video lists it
+// under the moment's page, its file at a lasting address (/v/CODE.mp4). Null when there is none.
+const indexableMoment = { visibility: "PUBLIC" as const, status: "ACTIVE" as const, kind: { not: "DAILY" as const }, demo: false };
+export async function publicMontage(code: string) {
+  const film = await db.montage.findFirst({
+    where: { status: "READY", videoUrl: { not: null }, moment: { code, ...indexableMoment } },
+    orderBy: { createdAt: "desc" },
+    select: { videoUrl: true, durationSec: true, finishedAt: true, createdAt: true },
+  });
+  return film?.videoUrl ? { path: film.videoUrl, durationSec: film.durationSec, at: film.finishedAt ?? film.createdAt } : null;
+}
+
 export async function sitemapEntries(now = new Date()) {
   const [moments, angles] = await Promise.all([
     db.moment.findMany({
       where: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false, angles: { some: shownAngle(now) } },
-      select: { code: true, lastActivityAt: true },
+      select: {
+        code: true,
+        title: true,
+        lastActivityAt: true,
+        // its film, when there is one (listed as the page's video)
+        montages: { where: { status: "READY", videoUrl: { not: null } }, orderBy: { createdAt: "desc" }, take: 1, select: { durationSec: true, finishedAt: true, createdAt: true } },
+      },
       orderBy: { lastActivityAt: "desc" },
       take: 5000,
     }),
@@ -74,7 +92,7 @@ export async function sitemapEntries(now = new Date()) {
   const places = await db.place.findMany({ where: { id: { in: [...latest.keys()] } }, select: { id: true, slug: true } });
 
   return {
-    moments: moments.map((m) => ({ code: m.code, updatedAt: m.lastActivityAt })),
+    moments: moments.map((m) => ({ code: m.code, title: m.title, updatedAt: m.lastActivityAt, film: m.montages[0] ? { durationSec: m.montages[0].durationSec, at: m.montages[0].finishedAt ?? m.montages[0].createdAt } : null })),
     places: places.map((p) => ({ slug: p.slug, updatedAt: latest.get(p.id)! })),
   };
 }

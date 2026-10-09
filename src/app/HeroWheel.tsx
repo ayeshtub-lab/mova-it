@@ -1,11 +1,11 @@
 import { DemoWheel } from "@/app/DemoWheel";
 import { LiveWheel } from "@/app/LiveWheel";
-import { wheelShots } from "@/server/discover";
+import { visitorWheel } from "@/server/discover";
 
 // The hero wheel for visitors (home and ad landings): real public shots once Zawmo has
 // four or more to show, else the illustration — never an empty wheel.
 export async function HeroWheel({ className, openLabel }: { className?: string; openLabel: string }) {
-  const shots = await wheelShots(12).catch((error) => {
+  const shots = await visitorWheel().catch((error) => {
     console.error("wheel shots failed", error);
     return [];
   });

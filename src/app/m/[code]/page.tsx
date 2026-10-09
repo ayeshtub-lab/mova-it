@@ -25,7 +25,8 @@ import { screenForPublic } from "@/server/angles";
 import { dailyFor, tomorrowVote } from "@/server/daily";
 import { themeHint, themeText } from "@/lib/dailyThemes";
 import { getMomentView, MomentError, setMomentVisibility } from "@/server/moments";
-import { momentIndexable, titleTwin } from "@/server/seo";
+import { momentIndexable, publicMontage, titleTwin } from "@/server/seo";
+import { momentTopics, topicPath } from "@/server/topics";
 import { AngleGallery } from "./AngleGallery";
 import { AngleWheel } from "./AngleWheel";
 import { MontagePanel } from "./MontagePanel";
@@ -90,7 +91,7 @@ function momentDescription(view: NonNullable<Awaited<ReturnType<typeof loadMomen
 
 // For search engines (public moments only): the moment as a post, and where it sits —
 // الرئيسية › المكان › اللحظة.
-function momentStructured(view: NonNullable<Awaited<ReturnType<typeof loadMoment>>>, dict: Dictionary, locale: string) {
+function momentStructured(view: NonNullable<Awaited<ReturnType<typeof loadMoment>>>, dict: Dictionary, locale: string, film: Awaited<ReturnType<typeof publicMontage>>) {
   const site = `https://${CANONICAL_HOST}`;
   const url = `${site}/m/${view.code}`;
   const crumbs = [
@@ -117,6 +118,24 @@ function momentStructured(view: NonNullable<Awaited<ReturnType<typeof loadMoment
         publisher: { "@id": `${site}/#org` },
       },
       { "@type": "BreadcrumbList", itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, ...c })) },
+      // The moment's film — every angle in one video — for Google Video, at a lasting address.
+      ...(film
+        ? [
+            {
+              "@type": "VideoObject",
+              "@id": `${url}#film`,
+              name: plain(view.title),
+              description: momentDescription(view, dict, locale),
+              thumbnailUrl: [`${url}/opengraph-image`],
+              uploadDate: film.at.toISOString(),
+              contentUrl: `${site}/v/${view.code}.mp4`,
+              ...(film.durationSec ? { duration: `PT${Math.max(1, Math.round(film.durationSec))}S` } : {}),
+              inLanguage: locale,
+              isPartOf: { "@id": `${url}#post` },
+              publisher: { "@id": `${site}/#org` },
+            },
+          ]
+        : []),
     ],
   };
 }
@@ -184,6 +203,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   const ballot = daily?.isToday ? await tomorrowVote(user) : null;
   // The ready video, for the creator and those who added an angle (null for everyone else).
   const montage = view.angleCount > 0 ? await latestMontageFor(user, view.code) : null;
+  // The topic pages its shots are in («طماطم في الخضر») — linked below, for public moments.
+  const topics = momentIndexable(view) ? await momentTopics(view.angles.map((a) => a.id)) : [];
   // «لحظة «روااااق» في بيت لحم، صوّرها عزالدين وNareman Ayesh.»
   const people = [...new Set(view.angles.map((a) => a.contributorName))];
   const where = view.place?.name ?? view.placeName;
@@ -198,7 +219,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
-      {momentIndexable(view) && <JsonLd data={momentStructured(view, dict, locale)} />}
+      {momentIndexable(view) && <JsonLd data={momentStructured(view, dict, locale, await publicMontage(view.code))} />}
       <SiteHeader locale={locale} dict={dict} />
 
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-16">
@@ -400,6 +421,22 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               />
             ))}
           </div>
+        )}
+
+        {/* «🏷️ طماطم في الخضر»: the topic pages its shots are in (src/server/topics.ts) — public moments only. */}
+        {topics.length > 0 && (
+          <section aria-label={dict.topic.inMoment} className="flex flex-col gap-2">
+            <h2 className="text-sm font-bold">{dict.topic.inMoment}</h2>
+            <ul className="flex flex-wrap gap-2">
+              {topics.map((t) => (
+                <li key={`${t.slug}/${t.topic}`}>
+                  <Link href={topicPath(t.slug, t.topic)} className="flex min-h-9 items-center rounded-full bg-surface px-3 text-sm font-semibold">
+                    🏷️ {fill(dict.topic.title, { topic: t.words, place: t.placeName })} · {t.shotIds.length}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {/* What the pictures show, in words — folded away for people; search engines read it,

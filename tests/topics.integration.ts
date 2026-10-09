@@ -7,7 +7,7 @@
 import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
-import { topicIndex, topicPage } from "../src/server/topics";
+import { momentTopics, topicIndex, topicPage } from "../src/server/topics";
 
 const TAG = "[topicstest]";
 const out: string[] = [];
@@ -18,11 +18,7 @@ const check = async (name: string, fn: () => Promise<void>) => {
 
 async function main() {
   const stamp = Date.now().toString(36);
-  const people = await Promise.all(
-    [1, 2, 3].map((i) =>
-      db.user.create({ data: { displayName: `${TAG} ${i}`, isGuest: false } }),
-    ),
-  );
+  const people = await Promise.all([1, 2, 3].map((i) => db.user.create({ data: { displayName: `${TAG} ${i}`, isGuest: false } })));
   const ids = people.map((p) => p.id);
   const placeIds = [`topicstest-town-${stamp}`, `topicstest-gov-${stamp}`];
   try {
@@ -68,11 +64,7 @@ async function main() {
     const pub = await moment("PUBLIC", "من الأرض #بندورة");
     const friends = await moment("FRIENDS", "خاص");
     let n = 0;
-    const shot = (
-      by: number,
-      aiText: string,
-      extra: Record<string, unknown> = {},
-    ) =>
+    const shot = (by: number, aiText: string, extra: Record<string, unknown> = {}) =>
       db.angle.create({
         data: {
           momentId: pub.id,
@@ -88,8 +80,7 @@ async function main() {
       });
     // «خيار» ×5 by 2 people; «خيار_بلدي» on the same 5 (a repeat); «زيتون» ×3 (too few);
     // «#ضيعة_…» (the place's own name); «زاومو» (says nothing).
-    for (let i = 0; i < 5; i++)
-      await shot(i % 2, `خيار من الأرض #خيار #خيار_بلدي #زاومو #ضيعة_${stamp}`);
+    for (let i = 0; i < 5; i++) await shot(i % 2, `خيار من الأرض #خيار #خيار_بلدي #زاومو #ضيعة_${stamp}`);
     for (let i = 0; i < 3; i++) await shot(i % 2, "زيتون #زيتون");
     // Never counted: a friends-only moment, an unchecked shot, someone else's («repost»).
     await db.angle.create({
@@ -107,70 +98,44 @@ async function main() {
     await shot(2, "#زيتون", { screening: null });
     await shot(2, "#زيتون", { screening: "repost" });
 
-    const mine = (await topicIndex()).filter((t) =>
-      placeIds.includes(t.placeId),
-    );
+    const mine = (await topicIndex()).filter((t) => placeIds.includes(t.placeId));
 
-    await check(
-      "a real topic makes one page, in the closest place",
-      async () => {
-        const cucumber = mine.filter((t) => t.topic.startsWith("خيار"));
-        assert.equal(
-          cucumber.length,
-          1,
-          JSON.stringify(mine.map((t) => `${t.placeName}/${t.topic}`)),
-        );
-        assert.equal(
-          cucumber[0].topic,
-          "خيار",
-          "the plain word, not its repeat «خيار_بلدي»",
-        );
-        assert.equal(
-          cucumber[0].placeId,
-          town.id,
-          "the town, not its governorate (same shots)",
-        );
-        assert.equal(cucumber[0].shotIds.length, 5);
-        assert.equal(cucumber[0].people, 2);
-      },
-    );
+    await check("a real topic makes one page, in the closest place", async () => {
+      const cucumber = mine.filter((t) => t.topic.startsWith("خيار"));
+      assert.equal(cucumber.length, 1, JSON.stringify(mine.map((t) => `${t.placeName}/${t.topic}`)));
+      assert.equal(cucumber[0].topic, "خيار", "the plain word, not its repeat «خيار_بلدي»");
+      assert.equal(cucumber[0].placeId, town.id, "the town, not its governorate (same shots)");
+      assert.equal(cucumber[0].shotIds.length, 5);
+      assert.equal(cucumber[0].people, 2);
+    });
 
-    await check(
-      "too few, the place's own name, empty words and hidden shots make no page",
-      async () => {
-        const topics = mine.map((t) => t.topic);
-        assert.ok(
-          !topics.includes("زيتون"),
-          "3 public shots: too few (the friends-only, unchecked and repost ones don't count)",
-        );
-        assert.ok(
-          !topics.some((t) => t.startsWith("ضيعة")),
-          "the place's own name",
-        );
-        assert.ok(!topics.includes("زاومو"));
+    await check("too few, the place's own name, empty words and hidden shots make no page", async () => {
+      const topics = mine.map((t) => t.topic);
+      assert.ok(!topics.includes("زيتون"), "3 public shots: too few (the friends-only, unchecked and repost ones don't count)");
+      assert.ok(!topics.some((t) => t.startsWith("ضيعة")), "the place's own name");
+      assert.ok(!topics.includes("زاومو"));
       assert.ok(!topics.includes("بندورة"), "a many-shot moment's own tag is not every shot's topic");
-        assert.ok(topics.includes("أكل") === false);
-      },
-    );
+      assert.ok(topics.includes("أكل") === false);
+    });
 
-    await check(
-      "its page lists the shots, newest first; a page that isn't real is null",
-      async () => {
-        const page = (await topicPage(town.slug, "خيار", null))!;
-        assert.equal(page.shots.length, 5);
-        assert.equal(page.placeName, town.nameAr);
-        assert.ok(
-          page.trail.some((p) => p.slug === gov.slug),
-          "its governorate in the trail",
-        );
-        assert.equal(await topicPage(town.slug, "زيتون", null), null);
-        assert.equal(
-          await topicPage(gov.slug, "خيار", null),
-          null,
-          "the governorate's copy is not a page",
-        );
-      },
-    );
+    await check("its page lists the shots, newest first; a page that isn't real is null", async () => {
+      const page = (await topicPage(town.slug, "خيار", null))!;
+      assert.equal(page.shots.length, 5);
+      assert.equal(page.placeName, town.nameAr);
+      assert.ok(
+        page.trail.some((p) => p.slug === gov.slug),
+        "its governorate in the trail",
+      );
+      assert.equal(await topicPage(town.slug, "زيتون", null), null);
+      assert.equal(await topicPage(gov.slug, "خيار", null), null, "the governorate's copy is not a page");
+    });
+
+    await check("a moment links the topic pages its shots are in", async () => {
+      const shots = await db.angle.findMany({ where: { momentId: pub.id }, select: { id: true } });
+      const linked = await momentTopics(shots.map((x) => x.id));
+      assert.ok(linked.some((t) => t.slug === town.slug && t.topic === "خيار"), JSON.stringify(linked.map((t) => t.topic)));
+      assert.deepEqual(await momentTopics([]), []);
+    });
   } finally {
     await db.angle.deleteMany({ where: { contributorId: { in: ids } } });
     await db.moment.deleteMany({ where: { creatorId: { in: ids } } });
@@ -186,12 +151,7 @@ async function main() {
     await db.moment.deleteMany({ where: { creatorId: { in: left } } });
     await db.user.deleteMany({ where: { id: { in: [...ids, ...left] } } });
     await db.place.deleteMany({ where: { id: { startsWith: "topicstest-" } } });
-    out.push(
-      (await db.user.count({ where: { displayName: { startsWith: TAG } } })) ===
-        0
-        ? "CLEANUP ok"
-        : "CLEANUP left users",
-    );
+    out.push((await db.user.count({ where: { displayName: { startsWith: TAG } } })) === 0 ? "CLEANUP ok" : "CLEANUP left users");
     await db.$disconnect();
   }
 }
