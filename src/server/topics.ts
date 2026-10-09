@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { db } from "@/lib/db";
 import { hashtagsIn, normalizeTag } from "@/lib/hashtags";
+import { NOT_TOPICS } from "@/lib/shot-words";
 import { publicCover } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
 import { placeTrail } from "@/server/places";
@@ -31,8 +32,6 @@ const SCENE_TOPIC: Record<string, string> = {
   match: "مباراة",
   concert: "حفلة",
 };
-// Words that say nothing about what was shot.
-const NOT_TOPICS = new Set(["زاومو", "zawmo", "لحظة", "لحظات", "لحظاتك", "صورة", "صور", "تصويري", "اكسبلور", "explore", "explorepage", "fyp", "foryou", "viral", "ترند", "reels"]);
 
 export const topicWords = (topic: string) => topic.replace(/_+/g, " ").trim();
 export const topicPath = (slug: string, topic: string) => `/p/${encodeURIComponent(slug)}/${encodeURIComponent(topic)}`;

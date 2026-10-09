@@ -1,4 +1,5 @@
 import { clip, plain } from "@/lib/clip";
+import { shotWords } from "@/lib/shot-words";
 import { soundSearch } from "@/lib/sound-search";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -64,7 +65,15 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
       : twin
         ? ` — ${new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Riyadh" }).format(view.createdAt)}`
         : "";
-  const title = `${where && !name.includes(where) ? `${name} ${dict.moment.metaIn} ${where}` : name}${whose} · ${dict.meta.brand}`;
+  // A name that doesn't say what's in it («من انتاج مزرعتي») gets what the shots show: «…: طماطم
+  // وخيار في الخضر». Kept short (search results cut a title at about 60 characters): one word, or none.
+  const shown = shotWords(view.angles.map((a) => a.aiText), name, where);
+  const head = (words: string[]) => {
+    const what = words.length ? `${name}: ${words.join(locale === "ar" ? " و" : " & ")}` : name;
+    return `${where && !name.includes(where) ? `${what} ${dict.moment.metaIn} ${where}` : what}${whose}`;
+  };
+  const fits = [shown, shown.slice(0, 1), []].map(head).find((h) => [...h].length <= 60) ?? head([]);
+  const title = `${fits} · ${dict.meta.brand}`;
   const description = momentDescription(view, dict, locale);
   return {
     title,
