@@ -37,6 +37,8 @@ export async function remindDrafts(now = new Date()) {
     const key = `${d.contributorId}|${d.momentId}`;
     if (seen.has(key)) continue;
     seen.add(key);
+    // Another shot of theirs here was already the reminder: nothing to send (nor to count).
+    if (await db.notification.count({ where: { userId: d.contributorId, kind: "DRAFT_WAITING", angle: { momentId: d.momentId, status: "DRAFT" } } })) continue;
     await notify(
       { userId: d.contributorId, actorId: zawmo.id, kind: "DRAFT_WAITING", angleId: d.id },
       { key: `draft:${key}`, where: { userId: d.contributorId, kind: "DRAFT_WAITING", angle: { momentId: d.momentId, status: "DRAFT" } } },
