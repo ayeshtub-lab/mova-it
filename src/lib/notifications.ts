@@ -1,4 +1,4 @@
-// رسائل إشعار آمنة
+// Safe notification system with HTML5 Audio support
 export function requestNotificationPermission() {
   if (typeof window !== "undefined" && "Notification" in window) {
     if (Notification.permission === "granted") {
@@ -21,7 +21,6 @@ export function sendMessageNotification(senderName: string, message: string) {
         tag: "message-notification",
       });
 
-      // تشغيل صوت إشعار آمن
       playNotificationSound();
     } catch (error) {
       console.error("خطأ في الإشعار:", error);
@@ -29,9 +28,11 @@ export function sendMessageNotification(senderName: string, message: string) {
   }
 }
 
-function playNotificationSound() {
+export async function playNotificationSound() {
   try {
-    // نغمة بسيطة باستخدام Web Audio API
+    if (typeof window === "undefined") return;
+
+    // First try using Web Audio API
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
@@ -48,6 +49,20 @@ function playNotificationSound() {
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.5);
   } catch (error) {
-    console.error("خطأ في تشغيل الصوت:", error);
+    // Fallback: Try HTML5 Audio API
+    try {
+      const audio = new Audio();
+      audio.src = "data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==";
+      audio.volume = 0.3;
+      audio.play().catch(() => {
+        console.debug("Audio playback not allowed by browser policy");
+      });
+    } catch (fallbackError) {
+      console.error("Unable to play notification sound:", fallbackError);
+    }
   }
+}
+
+export function playMessageSound() {
+  return playNotificationSound();
 }
