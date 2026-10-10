@@ -167,7 +167,7 @@ export default function ConversationPage({
   return (
     <div className="flex flex-col h-screen max-w-2xl mx-auto bg-white">
       {/* Header */}
-      <div className="border-b p-4 flex items-center gap-3">
+      <div className="border-b p-3 sm:p-4 flex items-center gap-3 bg-white">
         {otherUser.avatarUrl && (
           <img
             src={otherUser.avatarUrl}
@@ -176,67 +176,79 @@ export default function ConversationPage({
           />
         )}
         <div className="flex-1">
-          <h1 className="font-semibold text-right">{otherUser.displayName}</h1>
+          <h1 className="font-semibold text-right text-sm sm:text-base">{otherUser.displayName}</h1>
         </div>
         <button
           onClick={() => router.push("/messages")}
-          className="text-gray-500 hover:text-gray-700"
+          className="text-gray-500 hover:text-gray-700 text-sm"
         >
           ← رجوع
         </button>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 ? (
-          <div className="text-center text-gray-500 py-8">
-            ابدأ المحادثة
+      {/* Messages - Black Background with Watermark */}
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 relative" style={{ backgroundColor: "#0f0f0f" }}>
+        {/* Watermark */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
+          <div className="text-center">
+            <div className="text-6xl font-bold">زاومو</div>
+            <div className="text-2xl mt-2">Zawmo</div>
           </div>
-        ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.senderId === userId ? "justify-end" : "justify-start"}`}
-            >
+        </div>
+
+        {/* Messages Content */}
+        <div className="relative z-10">
+          {messages.length === 0 ? (
+            <div className="text-center text-gray-400 py-8">
+              ابدأ المحادثة
+            </div>
+          ) : (
+            messages.map((msg) => (
               <div
-                className={`max-w-xs px-4 py-2 rounded-lg ${
-                  msg.senderId === userId
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-200 text-gray-900"
-                }`}
+                key={msg.id}
+                className={`flex ${msg.senderId === userId ? "justify-end" : "justify-start"}`}
               >
-                <p className="break-words">{msg.body}</p>
-                <p
-                  className={`text-xs mt-1 ${
+                <div
+                  className={`max-w-xs px-4 py-2 rounded-lg ${
                     msg.senderId === userId
-                      ? "text-blue-100"
-                      : "text-gray-600"
+                      ? "bg-blue-500 text-white"
+                      : "bg-gray-700 text-gray-100"
                   }`}
                 >
-                  {formatTimeAr(msg.createdAt)}
-                </p>
+                  <p className="break-words text-sm sm:text-base">{msg.body}</p>
+                  <p
+                    className={`text-xs mt-1 ${
+                      msg.senderId === userId
+                        ? "text-blue-100"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {formatTimeAr(msg.createdAt)}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      {/* Input */}
-      <form onSubmit={handleSend} className="border-t p-4">
+      {/* Input - Fixed to bottom */}
+      <form onSubmit={handleSend} className="border-t p-3 sm:p-4 bg-white">
         <div className="flex gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="اكتب رسالة..."
-            className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
+            className="flex-1 px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-sm sm:text-base"
             disabled={sending}
+            autoComplete="off"
           />
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50"
+            className="bg-blue-500 text-white px-4 py-2 sm:px-6 sm:py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm sm:text-base whitespace-nowrap"
           >
             {sending ? "جاري..." : "إرسال"}
           </button>
