@@ -1,3 +1,4 @@
+import { isCurator } from "@/server/sound-resolve";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { limited } from "@/server/rate-limit";
@@ -11,7 +12,8 @@ export const maxDuration = 120;
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const slow = await limited("sound", request, user.id);
+  // A curator filling the library adds without the hourly limit (each sound is still checked).
+  const slow = isCurator(user) ? null : await limited("sound", request, user.id);
   if (slow) return slow;
   const form = await request.formData().catch(() => null);
   const file = form?.get("file");

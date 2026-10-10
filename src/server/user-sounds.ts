@@ -159,7 +159,7 @@ export async function peopleSounds(viewerId: string | null, take = 40) {
   const uses = await db.angle.groupBy({ by: ["soundKey"], where: { soundKey: { in: sounds.map((s) => s.key) }, uploadedAt: { gte: since } }, _count: { _all: true } });
   const count = new Map(uses.map((u) => [u.soundKey, u._count._all]));
   return sounds
-    .map((s) => ({ key: s.key, name: s.name, author: s.owner.displayName, seconds: s.seconds, uses: count.get(s.key) ?? 0, mine: s.ownerId === viewerId, shared: s.shared }))
+    .map((s) => ({ key: s.key, name: s.name, author: s.owner.displayName, seconds: s.seconds, uses: count.get(s.key) ?? 0, mine: s.ownerId === viewerId, shared: s.shared, category: s.shared ? s.category : null }))
     .sort((a, b) => Number(b.mine) - Number(a.mine) || b.uses - a.uses)
     .slice(0, take);
 }

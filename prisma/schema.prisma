@@ -19,6 +19,9 @@ model User {
   locale      String   @default("ar")
   isGuest     Boolean  @default(true)
   isAdmin     Boolean  @default(false) // may open /admin to review reports
+  // «منسّق المكتبة»: adds sounds without the hourly limit and puts members' sounds into the
+  // library's lists (/admin/sounds) — none of an admin's other powers.
+  soundCurator Boolean @default(false)
   isSystem    Boolean  @default(false) // the «زاومو» account that starts «لحظة اليوم»
   verified    Boolean  @default(false) // ✓ an official Zawmo account: a badge by its name, its comments first
   // «اسمح للي صوّروا نفس اللحظة ينضمّوا للحظاتي»: when off, this person's moments are never
@@ -382,6 +385,9 @@ model UserSound {
   path      String? // the mp3 in the private Blob store (gone once withdrawn)
   status    String
   reason    String? // why blocked: copyright | music | offensive | check_failed
+  // The library list it was put in by a curator (a src/lib/sounds.ts category: quran, nasheed…);
+  // null: only under «🎤 من الناس». It then follows that list's rules (a verse never cut…).
+  category  String?
   // Everyone may put it on their shots (true), or only its owner (false, «🔒 خاص»). Either way it
   // is checked the same: whoever watches the owner's shots hears it.
   shared    Boolean  @default(true)

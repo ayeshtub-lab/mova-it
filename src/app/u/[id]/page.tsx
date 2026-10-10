@@ -9,6 +9,7 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { SettingToggle } from "./SettingToggle";
 import { getProfile, ProfileError, setDisplayName } from "@/server/profile";
+import { isCurator } from "@/server/sound-resolve";
 import { AvatarEditor } from "./AvatarEditor";
 import { FollowButton } from "./FollowButton";
 import { NameEditor, type RenameState } from "./NameEditor";
@@ -150,6 +151,12 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             <SettingToggle initial={viewer.allowJoins} endpoint="/api/me/allow-joins" icon="🤝" labels={dict.allowJoins} />
             <SettingToggle initial={viewer.dailyVideo} endpoint="/api/me/daily-video" icon="🎬" labels={dict.dailyVideo} />
           </>
+        )}
+        {/* The library's curators (admins, «منسّق المكتبة»): their page for sorting members' sounds. */}
+        {profile.isMe && isCurator(viewer) && (
+          <Link href="/admin/sounds" className="flex min-h-11 items-center justify-center self-center rounded-full bg-secondary-soft px-5 text-sm font-extrabold text-secondary">
+            🎵 تنسيق المكتبة
+          </Link>
         )}
         {profile.isMe && (
           <Link href="/account/delete" className="self-center text-xs font-bold text-muted underline-offset-4 hover:text-accent-ink hover:underline">

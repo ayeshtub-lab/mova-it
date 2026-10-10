@@ -11,6 +11,7 @@ import { publicHost } from "@/lib/hosts";
 import { parseCaption } from "@/lib/caption";
 import { filterByKey, stampText } from "@/lib/filters";
 import { lyricsOf, lyricTimes } from "@/lib/lyrics";
+import { resolveSound } from "@/server/sound-resolve";
 import { isPeopleKey, isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
 import { blobExists, viewUrl } from "@/server/media";
@@ -380,7 +381,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
       stamp: angle.stamp ? stampText(angle.uploadedAt, locale, "Asia/Riyadh") : undefined,
     };
     // A story moves too fast for each shot's own sound: only the video's sound plays.
-    const shotSound = soundKey || story ? null : soundByKey(angle.soundKey);
+    const shotSound = soundKey || story ? null : await resolveSound(angle.soundKey);
     if (shotSound) shotSounds = true;
     const writing = parseCaption(angle.caption);
     const kept = piecePath(moment.id, [angle.id, angle.mediaPath, angle.mediaType, angle.filter, writing?.path ?? null, frame, times, story, i, shotSound?.key ?? null, angle.muteOriginal, angle.lyrics]);
@@ -452,7 +453,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   // A library sound runs (looped) under the whole film, fading out at the end; the clips'
   // own sound stays, softer — or goes, under remembrance. With no sound chosen and none on
   // the shots, a calm one of Zawmo's (quieter, under the clips' own sound).
-  const chosen = soundByKey(soundKey);
+  const chosen = await resolveSound(soundKey);
   const auto = !chosen && !shotSounds;
   const sound = chosen ?? (auto ? soundByKey(SOLEMN_WORDS.test(moment.title) ? AUTO_SOUND_SOLEMN : AUTO_SOUND) : null);
   const quranHold = sound && isQuran(sound);
@@ -577,7 +578,7 @@ export async function buildMarkedPhoto(
 // marked picture (above) becomes a 9:16 video as long as the sound — the sound whole (a verse
 // whole), its words on it when they're on, no closing card (the mark has the link). Null: no sound.
 export async function buildMarkedPhotoVideo(picture: string, soundKey: string | null, lyrics: boolean, siteHost: string, dir: string) {
-  const sound = soundByKey(soundKey);
+  const sound = await resolveSound(soundKey);
   if (!sound) return null;
   const soundPath = join(dir, `sound-${sound.key}.mp3`);
   if (!(await fetchSound(sound, siteHost, soundPath))) return null;
@@ -639,7 +640,7 @@ export async function buildBrandedShot(
 
   // The sound its owner put on it, as everywhere else on Zawmo (a verse whole, the clip's own
   // sound softer under music, or muted).
-  const sound = soundByKey(shot.soundKey ?? null);
+  const sound = await resolveSound(shot.soundKey ?? null);
   let shotBody = body;
   let shotSeconds = seconds;
   const soundPath = join(dir, `sound-${sound?.key}.mp3`);

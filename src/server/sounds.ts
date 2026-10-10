@@ -1,7 +1,8 @@
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { filterByKey } from "@/lib/filters";
-import { isSolemn, soundByKey } from "@/lib/sounds";
+import { isPeopleKey, isSolemn } from "@/lib/sounds";
+import { resolveSound } from "@/server/sound-resolve";
 import { usableSound } from "@/server/user-sounds";
 import { publicCover } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
@@ -19,10 +20,11 @@ export async function setAngleSound(user: User, angleId: string, rawKey: unknown
   const angle = await db.angle.findUnique({ where: { id: angleId }, select: { contributorId: true, mediaType: true } });
   if (!angle) throw new SoundError("not_found");
   if (angle.contributorId !== user.id) throw new SoundError("forbidden");
-  const sound = rawKey === null ? null : soundByKey(typeof rawKey === "string" ? rawKey : null);
+  // (A member's sound with the list a curator put it in: in «قرآن» it is solemn, like the library's.)
+  const sound = rawKey === null ? null : await resolveSound(typeof rawKey === "string" ? rawKey : null);
   if (rawKey !== null && !sound) throw new SoundError("invalid");
   // A people's sound: while live, and shared — or the owner's own «🔒 خاص» one.
-  if (sound?.cat === "people" && !(await usableSound(user.id, sound.key))) throw new SoundError("invalid");
+  if (sound && isPeopleKey(sound.key) && !(await usableSound(user.id, sound.key))) throw new SoundError("invalid");
   const muteOriginal = angle.mediaType === "VIDEO" && !!sound && (isSolemn(sound) || rawMute === true);
   // «📝» its words on the shot: on unless turned off.
   const lyrics = rawLyrics !== false;

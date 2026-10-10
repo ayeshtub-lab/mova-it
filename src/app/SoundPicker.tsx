@@ -60,18 +60,19 @@ export function SoundPicker({
   const [lyrics, setLyrics] = useState(initialLyrics);
   const [cat, setCat] = useState<SoundCategory>(soundByKey(initialKey)?.cat ?? SOUND_CATEGORIES[0].key);
   const [playing, setPlaying] = useState<string | null>(null);
-  // «🎤 من الناس»: fetched when the tab is first opened.
-  const [people, setPeople] = useState<{ key: string; name: string; author: string; seconds: number; mine?: boolean; shared?: boolean }[] | null>(null);
+  // Members' sounds, fetched once the picker opens: «🎤 من الناس», and those a curator put in a
+  // library list (they show in it, after the library's own).
+  const [people, setPeople] = useState<{ key: string; name: string; author: string; seconds: number; mine?: boolean; shared?: boolean; category?: SoundCategory | null }[] | null>(null);
   const [adding, setAdding] = useState(false);
   useEffect(() => {
-    if (cat !== "people" || people) return;
+    if (people) return;
     fetch("/api/sounds/people")
       .then((r) => (r.ok ? r.json() : []))
       .then(setPeople, () => setPeople([]));
-  }, [cat, people]);
+  }, [people]);
   const rows =
     cat === "people"
-      ? (people ?? []).map((p) => ({
+      ? (people ?? []).filter((p) => p.mine || !p.category).map((p) => ({
           key: p.key,
           name: p.name,
           sub: p.mine ? (p.shared ? (labels.own?.mineTag ?? null) : (labels.own?.privateTag ?? null)) : (labels.peopleBy ?? "{name}").replace("{name}", p.author),
@@ -79,9 +80,17 @@ export function SoundPicker({
           private: !!p.mine && p.shared === false,
           mine: !!p.mine,
         }))
-      : SOUNDS.filter((s) => s.cat === cat).map((s) => ({ key: s.key, name: soundName(s, locale), sub: null as string | null, seconds: s.seconds, private: false, mine: false }));
+      : [
+          ...SOUNDS.filter((s) => s.cat === cat).map((s) => ({ key: s.key, name: soundName(s, locale), sub: null as string | null, seconds: s.seconds, private: false, mine: false })),
+          ...(people ?? [])
+            .filter((p) => p.category === cat)
+            .map((p) => ({ key: p.key, name: p.name, sub: (labels.peopleBy ?? "{name}").replace("{name}", p.author), seconds: p.seconds, private: false, mine: !!p.mine })),
+        ];
   const audio = useRef<HTMLAudioElement | null>(null);
-  const solemn = isSolemn(soundByKey(key));
+  // (A member's sound put in «قرآن» or «أذكار» is solemn too: the clip's own sound goes under it.)
+  const listed = people?.find((p) => p.key === key)?.category;
+  const chosen = soundByKey(key);
+  const solemn = isSolemn(chosen && listed ? { ...chosen, cat: listed } : chosen);
   const [changing, setChanging] = useState<string | null>(null);
 
   // Your own sound, right here: everyone ↔ «🔒 خاص», or delete it.
