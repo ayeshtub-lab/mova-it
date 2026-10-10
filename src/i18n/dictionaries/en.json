@@ -704,6 +704,7 @@
       "added": "✅ Your sound is ready: «{name}»",
       "blocked": "We couldn't add it: {why}",
       "tooBig": "The file is too big — try a shorter video",
+      "tooMany": "You added 12 sounds in the last hour — that's the limit. Try again a bit later ⏳",
       "micDenied": "We couldn't open the microphone. Allow it for Zawmo, or upload a file.",
       "membersOnly": "Adding sounds is for members.",
       "privateTag": "🔒 Private",

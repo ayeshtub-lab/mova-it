@@ -27,6 +27,7 @@ export type OwnSoundLabels = {
   chooseFirst?: string;
   preparing?: string;
   unreadable?: string;
+  tooMany?: string; // the hour's limit of new sounds reached
   deleteLabel?: string;
   deleteConfirm?: string;
   makePrivate?: string;
@@ -167,13 +168,13 @@ export function AddSound({ labels, why, onAdded, onClose }: { labels: OwnSoundLa
     const res = await fetch("/api/sounds", { method: "POST", body: form }).catch(() => null);
     const body = (await res?.json().catch(() => null)) as { key?: string; name?: string; status?: string; reason?: string; shared?: boolean; error?: string } | null;
     setBusy(false);
-    const reasons: Record<string, string> = { copyright: why.whyCopyright, music: why.whyMusic, offensive: why.whyOffensive, no_audio: why.whyNoAudio, too_big: labels.tooBig, members_only: labels.membersOnly };
+    const reasons: Record<string, string> = { copyright: why.whyCopyright, music: why.whyMusic, offensive: why.whyOffensive, no_audio: why.whyNoAudio, too_big: labels.tooBig, members_only: labels.membersOnly, rate_limited: labels.tooMany ?? why.whyFailed };
     if (body?.status === "public" && body.key) {
       setMessage(labels.added.replace("{name}", body.name ?? ""));
       return onAdded({ key: body.key, name: body.name ?? "", shared: body.shared !== false });
     }
     const code = body?.reason ?? body?.error ?? "";
-    setMessage(code === "members_only" || code === "too_big" ? reasons[code] : labels.blocked.replace("{why}", reasons[code] ?? why.whyFailed));
+    setMessage(code === "members_only" || code === "too_big" || code === "rate_limited" ? reasons[code] : labels.blocked.replace("{why}", reasons[code] ?? why.whyFailed));
   }
 
   return (
