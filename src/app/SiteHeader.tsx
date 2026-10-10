@@ -31,7 +31,15 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
           </Link>
         )}
         {user && (
-          <span className="hidden sm:flex">
+          <span className="hidden sm:flex gap-2">
+            <Link
+              href="/messages"
+              aria-label="الرسائل"
+              title="الرسائل"
+              className="size-11 flex items-center justify-center rounded-full bg-surface text-secondary transition-transform hover:scale-105"
+            >
+              <span className="text-lg">💬</span>
+            </Link>
             <InboxLink unread={unread} label={unread ? dict.inbox.openUnread.replace("{n}", String(unread)) : dict.inbox.open} />
           </span>
         )}

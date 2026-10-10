@@ -14,6 +14,7 @@ import { AvatarEditor } from "./AvatarEditor";
 import { FollowButton } from "./FollowButton";
 import { NameEditor, type RenameState } from "./NameEditor";
 import { ProfileTabs } from "./ProfileTabs";
+import { MessageButton } from "./MessageButton";
 
 export async function generateMetadata({ params }: PageProps<"/u/[id]">): Promise<Metadata> {
   const profile = await getProfile(await getCurrentUser(), (await params).id);
@@ -118,6 +119,9 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
 
           {profile.canFollow && (
             <FollowButton userId={profile.id} initial={profile.isFollowing} labels={{ follow: t.follow, unfollow: t.unfollow, isFollowing: t.isFollowing, failed: t.failed }} />
+          )}
+          {!profile.isMe && (
+            <MessageButton userId={profile.id} label="💬 رسالة" failed="لا يمكن المراسلة" />
           )}
           {profile.isAdmin && (
             <Link href="/admin" className="text-sm font-bold text-secondary underline-offset-4 hover:underline">

@@ -78,6 +78,10 @@ model User {
   followers       Follow[]         @relation("Following")
   reports         Report[]
   removalRequests RemovalRequest[]
+  // محادثات المستخدم (كمرسل الرسالة)
+  conversationsAsUser1 Conversation[] @relation("ConversationUser1")
+  conversationsAsUser2 Conversation[] @relation("ConversationUser2")
+  sentMessages    Message[]
 }
 
 // Opaque random token in an httpOnly cookie (web) or a bearer header (app later);
@@ -714,6 +718,42 @@ model DailyVote {
 
   @@id([day, userId])
   @@index([day, themeKey])
+}
+
+// ── المحادثات ────────────────────────────────────────────────────────────
+
+// رسائل فردية (واحد لواحد) بين شخصين، مستقلة عن اللحظات
+model Conversation {
+  id        String   @id @default(cuid())
+  user1Id   String
+  user2Id   String
+  createdAt DateTime @default(now())
+  // متى آخر ظهور لكل شخص (يحدد المحادثة كمقروءة لهم)
+  user1SeenAt DateTime?
+  user2SeenAt DateTime?
+
+  user1    User      @relation("ConversationUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2    User      @relation("ConversationUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  // محادثة واحدة فقط بين شخصين
+  @@unique([user1Id, user2Id])
+  @@index([user1Id, createdAt])
+  @@index([user2Id, createdAt])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId, createdAt])
 }
 
 // ── Rate limits ───────────────────────────────────────────────────────────
