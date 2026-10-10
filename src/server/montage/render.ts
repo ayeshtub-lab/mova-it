@@ -11,7 +11,7 @@ import { publicHost } from "@/lib/hosts";
 import { parseCaption } from "@/lib/caption";
 import { filterByKey, stampText } from "@/lib/filters";
 import { lyricsOf, lyricTimes } from "@/lib/lyrics";
-import { isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
+import { isPeopleKey, isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
 import { blobExists, viewUrl } from "@/server/media";
 import { isArabic } from "@/server/og-text";
@@ -87,6 +87,17 @@ async function download(url: string, file: string) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`download failed: ${res.status}`);
   await writeFile(file, Buffer.from(await res.arrayBuffer()));
+}
+
+// A sound's file from the site. False when it is a person's own sound that is gone (its owner
+// withdrew it, or it was blocked): the shot is then used without it — never an error retried for
+// ever (the photo-share cron did, every 10 minutes, 2026-10-10).
+async function fetchSound(sound: Sound, siteHost: string, file: string) {
+  const res = await fetch(`${siteHost.startsWith("localhost") ? "http" : "https"}://${siteHost}${soundFile(sound.key)}`);
+  if (res.status === 404 && isPeopleKey(sound.key)) return false;
+  if (!res.ok) throw new Error(`download failed: ${res.status}`);
+  await writeFile(file, Buffer.from(await res.arrayBuffer()));
+  return true;
 }
 
 // One normalized segment per angle: 720×1280 cover-cropped, 30 fps, stereo AAC (silent
@@ -330,13 +341,13 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
         .replace("{angles}", plural(locale, dict.plurals.angles, ordered.length))
         .replace("{people}", plural(locale, dict.plurals.people, participants));
 
-  // Library sounds are fetched from the site once per render, whichever shots use them.
-  const fetched = new Map<string, string>();
+  // Library sounds are fetched from the site once per render, whichever shots use them (null: a
+  // person's own sound that is gone — the shot plays without it).
+  const fetched = new Map<string, string | null>();
   const soundAt = async (sound: Sound) => {
     if (!fetched.has(sound.key)) {
       const path = join(dir, `sound-${sound.key}.mp3`);
-      await download(`${siteHost.startsWith("localhost") ? "http" : "https"}://${siteHost}${soundFile(sound.key)}`, path);
-      fetched.set(sound.key, path);
+      fetched.set(sound.key, (await fetchSound(sound, siteHost, path)) ? path : null);
     }
     return fetched.get(sound.key)!;
   };
@@ -404,9 +415,10 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
         ? await videoSegment(input, overlay, out, angle.filter, caption, times.video)
         : await photoSegment(input, overlay, out, angle.filter, caption, times.photo, story ? null : i);
     let segment = out;
-    if (shotSound) {
+    const shotSoundFile = shotSound ? await soundAt(shotSound) : null;
+    if (shotSound && shotSoundFile) {
       segment = join(dir, `seg-${i}-sound.mp4`);
-      seconds = await withShotSound(out, await soundAt(shotSound), shotSound, angle.muteOriginal, seconds, segment, angle.lyrics);
+      seconds = await withShotSound(out, shotSoundFile, shotSound, angle.muteOriginal, seconds, segment, angle.lyrics);
     }
     durations.push(seconds);
     segments.push(segment);
@@ -449,8 +461,8 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   let graph = joined.graph;
   let mix = "[orig]anull[a]";
   const soundInput: string[] = [];
-  if (sound) {
-    const soundPath = await soundAt(sound);
+  const soundPath = sound ? await soundAt(sound) : null;
+  if (sound && soundPath) {
     if (isQuran(sound)) {
       // Once, untouched; hold the last frame until the verse ends, plus a short breath.
       soundInput.push("-i", soundPath);
@@ -568,7 +580,7 @@ export async function buildMarkedPhotoVideo(picture: string, soundKey: string | 
   const sound = soundByKey(soundKey);
   if (!sound) return null;
   const soundPath = join(dir, `sound-${sound.key}.mp3`);
-  await download(`${siteHost.startsWith("localhost") ? "http" : "https"}://${siteHost}${soundFile(sound.key)}`, soundPath);
+  if (!(await fetchSound(sound, siteHost, soundPath))) return null;
   const seconds = Math.min(MAX_FILM_SECONDS, sound.seconds);
   const still = join(dir, "still.mp4");
   await ffmpeg([
@@ -630,9 +642,8 @@ export async function buildBrandedShot(
   const sound = soundByKey(shot.soundKey ?? null);
   let shotBody = body;
   let shotSeconds = seconds;
-  if (sound) {
-    const soundPath = join(dir, `sound-${sound.key}.mp3`);
-    await download(`${siteHost.startsWith("localhost") ? "http" : "https"}://${siteHost}${soundFile(sound.key)}`, soundPath);
+  const soundPath = join(dir, `sound-${sound?.key}.mp3`);
+  if (sound && (await fetchSound(sound, siteHost, soundPath))) {
     shotBody = join(dir, "body-sound.mp4");
     shotSeconds = await withShotSound(body, soundPath, sound, !!shot.muteOriginal, seconds, shotBody, shot.lyrics !== false);
   }

@@ -8,7 +8,7 @@ import { parseCaption } from "@/lib/caption";
 import { db } from "@/lib/db";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { wordsMark } from "@/lib/lyrics";
-import { soundByKey } from "@/lib/sounds";
+import { isPeopleKey, soundByKey } from "@/lib/sounds";
 import { visibleAngle } from "@/server/access";
 import { blobExists, viewUrl } from "@/server/media";
 import { buildMarkedPhoto, buildMarkedPhotoVideo } from "@/server/montage/render";
@@ -34,9 +34,16 @@ const findShot = (angleId: string) =>
 type Shot = NonNullable<Awaited<ReturnType<typeof findShot>>>;
 
 const withSound = (angle: Shot) => !!soundByKey(angle.soundKey);
+// …and that sound can still be heard: a person's own sound may have been withdrawn (or blocked)
+// since — the photo then goes out as a picture, like one without a sound.
+async function soundLive(angle: Shot) {
+  if (!withSound(angle)) return false;
+  if (!isPeopleKey(angle.soundKey)) return true;
+  return (await db.userSound.count({ where: { key: angle.soundKey!, status: "public", path: { not: null } } })) > 0;
+}
 
-function markedPath(angle: Shot) {
-  const sound = withSound(angle) ? [angle.soundKey, ...wordsMark(angle.soundKey, angle.lyrics)] : [];
+function markedPath(angle: Shot, heard: boolean) {
+  const sound = heard ? [angle.soundKey, ...wordsMark(angle.soundKey, angle.lyrics)] : [];
   const version = createHash("sha256")
     .update(JSON.stringify([STYLE, angle.mediaPath, angle.filter, angle.stamp, parseCaption(angle.caption)?.path ?? null, angle.contributor.displayName, angle.moment.code, CANONICAL_HOST, ...sound]))
     .digest("hex")
@@ -48,7 +55,8 @@ function markedPath(angle: Shot) {
 export async function ensureMarked(angleId: string) {
   const angle = await findShot(angleId);
   if (!angle || angle.status !== "READY" || angle.mediaType !== "PHOTO" || !angle.mediaPath) return null;
-  const path = markedPath(angle);
+  const heard = await soundLive(angle);
+  let path = markedPath(angle, heard);
   if (await blobExists(path)) return path;
   const dir = await mkdtemp(join(tmpdir(), "zawmo-photo-mark-"));
   try {
@@ -66,7 +74,8 @@ export async function ensureMarked(angleId: string) {
       CANONICAL_HOST,
       dir,
     );
-    const video = withSound(angle) ? await buildMarkedPhotoVideo(picture, angle.soundKey, angle.lyrics, CANONICAL_HOST, dir) : null;
+    const video = heard ? await buildMarkedPhotoVideo(picture, angle.soundKey, angle.lyrics, CANONICAL_HOST, dir) : null;
+    if (heard && !video) path = markedPath(angle, false); // the sound went in the meantime
     await put(path, await readFile(video ?? picture), { access: "private", contentType: video ? "video/mp4" : "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -97,7 +106,7 @@ export async function markPending(limit = 2) {
   let made = 0;
   for (const p of photos) {
     if (made >= limit) break;
-    if (!withSound(p) || (await blobExists(markedPath(p)))) continue;
+    if (!(await soundLive(p)) || (await blobExists(markedPath(p, true)))) continue;
     await ensureMarked(p.id).catch((error) => console.error("marked ahead failed", p.id, error));
     made++;
   }

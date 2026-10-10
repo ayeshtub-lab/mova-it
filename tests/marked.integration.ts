@@ -95,6 +95,14 @@ async function main() {
       assert.equal(await markPending(5), 0, "nothing left to make ahead");
     });
 
+    await check("a photo whose person's sound is gone (withdrawn): shared as a picture, never retried for ever", async () => {
+      const gone = await shot(open.id, "PHOTO", "u0000deadbeef");
+      const url = await markedPhotoUrl(null, gone.id);
+      assert.ok(url, "a picture, not an error");
+      assert.equal((await fetch(url!)).headers.get("content-type"), "image/jpeg");
+      assert.equal(await markPending(5), 0, "nothing to make ahead for it");
+    });
+
     await check("a friends' photo: not for a visitor without an account; a video is refused", async () => {
       // (A signed-in link holder may see a friends' moment's first shot — «give to get» — and so share it.)
       await assert.rejects(markedPhotoUrl(null, f.id), (e) => e instanceof MarkedError && e.code === "not_found");
