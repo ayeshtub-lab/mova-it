@@ -33,16 +33,40 @@ function formatTimeAr(dateStr: string): string {
   const diffDays = Math.floor(diffHours / 24);
 
   if (diffMins < 1) return "الآن";
-  if (diffMins < 60) return `قبل ${diffMins} د`;
-  if (diffHours < 24) return `قبل ${diffHours} س`;
+  if (diffMins < 60) return `${diffMins}د`;
+  if (diffHours < 24) return `${diffHours}س`;
   if (diffDays === 1) return "أمس";
-  if (diffDays < 7) return `قبل ${diffDays} أيام`;
+  if (diffDays < 7) return `${diffDays}أيام`;
 
   return date.toLocaleDateString("ar-SA", {
     month: "short",
     day: "numeric",
   });
 }
+
+// SVG Icons (Lucide-style)
+const Icons = {
+  messageSquare: (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+  ),
+  send: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+    </svg>
+  ),
+  plus: (
+    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  ),
+  mic: (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14.828v2.5M19 12a7 7 0 11-14 0 7 7 0 0114 0zM12 8v4m0 0v3" />
+    </svg>
+  ),
+};
 
 export default function MessagesPage() {
   const router = useRouter();
@@ -51,6 +75,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [showFriends, setShowFriends] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserId = async () => {
@@ -97,7 +122,7 @@ export default function MessagesPage() {
 
     fetchConversations();
     fetchFriends();
-    const interval = setInterval(fetchConversations, 5000);
+    const interval = setInterval(fetchConversations, 3000);
     return () => clearInterval(interval);
   }, [userId, router]);
 
@@ -129,58 +154,75 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-4 relative">
-      {/* Header مع زر جديد */}
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">الرسائل</h1>
-        {/* Floating Add Friend Button */}
-        <button
-          onClick={() => setShowFriends(!showFriends)}
-          className="w-12 h-12 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center text-xl font-bold transition transform hover:scale-110 active:scale-95 shadow-lg"
-          title="إضافة صديق جديد"
-        >
-          ➕
-        </button>
+    <div className="max-w-4xl mx-auto h-screen flex flex-col bg-white">
+      {/* Header */}
+      <div className="border-b border-gray-200 p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">💬 الرسائل</h1>
+            <p className="text-gray-500 text-sm mt-1">محادثاتك والأصدقاء</p>
+          </div>
+          {friends.length > 0 && (
+            <button
+              onClick={() => setShowFriends(!showFriends)}
+              className="w-14 h-14 rounded-full bg-gradient-to-br from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 text-white flex items-center justify-center shadow-lg transform transition hover:scale-110 active:scale-95"
+              title="بدء محادثة جديدة"
+            >
+              {Icons.plus}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Friends List - Toggleable */}
-      {showFriends && friends.length > 0 && (
-        <div className="mb-8 animate-slideDown">
-          <h2 className="text-lg font-bold mb-4">الأصدقاء</h2>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-            {friends.map((friend) => (
-              <button
-                key={friend.id}
-                onClick={() => startConversation(friend.id)}
-                className="p-2 hover:opacity-80 transition text-center"
-              >
-                {friend.avatarUrl && (
-                  <img
-                    src={friend.avatarUrl}
-                    alt={friend.displayName}
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto mb-2 border-2 border-blue-500"
-                  />
-                )}
-                <p className="font-semibold text-xs sm:text-sm truncate">
-                  {friend.displayName}
-                </p>
-              </button>
-            ))}
-          </div>
-          <hr className="my-6" />
+      {/* Notification Banner */}
+      {notification && (
+        <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 animate-slideDown">
+          <p className="font-semibold">{notification}</p>
         </div>
       )}
 
-      {/* Conversations List */}
-      <div>
-        <h2 className="text-lg font-bold mb-4">المحادثات</h2>
-        {conversations.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">لا توجد محادثات حالياً</p>
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Friends List - Toggleable */}
+        {showFriends && friends.length > 0 && (
+          <div className="border-b border-gray-200 bg-gray-50 p-4 sm:p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">الأصدقاء</h2>
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+              {friends.map((friend) => (
+                <button
+                  key={friend.id}
+                  onClick={() => startConversation(friend.id)}
+                  className="flex flex-col items-center gap-2 p-3 hover:bg-white rounded-lg transition transform hover:scale-105"
+                >
+                  <div className="relative">
+                    {friend.avatarUrl && (
+                      <img
+                        src={friend.avatarUrl}
+                        alt={friend.displayName}
+                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-green-500"
+                      />
+                    )}
+                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                  </div>
+                  <p className="font-semibold text-xs sm:text-sm text-center truncate w-full">
+                    {friend.displayName}
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {conversations.map((conv) => {
+        )}
+
+        {/* Conversations List */}
+        <div className="divide-y divide-gray-200">
+          {conversations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4">
+              <div className="text-6xl mb-4">💭</div>
+              <p className="text-gray-500 text-lg font-medium">لا توجد محادثات حالياً</p>
+              <p className="text-gray-400 text-sm mt-2">ابدأ محادثة جديدة مع أصدقائك</p>
+            </div>
+          ) : (
+            conversations.map((conv) => {
               const other = getOtherUser(conv);
               const lastMessage = conv.messages[0];
               const isUserMessage = lastMessage?.senderId === userId;
@@ -189,35 +231,49 @@ export default function MessagesPage() {
                 <Link
                   key={conv.id}
                   href={`/messages/${conv.id}`}
-                  className="block p-4 hover:bg-gray-100 rounded-lg border border-gray-200 transition"
+                  className="block p-4 sm:p-5 hover:bg-blue-50 transition border-l-4 border-transparent hover:border-blue-500"
                 >
-                  <div className="flex gap-3">
-                    {other.avatarUrl && (
-                      <img
-                        src={other.avatarUrl}
-                        alt={other.displayName}
-                        className="w-12 h-12 rounded-full object-cover"
-                      />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <h2 className="font-semibold text-right">
-                        {other.displayName}
-                      </h2>
-                      <p className="text-sm text-gray-600 truncate text-right">
-                        {isUserMessage && "أنت: "}
-                        {lastMessage?.body}
-                      </p>
-                      <p className="text-xs text-gray-400 text-right mt-1">
-                        {lastMessage?.createdAt &&
-                          formatTimeAr(lastMessage.createdAt)}
-                      </p>
+                  <div className="flex gap-4 items-start">
+                    {/* Avatar with Online Status */}
+                    <div className="relative shrink-0">
+                      {other.avatarUrl && (
+                        <img
+                          src={other.avatarUrl}
+                          alt={other.displayName}
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-gray-200"
+                        />
+                      )}
+                      <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-3 border-white"></div>
                     </div>
+
+                    {/* Message Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <h2 className="font-bold text-gray-900 text-lg">{other.displayName}</h2>
+                        <span className="text-xs sm:text-sm text-gray-500 shrink-0 ml-2">
+                          {lastMessage?.createdAt && formatTimeAr(lastMessage.createdAt)}
+                        </span>
+                      </div>
+
+                      <p className="text-sm sm:text-base text-gray-600 truncate mb-2">
+                        {isUserMessage && <span className="text-blue-600 font-semibold">أنت: </span>}
+                        {lastMessage?.body || "لا توجد رسائل"}
+                      </p>
+
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1 bg-gray-100 rounded-full"></div>
+                        <span className="text-xs text-green-600 font-semibold">نشط الآن</span>
+                      </div>
+                    </div>
+
+                    {/* Right Arrow */}
+                    <div className="shrink-0 text-gray-400 text-2xl">←</div>
                   </div>
                 </Link>
               );
-            })}
-          </div>
-        )}
+            })
+          )}
+        </div>
       </div>
     </div>
   );
