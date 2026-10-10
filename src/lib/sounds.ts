@@ -132,13 +132,15 @@ export const SOUNDS: Sound[] = [
   { key: "d03", cat: "daf", ar: "إيقاع دف سريع", en: "Upbeat frame drum", seconds: 30, credit: { author: "Anomyq", license: "CC0", url: commons("Oynak_(120_bpm).ogg") } },
 ];
 
+// In this order in the sound picker (the owner's choice, 2026-10-10): Quran, nasheeds, nature,
+// remembrance, occasions — then the rest. The first one opens by default.
 export const SOUND_CATEGORIES: { key: SoundCategory; emoji: string }[] = [
-  { key: "occasions", emoji: "🎉" },
-  { key: "people", emoji: "🎤" },
   { key: "quran", emoji: "🕋" },
+  { key: "nasheed", emoji: "🎙️" },
   { key: "nature", emoji: "🌿" },
   { key: "spiritual", emoji: "🤲" },
-  { key: "nasheed", emoji: "🎙️" },
+  { key: "occasions", emoji: "🎉" },
+  { key: "people", emoji: "🎤" },
   { key: "wisdom", emoji: "📜" },
   { key: "funny", emoji: "😂" },
   { key: "warm", emoji: "🤍" },
