@@ -345,7 +345,7 @@ export default function ConversationPage({
     conversation.user1Id === userId ? conversation.user2 : conversation.user1;
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-white sm:max-w-2xl sm:mx-auto relative">
+    <div className="flex flex-col h-screen w-screen bg-white relative">
       {/* Floating Notification Banner */}
       {notification && (
         <div className="fixed top-4 left-4 right-4 z-50 animate-in slide-in-from-top-2 fade-in">

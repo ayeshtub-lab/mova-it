@@ -100,7 +100,7 @@ export default function MessagesPage() {
     conv.user1Id === userId ? conv.user2 : conv.user1;
 
   return (
-    <div className="relative max-w-2xl mx-auto h-screen flex flex-col bg-white">
+    <div className="relative w-full h-screen flex flex-col bg-white">
       {/* Header */}
       <div className="border-b border-gray-300 px-6 py-5 flex items-center justify-between bg-gradient-to-r from-blue-50 via-blue-25 to-white sticky top-0 z-40 shadow-sm">
         <div>
