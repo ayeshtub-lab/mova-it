@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
 import { db } from "@/lib/db";
-import { Block } from "@prisma/client";
+import type { Block } from "@/generated/prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 // جلب قائمة المحادثات الخاصة بالمستخدم
