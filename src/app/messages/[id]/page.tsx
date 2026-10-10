@@ -165,7 +165,7 @@ export default function ConversationPage({
     conversation.user1Id === userId ? conversation.user2 : conversation.user1;
 
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto bg-white">
+    <div className="flex flex-col h-screen w-screen bg-white sm:max-w-2xl sm:mx-auto">
       {/* Header */}
       <div className="border-b p-3 sm:p-4 flex items-center gap-3 bg-white">
         {otherUser.avatarUrl && (
@@ -234,7 +234,7 @@ export default function ConversationPage({
       </div>
 
       {/* Input - Fixed to bottom */}
-      <form onSubmit={handleSend} className="border-t p-3 sm:p-4 bg-white">
+      <form onSubmit={handleSend} className="border-t p-3 sm:p-4 bg-white pb-20 sm:pb-4">
         <div className="flex gap-2">
           <input
             type="text"
