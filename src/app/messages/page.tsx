@@ -167,25 +167,25 @@ export default function MessagesPage() {
               <Link
                 key={conv.id}
                 href={`/messages/${conv.id}`}
-                className="block px-6 py-4 hover:bg-blue-50 active:bg-blue-100 transition-colors duration-150 border-r-4 border-transparent hover:border-blue-500"
+                className="block px-6 py-5 min-h-24 hover:bg-blue-50 active:bg-blue-100 transition-colors duration-150 border-r-4 border-transparent hover:border-blue-500 flex items-center"
               >
-                <div className="flex gap-4 items-center">
+                <div className="flex gap-4 items-center w-full">
                   <div className="relative flex-shrink-0">
                     {other.avatarUrl && (
                       <img
                         src={other.avatarUrl}
                         alt=""
-                        className="w-16 h-16 rounded-full object-cover border-2 border-gray-300 shadow-sm"
+                        className="w-20 h-20 rounded-full object-cover border-2 border-gray-300 shadow-md"
                       />
                     )}
-                    <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-white shadow-md"></div>
+                    <div className="absolute bottom-0 right-0 w-6 h-6 bg-green-500 rounded-full border-3 border-white shadow-lg animate-pulse"></div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="font-bold text-gray-900 text-base">{other.displayName}</h3>
-                      <span className="text-xs text-gray-500 font-semibold ml-2">{lastMsg && formatTime(lastMsg.createdAt)}</span>
+                    <div className="flex justify-between items-start gap-3 mb-2">
+                      <h3 className="font-bold text-gray-900 text-lg leading-tight">{other.displayName}</h3>
+                      <span className="text-xs text-gray-500 font-semibold whitespace-nowrap flex-shrink-0">{lastMsg && formatTime(lastMsg.createdAt)}</span>
                     </div>
-                    <p className="text-sm text-gray-600 truncate">
+                    <p className="text-sm text-gray-600 line-clamp-2 leading-snug">
                       {lastMsg ? lastMsg.body : "لا توجد رسائل"}
                     </p>
                   </div>
