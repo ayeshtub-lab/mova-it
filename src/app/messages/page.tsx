@@ -18,6 +18,12 @@ interface Conversation {
   }>;
 }
 
+interface Friend {
+  id: string;
+  displayName: string;
+  avatarUrl?: string;
+}
+
 function formatTimeAr(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -41,8 +47,10 @@ function formatTimeAr(dateStr: string): string {
 export default function MessagesPage() {
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showFriends, setShowFriends] = useState(false);
 
   useEffect(() => {
     const fetchUserId = async () => {
@@ -75,13 +83,42 @@ export default function MessagesPage() {
       }
     };
 
+    const fetchFriends = async () => {
+      try {
+        const res = await fetch("/api/friends");
+        if (res.ok) {
+          const data = await res.json();
+          setFriends(data);
+        }
+      } catch (error) {
+        console.error("خطأ في جلب الأصدقاء:", error);
+      }
+    };
+
     fetchConversations();
+    fetchFriends();
     const interval = setInterval(fetchConversations, 5000);
     return () => clearInterval(interval);
   }, [userId, router]);
 
   const getOtherUser = (conv: Conversation) =>
     conv.user1Id === userId ? conv.user2 : conv.user1;
+
+  const startConversation = async (friendId: string) => {
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: friendId }),
+      });
+      if (res.ok) {
+        const conversation = await res.json();
+        router.push(`/messages/${conversation.id}`);
+      }
+    } catch (error) {
+      console.error("خطأ في بدء المحادثة:", error);
+    }
+  };
 
   if (loading) {
     return (
@@ -94,12 +131,51 @@ export default function MessagesPage() {
   return (
     <div className="max-w-2xl mx-auto p-4">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">الرسائل</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold">الرسائل</h1>
+          <button
+            onClick={() => setShowFriends(!showFriends)}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+          >
+            {showFriends ? "إغلاق" : "➕ صديق جديد"}
+          </button>
+        </div>
       </div>
+
+      {showFriends && friends.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-bold mb-4">قائمة الأصدقاء</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {friends.map((friend) => (
+              <button
+                key={friend.id}
+                onClick={() => startConversation(friend.id)}
+                className="p-3 hover:bg-gray-100 rounded-lg border border-gray-200 transition text-center"
+              >
+                {friend.avatarUrl && (
+                  <img
+                    src={friend.avatarUrl}
+                    alt={friend.displayName}
+                    className="w-12 h-12 rounded-full object-cover mx-auto mb-2"
+                  />
+                )}
+                <p className="font-semibold text-sm truncate">
+                  {friend.displayName}
+                </p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {conversations.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500">لا توجد محادثات حالياً</p>
+          {friends.length > 0 && !showFriends && (
+            <p className="text-sm text-gray-400 mt-2">
+              اضغط "➕ صديق جديد" لبدء محادثة
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-2">
