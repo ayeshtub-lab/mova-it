@@ -321,7 +321,7 @@ export default function ConversationPage({
             onChange={(e) => {
               setInput(e.target.value);
               setIsTyping(true);
-              clearTimeout(typingTimeoutRef.current);
+              if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
               typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
             }}
             placeholder="اكتب رسالة..."
