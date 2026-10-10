@@ -731,6 +731,9 @@ model Conversation {
   // متى آخر ظهور لكل شخص (يحدد المحادثة كمقروءة لهم)
   user1SeenAt DateTime?
   user2SeenAt DateTime?
+  // متى كان آخر ظهور للمستخدم (للـ online status)
+  user1LastSeen DateTime?
+  user2LastSeen DateTime?
 
   user1    User      @relation("ConversationUser1", fields: [user1Id], references: [id], onDelete: Cascade)
   user2    User      @relation("ConversationUser2", fields: [user2Id], references: [id], onDelete: Cascade)
@@ -747,6 +750,10 @@ model Message {
   conversationId String
   senderId       String
   body           String
+  // حالة الرسالة: sent, delivered, read
+  status         String   @default("sent")
+  // متى تمت قراءة الرسالة
+  readAt         DateTime?
   createdAt      DateTime @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

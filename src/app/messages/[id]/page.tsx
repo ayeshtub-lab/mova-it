@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+// Emoji list بسيط
+const EMOJIS = ["😀", "😂", "❤️", "😍", "🔥", "👍", "😎", "🚀", "✨", "🎉", "😢", "😡", "🤔", "👌", "💯"];
+
 function formatTimeAr(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -19,11 +22,21 @@ function formatTimeAr(dateStr: string): string {
   return `${hours}:${mins}`;
 }
 
+function getStatusIcon(status: string) {
+  switch(status) {
+    case "read": return "✓✓";
+    case "delivered": return "✓✓";
+    case "sent": return "✓";
+    default: return "";
+  }
+}
+
 interface Message {
   id: string;
   conversationId: string;
   senderId: string;
   body: string;
+  status: string;
   createdAt: string;
   sender: { id: string; displayName: string; avatarUrl?: string };
 }
@@ -49,6 +62,11 @@ export default function ConversationPage({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [friends, setFriends] = useState<any[]>([]);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get conversation ID
@@ -187,7 +205,7 @@ export default function ConversationPage({
       </div>
 
       {/* Messages - Black Background with Watermark */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 relative" style={{ backgroundColor: "#0f0f0f" }}>
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 relative" style={{ backgroundColor: "#0f0f0f" }}>
         {/* Watermark */}
         <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
           <div className="text-center">
@@ -200,57 +218,135 @@ export default function ConversationPage({
         <div className="relative z-10">
           {messages.length === 0 ? (
             <div className="text-center text-gray-400 py-8">
-              ابدأ المحادثة
+              👋 ابدأ المحادثة
             </div>
           ) : (
-            messages.map((msg) => (
+            messages.map((msg, idx) => (
               <div
                 key={msg.id}
-                className={`flex ${msg.senderId === userId ? "justify-end" : "justify-start"}`}
+                className={`flex ${msg.senderId === userId ? "justify-end" : "justify-start"} animate-fadeIn`}
               >
                 <div
-                  className={`max-w-xs px-4 py-2 rounded-lg ${
+                  className={`max-w-xs px-4 py-2 rounded-xl shadow-lg transform transition ${
                     msg.senderId === userId
-                      ? "bg-blue-500 text-white"
-                      : "bg-gray-700 text-gray-100"
+                      ? "bg-blue-500 text-white rounded-bl-2xl"
+                      : "bg-gray-700 text-gray-100 rounded-br-2xl"
                   }`}
                 >
                   <p className="break-words text-sm sm:text-base">{msg.body}</p>
-                  <p
-                    className={`text-xs mt-1 ${
+                  <div
+                    className={`text-xs mt-1 flex items-center gap-1 ${
                       msg.senderId === userId
-                        ? "text-blue-100"
+                        ? "text-blue-100 justify-end"
                         : "text-gray-400"
                     }`}
                   >
-                    {formatTimeAr(msg.createdAt)}
-                  </p>
+                    <span>{formatTimeAr(msg.createdAt)}</span>
+                    {msg.senderId === userId && <span className="ml-1">{getStatusIcon(msg.status)}</span>}
+                  </div>
                 </div>
               </div>
             ))
+          )}
+          {isTyping && (
+            <div className="flex justify-start animate-pulse">
+              <div className="bg-gray-700 text-gray-100 px-4 py-2 rounded-xl">
+                <div className="flex gap-1">
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></span>
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></span>
+                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></span>
+                </div>
+              </div>
+            </div>
           )}
           <div ref={messagesEndRef} />
         </div>
       </div>
 
       {/* Input - Fixed to bottom */}
-      <form onSubmit={handleSend} className="border-t p-3 sm:p-4 bg-white pb-20 sm:pb-4">
-        <div className="flex gap-2">
+      <form onSubmit={handleSend} className="border-t p-3 sm:p-4 bg-gradient-to-b from-gray-50 to-white pb-20 sm:pb-4">
+        {/* Emoji Picker */}
+        {showEmoji && (
+          <div className="mb-3 p-3 bg-white rounded-lg border border-gray-300 grid grid-cols-8 gap-1 animate-slideUp">
+            {EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => {
+                  setInput(input + emoji);
+                  setShowEmoji(false);
+                }}
+                className="text-lg hover:bg-gray-100 p-2 rounded transition"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-2 items-end">
+          {/* Add Friends Button */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowFriends(!showFriends)}
+              className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center transition transform hover:scale-110 active:scale-95"
+              title="إضافة صديق"
+            >
+              ➕
+            </button>
+            {showFriends && friends.length > 0 && (
+              <div className="absolute bottom-12 left-0 bg-white border border-gray-300 rounded-lg p-2 space-y-1 w-max max-h-40 overflow-y-auto shadow-lg z-50 animate-slideUp">
+                {friends.slice(0, 5).map((friend) => (
+                  <button
+                    key={friend.id}
+                    type="button"
+                    onClick={() => {
+                      // بدء محادثة جديدة
+                      setShowFriends(false);
+                    }}
+                    className="block w-full text-left px-3 py-2 hover:bg-blue-100 rounded text-sm truncate"
+                  >
+                    {friend.displayName}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Main Input */}
           <input
             type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              setIsTyping(true);
+              clearTimeout(typingTimeoutRef.current);
+              typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 3000);
+            }}
             placeholder="اكتب رسالة..."
-            className="flex-1 px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 text-sm sm:text-base"
+            className="flex-1 px-4 py-3 sm:py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-blue-50 text-sm sm:text-base transition bg-gray-100"
             disabled={sending}
             autoComplete="off"
           />
+
+          {/* Emoji Button */}
+          <button
+            type="button"
+            onClick={() => setShowEmoji(!showEmoji)}
+            className="w-10 h-10 hover:bg-yellow-100 text-xl rounded-full flex items-center justify-center transition"
+            title="إضافة إيموجي"
+          >
+            😀
+          </button>
+
+          {/* Send Button */}
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="bg-blue-500 text-white px-4 py-2 sm:px-6 sm:py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50 text-sm sm:text-base whitespace-nowrap"
+            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed transition transform hover:scale-105 active:scale-95 whitespace-nowrap"
           >
-            {sending ? "جاري..." : "إرسال"}
+            {sending ? "⏳" : "📤"}
           </button>
         </div>
       </form>
