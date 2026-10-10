@@ -5,7 +5,7 @@
   ],
   "git": {
     "deploymentEnabled": {
-      "v2": false,
+      "v2": true,
       "spotlight": false
     }
   },
