@@ -434,13 +434,10 @@ export default function ConversationPage({
       </div>
 
       {/* Input Section */}
-      <form
-        onSubmit={handleSend}
-        className="border-t border-gray-300 px-6 py-5 bg-white"
-      >
+      <div className="border-t border-gray-300 bg-gray-100 px-4 py-4">
         {/* Emoji Picker */}
         {showEmoji && (
-          <div className="mb-4 p-4 bg-gray-50 rounded-xl border border-gray-200 grid grid-cols-8 gap-2 animate-in fade-in slide-in-from-bottom-2">
+          <div className="mb-4 p-4 bg-white rounded-xl border border-gray-200 grid grid-cols-8 gap-2 animate-in fade-in slide-in-from-bottom-2">
             {EMOJIS.map((emoji) => (
               <button
                 key={emoji}
@@ -449,7 +446,7 @@ export default function ConversationPage({
                   setInput(input + emoji);
                   setShowEmoji(false);
                 }}
-                className="text-2xl hover:bg-white p-2 rounded-lg transition-all duration-150 hover:scale-110 active:scale-95"
+                className="text-2xl hover:bg-gray-100 p-2 rounded-lg transition-all duration-150 hover:scale-110 active:scale-95"
               >
                 {emoji}
               </button>
@@ -459,7 +456,7 @@ export default function ConversationPage({
 
         {/* Recording UI */}
         {isRecording && (
-          <div className="mb-4 p-4 bg-gradient-to-r from-red-100 to-red-50 border-l-4 border-red-500 rounded-lg flex items-center gap-4 animate-pulse">
+          <div className="mb-4 p-4 bg-red-100 border-l-4 border-red-500 rounded-lg flex items-center gap-4 animate-pulse">
             <div className="w-4 h-4 bg-red-600 rounded-full animate-pulse flex-shrink-0"></div>
             <div className="flex-1">
               <p className="text-red-800 font-bold text-base">
@@ -488,47 +485,50 @@ export default function ConversationPage({
           </div>
         )}
 
-        <div className="flex gap-3 items-end">
+        <form onSubmit={handleSend} className="flex gap-2 items-end">
           {/* Plus Button */}
           <button
             type="button"
-            className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-full flex items-center justify-center transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-md flex-shrink-0"
+            className="w-11 h-11 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-md flex-shrink-0"
             title="إجراءات"
             aria-label="إجراءات إضافية"
           >
-            <Plus size={24} className="stroke-2" />
+            <Plus size={22} className="stroke-2" />
           </button>
 
-          {/* Main Input */}
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              setIsTyping(true);
-              if (typingTimeoutRef.current)
-                clearTimeout(typingTimeoutRef.current);
-              typingTimeoutRef.current = setTimeout(
-                () => setIsTyping(false),
-                2000
-              );
-            }}
-            placeholder="اكتب رسالة..."
-            className="flex-1 px-5 py-3 border-2 border-gray-300 rounded-full focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 text-base transition-all duration-150 bg-slate-100 text-gray-900 font-semibold placeholder-gray-500"
-            disabled={sending || isRecording}
-            autoComplete="off"
-          />
+          {/* Main Input Wrapper */}
+          <div className="flex-1 flex gap-2 items-center bg-white rounded-full px-4 py-2 shadow-sm border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 transition-all">
+            {/* Main Input */}
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                setIsTyping(true);
+                if (typingTimeoutRef.current)
+                  clearTimeout(typingTimeoutRef.current);
+                typingTimeoutRef.current = setTimeout(
+                  () => setIsTyping(false),
+                  2000
+                );
+              }}
+              placeholder="اكتب رسالة..."
+              className="flex-1 bg-white text-gray-900 placeholder-gray-600 text-sm outline-none font-semibold"
+              disabled={sending || isRecording}
+              autoComplete="off"
+            />
 
-          {/* Emoji Button */}
-          <button
-            type="button"
-            onClick={() => setShowEmoji(!showEmoji)}
-            className="w-12 h-12 hover:bg-yellow-100 text-3xl rounded-full flex items-center justify-center transition-all duration-150 hover:scale-110 active:scale-95 flex-shrink-0"
-            title="إيموجي"
-            aria-label="إضافة إيموجي"
-          >
-            😀
-          </button>
+            {/* Emoji Button */}
+            <button
+              type="button"
+              onClick={() => setShowEmoji(!showEmoji)}
+              className="text-xl hover:opacity-70 transition-opacity flex-shrink-0"
+              title="إيموجي"
+              aria-label="إضافة إيموجي"
+            >
+              😀
+            </button>
+          </div>
 
           {/* Mic Button */}
           <button
@@ -536,32 +536,32 @@ export default function ConversationPage({
             onClick={() =>
               isRecording ? stopRecording(true) : startRecording()
             }
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-md flex-shrink-0 ${
+            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-md flex-shrink-0 ${
               isRecording
-                ? "bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white"
-                : "bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white"
+                ? "bg-red-500 hover:bg-red-600 text-white"
+                : "bg-blue-500 hover:bg-blue-600 text-white"
             }`}
             title={isRecording ? "إيقاف التسجيل" : "تسجيل صوتي"}
             aria-label={isRecording ? "إيقاف التسجيل" : "بدء التسجيل الصوتي"}
           >
-            <Mic size={24} className="stroke-2" />
+            <Mic size={20} className="stroke-2" />
           </button>
 
           {/* Send Button */}
           <button
             type="submit"
             disabled={sending || !input.trim() || isRecording}
-            className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-full flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-md flex-shrink-0"
+            className="w-11 h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-md flex-shrink-0"
             aria-label="إرسال الرسالة"
           >
             {sending ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <Send size={22} className="stroke-2" />
+              <Send size={20} className="stroke-2" />
             )}
           </button>
-        </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
