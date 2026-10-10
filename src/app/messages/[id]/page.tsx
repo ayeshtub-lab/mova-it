@@ -118,10 +118,14 @@ export default function ConversationPage({
     return () => clearInterval(interval);
   }, [id, loading, router]);
 
-  // Scroll to bottom
+  // Scroll to bottom - ONLY when new message is added
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (messages.length > 0) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, 0);
+    }
+  }, [messages.length]);
 
   // Fetch conversation info
   useEffect(() => {

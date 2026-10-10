@@ -50,6 +50,7 @@ export default function MessagesPage() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [showFriends, setShowFriends] = useState(false);
 
   useEffect(() => {
     const fetchUserId = async () => {
@@ -128,14 +129,23 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <div className="mb-6">
+    <div className="max-w-2xl mx-auto p-4 relative">
+      {/* Header مع زر جديد */}
+      <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-bold">الرسائل</h1>
+        {/* Floating Add Friend Button */}
+        <button
+          onClick={() => setShowFriends(!showFriends)}
+          className="w-12 h-12 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center text-xl font-bold transition transform hover:scale-110 active:scale-95 shadow-lg"
+          title="إضافة صديق جديد"
+        >
+          ➕
+        </button>
       </div>
 
-      {/* Friends List - Always Visible */}
-      {friends.length > 0 && (
-        <div className="mb-8">
+      {/* Friends List - Toggleable */}
+      {showFriends && friends.length > 0 && (
+        <div className="mb-8 animate-slideDown">
           <h2 className="text-lg font-bold mb-4">الأصدقاء</h2>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
             {friends.map((friend) => (
