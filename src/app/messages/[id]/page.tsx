@@ -64,23 +64,75 @@ function formatTimeAr(dateStr: string): string {
   return `${hours}:${mins}`;
 }
 
-function playNotificationSound() {
+let messageAudio: HTMLAudioElement | null = null;
+
+function initializeAudio() {
+  if (typeof window === "undefined" || messageAudio) return;
+
   try {
+    messageAudio = new Audio();
+    messageAudio.preload = "auto";
+    // Create a simple beep using Web Audio API and store as data URL
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
-
     oscillator.frequency.value = 800;
     oscillator.type = "sine";
-
     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
 
+    const mediaStream = audioContext.createMediaStreamDestination();
+    oscillator.connect(mediaStream);
+    const mediaRecorder = new MediaRecorder(mediaStream.stream);
+    const audioChunks: BlobPart[] = [];
+
+    mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
+    mediaRecorder.onstop = () => {
+      const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      if (messageAudio) messageAudio.src = audioUrl;
+    };
+
+    mediaRecorder.start();
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.5);
+    mediaRecorder.stop();
+  } catch (error) {
+    console.error("خطأ في إعداد الصوت:", error);
+  }
+}
+
+function playNotificationSound() {
+  if (!messageAudio) {
+    initializeAudio();
+  }
+
+  try {
+    if (messageAudio && messageAudio.src) {
+      messageAudio.currentTime = 0;
+      messageAudio.play().catch((e) => {
+        console.log("تعذر تشغيل الصوت (قد تكون سياسة المتصفح):", e);
+        // Fallback: Web Audio API
+        try {
+          const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          oscillator.frequency.value = 800;
+          oscillator.type = "sine";
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+          oscillator.start(audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (fallbackError) {
+          console.error("فشل Fallback للصوت:", fallbackError);
+        }
+      });
+    }
   } catch (error) {
     console.error("خطأ في تشغيل الصوت:", error);
   }
@@ -117,6 +169,11 @@ export default function ConversationPage({
   useEffect(() => {
     params.then((p) => setId(p.id));
   }, [params]);
+
+  // Initialize audio on component mount
+  useEffect(() => {
+    initializeAudio();
+  }, []);
 
   useEffect(() => {
     const fetchUserId = async () => {
@@ -231,20 +288,30 @@ export default function ConversationPage({
     e.preventDefault();
     if (!input.trim() || !id || sending) return;
 
+    const messageText = input.trim();
     setSending(true);
+
+    // Initialize audio on first send
+    if (!messageAudio) {
+      initializeAudio();
+    }
+
     try {
       const res = await fetch(`/api/conversations/${id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: input }),
+        body: JSON.stringify({ body: messageText }),
       });
 
       if (res.ok) {
         const newMessage = await res.json();
-        setMessages([...messages, newMessage]);
+        setMessages((prev) => [...prev, newMessage]);
         setInput("");
         setShowEmoji(false);
         setLastMessageCount((prev) => prev + 1);
+
+        // Play outgoing message sound immediately
+        playNotificationSound();
 
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
