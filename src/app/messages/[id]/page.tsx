@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Send, Mic, Plus, SmilePlus, ArrowLeft, CheckCheck, X } from "lucide-react";
+import { Send, Mic, SmilePlus, ArrowLeft, CheckCheck, X } from "lucide-react";
 
 interface Message {
   id: string;
@@ -15,12 +15,35 @@ interface Message {
   isVoiceNote?: boolean;
 }
 
+type Person = { id: string; displayName: string; avatarUrl?: string | null; verified?: boolean };
+
 interface Conversation {
   id: string;
   user1Id: string;
   user2Id: string;
-  user1: { id: string; displayName: string; avatarUrl?: string };
-  user2: { id: string; displayName: string; avatarUrl?: string };
+  user1: Person;
+  user2: Person;
+}
+
+// The other person's picture: theirs, Zawmo's logo for the official account, else their first letter.
+function Avatar({ person }: { person: Person }) {
+  const official = person.verified && person.displayName === "زاومو";
+  return (
+    <div className="relative size-12 shrink-0">
+      {person.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a profile picture link
+        <img src={person.avatarUrl} alt={person.displayName} className="size-12 rounded-full border-2 border-green-500 object-cover" />
+      ) : official ? (
+        // eslint-disable-next-line @next/next/no-img-element -- Zawmo's own logo
+        <img src="/icons/icon-192.png" alt={person.displayName} className="size-12 rounded-full border-2 border-green-500 object-cover" />
+      ) : (
+        <span className="flex size-12 items-center justify-center rounded-full border-2 border-green-500 bg-accent-soft text-xl font-extrabold text-accent-ink">
+          {person.displayName.charAt(0)}
+        </span>
+      )}
+      <span aria-hidden="true" className="absolute -bottom-0.5 -start-0.5 size-3.5 rounded-full border-2 border-white bg-green-500" />
+    </div>
+  );
 }
 
 interface Notification {
@@ -345,7 +368,9 @@ export default function ConversationPage({
     conversation.user1Id === userId ? conversation.user2 : conversation.user1;
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-white relative">
+    // Just the screen's height (dvh: a phone's browser bars included), with room under it for the
+    // bottom bar on phones — so the box to write in is always in sight above it.
+    <div className="relative flex h-[100dvh] w-full flex-col bg-white pb-[calc(5.25rem+env(safe-area-inset-bottom))] sm:pb-0">
       {/* Floating Notification Banner */}
       {notification && (
         <div className="fixed top-4 left-4 right-4 z-50 animate-in slide-in-from-top-2 fade-in">
@@ -364,26 +389,16 @@ export default function ConversationPage({
         </div>
       )}
 
-      {/* Header */}
-      <div className="border-b border-gray-300 px-6 py-5 flex items-center gap-4 bg-gradient-to-r from-blue-50 via-blue-25 to-white sticky top-0 z-40 shadow-sm">
-        <div className="relative flex-shrink-0">
-          {otherUser.avatarUrl && (
-            <img
-              src={otherUser.avatarUrl}
-              alt={otherUser.displayName}
-              className="w-14 h-14 rounded-full object-cover border-2 border-green-500 shadow-md"
-            />
-          )}
-          <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-md animate-pulse"></div>
-        </div>
-        <div className="flex-1">
-          <h1 className="font-bold text-lg text-gray-900">{otherUser.displayName}</h1>
-          <p className="text-xs text-green-600 font-semibold mt-0.5">نشط الآن</p>
+      {/* Header: their picture (green ring, online dot), name, and back. */}
+      <div className="sticky top-0 z-30 flex shrink-0 items-center gap-3 border-b border-gray-200 bg-gradient-to-l from-white to-blue-50 px-4 py-3 shadow-sm">
+        <Avatar person={otherUser} />
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-lg font-extrabold text-gray-900">{otherUser.displayName}</h1>
+          <p className="text-xs font-semibold text-green-600">نشط الآن</p>
         </div>
         <button
           onClick={() => router.push("/messages")}
-          className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-2 rounded-lg transition-colors"
-          title="العودة"
+          className="flex size-11 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
           aria-label="العودة للمحادثات"
         >
           <ArrowLeft size={24} className="stroke-2" />
@@ -434,7 +449,7 @@ export default function ConversationPage({
       </div>
 
       {/* Input Section */}
-      <div className="border-t border-gray-300 bg-gray-100 px-4 py-4">
+      <div className="shrink-0 border-t border-gray-200 bg-gray-100 px-3 py-2">
         {/* Emoji Picker */}
         {showEmoji && (
           <div className="mb-4 p-4 bg-white rounded-xl border border-gray-200 grid grid-cols-8 gap-2 animate-in fade-in slide-in-from-bottom-2">
@@ -485,80 +500,45 @@ export default function ConversationPage({
           </div>
         )}
 
-        <form onSubmit={handleSend} className="flex gap-2 items-end">
-          {/* Plus Button */}
-          <button
-            type="button"
-            className="w-11 h-11 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-md flex-shrink-0"
-            title="إجراءات"
-            aria-label="إجراءات إضافية"
-          >
-            <Plus size={22} className="stroke-2" />
-          </button>
-
-          {/* Main Input Wrapper */}
-          <div className="flex-1 flex gap-2 items-center bg-white rounded-full px-4 py-2 shadow-sm border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200 transition-all">
-            {/* Main Input */}
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                setIsTyping(true);
-                if (typingTimeoutRef.current)
-                  clearTimeout(typingTimeoutRef.current);
-                typingTimeoutRef.current = setTimeout(
-                  () => setIsTyping(false),
-                  2000
-                );
-              }}
-              placeholder="اكتب رسالة..."
-              className="flex-1 bg-white text-gray-900 placeholder-gray-600 text-sm outline-none font-semibold"
-              disabled={sending || isRecording}
-              autoComplete="off"
-            />
-
-            {/* Emoji Button */}
-            <button
-              type="button"
-              onClick={() => setShowEmoji(!showEmoji)}
-              className="text-xl hover:opacity-70 transition-opacity flex-shrink-0"
-              title="إيموجي"
-              aria-label="إضافة إيموجي"
-            >
-              😀
-            </button>
-          </div>
-
-          {/* Mic Button */}
-          <button
-            type="button"
-            onClick={() =>
-              isRecording ? stopRecording(true) : startRecording()
-            }
-            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-md flex-shrink-0 ${
-              isRecording
-                ? "bg-red-500 hover:bg-red-600 text-white"
-                : "bg-blue-500 hover:bg-blue-600 text-white"
-            }`}
-            title={isRecording ? "إيقاف التسجيل" : "تسجيل صوتي"}
-            aria-label={isRecording ? "إيقاف التسجيل" : "بدء التسجيل الصوتي"}
-          >
-            <Mic size={20} className="stroke-2" />
-          </button>
-
-          {/* Send Button */}
+        <form onSubmit={handleSend} className="flex items-center gap-2">
           <button
             type="submit"
             disabled={sending || !input.trim() || isRecording}
-            className="w-11 h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-110 active:scale-95 shadow-md flex-shrink-0"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-blue-600 transition-colors hover:bg-blue-50 disabled:text-gray-400"
             aria-label="إرسال الرسالة"
           >
-            {sending ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <Send size={20} className="stroke-2" />
-            )}
+            {sending ? <div className="size-5 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" /> : <Send size={24} className="-scale-x-100 stroke-2" />}
+          </button>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              setIsTyping(true);
+              if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+              typingTimeoutRef.current = setTimeout(() => setIsTyping(false), 2000);
+            }}
+            placeholder="اكتب رسالة..."
+            className="min-h-11 min-w-0 flex-1 rounded-2xl border border-gray-300 bg-white px-4 text-base text-gray-900 outline-none placeholder:text-gray-500 focus:border-blue-500"
+            disabled={sending || isRecording}
+            autoComplete="off"
+            enterKeyHint="send"
+          />
+          <button
+            type="button"
+            onClick={() => setShowEmoji(!showEmoji)}
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-200"
+            aria-label="إضافة إيموجي"
+          >
+            <SmilePlus size={22} className="stroke-2" />
+          </button>
+          <button
+            type="button"
+            onClick={() => (isRecording ? stopRecording(true) : startRecording())}
+            className={`flex size-11 shrink-0 items-center justify-center rounded-full transition-colors ${isRecording ? "bg-red-500 text-white" : "text-gray-600 hover:bg-gray-200"}`}
+            aria-label={isRecording ? "إيقاف التسجيل" : "بدء التسجيل الصوتي"}
+          >
+            <Mic size={22} className="stroke-2" />
           </button>
         </form>
       </div>

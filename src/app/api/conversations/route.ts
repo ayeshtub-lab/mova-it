@@ -19,8 +19,8 @@ export async function GET() {
         ],
       },
       include: {
-        user1: { select: { id: true, displayName: true, avatarUrl: true } },
-        user2: { select: { id: true, displayName: true, avatarUrl: true } },
+        user1: { select: { id: true, displayName: true, avatarUrl: true, verified: true } },
+        user2: { select: { id: true, displayName: true, avatarUrl: true, verified: true } },
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -124,8 +124,8 @@ export async function POST(req: NextRequest) {
       },
       update: {},
       include: {
-        user1: { select: { id: true, displayName: true, avatarUrl: true } },
-        user2: { select: { id: true, displayName: true, avatarUrl: true } },
+        user1: { select: { id: true, displayName: true, avatarUrl: true, verified: true } },
+        user2: { select: { id: true, displayName: true, avatarUrl: true, verified: true } },
       },
     });
 
