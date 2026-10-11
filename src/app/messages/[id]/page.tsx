@@ -310,6 +310,23 @@ export default function ConversationPage({
         setShowEmoji(false);
         setLastMessageCount((prev) => prev + 1);
 
+        // 🔥 IMMEDIATE notification trigger - show banner right now
+        const notifId = `sent-${Date.now()}`;
+        setNotification({
+          id: notifId,
+          senderName: "أنت",
+          message: messageText.substring(0, 60),
+          type: "success",
+        });
+
+        // Auto-dismiss after 4 seconds
+        if (notificationTimeoutRef.current) {
+          clearTimeout(notificationTimeoutRef.current);
+        }
+        notificationTimeoutRef.current = setTimeout(() => {
+          setNotification((prev) => (prev?.id === notifId ? null : prev));
+        }, 4000);
+
         // Play outgoing message sound immediately
         playNotificationSound();
 
