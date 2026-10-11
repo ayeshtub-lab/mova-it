@@ -209,7 +209,7 @@ export default function ConversationPage({
     return () => clearInterval(interval);
   }, [id]);
 
-  const showNotification = (senderName: string, message: string) => {
+  const showNotification = (senderName: string, message: string, avatarUrl?: string) => {
     const notifId = Date.now().toString();
     setNotification({
       id: notifId,
@@ -224,7 +224,7 @@ export default function ConversationPage({
 
     notificationTimeoutRef.current = setTimeout(() => {
       setNotification(null);
-    }, 4000);
+    }, 5000);
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -380,14 +380,32 @@ export default function ConversationPage({
       {/* Floating Notification Banner */}
       {notification && (
         <div className="fixed top-4 left-4 right-4 z-50 animate-in slide-in-from-top-2 fade-in">
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center justify-between">
-            <div className="flex-1">
-              <p className="font-bold text-sm">رسالة من {notification.senderName}</p>
-              <p className="text-sm mt-1 text-blue-100">{notification.message}</p>
+          <div className="bg-white border-l-4 border-blue-500 rounded-lg shadow-2xl p-4 flex items-center gap-4">
+            <div className="flex-shrink-0">
+              {otherUser.avatarUrl ? (
+                <img
+                  src={otherUser.avatarUrl}
+                  alt={otherUser.displayName}
+                  className="w-14 h-14 rounded-full object-cover border-2 border-blue-500 shadow-md"
+                />
+              ) : (
+                <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-500">
+                  <span className="text-2xl font-bold text-blue-600">
+                    {otherUser.displayName.charAt(0)}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-gray-900 text-sm">رسالة من {notification.senderName}</p>
+              <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                {notification.message}
+              </p>
             </div>
             <button
               onClick={() => setNotification(null)}
-              className="ml-4 text-blue-100 hover:text-white transition-colors"
+              className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="إغلاق الإشعار"
             >
               <X size={20} />
             </button>

@@ -1,14 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, MessageCircle, Users } from "lucide-react";
+import { Plus, MessageCircle, Users, X } from "lucide-react";
 
 interface Friend {
   id: string;
   displayName: string;
   avatarUrl?: string;
+}
+
+interface Notification {
+  id: string;
+  message: string;
+  senderName: string;
+  senderAvatar?: string;
+  conversationId: string;
+  type: "success" | "info" | "error";
 }
 
 interface Conversation {
@@ -36,6 +45,28 @@ function formatTime(dateStr: string): string {
   return date.toLocaleDateString("ar-SA", { month: "short", day: "numeric" });
 }
 
+function playNotificationSound() {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.value = 800;
+    oscillator.type = "sine";
+
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.5);
+  } catch (error) {
+    console.error("خطأ في تشغيل الصوت:", error);
+  }
+}
+
 export default function MessagesPage() {
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -43,6 +74,9 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [showFriends, setShowFriends] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const notificationTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
+  const lastMessageCountRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const init = async () => {
@@ -57,6 +91,30 @@ export default function MessagesPage() {
     init();
   }, [router]);
 
+  const showNotification = (senderName: string, message: string, senderAvatar: string | undefined, conversationId: string) => {
+    const notifId = `${conversationId}-${Date.now()}`;
+    const newNotif: Notification = {
+      id: notifId,
+      senderName,
+      message,
+      senderAvatar,
+      conversationId,
+      type: "info",
+    };
+
+    setNotifications((prev) => [...prev, newNotif]);
+    playNotificationSound();
+
+    if (notificationTimeoutRef.current[notifId]) {
+      clearTimeout(notificationTimeoutRef.current[notifId]);
+    }
+
+    notificationTimeoutRef.current[notifId] = setTimeout(() => {
+      setNotifications((prev) => prev.filter((n) => n.id !== notifId));
+      delete notificationTimeoutRef.current[notifId];
+    }, 5000);
+  };
+
   useEffect(() => {
     if (!userId) return;
 
@@ -67,7 +125,32 @@ export default function MessagesPage() {
           fetch("/api/friends"),
         ]);
 
-        if (convRes.ok) setConversations(await convRes.json());
+        if (convRes.ok) {
+          const newConvs = await convRes.json();
+          setConversations(newConvs);
+
+          // Check for new messages in each conversation
+          newConvs.forEach((conv: Conversation) => {
+            const convId = conv.id;
+            const newMsgCount = conv.messages.length;
+            const lastCount = lastMessageCountRef.current[convId] ?? 0;
+
+            if (lastCount > 0 && newMsgCount > lastCount) {
+              const otherUser = conv.user1Id === userId ? conv.user2 : conv.user1;
+              const lastMsg = conv.messages[0];
+              if (lastMsg && lastMsg.senderId !== userId) {
+                showNotification(
+                  otherUser.displayName,
+                  lastMsg.body.substring(0, 60),
+                  otherUser.avatarUrl,
+                  convId
+                );
+              }
+            }
+
+            lastMessageCountRef.current[convId] = newMsgCount;
+          });
+        }
         if (friendRes.ok) setFriends(await friendRes.json());
       } catch (error) {
         console.error("خطأ:", error);
@@ -102,6 +185,56 @@ export default function MessagesPage() {
 
   return (
     <div className="relative w-full h-screen flex flex-col bg-white">
+      {/* Floating Notifications Stack */}
+      <div className="fixed top-4 left-4 right-4 z-50 space-y-2 pointer-events-none">
+        {notifications.map((notif) => (
+          <div
+            key={notif.id}
+            className="animate-in slide-in-from-top-2 fade-in pointer-events-auto"
+          >
+            <div className="bg-white border-l-4 border-blue-500 rounded-lg shadow-lg p-4 flex items-center gap-3 hover:shadow-xl transition-shadow">
+              <div className="flex-shrink-0">
+                {notif.senderAvatar ? (
+                  <img
+                    src={notif.senderAvatar}
+                    alt={notif.senderName}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-blue-500"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center border-2 border-blue-500">
+                    <span className="text-lg font-bold text-blue-600">
+                      {notif.senderName.charAt(0)}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900 text-sm">{notif.senderName}</p>
+                <p className="text-sm text-gray-600 truncate">
+                  {notif.message}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setNotifications((prev) =>
+                    prev.filter((n) => n.id !== notif.id)
+                  );
+                  if (notificationTimeoutRef.current[notif.id]) {
+                    clearTimeout(
+                      notificationTimeoutRef.current[notif.id]
+                    );
+                    delete notificationTimeoutRef.current[notif.id];
+                  }
+                }}
+                className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Header */}
       <div className="border-b border-gray-300 px-6 py-5 flex items-center justify-between bg-gradient-to-r from-blue-50 via-blue-25 to-white sticky top-0 z-40 shadow-sm">
         <div>
