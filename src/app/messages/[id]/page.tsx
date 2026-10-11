@@ -26,22 +26,24 @@ interface Conversation {
 }
 
 // The other person's picture: theirs, Zawmo's logo for the official account, else their first letter.
-function Avatar({ person }: { person: Person }) {
+function Avatar({ person, isOnline = false }: { person: Person; isOnline?: boolean }) {
   const official = person.verified && person.displayName === "زاومو";
+  const borderColor = isOnline ? "border-green-500" : "border-gray-300";
+
   return (
     <div className="relative size-12 shrink-0">
       {person.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- a profile picture link
-        <img src={person.avatarUrl} alt={person.displayName} className="size-12 rounded-full border-2 border-green-500 object-cover" />
+        <img src={person.avatarUrl} alt={person.displayName} className={`size-12 rounded-full border-2 ${borderColor} object-cover`} />
       ) : official ? (
         // eslint-disable-next-line @next/next/no-img-element -- Zawmo's own logo
-        <img src="/icons/icon-192.png" alt={person.displayName} className="size-12 rounded-full border-2 border-green-500 object-cover" />
+        <img src="/icons/icon-192.png" alt={person.displayName} className={`size-12 rounded-full border-2 ${borderColor} object-cover`} />
       ) : (
-        <span className="flex size-12 items-center justify-center rounded-full border-2 border-green-500 bg-accent-soft text-xl font-extrabold text-accent-ink">
+        <span className={`flex size-12 items-center justify-center rounded-full border-2 ${borderColor} bg-accent-soft text-xl font-extrabold text-accent-ink`}>
           {person.displayName.charAt(0)}
         </span>
       )}
-      <span aria-hidden="true" className="absolute -bottom-0.5 -start-0.5 size-3.5 rounded-full border-2 border-white bg-green-500" />
+      {isOnline && <span aria-hidden="true" className="absolute -bottom-0.5 -start-0.5 size-3.5 rounded-full border-2 border-white bg-green-500 animate-pulse" />}
     </div>
   );
 }
@@ -103,6 +105,7 @@ export default function ConversationPage({
   const [isTyping, setIsTyping] = useState(false);
   const [notification, setNotification] = useState<Notification | null>(null);
   const [lastMessageCount, setLastMessageCount] = useState(0);
+  const [otherUserOnline, setOtherUserOnline] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -190,9 +193,10 @@ export default function ConversationPage({
         const res = await fetch("/api/conversations");
         if (res.ok) {
           const data = await res.json();
-          const conv = data.find((c: Conversation) => c.id === id);
+          const conv = data.find((c: any) => c.id === id);
           if (conv) {
             setConversation(conv);
+            setOtherUserOnline(conv.otherUserOnline ?? false);
           }
         }
       } catch (error) {
@@ -201,6 +205,8 @@ export default function ConversationPage({
     };
 
     fetchConversation();
+    const interval = setInterval(fetchConversation, 5000);
+    return () => clearInterval(interval);
   }, [id]);
 
   const showNotification = (senderName: string, message: string) => {
@@ -391,10 +397,12 @@ export default function ConversationPage({
 
       {/* Header: their picture (green ring, online dot), name, and back. */}
       <div className="sticky top-0 z-30 flex shrink-0 items-center gap-3 border-b border-gray-200 bg-gradient-to-l from-white to-blue-50 px-4 py-3 shadow-sm">
-        <Avatar person={otherUser} />
+        <Avatar person={otherUser} isOnline={otherUserOnline} />
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-extrabold text-gray-900">{otherUser.displayName}</h1>
-          <p className="text-xs font-semibold text-green-600">نشط الآن</p>
+          <p className={`text-xs font-semibold ${otherUserOnline ? "text-green-600" : "text-gray-500"}`}>
+            {otherUserOnline ? "نشط الآن" : "غير متصل"}
+          </p>
         </div>
         <button
           onClick={() => router.push("/messages")}

@@ -28,6 +28,17 @@ const startOfDay = () => {
   return new Date(now - (now % 86_400_000) - 3 * 3_600_000);
 };
 
+export async function isUserOnline(userId: string): Promise<boolean> {
+  const since = new Date(Date.now() - ONLINE_MS);
+  const presence = await db.sitePresence.findFirst({
+    where: {
+      userId,
+      lastSeen: { gte: since },
+    },
+  });
+  return !!presence;
+}
+
 export async function onlineNow() {
   const since = new Date(Date.now() - ONLINE_MS);
   const [online, today] = await Promise.all([

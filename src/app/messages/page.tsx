@@ -23,6 +23,7 @@ interface Conversation {
     createdAt: string;
     senderId: string;
   }>;
+  otherUserOnline?: boolean;
 }
 
 function formatTime(dateStr: string): string {
@@ -175,10 +176,12 @@ export default function MessagesPage() {
                       <img
                         src={other.avatarUrl}
                         alt=""
-                        className="w-20 h-20 rounded-full object-cover border-2 border-gray-300 shadow-md"
+                        className={`w-20 h-20 rounded-full object-cover border-2 ${conv.otherUserOnline ? "border-green-500" : "border-gray-300"} shadow-md`}
                       />
                     )}
-                    <div className="absolute bottom-0 right-0 w-6 h-6 bg-green-500 rounded-full border-3 border-white shadow-lg animate-pulse"></div>
+                    {conv.otherUserOnline && (
+                      <div className="absolute bottom-0 right-0 w-6 h-6 bg-green-500 rounded-full border-3 border-white shadow-lg animate-pulse"></div>
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex justify-between items-start gap-3 mb-2">

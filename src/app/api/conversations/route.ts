@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/session";
 import { db } from "@/lib/db";
+import { isUserOnline } from "@/server/presence";
 import type { Block } from "@/generated/prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -54,7 +55,19 @@ export async function GET() {
       return !blockedIds.has(otherId);
     });
 
-    return NextResponse.json(filtered);
+    // Check online status for other users
+    const withOnlineStatus = await Promise.all(
+      filtered.map(async (conv) => {
+        const otherId = conv.user1Id === user.id ? conv.user2Id : conv.user1Id;
+        const isOnline = await isUserOnline(otherId);
+        return {
+          ...conv,
+          otherUserOnline: isOnline,
+        };
+      })
+    );
+
+    return NextResponse.json(withOnlineStatus);
   } catch (error) {
     console.error("خطأ في جلب المحادثات:", error);
     return NextResponse.json(
