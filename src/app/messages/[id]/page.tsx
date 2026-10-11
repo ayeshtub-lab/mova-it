@@ -177,6 +177,17 @@ export default function ConversationPage({
     initializeAudio();
   }, []);
 
+  // Request browser notification permission on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      if (Notification.permission === "default") {
+        Notification.requestPermission().catch((err) => {
+          console.log("تعذر طلب صلاحية الإشعارات:", err);
+        });
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const fetchUserId = async () => {
       const res = await fetch("/api/session/current", { cache: "no-store" });
@@ -213,6 +224,12 @@ export default function ConversationPage({
                 showNotification(
                   msg.sender?.displayName || "صديق",
                   msg.body.substring(0, 50)
+                );
+                // Send browser system notification
+                sendBrowserNotification(
+                  msg.sender?.displayName || "صديق",
+                  msg.body,
+                  msg.sender?.avatarUrl
                 );
               }
             });
@@ -271,6 +288,33 @@ export default function ConversationPage({
     const interval = setInterval(fetchConversation, 5000);
     return () => clearInterval(interval);
   }, [id]);
+
+  const sendBrowserNotification = (senderName: string, messageBody: string, avatarUrl?: string) => {
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
+      try {
+        const notification = new Notification(senderName, {
+          body: messageBody.substring(0, 100),
+          icon: avatarUrl || "/logo.png",
+          badge: "/logo.png",
+          tag: `msg-${Date.now()}`,
+          requireInteraction: false,
+        });
+
+        // Focus window when notification is clicked
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+
+        // Auto-close after 5 seconds if not interacted
+        setTimeout(() => {
+          notification.close();
+        }, 5000);
+      } catch (error) {
+        console.error("خطأ في إرسال إشعار المتصفح:", error);
+      }
+    }
+  };
 
   const showToast = (title: string, body: string) => {
     if (toastTimeoutRef.current) {
