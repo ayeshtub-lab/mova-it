@@ -158,6 +158,8 @@ export default function ConversationPage({
   const [notification, setNotification] = useState<Notification | null>(null);
   const [lastMessageCount, setLastMessageCount] = useState(0);
   const [otherUserOnline, setOtherUserOnline] = useState(false);
+  const [activeToast, setActiveToast] = useState<{ title: string; body: string } | null>(null);
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -204,6 +206,10 @@ export default function ConversationPage({
             newMessages.forEach((msg: Message) => {
               if (msg.senderId !== userId) {
                 playNotificationSound();
+                showToast(
+                  `💬 ${msg.sender?.displayName || "صديق"}`,
+                  msg.body.substring(0, 50)
+                );
                 showNotification(
                   msg.sender?.displayName || "صديق",
                   msg.body.substring(0, 50)
@@ -266,6 +272,17 @@ export default function ConversationPage({
     return () => clearInterval(interval);
   }, [id]);
 
+  const showToast = (title: string, body: string) => {
+    if (toastTimeoutRef.current) {
+      clearTimeout(toastTimeoutRef.current);
+    }
+
+    setActiveToast({ title, body });
+    toastTimeoutRef.current = setTimeout(() => {
+      setActiveToast(null);
+    }, 3000);
+  };
+
   const showNotification = (senderName: string, message: string, avatarUrl?: string) => {
     const notifId = Date.now().toString();
     setNotification({
@@ -310,22 +327,8 @@ export default function ConversationPage({
         setShowEmoji(false);
         setLastMessageCount((prev) => prev + 1);
 
-        // 🔥 IMMEDIATE notification trigger - show banner right now
-        const notifId = `sent-${Date.now()}`;
-        setNotification({
-          id: notifId,
-          senderName: "أنت",
-          message: messageText.substring(0, 60),
-          type: "success",
-        });
-
-        // Auto-dismiss after 4 seconds
-        if (notificationTimeoutRef.current) {
-          clearTimeout(notificationTimeoutRef.current);
-        }
-        notificationTimeoutRef.current = setTimeout(() => {
-          setNotification((prev) => (prev?.id === notifId ? null : prev));
-        }, 4000);
+        // 🔥 Show toast immediately on send
+        showToast("رسالتك أرسلت", messageText.substring(0, 50));
 
         // Play outgoing message sound immediately
         playNotificationSound();
@@ -461,6 +464,15 @@ export default function ConversationPage({
     // Just the screen's height (dvh: a phone's browser bars included), with room under it for the
     // bottom bar on phones — so the box to write in is always in sight above it.
     <div className="relative flex h-[100dvh] w-full flex-col bg-white pb-[calc(5.25rem+env(safe-area-inset-bottom))] sm:pb-0">
+      {/* 🔥 Direct Toast Notification */}
+      {activeToast && (
+        <div className="fixed top-2 left-4 right-4 z-50 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-xl shadow-2xl animate-bounce text-center font-bold border-l-4 border-blue-300">
+          <div className="text-sm md:text-base">
+            {activeToast.title}: {activeToast.body}
+          </div>
+        </div>
+      )}
+
       {/* Floating Notification Banner */}
       {notification && (
         <div className="fixed top-4 left-4 right-4 z-50 animate-in slide-in-from-top-2 fade-in">
