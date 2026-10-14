@@ -186,10 +186,11 @@ async function madeByHand(momentId: string) {
 // its video. Its maker (the owner of the first shot) is told once — never again for this
 // moment, and not at all once a video has been made. Not for «لحظة اليوم».
 export async function offerVideo(angleId: string) {
-  // (Films are made by themselves now, in parts — nobody needs to be offered the button.)
-  if (PARTS_SHOWN) return;
   const angle = await db.angle.findUnique({ where: { id: angleId }, select: { status: true, momentId: true, moment: { select: { kind: true } } } });
   if (!angle || angle.status !== "READY" || angle.moment.kind === "DAILY") return;
+  // (A moment's film is made by itself now, in parts — src/server/montage/parts.ts: nobody is
+  // offered the button. A «مع الوقت» story still is: its owner makes its video.)
+  if (PARTS_SHOWN && angle.moment.kind !== "STORY") return;
   const [rights, size] = await Promise.all([videoRights(angle.momentId), sizeFor(angle.momentId)]);
   if (!rights.makerId || rights.count < size.min || (await madeByHand(angle.momentId))) return;
   const first = await db.angle.findFirst({ where: liveAngles(angle.momentId), orderBy: { uploadedAt: "asc" }, select: { id: true } });

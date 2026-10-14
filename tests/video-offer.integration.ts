@@ -1,7 +1,6 @@
-// Integration test for «🎬 صار فيك تعمل الفيديو»: when a moment reaches enough shots for its
-// video, the owner of its first shot (who makes the video) is told — once, even when two
-// shots are published together; not after a video was made; not for «لحظة اليوم»; and a
-// «مع الوقت» story from its own (smaller) minimum.
+// Integration test for «🎬 صار فيك تعمل الفيديو»: since films come by themselves in parts
+// (2026-10-15) a moment's shot owner is no longer offered the button; a «مع الوقت» story's owner
+// still is, from its own (smaller) minimum — never for «لحظة اليوم».
 // Run: npx tsx tests/video-offer.integration.ts — every row it creates is removed.
 import "./env";
 import assert from "node:assert/strict";
@@ -25,37 +24,12 @@ async function main() {
     db.angle.create({ data: { momentId, contributorId, mediaType: "PHOTO", status: "READY", screening: "allowed", mediaPath: `videooffertest/${Math.random()}.jpg`, uploadedAt: new Date((t += 1000)) } });
   const told = (userId: string, momentId: string) => db.notification.count({ where: { userId, kind: "VIDEO_READY", angle: { momentId } } });
   try {
-    await check("the first shot's owner is told when the moment reaches enough shots — not before", async () => {
+    await check("a moment's film comes by itself in parts (src/server/montage/parts.ts): nobody is offered the button", async () => {
       const moment = await createMoment(owner, { title: `${TAG} عرس`, kind: "EVERYDAY" });
-      const opening = await shot(moment.id, first.id);
-      let last = opening;
-      for (let i = 1; i < MIN_ANGLES - 1; i++) last = await shot(moment.id, other.id);
+      let last = await shot(moment.id, first.id);
+      for (let i = 1; i < MIN_ANGLES + 1; i++) last = await shot(moment.id, other.id);
       await offerVideo(last.id);
-      assert.equal(await told(first.id, moment.id), 0, `${MIN_ANGLES - 1} shots: not yet`);
-      last = await shot(moment.id, other.id);
-      await offerVideo(last.id);
-      assert.equal(await told(first.id, moment.id), 1, `${MIN_ANGLES} shots: told`);
-      assert.equal(await told(owner.id, moment.id), 0, "the creator did not shoot first");
-      const n = await db.notification.findFirstOrThrow({ where: { userId: first.id, kind: "VIDEO_READY" } });
-      assert.equal(n.angleId, opening.id, "points at the moment through its first shot");
-    });
-
-    await check("told once, even when shots are published together", async () => {
-      const moment = await createMoment(owner, { title: `${TAG} تخرج`, kind: "EVERYDAY" });
-      for (let i = 0; i < MIN_ANGLES - 1; i++) await shot(moment.id, owner.id);
-      const [a, b] = [await shot(moment.id, other.id), await shot(moment.id, other.id)];
-      await Promise.all([offerVideo(a.id), offerVideo(b.id), offerVideo(b.id)]);
-      assert.equal(await told(owner.id, moment.id), 1);
-      await offerVideo((await shot(moment.id, other.id)).id);
-      assert.equal(await told(owner.id, moment.id), 1, "not again with more shots");
-    });
-
-    await check("not once a video was made", async () => {
-      const moment = await createMoment(owner, { title: `${TAG} رحلة`, kind: "EVERYDAY" });
-      const shots = [];
-      for (let i = 0; i < MIN_ANGLES; i++) shots.push(await shot(moment.id, owner.id));
-      await db.montage.create({ data: { momentId: moment.id, angleIds: shots.map((s) => s.id), signature: "test", status: "READY" } });
-      await offerVideo((await shot(moment.id, other.id)).id);
+      assert.equal(await told(first.id, moment.id), 0);
       assert.equal(await told(owner.id, moment.id), 0);
     });
 
