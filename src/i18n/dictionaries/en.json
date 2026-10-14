@@ -791,6 +791,7 @@
     "photoWorking": "⏳ Turning the photo and its sound into a video… tap share again in a moment"
   },
   "editShot": {
+    "cover": {"open": "🖼️ Cover", "title": "Pick a cover", "hint": "Slide along the strip and pick the frame you like", "use": "Use this", "cancel": "Cancel", "failed": "The cover wasn't saved, try again."},
     "open": "✏️ Edit",
     "title": "✏️ Edit",
     "filters": "Filter",

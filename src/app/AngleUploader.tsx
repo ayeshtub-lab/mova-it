@@ -1,5 +1,6 @@
 "use client";
 
+import { CoverPicker, type CoverLabels } from "@/app/CoverPicker";
 import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import { JoinCard, type JoinLabels, type JoinSuggestion } from "@/app/JoinCard";
@@ -70,6 +71,7 @@ type ItemState = {
   muteOriginal?: boolean;
   lyrics?: boolean;
   preview?: string; // local picture of the shot, for the edit sheet
+  video?: string; // a video's own file on this phone, for «🖼️ الغلاف»
   stampAt?: string;
   filter?: string | null;
   stamp?: boolean;
@@ -128,7 +130,7 @@ export function AngleUploader({
   afterUpload?: React.ReactNode;
   locale: string;
   soundLabels: UploaderSoundLabels;
-  editLabels: ShotEditorLabels & { open: string; failed: string };
+  editLabels: ShotEditorLabels & { open: string; failed: string; cover: CoverLabels };
   captionLabels?: CaptionLabels; // «✍️ كتابة على اللقطة» after upload
   placeLabels?: PlaceLabels;
   // Shots this person added here before and left without «نشر» (kept 48 hours): back, ready.
@@ -207,11 +209,16 @@ export function AngleUploader({
     setItems((all) => all.filter((it) => it.status !== "done" && it.status !== "error" && it.status !== "removed"));
     setSelected(0);
     const first = drafts[0]?.it.angleId;
-    // (The refreshed moment takes a moment to arrive: look for the shot for up to 8 seconds.)
+    // Published from somewhere else («اكتشف»…): straight to the moment, opened on the new shot.
+    if (first && window.location.pathname !== `/m/${code}`) {
+      router.push(`/m/${code}#angle-${first}`);
+      return;
+    }
+    // (The refreshed moment takes a moment to arrive — a video longer: look for up to 30 seconds.)
     let tries = 0;
     const light = () => {
       const tile = first ? document.getElementById(`angle-${first}`) : null;
-      if (!tile) return void (++tries < 40 && setTimeout(light, 200));
+      if (!tile) return void (++tries < 150 && setTimeout(light, 200));
       tile.scrollIntoView({ behavior: "smooth", block: "center" });
       tile.classList.add("just-added");
     };
@@ -264,6 +271,7 @@ export function AngleUploader({
   // «🎵 اختار الصوت أول»: the picker before any shot — the sound waits for the next one.
   const [choosingFirst, setChoosingFirst] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
+  const [covering, setCovering] = useState<number | null>(null);
   const [captioning, setCaptioning] = useState<number | null>(null);
   const longFiles = useRef(new Map<number, File>());
   const [saving, setSaving] = useState(false);
@@ -362,6 +370,7 @@ export function AngleUploader({
         status: "draft",
         angleId,
         isVideo: prepared.mediaType === "VIDEO",
+        video: prepared.mediaType === "VIDEO" ? URL.createObjectURL(prepared.file) : undefined,
         soundKey: null,
         preview: picture ? URL.createObjectURL(picture) : undefined,
         // The retro stamp: now, on this phone's clock (not the file's own date).
@@ -586,6 +595,11 @@ export function AngleUploader({
                 <button type="button" onClick={() => setEditing(current)} className="min-h-11 rounded-full bg-surface px-4 text-sm font-bold text-secondary">
                   {editLabels.open}
                 </button>
+                {items[current].video && (
+                  <button type="button" onClick={() => setCovering(current)} className="min-h-11 rounded-full bg-surface px-4 text-sm font-bold text-secondary">
+                    {editLabels.cover.open}
+                  </button>
+                )}
               </div>
             )}
             {(() => {
@@ -759,6 +773,20 @@ export function AngleUploader({
             router.refresh();
           }}
           onClose={() => setCaptioning(null)}
+        />
+      )}
+      {covering !== null && items[covering]?.angleId && items[covering].video && (
+        <CoverPicker
+          angleId={items[covering].angleId!}
+          videoUrl={items[covering].video!}
+          labels={editLabels.cover}
+          onSaved={(preview) => {
+            const at = covering;
+            setItems((list) => list.map((it, i) => (i === at ? { ...it, preview } : it)));
+            setCovering(null);
+            router.refresh();
+          }}
+          onClose={() => setCovering(null)}
         />
       )}
       {choosingFirst && (

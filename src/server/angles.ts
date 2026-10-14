@@ -1,5 +1,5 @@
 import { staffOver } from "@/lib/staff";
-import { del, list } from "@vercel/blob";
+import { del, list, put } from "@vercel/blob";
 import { MediaType, PlaceSource, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
@@ -161,6 +161,19 @@ export async function uploadConstraintsFor(user: User, pathname: string) {
   }
   // 40 s of 4K from a phone can pass 250 MB.
   return { angleId: angle.id, allowedContentTypes: Object.keys(VIDEO_TYPES), maximumSizeInBytes: 300 * 1024 * 1024 };
+}
+
+// «🖼️ الغلاف»: its owner picks a frame of their video as its cover. Saved under a new name
+// (so no old copy lingers in a cache) and the previous one removed.
+const JPEG = [0xff, 0xd8, 0xff];
+export async function setVideoCover(user: User, angleId: string, bytes: Buffer) {
+  const angle = await db.angle.findUnique({ where: { id: angleId }, select: { id: true, momentId: true, contributorId: true, mediaType: true, thumbPath: true, status: true } });
+  if (!angle || angle.contributorId !== user.id || angle.mediaType !== MediaType.VIDEO || !["PROCESSING", "DRAFT", "READY"].includes(angle.status)) throw new AngleError("not_found");
+  if (bytes.length < 1000 || bytes.length > 2 * 1024 * 1024 || !JPEG.every((b, i) => bytes[i] === b)) throw new AngleError("invalid_media");
+  const path = `m/${angle.momentId}/${angle.id}-cover-${Date.now().toString(36)}.jpg`;
+  await put(path, bytes, { access: "private", contentType: "image/jpeg", addRandomSuffix: false });
+  await db.angle.update({ where: { id: angle.id }, data: { thumbPath: path } });
+  if (angle.thumbPath && angle.thumbPath !== path) await del(angle.thumbPath).catch(() => {});
 }
 
 // Deletes an angle for good: its files, its reactions, and every montage it appears in
