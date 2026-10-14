@@ -137,7 +137,7 @@ export async function getMomentView(code: string, viewer: User | null) {
   const hasContributed = !!viewer && angles.some((a) => a.contributorId === viewer.id);
   // A shot that is clearly someone else's (screening «repost») stays with its owner and the
   // moment's creator when the moment is public: everyone else never sees it.
-  const shown = moment.visibility === Visibility.PUBLIC ? angles.filter((a) => a.screening !== "repost" || isCreator || a.contributorId === viewer?.id) : angles;
+  const shown = moment.visibility === Visibility.PUBLIC ? angles.filter((a) => (a.screening !== "repost" && a.screening !== "error") || isCreator || a.contributorId === viewer?.id) : angles;
   // Public moments are open to everyone; "give to get" is for friends/link moments —
   // and for «لحظة اليوم», where seeing everyone's angle is the reward for adding yours.
   // A «مع الوقت» story is its owner's alone to add to: whoever holds it sees all of it.

@@ -248,12 +248,14 @@ export async function completeAngle(user: User, angleId: string) {
   }
 
   // Automatic check before anyone sees it. Blocked → hidden and queued for the admins.
-  // If the check itself fails: friends/link moments still go up (and it's logged), but
-  // in a public moment the angle waits for an admin — public content is always checked.
-  const verdict = screeningEnabled() ? await screenAngle(angle) : null;
+  // The check itself failing (Gemini busy, timed out, an empty answer) is NOT a verdict: tried
+  // three times, and if it still fails the shot goes up like any other — in a public moment
+  // seen only by its owner and the moment's creator (src/server/moments.ts) until the
+  // recheck every 10 minutes clears it (recheckUnscreened). Ordinary shots — a snake, a tree —
+  // were refused as «against the rules» only because the check failed.
+  const verdict = screeningEnabled() ? await screenWithRetry(angle) : null;
   if (verdict?.result === "error") console.error("screening failed", angle.id, verdict.reason);
-  const isPublic = angle.moment.visibility === "PUBLIC";
-  const blocked = verdict?.result === "blocked" || (isPublic && verdict?.result !== "allowed");
+  const blocked = verdict?.result === "blocked";
 
   const now = new Date();
   // The lens's name for the shot, offered when the moment was started without one.
@@ -281,13 +283,61 @@ export async function completeAngle(user: User, angleId: string) {
       },
     });
     if (blocked) {
-      const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : `public, not checked: ${verdict?.result === "error" ? verdict.reason : "screening off"}`;
+      const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : "";
       await tx.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "AI", note: note.slice(0, 500) } });
     }
     if (repost && !blocked) await tx.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "REPOST", note: repost.slice(0, 500) } });
     return done;
   });
   return Object.assign(saved, { titleSuggestion, captionIdeas });
+}
+
+// The check, tried again (a little later each time) when it fails rather than answers.
+const SCREEN_RETRY_MS = [2000, 5000];
+async function screenWithRetry(angle: Parameters<typeof screenAngle>[0]) {
+  let verdict = await screenAngle(angle);
+  for (const wait of SCREEN_RETRY_MS) {
+    if (verdict.result !== "error") break;
+    await new Promise((r) => setTimeout(r, wait));
+    verdict = await screenAngle(angle);
+  }
+  return verdict;
+}
+
+// Every 10 minutes (cron «branded»): shots whose check failed are checked again — a few per
+// run, for two days at most (after that they stay with their owner and an admin is told once).
+// Fine → shown to everyone; clearly against the rules → hidden for the admins.
+const RECHECK_FOR_MS = 48 * 60 * 60 * 1000;
+export async function recheckUnscreened(take = 4) {
+  if (!screeningEnabled()) return 0;
+  const since = new Date(Date.now() - RECHECK_FOR_MS);
+  const angles = await db.angle.findMany({
+    where: { screening: "error", status: { in: ["DRAFT", "READY"] }, uploadedAt: { gt: since } },
+    orderBy: { uploadedAt: "asc" },
+    take,
+    include: { contributor: { select: { verified: true } } },
+  });
+  let done = 0;
+  for (const angle of angles) {
+    const verdict = await screenAngle(angle);
+    const now = new Date();
+    if (verdict.result === "allowed") {
+      const repost = verdict.repost && !angle.contributor.verified ? verdict.repost : null;
+      await db.angle.update({ where: { id: angle.id }, data: { screening: repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null } });
+      if (repost) await db.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "REPOST", note: repost.slice(0, 500) } });
+      done++;
+    } else if (verdict.result === "blocked") {
+      await db.$transaction([
+        db.angle.update({ where: { id: angle.id }, data: { status: "HIDDEN", screening: "blocked", screenedAt: now } }),
+        db.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "AI", note: `${verdict.category}: ${verdict.reason}`.slice(0, 500) } }),
+      ]);
+      done++;
+    }
+  }
+  // Two days of failed checks: an admin looks (once), the shot stays where it is.
+  const stuck = await db.angle.findMany({ where: { screening: "error", status: { in: ["DRAFT", "READY"] }, uploadedAt: { lte: since }, reports: { none: { reason: "AI" } } }, select: { id: true, momentId: true }, take: 10 });
+  for (const a of stuck) await db.report.create({ data: { momentId: a.momentId, angleId: a.id, reason: "AI", note: "not checked for 2 days (check kept failing)" } });
+  return done;
 }
 
 // A moment just became public: angles added before (unchecked, or checked while the
@@ -310,7 +360,12 @@ export async function screenForPublic(momentId: string) {
       }
       continue;
     }
-    const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : `public, not checked: ${verdict?.result === "error" ? verdict.reason : "screening off"}`;
+    // The check failing is no verdict: kept from everyone but its people until rechecked.
+    if (verdict?.result === "error") {
+      await db.angle.update({ where: { id: angle.id }, data: { screening: "error" } });
+      continue;
+    }
+    const note = verdict?.result === "blocked" ? `${verdict.category}: ${verdict.reason}` : "public, not checked: screening off";
     await db.$transaction([
       db.angle.update({ where: { id: angle.id }, data: { status: "HIDDEN", screening: verdict?.result ?? null, screenedAt: verdict ? now : null } }),
       db.report.create({ data: { momentId, angleId: angle.id, reason: "AI", note: note.slice(0, 500) } }),

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { brandPending } from "@/server/branded";
 import { markPending } from "@/server/marked";
+import { recheckUnscreened } from "@/server/angles";
 import { stampWeather } from "@/server/weather";
 
 // Each render takes a while (the whole clip is re-encoded once).
@@ -16,8 +17,13 @@ export async function GET(request: Request) {
     console.error("weather failed", error);
     return 0;
   });
+  // Shots whose automatic check failed: checked again (src/server/angles.ts).
+  const rechecked = await recheckUnscreened().catch((error) => {
+    console.error("recheck failed", error);
+    return 0;
+  });
   const made = await brandPending(3);
   const photos = await markPending(2);
-  console.log("branded ahead", { made, photos, weather });
-  return NextResponse.json({ made, photos, weather });
+  console.log("branded ahead", { made, photos, weather, rechecked });
+  return NextResponse.json({ made, photos, weather, rechecked });
 }
