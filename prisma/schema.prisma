@@ -235,6 +235,8 @@ model Angle {
   expiresAt     DateTime? // 24 h unless the moment becomes permanent
   // Automatic content check (Gemini) when the upload completes.
   screening     String? // "allowed" | "blocked" | "error"; null = not checked
+  // «نشر» pressed while it was still being checked: published by the server once fine.
+  autoPublish   Boolean   @default(false)
   screenedAt    DateTime?
   // A sound from the library (src/lib/sounds.ts) played with the angle, and whether a
   // video's own sound is muted under it.
@@ -582,6 +584,7 @@ enum NotificationKind {
   VIDEO_READY // your moment reached enough shots for its video: make it (from Zawmo, once)
   PICKED // «⭐ اختيار زاومو»: an official account picked your shot
   DRAFT_WAITING // a shot you added an hour ago still waits for «نشر» (from Zawmo, once per shot)
+  SHOT_READY // «نشر» pressed before the shot was checked: it is up now (from Zawmo, once)
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.

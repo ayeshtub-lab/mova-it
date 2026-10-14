@@ -1,0 +1,2 @@
+ALTER TYPE "NotificationKind" ADD VALUE 'SHOT_READY';
+ALTER TABLE "Angle" ADD COLUMN "autoPublish" BOOLEAN NOT NULL DEFAULT false;

@@ -227,7 +227,7 @@ export async function completeAngle(user: User, angleId: string) {
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: true } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
   // Already done (a retry): report what happened the first time.
-  if (angle.status === "DRAFT" || angle.status === "READY" || (angle.status === "HIDDEN" && angle.screening === "blocked")) return Object.assign(angle, { titleSuggestion: null as string | null, captionIdeas: [] as string[] });
+  if (angle.status === "DRAFT" || angle.status === "READY" || (angle.status === "HIDDEN" && angle.screening === "blocked")) return Object.assign(angle, { titleSuggestion: null as string | null, captionIdeas: [] as string[], wentLive: false });
   if (angle.status !== "PROCESSING") throw new AngleError("forbidden");
 
   const needed = [angle.mediaPath, angle.thumbPath].filter((p): p is string => !!p);
@@ -289,7 +289,13 @@ export async function completeAngle(user: User, angleId: string) {
     if (repost && !blocked) await tx.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "REPOST", note: repost.slice(0, 500) } });
     return done;
   });
-  return Object.assign(saved, { titleSuggestion, captionIdeas });
+  // «نشر» was pressed while it was being checked: up now (the route tells its owner).
+  if (!blocked && saved.autoPublish) {
+    const moment = await db.moment.findUniqueOrThrow({ where: { id: saved.momentId }, select: { description: true, kind: true } });
+    const live = await goLive({ ...saved, moment });
+    return Object.assign(live, { titleSuggestion, captionIdeas, wentLive: true });
+  }
+  return Object.assign(saved, { titleSuggestion, captionIdeas, wentLive: false });
 }
 
 // The check, tried again (a little later each time) when it fails rather than answers.
@@ -379,20 +385,34 @@ export async function publishAngle(user: User, angleId: string, title?: unknown)
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { named: true, creatorId: true, kind: true, description: true } } } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
   if (angle.status === "READY") return angle; // a retry
-  if (angle.status !== "DRAFT") throw new AngleError("forbidden");
+  if (angle.status !== "DRAFT" && angle.status !== "PROCESSING") throw new AngleError("forbidden");
   const naming = !angle.moment.named && angle.moment.creatorId === user.id;
   const name = naming && typeof title === "string" ? title.replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim().slice(0, 80) : "";
   if (naming && !name) throw new AngleError("needs_title");
+  // Still being checked: «نشر» is remembered and the server publishes it once it is fine
+  // (completeAngle) — its owner may leave meanwhile and is told when it's up (SHOT_READY).
+  if (angle.status === "PROCESSING") {
+    await db.$transaction([
+      db.angle.update({ where: { id: angle.id }, data: { autoPublish: true } }),
+      ...(naming ? [db.moment.update({ where: { id: angle.momentId }, data: { title: name, named: true } })] : []),
+    ]);
+    return Object.assign(angle, { autoPublish: true });
+  }
+  return goLive(angle, naming ? name : undefined);
+}
+
+// A checked draft goes up: shown in the moment, the moment named and described if it wasn't.
+async function goLive(angle: { id: string; momentId: string; aiText: string | null; moment: { description: string | null; kind: string } }, naming?: string) {
   const now = new Date();
   // A moment without a description takes the first shot's line (with its #hashtags), so
   // nothing goes up undescribed; the creator may change it. ("" = they cleared it: left so.)
   const describe = angle.moment.description === null && angle.aiText ? { description: angle.aiText } : {};
   const [done] = await db.$transaction([
-    db.angle.update({ where: { id: angle.id }, data: { status: "READY" } }),
+    db.angle.update({ where: { id: angle.id }, data: { status: "READY", autoPublish: false } }),
     db.moment.update({
       where: { id: angle.momentId },
       // A new shot of a story starts its weekly reminders over.
-      data: { lastActivityAt: now, ...describe, ...(naming ? { title: name, named: true } : {}), ...(angle.moment.kind === "STORY" ? { reminders: 0, remindedAt: null } : {}) },
+      data: { lastActivityAt: now, ...describe, ...(naming ? { title: naming, named: true } : {}), ...(angle.moment.kind === "STORY" ? { reminders: 0, remindedAt: null } : {}) },
     }),
   ]);
   return done;

@@ -52,6 +52,10 @@ type Labels = {
   leaveText: string;
   leaveLater: string;
   leaveBusy: string;
+  publishEarlyHint: string;
+  queuedTitle: string;
+  queuedStay: string;
+  queuedLeave: string;
   published: string;
   remove: string;
 };
@@ -78,6 +82,7 @@ type ItemState = {
   caption?: CaptionView | null;
   ideas?: string[]; // lines to write on it, from the lens («✍️»)
   suggestion?: JoinSuggestion | null; // «صوّر معك», offered once right after upload
+  queued?: boolean; // «نشر» pressed while it was still on its way: the server publishes it when checked
   placed?: boolean; // it has a place (from the photo itself or the moment)
 };
 // «📍 وين صوّرت؟»: asked when a shot has no place (phones strip a photo's location on the web).
@@ -105,7 +110,8 @@ async function takeSharedFiles() {
 }
 
 async function postJson(url: string, body?: unknown) {
-  const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
+  // keepalive: a request still on its way when the page is left (the check, after «نشر») finishes.
+  const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}), keepalive: true });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw Object.assign(new Error(data.error ?? "failed"), { code: data.error });
   return data;
@@ -152,6 +158,12 @@ export function AngleUploader({
   const current = shown.some(({ i }) => i === selected) ? selected : (shown[0]?.i ?? 0);
   const busy = items.some((i) => i.status === "preparing" || i.status === "uploading" || i.status === "checking");
   const drafts = items.map((it, i) => ({ it, i })).filter(({ it }) => it.status === "draft" && it.angleId);
+  // Still on its way but already known to the server: «نشر» may be pressed for it now.
+  const onTheWay = items.map((it, i) => ({ it, i })).filter(({ it }) => (it.status === "uploading" || it.status === "checking") && it.angleId && !it.queued);
+  const preparing = items.some((it) => it.status === "preparing" || (it.status === "uploading" && !it.angleId));
+  // Its bytes still going up from this phone: the page must stay open for those.
+  const sending = items.some((it) => it.status === "preparing" || it.status === "uploading" || it.status === "trimming");
+  const [queuedNote, setQueuedNote] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishFailed, setPublishFailed] = useState(false);
   // The moment's name, when it was started without one: the lens's suggestion until the
@@ -185,6 +197,31 @@ export function AngleUploader({
     setPublishing(true);
     setPublishFailed(false);
     let failed = false;
+    // Not checked yet: «نشر» is remembered by the server, which publishes each when it's fine
+    // and tells its owner («✅ زاويتك صارت باللحظة») — no waiting on a spinning circle.
+    let queued = 0;
+    for (const { it, i } of onTheWay) {
+      const res = await fetch(`/api/angles/${it.angleId}/publish`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ title: name.trim() }),
+      }).catch(() => null);
+      if (res?.ok) {
+        update(i, { queued: true });
+        setNamed(true);
+        queued++;
+      } else failed = true;
+    }
+    if (queued && !drafts.length) {
+      setPublishing(false);
+      setPublishFailed(failed);
+      if (!failed) {
+        setOpen(false);
+        setQueuedNote(true);
+      }
+      return;
+    }
+    if (queued) setQueuedNote(true);
     for (const { it, i } of drafts) {
       const res = await fetch(`/api/angles/${it.angleId}/publish`, {
         method: "POST",
@@ -227,7 +264,7 @@ export function AngleUploader({
   }
 
   // Leaving the page with a shot not yet up (or still uploading): the browser asks first.
-  const unsaved = drafts.length > 0 || busy;
+  const unsaved = drafts.length > 0 || sending || items.some((it) => it.status === "checking" && !it.queued);
   useEffect(() => {
     if (!unsaved) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
@@ -342,7 +379,7 @@ export function AngleUploader({
         width: prepared.width,
         height: prepared.height,
       });
-      update(index, { status: "uploading" });
+      update(index, { status: "uploading", angleId });
 
       if (thumbPath && prepared.poster) {
         await upload(thumbPath, prepared.poster, {
@@ -362,6 +399,13 @@ export function AngleUploader({
       const result = await postJson(`/api/angles/${angleId}/complete`);
       // Hidden by the automatic content check: it never shows up.
       if (result.status === "HIDDEN") return update(index, { status: "error", error: "blocked" });
+      // «نشر» was pressed while it was on its way: the server has just published it.
+      if (result.status === "READY") {
+        update(index, { status: "done", angleId, suggestion: null });
+        setUploaded(true);
+        router.refresh();
+        return;
+      }
       // The lens's name for the first shot fills the name box, unless the person wrote one.
       const lensName = typeof result.titleSuggestion === "string" ? result.titleSuggestion : "";
       if (lensName && !typed) setName((current) => current.trim() || lensName);
@@ -684,22 +728,21 @@ export function AngleUploader({
             <button
               type="button"
               onClick={publishAll}
-              disabled={busy || publishing || saving || drafts.length === 0 || missingName}
+              disabled={preparing || publishing || saving || drafts.length + onTheWay.length === 0 || missingName}
               className="min-h-14 w-full rounded-full bg-accent px-6 text-lg font-extrabold text-white shadow-md transition-opacity disabled:opacity-50"
             >
               {publishing
                 ? labels.publishing
-                : busy
-                  ? items.some((it) => it.status === "checking")
-                    ? labels.searching
-                    : labels.waitUpload
-                  : labels.publish.replace("{n}", drafts.length > 1 ? `(${drafts.length})` : "")}
+                : preparing
+                  ? labels.waitUpload
+                  : labels.publish.replace("{n}", drafts.length + onTheWay.length > 1 ? `(${drafts.length + onTheWay.length})` : "")}
             </button>
             {publishFailed && (
               <p role="alert" className="text-sm font-semibold text-accent-ink">
                 {labels.publishFailed}
               </p>
             )}
+            {onTheWay.length > 0 && !publishing && <p className="text-center text-xs text-muted">{labels.publishEarlyHint}</p>}
           </footer>
           {leaving && (
             <div className="absolute inset-0 z-10 flex items-end justify-center bg-black/50 p-4" onClick={() => setLeaving(false)}>
@@ -724,6 +767,15 @@ export function AngleUploader({
               </div>
             </div>
           )}
+        </div>
+      )}
+      {queuedNote && items.some((it) => it.queued && it.status !== "done" && it.status !== "error" && it.status !== "removed") && (
+        <div role="status" className="flex items-start gap-3 rounded-2xl border border-accent/30 bg-accent-soft p-4 text-sm font-bold leading-relaxed">
+          <span aria-hidden="true" className="text-xl">{sending ? "📤" : "✅"}</span>
+          <span className="flex flex-col gap-0.5">
+            <span>{labels.queuedTitle}</span>
+            <span className="font-semibold text-muted">{sending ? labels.queuedStay : labels.queuedLeave}</span>
+          </span>
         </div>
       )}
       {soundError && (

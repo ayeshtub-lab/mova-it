@@ -6,6 +6,8 @@ import { makeSmall } from "@/server/small";
 import { sendToStream } from "@/server/stream";
 import { embedAngle } from "@/server/similar";
 import { limited } from "@/server/rate-limit";
+import { afterWentLive } from "@/server/went-live";
+import { brandAfterChange } from "@/server/branded";
 
 // The automatic content check runs inside this request (a few seconds). A fine shot becomes
 // a draft; «صوّر معك» looks for a matching moment; the owner then publishes (./publish).
@@ -27,7 +29,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (angle.mediaType === "VIDEO" && angle.status !== "HIDDEN") after(() => sendToStream(angle.id).catch((error) => console.error("stream copy failed", angle.id, error)));
     // «📸 لقطات بتشبهها»: its vectors, after the response (from its words; from its picture only
     // for a scene without people).
-    if (angle.status === "DRAFT") after(() => embedAngle(angle.id).catch((error) => console.error("embed failed", angle.id, error)));
+    if (angle.status === "DRAFT" || angle.wentLive) after(() => embedAngle(angle.id).catch((error) => console.error("embed failed", angle.id, error)));
+    // «نشر» pressed early: it's up now — everything a «نشر» does, and its owner is told.
+    if (angle.wentLive) {
+      const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;
+      after(() => afterWentLive(angle.id, host, { userId: user.id }));
+      return NextResponse.json({ id: angle.id, status: angle.status, suggestion: null, titleSuggestion: null, captionIdeas: [] });
+    }
+    // A video's stamped copy for sharing, made while its owner is still choosing: ready for «شارك».
+    if (angle.status === "DRAFT" && angle.mediaType === "VIDEO") after(() => brandAfterChange(angle.id));
     // «صوّر معك»: someone nearby shot the same moment just now? Offer to add this shot to it.
     const suggestion = angle.status === "DRAFT" ? await findJoinSuggestion(user.id, angle.id) : null;
     return NextResponse.json({ id: angle.id, status: angle.status, suggestion, titleSuggestion: angle.titleSuggestion, captionIdeas: angle.captionIdeas });
