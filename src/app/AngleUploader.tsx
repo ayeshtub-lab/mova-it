@@ -12,7 +12,6 @@ import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { PlaceField, type PlaceOption } from "@/app/PlaceField";
 import { filterCss, stampText } from "@/lib/filters";
 import { MAX_VIDEO_SECONDS, PrepareError, prepareAngleFile, type PreparedAngle } from "@/lib/media-client";
-import { firstSeconds } from "@/lib/recording";
 import { PENDING_SOUND, soundByKey, soundName } from "@/lib/sounds";
 import { SHARED_MARK } from "@/app/new/SharedArrival";
 import type { DraftView } from "@/server/drafts";
@@ -396,7 +395,7 @@ export function AngleUploader({
         onUploadProgress: ({ percentage }) => update(index, { pct: Math.round(percentage) }),
       });
       update(index, { status: "checking", pct: 100 });
-      const result = await postJson(`/api/angles/${angleId}/complete`);
+      const result = await postJson(`/api/angles/${angleId}/complete`, prepared.trim ? { trim: true } : undefined);
       // Hidden by the automatic content check: it never shows up.
       if (result.status === "HIDDEN") return update(index, { status: "error", error: "blocked" });
       // «نشر» was pressed while it was on its way: the server has just published it.
@@ -450,7 +449,10 @@ export function AngleUploader({
     if (!file) return;
     update(index, { status: "trimming", pct: 0 });
     try {
-      const prepared = await firstSeconds(file, (seconds) => update(index, { pct: Math.floor(seconds) }));
+      // The whole video goes up as it is and the server keeps its first 40 seconds (a few
+      // seconds, no quality lost). (Re-recording it on the phone in real time stalled on some
+      // phones — stuck at 25 of 40 — and needed the screen on all along.)
+      const prepared = await prepareAngleFile(file, true);
       longFiles.current.delete(index);
       update(index, { status: "preparing" });
       await send(prepared, index);

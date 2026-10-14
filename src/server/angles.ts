@@ -1,11 +1,14 @@
 import { staffOver } from "@/lib/staff";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { del, list, put } from "@vercel/blob";
 import { MediaType, PlaceSource, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
 import { blobExists, viewUrl } from "@/server/media";
-import { probeDuration } from "@/server/ffmpeg";
+import { ffmpeg, probeDuration } from "@/server/ffmpeg";
 import { screenAngle, screeningEnabled, screenText, type ShotContext } from "@/server/screening";
 import { deleteFromStream } from "@/server/stream";
 import { searchesForGemini } from "@/server/search-console";
@@ -161,7 +164,8 @@ export async function uploadConstraintsFor(user: User, pathname: string) {
     return { angleId: angle.id, allowedContentTypes: ["image/jpeg"], maximumSizeInBytes: 12 * 1024 * 1024 };
   }
   // 40 s of 4K from a phone can pass 250 MB.
-  return { angleId: angle.id, allowedContentTypes: Object.keys(VIDEO_TYPES), maximumSizeInBytes: 300 * 1024 * 1024 };
+  // (A longer one, whose first 40 seconds the server keeps, may be bigger: 1 GB at most.)
+  return { angleId: angle.id, allowedContentTypes: Object.keys(VIDEO_TYPES), maximumSizeInBytes: 1024 * 1024 * 1024 };
 }
 
 // «🖼️ الغلاف»: its owner picks a frame of their video as its cover. Saved under a new name
@@ -224,7 +228,35 @@ export async function deleteMyShots(user: User, code: string) {
 }
 
 // Step 3: the device reports the upload finished; trust it only after the files exist.
-export async function completeAngle(user: User, angleId: string) {
+// «its first 40 seconds»: a longer video, uploaded whole, cut on the server — copied as it is
+// (no re-encoding: seconds, full quality), or re-encoded when its streams can't be copied into
+// the container. The cut replaces the upload, which is removed.
+async function trimToLimit(angle: { id: string; momentId: string; mediaPath: string }) {
+  const source = (await viewUrl(angle.mediaPath))!;
+  const webm = angle.mediaPath.endsWith(".webm");
+  const dir = await mkdtemp(join(tmpdir(), "zawmo-trim-"));
+  try {
+    let out = join(dir, webm ? "cut.webm" : "cut.mp4");
+    const keep = String(MAX_VIDEO_SECONDS - 0.1);
+    try {
+      await ffmpeg(["-i", source, "-t", keep, "-map", "0:v:0", "-map", "0:a:0?", "-c", "copy", ...(webm ? [] : ["-movflags", "+faststart"]), out], 120_000);
+    } catch (error) {
+      console.error("trim by copy failed, re-encoding", angle.id, String(error).slice(0, 200));
+      out = join(dir, "cut.mp4");
+      await ffmpeg(["-i", source, "-t", keep, "-map", "0:v:0", "-map", "0:a:0?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", out], 240_000);
+    }
+    const ext = out.endsWith(".webm") ? "webm" : "mp4";
+    const path = `m/${angle.momentId}/${angle.id}-40.${ext}`;
+    await put(path, await readFile(out), { access: "private", contentType: `video/${ext}`, addRandomSuffix: false, allowOverwrite: true });
+    await db.angle.update({ where: { id: angle.id }, data: { mediaPath: path } });
+    await del(angle.mediaPath).catch((error) => console.error("trim: old file not removed", angle.id, error));
+    return path;
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
+export async function completeAngle(user: User, angleId: string, options: { trim?: boolean } = {}) {
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: true } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
   // Already done (a retry): report what happened the first time.
@@ -238,7 +270,12 @@ export async function completeAngle(user: User, angleId: string) {
   // The phone said how long the video is; the server measures it itself (a tampered upload
   // can't slip a 10-minute video past the 40-second limit). Too long → gone, files and all.
   if (angle.mediaType === MediaType.VIDEO && angle.mediaPath) {
-    const measured = await probeDuration((await viewUrl(angle.mediaPath))!);
+    let measured = await probeDuration((await viewUrl(angle.mediaPath))!);
+    // Its owner chose «its first 40 seconds»: kept here, then measured again.
+    if (options.trim && measured != null && measured > MAX_VIDEO_SECONDS + VIDEO_SECONDS_TOLERANCE) {
+      angle.mediaPath = await trimToLimit({ id: angle.id, momentId: angle.momentId, mediaPath: angle.mediaPath });
+      measured = await probeDuration((await viewUrl(angle.mediaPath))!);
+    }
     if (measured != null && measured > MAX_VIDEO_SECONDS + VIDEO_SECONDS_TOLERANCE) {
       await db.angle.delete({ where: { id: angle.id } });
       await del(needed).catch((error) => console.error("too long: blob cleanup failed", angle.id, error));

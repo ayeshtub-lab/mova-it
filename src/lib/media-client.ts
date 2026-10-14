@@ -17,6 +17,7 @@ export type PreparedAngle = {
   durationSec?: number;
   width: number;
   height: number;
+  trim?: boolean; // longer than 40 s: the server keeps its first 40 seconds
 };
 
 export class PrepareError extends Error {
@@ -91,7 +92,9 @@ async function preparePhoto(file: File): Promise<PreparedAngle> {
   }
 }
 
-async function prepareVideo(file: File): Promise<PreparedAngle> {
+// `long`: a video past 40 s whose owner chose «its first 40 seconds»: it goes up whole and the
+// server keeps those seconds (src/server/angles.ts trimToLimit) — nothing re-recorded on the phone.
+async function prepareVideo(file: File, long = false): Promise<PreparedAngle> {
   if (!VIDEO_TYPES.includes(file.type)) throw new PrepareError("unsupported");
   const url = URL.createObjectURL(file);
   try {
@@ -106,7 +109,7 @@ async function prepareVideo(file: File): Promise<PreparedAngle> {
     });
     const durationSec = video.duration;
     if (!Number.isFinite(durationSec) || durationSec <= 0) throw new PrepareError("unsupported");
-    if (durationSec > MAX_VIDEO_SECONDS + 0.5) throw new PrepareError("too_long", durationSec);
+    if (durationSec > MAX_VIDEO_SECONDS + 0.5 && !long) throw new PrepareError("too_long", durationSec);
 
     await new Promise<void>((resolve) => {
       video.onseeked = () => resolve();
@@ -121,7 +124,8 @@ async function prepareVideo(file: File): Promise<PreparedAngle> {
       contentType: file.type,
       poster,
       capturedAt: file.lastModified ? new Date(file.lastModified).toISOString() : null,
-      durationSec,
+      durationSec: Math.min(durationSec, MAX_VIDEO_SECONDS),
+      ...(durationSec > MAX_VIDEO_SECONDS + 0.5 ? { trim: true } : {}),
       width: video.videoWidth,
       height: video.videoHeight,
     };
@@ -130,8 +134,8 @@ async function prepareVideo(file: File): Promise<PreparedAngle> {
   }
 }
 
-export function prepareAngleFile(file: File) {
-  if (file.type.startsWith("video/")) return prepareVideo(file);
+export function prepareAngleFile(file: File, long = false) {
+  if (file.type.startsWith("video/")) return prepareVideo(file, long);
   if (file.type.startsWith("image/") || /\.(heic|heif)$/i.test(file.name)) return preparePhoto(file);
   return Promise.reject(new PrepareError("unsupported"));
 }

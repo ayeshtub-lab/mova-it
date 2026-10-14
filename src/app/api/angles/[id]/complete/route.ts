@@ -22,7 +22,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   try {
-    const angle = await completeAngle(user, id);
+    // { trim: true }: a longer video uploaded whole — its first 40 seconds are kept here.
+    const body = (await request.json().catch(() => null)) as { trim?: unknown } | null;
+    const angle = await completeAngle(user, id, { trim: body?.trim === true });
     // The small copy for grids (photos), after the response; until then grids use the photo.
     after(() => makeSmall(angle.id).catch((error) => console.error("small copy failed", angle.id, error)));
     // Videos: a copy to Cloudflare Stream (every phone, adaptive quality), after the response.
