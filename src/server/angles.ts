@@ -1,3 +1,4 @@
+import { staffOver } from "@/lib/staff";
 import { del, list } from "@vercel/blob";
 import { MediaType, PlaceSource, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
@@ -167,7 +168,7 @@ export async function uploadConstraintsFor(user: User, pathname: string) {
 // who added it and for the moment's creator, who moderates their moment.
 export async function deleteAngle(user: User, angleId: string) {
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: true } });
-  if (!angle || (angle.contributorId !== user.id && angle.moment.creatorId !== user.id)) throw new AngleError("not_found");
+  if (!angle || (angle.contributorId !== user.id && angle.moment.creatorId !== user.id && !staffOver(user, angle.moment))) throw new AngleError("not_found");
 
   const montages = await db.montage.findMany({ where: { momentId: angle.momentId, angleIds: { has: angle.id } } });
   const files = [angle.mediaPath, angle.thumbPath, angle.smallPath, parseCaption(angle.caption)?.path, ...montages.map((m) => m.videoUrl)].filter((p): p is string => !!p);
@@ -186,7 +187,7 @@ export async function deleteAngle(user: User, angleId: string) {
 // (everything hanging on the moment goes with it), then the files.
 export async function deleteMoment(user: User, code: string) {
   const moment = await db.moment.findUnique({ where: { code: code.toUpperCase() } });
-  if (!moment || moment.creatorId !== user.id || moment.kind === "DAILY") throw new AngleError("not_found");
+  if (!moment || (moment.creatorId !== user.id && !staffOver(user, moment)) || moment.kind === "DAILY") throw new AngleError("not_found");
   const [angles, montages] = await Promise.all([
     db.angle.findMany({ where: { momentId: moment.id }, select: { mediaPath: true, thumbPath: true, smallPath: true, caption: true, streamUid: true } }),
     db.montage.findMany({ where: { momentId: moment.id }, select: { videoUrl: true } }),

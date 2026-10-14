@@ -412,7 +412,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               share={{ url: shareUrl, title: view.title }}
               story={story}
               altBase={[plain(view.title), view.place?.name ?? view.placeName].filter(Boolean).join(" — ")}
-              momentEdit={view.viewer.isCreator && view.kind !== "DAILY" ? { code: view.code, title: view.title, description: view.description, labels: dict.momentDetails } : undefined}
+              momentEdit={view.viewer.manage && view.kind !== "DAILY" ? { code: view.code, title: view.title, description: view.description, labels: dict.momentDetails } : undefined}
             />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (
               <div
@@ -566,7 +566,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           </Link>
         )}
         {/* One button: the creator deletes the whole moment; anyone else, all of their shots in it. */}
-        {view.viewer.isCreator && view.kind !== "DAILY" ? (
+        {view.viewer.manage && view.kind !== "DAILY" ? (
           <DeleteMoment code={view.code} scope="moment" labels={{ ...dict.deleteMoment, button: dict.deleteMoment.moment, confirm: fill(dict.deleteMoment.momentConfirm, { n: String(view.angleCount) }) }} />
         ) : (
           view.angles.some((a) => a.isMine) && (

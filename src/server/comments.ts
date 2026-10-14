@@ -1,3 +1,4 @@
+import { staffOver } from "@/lib/staff";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { visibleAngle } from "@/server/access";
@@ -24,7 +25,7 @@ function cleanBody(raw: unknown) {
 }
 
 type Row = { id: string; body: string; createdAt: Date; userId: string; parentId: string | null; user: { displayName: string; verified: boolean; avatarUrl: string | null } };
-const toView = (c: Row, viewer: User | null, creatorId: string, likes = { count: 0, liked: false }) => ({
+const toView = (c: Row, viewer: User | null, moment: { creatorId: string; visibility: string }, likes = { count: 0, liked: false }) => ({
   id: c.id,
   body: c.body,
   createdAt: c.createdAt,
@@ -35,7 +36,7 @@ const toView = (c: Row, viewer: User | null, creatorId: string, likes = { count:
   likes: likes.count,
   liked: likes.liked,
   mine: !!viewer && c.userId === viewer.id,
-  canDelete: !!viewer && (c.userId === viewer.id || creatorId === viewer.id),
+  canDelete: !!viewer && (c.userId === viewer.id || moment.creatorId === viewer.id || staffOver(viewer, moment)),
 });
 
 // A visitor (no account) may read the comments on a public moment's checked angle.
@@ -58,7 +59,7 @@ export async function listComments(user: User | null, angleId: string) {
   });
   // Top-level comments in order, each followed by its replies (a reply whose comment is
   // hidden from this viewer is left out too).
-  const views = comments.map((c) => toView(c, user, angle.moment.creatorId, { count: c._count.likes, liked: c.likes.length > 0 }));
+  const views = comments.map((c) => toView(c, user, angle.moment, { count: c._count.likes, liked: c.likes.length > 0 }));
   // Zawmo's own (verified) comments lead, like a pinned comment; the rest keep their order.
   const top = views.filter((c) => !c.parentId).sort((a, b) => Number(b.authorVerified) - Number(a.authorVerified));
   return top.flatMap((c) => [c, ...views.filter((r) => r.parentId === c.id)]);
@@ -89,12 +90,12 @@ export async function addComment(user: User, angleId: string, raw: unknown, rawP
   // once when they are the one answered).
   if (parentAuthor) await notify({ userId: parentAuthor, actorId: user.id, kind: "REPLY", angleId, commentId: comment.id });
   if (angle.contributorId !== parentAuthor) await notify({ userId: angle.contributorId, actorId: user.id, kind: "COMMENT", angleId, commentId: comment.id });
-  return toView(comment, user, angle.moment.creatorId);
+  return toView(comment, user, angle.moment);
 }
 
 export async function deleteComment(user: User, commentId: string) {
   const comment = await db.comment.findUnique({ where: { id: commentId }, include: { angle: { include: { moment: true } } } });
-  if (!comment || (comment.userId !== user.id && comment.angle.moment.creatorId !== user.id)) throw new CommentError("not_found");
+  if (!comment || (comment.userId !== user.id && comment.angle.moment.creatorId !== user.id && !staffOver(user, comment.angle.moment))) throw new CommentError("not_found");
   await db.comment.delete({ where: { id: commentId } });
 }
 

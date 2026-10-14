@@ -1,3 +1,4 @@
+import { staffOver } from "@/lib/staff";
 import { randomInt } from "node:crypto";
 import { Visibility } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
@@ -176,7 +177,8 @@ export async function getMomentView(code: string, viewer: User | null) {
     participantCount,
     angleCount: shown.length,
     lockedCount: shown.length - visible.length,
-    viewer: { isCreator, hasContributed, canPick: !!viewer?.verified && moment.visibility === Visibility.PUBLIC && moment.kind !== "DAILY" && !moment.demo },
+    // (manage: the owner, or Zawmo's admin on a public moment — src/lib/staff.ts.)
+    viewer: { isCreator, manage: isCreator || staffOver(viewer, moment), hasContributed, canPick: !!viewer?.verified && moment.visibility === Visibility.PUBLIC && moment.kind !== "DAILY" && !moment.demo },
     angles: await Promise.all(
       visible.map(async (a) => ({
         id: a.id,
@@ -223,7 +225,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         // Follow straight from the viewer (official accounts, not yourself).
         following: following.has(a.contributorId),
         commentCount: comments.get(a.id) ?? 0,
-        canDelete: !!viewer && (a.contributorId === viewer.id || isCreator),
+        canDelete: !!viewer && (a.contributorId === viewer.id || isCreator || staffOver(viewer, moment)),
         isMine: !!viewer && a.contributorId === viewer.id,
         // «🔒 مش من تصويرك؟»: shown to its owner (src/server/screening.ts, «repost»).
         repost: a.screening === "repost",
@@ -346,7 +348,7 @@ export async function createDailyMoment(system: User, title: string) {
 export async function updateMomentDetails(user: User, code: string, input: { title?: unknown; description?: unknown }) {
   const moment = await db.moment.findUnique({ where: { code: code.toUpperCase() } });
   if (!moment) throw new MomentError("not_found");
-  if (moment.creatorId !== user.id || moment.kind === "DAILY") throw new MomentError("forbidden");
+  if ((moment.creatorId !== user.id && !staffOver(user, moment)) || moment.kind === "DAILY") throw new MomentError("forbidden");
   const title = clean(input.title, 80);
   if (!title) throw new MomentError("invalid_title");
   const description = input.description == null || input.description === "" ? null : clean(input.description, DESCRIPTION_MAX);
