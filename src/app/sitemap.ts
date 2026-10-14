@@ -3,26 +3,27 @@ import { CANONICAL_HOST } from "@/lib/hosts";
 import { SOUNDS } from "@/lib/sounds";
 import { eventPath, findEvents } from "@/server/events";
 import { topicIndex, topicPath } from "@/server/topics";
-import { sitemapEntries, sitemapShots, sitemapSoundKeys, sitemapTags, shotOrdinals, shotPath, shotTitle } from "@/server/seo";
+import { sitemapAuthors, sitemapEntries, sitemapShots, sitemapSoundKeys, sitemapTags, shotOrdinals, shotPath, shotTitle } from "@/server/seo";
 
 // The pages Google should know about: the home page, public moments (with all their shots'
 // pictures, for Google Images) and places with shots; each public VIDEO on its own page (Google
-// Video needs a page per video); #hashtag pages with a few moments, and the sound pages people
-// used. A new site gets little of Google's time: a photo's own page (a picture and a line) is
-// left out — its picture is listed with its moment, the stronger page — so Google spends it on
-// pages worth showing. Those pages still open, and moments link to them.
+// Video needs a page per video) and each public photo on its own page too (since 2026-10-14, the
+// owner's call: found from the map, not only through its moment — lower priority than the
+// moment); the members who shot them (/u/ID, with a public shot); #hashtag pages with a few
+// moments, and the sound pages people used.
 // Rebuilt at most once an hour.
 export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = `https://${CANONICAL_HOST}`;
-  const [{ moments, places }, shots, tags, sounds, events, topics] = await Promise.all([
+  const [{ moments, places }, shots, tags, sounds, events, topics, authors] = await Promise.all([
     sitemapEntries(),
     sitemapShots(),
     sitemapTags(),
     sitemapSoundKeys(),
     findEvents({ since: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }),
     topicIndex(),
+    sitemapAuthors(),
   ]);
   const ordinals = shotOrdinals(shots);
   // A moment lists its shots' pictures too (newest first; Google reads up to 1000 a page).
@@ -69,6 +70,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...shots
       .filter((s) => s.mediaType === "PHOTO")
       .map((s) => ({ url: `${base}${shotPath(s)}`, lastModified: s.uploadedAt, changeFrequency: "monthly" as const, priority: 0.4, images: [`${base}/i/${s.id}.jpg`] })),
+    // Who shot them: a member's page with their public shots (E-E-A-T).
+    ...authors.map((a) => ({ url: `${base}/u/${a.id}`, lastModified: a.updatedAt, changeFrequency: "weekly" as const, priority: 0.5 })),
     // A day's rain, snow, sunset… in one area (src/server/events.ts): 3 shots by 2 people at least.
     ...events.map((e) => ({ url: `${base}${eventPath(e)}`, lastModified: e.updatedAt, changeFrequency: "daily" as const, priority: 0.7 })),
     ...tags.map((t) => ({ url: `${base}/tag/${encodeURIComponent(t.tag)}`, lastModified: t.updatedAt, changeFrequency: "daily" as const, priority: 0.6 })),

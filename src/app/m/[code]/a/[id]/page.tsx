@@ -146,6 +146,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
               alt={shot.aiText ? `${label} — ${shot.aiText.replace(/#\S+/g, "").trim()}` : label}
               width={shot.width ?? undefined}
               height={shot.height ?? undefined}
+              fetchPriority="high"
               className="mx-auto max-h-[75vh] w-auto object-contain"
               style={{ filter: filterCss(shot.filter) }}
             />

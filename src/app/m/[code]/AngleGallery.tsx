@@ -769,7 +769,7 @@ export function AngleGallery({
                 <AutoVideo src={a.mediaUrl} hls={a.hlsUrl} poster={a.thumbUrl} className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
-                <img src={a.gridUrl ?? ""} alt={altBase ? [altBase, a.aiText?.replace(/#\S+/g, "").trim(), a.contributorName].filter(Boolean).join(" — ") : ""} loading="lazy" className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
+                <img src={a.gridUrl ?? ""} alt={altBase ? [altBase, a.aiText?.replace(/#\S+/g, "").trim(), a.contributorName].filter(Boolean).join(" — ") : ""} loading={i < 2 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined} className="relative aspect-[3/4] w-full object-cover" style={{ filter: filterCss(lookOf(a.id).filter) }} />
               )}
               <CaptionOverlay caption={captionOf(a.id)} />
               {story && (

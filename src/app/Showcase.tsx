@@ -12,14 +12,14 @@ export function Showcase({ shots, labels }: { shots: Shot[]; labels: { title: st
     <section className="flex flex-col gap-3">
       <h2 className="text-xl font-extrabold">{labels.title}</h2>
       <ul className="grid auto-rows-[9.5rem] grid-flow-dense grid-cols-3 gap-1.5 sm:auto-rows-[12rem]">
-        {shots.map((s) => (
+        {shots.map((s, i) => (
           <li key={s.id} className={s.video ? "row-span-2" : ""}>
             <Link href={`/m/${s.momentCode}#angle-${s.id}`} className="group relative block size-full overflow-hidden rounded-2xl bg-surface">
               {s.video && s.mediaUrl ? (
                 <AutoVideo src={s.mediaUrl} hls={s.hlsUrl} poster={s.imageUrl} className="size-full object-cover" style={{ filter: filterCss(s.filter) }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
-                s.imageUrl && <img src={s.imageUrl} alt={`${s.title} — ${s.name}`} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(s.filter) }} />
+                s.imageUrl && <img src={s.imageUrl} alt={`${s.title} — ${s.name}`} loading={i < 2 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined} className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(s.filter) }} />
               )}
               {/* «⭐ اختيار زاومو» */}
               {s.picked && <span aria-hidden="true" className="absolute start-1.5 top-1.5 rounded-full bg-gradient-to-r from-amber-300 to-yellow-400 px-1.5 text-xs font-extrabold text-black shadow">⭐</span>}

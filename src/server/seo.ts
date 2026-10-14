@@ -19,6 +19,27 @@ const shownAngle = (now: Date) => ({
   moment: { visibility: "PUBLIC" as const, status: "ACTIVE" as const, kind: { not: "DAILY" as const }, demo: false },
 });
 
+// A member as search engines may see them (E-E-A-T: who shot what, where): their public shots
+// and the places of those, for their page's words and data. A page is listed and indexed only
+// with a public shot — a member who shares nothing publicly stays out of search.
+export async function publicAuthor(userId: string, now = new Date()) {
+  const where = { contributorId: userId, contributor: { isGuest: false }, ...shownAngle(now) };
+  const [shots, last, places] = await Promise.all([
+    db.angle.count({ where }),
+    db.angle.findFirst({ where, orderBy: { uploadedAt: "desc" }, select: { uploadedAt: true } }),
+    db.angle.groupBy({ by: ["placeId"], where: { ...where, placeId: { not: null } }, _count: { _all: true }, orderBy: { _count: { placeId: "desc" } }, take: 4 }),
+  ]);
+  const names = places.length ? await db.place.findMany({ where: { id: { in: places.map((p) => p.placeId!) } }, select: { id: true, nameAr: true } }) : [];
+  const byId = new Map(names.map((p) => [p.id, p.nameAr]));
+  return { shots, updatedAt: last?.uploadedAt ?? null, places: places.map((p) => byId.get(p.placeId!)).filter((n): n is string => !!n) };
+}
+
+// Members with a public shot, for the sitemap.
+export async function sitemapAuthors(now = new Date()) {
+  const rows = await db.angle.groupBy({ by: ["contributorId"], where: { contributor: { isGuest: false }, ...shownAngle(now) }, _max: { uploadedAt: true } });
+  return rows.map((r) => ({ id: r.contributorId, updatedAt: r._max.uploadedAt! }));
+}
+
 // The sitemap's moments and places, each with when it last changed.
 // #hashtag pages worth listing: tags in public moments' descriptions or their shots' lines,
 // on `min` moments at least (a tag page lets itself be indexed from 3 — /tag/[tag]).

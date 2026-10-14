@@ -136,12 +136,12 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/p/
 
         {data.shots.length ? (
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {data.shots.map((s) => (
+            {data.shots.map((s, i) => (
               <li key={s.id}>
                 <Link href={`/m/${s.momentCode}#angle-${s.id}`} className="group relative block aspect-[3/4] overflow-hidden rounded-2xl bg-surface">
                   {s.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
-                    <img src={s.imageUrl} alt={`${plain(s.title)} — ${name} — ${s.name}`} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(s.filter) }} />
+                    <img src={s.imageUrl} alt={`${plain(s.title)} — ${name} — ${s.name}`} loading={i < 2 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined} className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(s.filter) }} />
                   ) : (
                     <span aria-hidden="true" className="block size-full bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
                   )}

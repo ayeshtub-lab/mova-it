@@ -9,6 +9,9 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { SettingToggle } from "./SettingToggle";
 import { getProfile, ProfileError, setDisplayName } from "@/server/profile";
+import { publicAuthor } from "@/server/seo";
+import { JsonLd } from "@/app/JsonLd";
+import { CANONICAL_HOST } from "@/lib/hosts";
 import { isCurator } from "@/server/sound-resolve";
 import { AvatarEditor } from "./AvatarEditor";
 import { FollowButton } from "./FollowButton";
@@ -16,11 +19,27 @@ import { NameEditor, type RenameState } from "./NameEditor";
 import { ProfileTabs } from "./ProfileTabs";
 import { MessageButton } from "./MessageButton";
 
+// What a member's page says about them to search engines: their public shots and where.
+function authorLine(name: string, author: Awaited<ReturnType<typeof publicAuthor>>, locale: string) {
+  const n = author.shots.toLocaleString(locale === "ar" ? "ar-EG" : "en");
+  const where = author.places.slice(0, 3).join(locale === "ar" ? "، " : ", ");
+  return locale === "ar"
+    ? `صور ولحظات ${name} على زاومو: ${n} لقطة حقيقية${where ? ` من ${where}` : ""}.`
+    : `${name}'s photos and moments on Zawmo: ${n} real shots${where ? ` from ${where}` : ""}.`;
+}
+
 export async function generateMetadata({ params }: PageProps<"/u/[id]">): Promise<Metadata> {
-  const profile = await getProfile(await getCurrentUser(), (await params).id);
+  const id = (await params).id;
+  const profile = await getProfile(await getCurrentUser(), id);
   if (!profile) return {};
-  const dict = await getDictionary(await getLocale());
-  return { title: profile.displayName === dict.meta.brand ? dict.meta.brand : `${profile.displayName} · ${dict.meta.brand}`, robots: { index: false } };
+  const locale = await getLocale();
+  const dict = await getDictionary(locale);
+  const title = profile.displayName === dict.meta.brand ? dict.meta.brand : `${profile.displayName} · ${dict.meta.brand}`;
+  // Indexed only with a public shot: someone who shares nothing publicly stays out of search.
+  const author = await publicAuthor(id);
+  if (!author.shots) return { title, robots: { index: false } };
+  const description = authorLine(profile.displayName, author, locale);
+  return { title, description, alternates: { canonical: `/u/${id}` }, openGraph: { title, description, type: "profile", siteName: dict.meta.brand } };
 }
 
 async function rename(_prev: RenameState, formData: FormData): Promise<RenameState> {
@@ -45,6 +64,27 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
   const dict = await getDictionary(locale);
   const t = dict.profile;
   const initial = [...profile.displayName][0] ?? "?";
+  // Who they are, for search engines (a page with public shots only — see generateMetadata).
+  const author = await publicAuthor(id);
+  const site = `https://${CANONICAL_HOST}`;
+  const structured = author.shots
+    ? {
+        "@context": "https://schema.org",
+        "@type": "ProfilePage",
+        url: `${site}/u/${id}`,
+        ...(author.updatedAt ? { dateModified: author.updatedAt.toISOString() } : {}),
+        mainEntity: {
+          "@type": "Person",
+          "@id": `${site}/u/${id}#person`,
+          name: profile.displayName,
+          url: `${site}/u/${id}`,
+          description: authorLine(profile.displayName, author, locale),
+          ...(profile.avatarUrl ? { image: profile.avatarUrl } : {}),
+          ...(author.places.length ? { homeLocation: { "@type": "Place", name: author.places[0] } } : {}),
+          interactionStatistic: [{ "@type": "InteractionCounter", interactionType: "https://schema.org/WriteAction", userInteractionCount: author.shots }],
+        },
+      }
+    : null;
   const avatar = (
     <span className="block rounded-full bg-gradient-to-br from-brand-red via-moment to-brand-blue p-1">
       {profile.avatarUrl ? (
@@ -60,6 +100,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
+      {structured && <JsonLd data={structured} />}
       <SiteHeader locale={locale} dict={dict} />
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 pb-16">
         <section className="flex flex-col items-center gap-3 text-center">
