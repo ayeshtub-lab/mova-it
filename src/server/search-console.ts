@@ -8,8 +8,8 @@ import { db } from "@/lib/db";
 //    one when it truly describes what is seen (src/server/screening.ts);
 //  • «🔎 السيو» (/admin/seo) shows the searches with the most impressions and the most clicks,
 //    week on week.
-// It needs a Google service account with read access to the property: its JSON key, base64,
-// in GSC_SERVICE_ACCOUNT. Without it nothing is fetched and nothing breaks.
+// It needs a Google service account with read access to the property: its JSON key (pasted as
+// it is, or base64) in GSC_SERVICE_ACCOUNT. Without it nothing is fetched and nothing breaks.
 
 const PROPERTY = "sc-domain:zawmo.com";
 const TYPES = ["web", "image"] as const;
@@ -21,7 +21,8 @@ const b64url = (data: string | Buffer) => Buffer.from(data).toString("base64url"
 
 // A short-lived access token from the service account's key (a signed JWT, as Google asks).
 async function accessToken() {
-  const key = JSON.parse(Buffer.from(process.env.GSC_SERVICE_ACCOUNT!, "base64").toString("utf8")) as { client_email: string; private_key: string };
+  const raw = process.env.GSC_SERVICE_ACCOUNT!.trim();
+  const key = JSON.parse(raw.startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8")) as { client_email: string; private_key: string };
   const now = Math.floor(Date.now() / 1000);
   const head = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
   const claims = b64url(JSON.stringify({ iss: key.client_email, scope: "https://www.googleapis.com/auth/webmasters.readonly", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 }));
