@@ -13,6 +13,8 @@ import { systemUser } from "@/server/daily";
 import { notify } from "@/server/notifications";
 import { buildMontageVideo, filmLimit, fitsFilm, renderMontage } from "./render";
 
+export const PARTS_SHOWN = true; // (kept in step with src/server/montage/parts.ts)
+
 // A moment's video shows every shot (near-duplicates aside) as long as it stays within 40
 // seconds — each shot gets shorter as there are more (src/server/montage/render.ts). Past
 // this many, the best are kept: «⭐ اختيار زاومو», then the most liked, one per person first.
@@ -184,6 +186,8 @@ async function madeByHand(momentId: string) {
 // its video. Its maker (the owner of the first shot) is told once — never again for this
 // moment, and not at all once a video has been made. Not for «لحظة اليوم».
 export async function offerVideo(angleId: string) {
+  // (Films are made by themselves now, in parts — nobody needs to be offered the button.)
+  if (PARTS_SHOWN) return;
   const angle = await db.angle.findUnique({ where: { id: angleId }, select: { status: true, momentId: true, moment: { select: { kind: true } } } });
   if (!angle || angle.status !== "READY" || angle.moment.kind === "DAILY") return;
   const [rights, size] = await Promise.all([videoRights(angle.momentId), sizeFor(angle.momentId)]);
@@ -213,6 +217,8 @@ export async function requestMontage(user: User, code: string, rawSound: unknown
 // public host for the link in the video.
 export async function refreshMontage(momentId: string, host: string, { settle = true, now = new Date() } = {}) {
   if (settle) await new Promise((r) => setTimeout(r, SETTLE_MS));
+  // A moment with parts (src/server/montage/parts.ts) no longer remakes its one film.
+  if (await db.montage.count({ where: { momentId, part: { not: null }, status: "READY" } })) return;
   if ((await videoRights(momentId)).count < (await sizeFor(momentId)).min || !(await madeByHand(momentId))) return;
   // One or two new shots while people are still adding: wait (refreshPendingMontages picks it
   // up once it goes quiet). Looks, sounds, writing and deletions remake it at once.
@@ -258,7 +264,7 @@ export async function failingLately(momentId: string, now: Date) {
 export async function refreshPendingMontages(host: string, limit = 1, now = new Date()) {
   const quietSince = new Date(now.getTime() - QUIET_MS);
   const candidates = await db.moment.findMany({
-    where: { montages: { some: { status: "READY", part: null } } },
+    where: { montages: { some: { status: "READY", part: null }, none: { status: "READY", part: { not: null } } } },
     orderBy: { lastActivityAt: "desc" },
     select: { id: true },
     take: 100,

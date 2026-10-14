@@ -1,3 +1,4 @@
+import { sitemapParts } from "@/server/montage/parts";
 import type { MetadataRoute } from "next";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { SOUNDS } from "@/lib/sounds";
@@ -16,7 +17,7 @@ export const revalidate = 3600;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = `https://${CANONICAL_HOST}`;
-  const [{ moments, places }, shots, tags, sounds, events, topics, authors] = await Promise.all([
+  const [{ moments, places }, shots, tags, sounds, events, topics, authors, parts] = await Promise.all([
     sitemapEntries(),
     sitemapShots(),
     sitemapTags(),
@@ -24,6 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     findEvents({ since: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }),
     topicIndex(),
     sitemapAuthors(),
+    sitemapParts(),
   ]);
   const ordinals = shotOrdinals(shots);
   // A moment lists its shots' pictures too (newest first; Google reads up to 1000 a page).
@@ -43,6 +45,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...topics.map((x) => ({ url: `${base}${topicPath(x.slug, x.topic)}`, lastModified: x.updatedAt, changeFrequency: "weekly" as const, priority: 0.7 })),
     // A moment: its pictures.
     ...moments.map((m) => ({ url: `${base}/m/${m.code}`, lastModified: m.updatedAt, changeFrequency: "weekly" as const, priority: 0.6, images: pictures.get(m.code) })),
+    // Its film in parts of up to 40 seconds (src/server/montage/parts.ts), each on its own watch page.
+    ...parts.map((p) => ({
+      url: `${base}/m/${p.code}/film/${p.part}`,
+      lastModified: p.at,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
+      videos: [{ title: p.title, description: `${p.title} — فيديو حقيقي من لقطات الناس على زاومو`, thumbnail_loc: p.poster ? `${base}/i/${p.poster}.jpg` : `${base}/m/${p.code}/opengraph-image`, content_loc: `${base}/v/${p.code}-${p.part}.mp4`, publication_date: p.at.toISOString(), ...(p.durationSec ? { duration: Math.max(1, Math.round(p.durationSec)) } : {}) }],
+    })),
     // Its film (every angle in one video), on its own watch page.
     ...moments
       .filter((m) => m.film)

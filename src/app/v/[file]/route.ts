@@ -1,11 +1,20 @@
 import { viewUrl } from "@/server/media";
 import { publicMontage, publicShot } from "@/server/seo";
+import { publicPart } from "@/server/montage/parts";
 
 // zawmo.com/v/ID.mp4: a public shot's video at an address that stays the same, for search
 // engines — and zawmo.com/v/CODE.mp4 (a moment's code, upper case) its film. It forwards to the
 // file's short-lived link (never cached: that link expires).
 export async function GET(_request: Request, { params }: { params: Promise<{ file: string }> }) {
   const file = (await params).file;
+  // A part of a moment's film (src/server/montage/parts.ts): /v/CODE-2.mp4.
+  const partOf = /^([2-9A-HJKMNP-Z]{6})-(\d{1,3})\.mp4$/.exec(file);
+  if (partOf) {
+    const part = await publicPart(partOf[1], Number(partOf[2]));
+    const partUrl = part ? await viewUrl(part.path) : null;
+    if (!partUrl) return new Response("Not found", { status: 404 });
+    return new Response(null, { status: 302, headers: { location: partUrl, "cache-control": "private, no-store" } });
+  }
   const code = /^([2-9A-HJKMNP-Z]{6})\.mp4$/.exec(file)?.[1];
   if (code) {
     const film = await publicMontage(code);

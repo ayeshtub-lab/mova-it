@@ -4,8 +4,9 @@ import { isQuran } from "@/lib/sounds";
 import { notify } from "@/server/notifications";
 import { systemUser } from "@/server/daily";
 import { resolveSound } from "@/server/sound-resolve";
-import { bestShots, MIN_ANGLES } from "./index";
+import { bestShots, MIN_ANGLES, PARTS_SHOWN } from "./index";
 import { renderMontage } from "./render";
+import { viewUrl } from "@/server/media";
 
 // «أجزاء» (agreed with the owner of the site, 2026-10-15): a moment's film no longer squeezes every
 // shot into one 40-second video that is remade as shots arrive (cutting duaas short, skipping
@@ -19,7 +20,7 @@ import { renderMontage } from "./render";
 // Gently on the server: the cron makes ONE part per run (every 15 minutes) across the whole site.
 // Until PARTS_SHOWN is on, parts are made but not shown or announced (checked first by hand).
 
-export const PARTS_SHOWN = false;
+export { PARTS_SHOWN } from "./index";
 
 const LIMIT = 40;
 const INTRO = 1.8;
@@ -161,7 +162,10 @@ export async function makeDuePart(host: string, now = new Date()) {
     });
     await renderMontage(montage.id, host, { plan: due.seconds, bed: true });
     const made = await db.montage.findUnique({ where: { id: montage.id } });
-    if (made?.status === "READY" && !due.remake && PARTS_SHOWN) await announcePart(made).catch((error) => console.error("part notice failed", made.id, error));
+    // Told only for parts of fresh shots (a week): an old moment turned into parts by itself is
+    // not news to anyone.
+    const fresh = due.shots.some((s) => now.getTime() - s.uploadedAt.getTime() < 7 * 24 * 60 * 60 * 1000);
+    if (made?.status === "READY" && !due.remake && fresh && PARTS_SHOWN) await announcePart(made).catch((error) => console.error("part notice failed", made.id, error));
     return made;
   }
   return null;
@@ -188,4 +192,56 @@ async function announcePart(montage: Montage) {
     if (pending) await db.notification.update({ where: { id: pending.id }, data: { count: { increment: 1 }, createdAt: new Date(), angleId } });
     else await notify({ userId, actorId: zawmo.id, kind: "FILM_PART", angleId });
   }
+}
+
+// A moment's finished parts, in order — the latest make of each — with their names as they read
+// now (a shot's SEO title may have come after the part was made). `lasting`: a public moment's
+// parts play from their lasting addresses (/v/CODE-N.mp4), which Google keeps.
+export async function filmParts(momentId: string, code: string, lasting: boolean) {
+  const made = await db.montage.findMany({ where: { momentId, part: { not: null }, status: "READY", videoUrl: { not: null } }, orderBy: { createdAt: "desc" } });
+  const latest = new Map<number, Montage>();
+  for (const m of made) if (!latest.has(m.part!)) latest.set(m.part!, m);
+  const moment = await db.moment.findUnique({ where: { id: momentId }, select: { title: true } });
+  return Promise.all(
+    [...latest.values()]
+      .sort((a, b) => a.part! - b.part!)
+      .map(async (m) => ({
+        part: m.part!,
+        title: moment ? await partTitle(moment.title, m.part!, m.angleIds) : (m.title ?? ""),
+        durationSec: m.durationSec,
+        at: m.finishedAt ?? m.createdAt,
+        poster: m.angleIds[0] ?? null,
+        url: lasting ? `/v/${code}-${m.part}.mp4` : await viewUrl(m.videoUrl),
+      })),
+  );
+}
+export type FilmPart = Awaited<ReturnType<typeof filmParts>>[number];
+
+// A public moment's part, for its own page and lasting address.
+export async function publicPart(code: string, part: number) {
+  const m = await db.montage.findFirst({
+    where: { part, status: "READY", videoUrl: { not: null }, moment: { code, visibility: "PUBLIC", status: "ACTIVE", kind: { in: ["EVERYDAY", "BIG"] }, demo: false } },
+    orderBy: { createdAt: "desc" },
+    include: { moment: { select: { title: true } } },
+  });
+  if (!m) return null;
+  return { path: m.videoUrl!, part, title: await partTitle(m.moment.title, part, m.angleIds), durationSec: m.durationSec, at: m.finishedAt ?? m.createdAt, poster: m.angleIds[0] ?? null };
+}
+
+// Every public moment's parts, for the sitemap.
+export async function sitemapParts() {
+  const made = await db.montage.findMany({
+    where: { part: { not: null }, status: "READY", videoUrl: { not: null }, moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { in: ["EVERYDAY", "BIG"] }, demo: false } },
+    orderBy: { createdAt: "desc" },
+    select: { part: true, angleIds: true, durationSec: true, finishedAt: true, createdAt: true, moment: { select: { code: true, title: true } } },
+  });
+  const seen = new Set<string>();
+  const out = [];
+  for (const m of made) {
+    const key = `${m.moment.code}-${m.part}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ code: m.moment.code, part: m.part!, title: await partTitle(m.moment.title, m.part!, m.angleIds), durationSec: m.durationSec, at: m.finishedAt ?? m.createdAt, poster: m.angleIds[0] ?? null });
+  }
+  return out;
 }

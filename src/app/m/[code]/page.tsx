@@ -23,6 +23,8 @@ import { getCurrentUser } from "@/lib/session";
 import { relativeTime, siteOrigin } from "@/lib/site";
 import { activityDay } from "@/server/stats";
 import { latestMontageFor, STORY_MIN } from "@/server/montage";
+import { filmParts } from "@/server/montage/parts";
+import { FilmParts } from "./FilmParts";
 import { googleEnabled } from "@/server/google";
 import { screenForPublic } from "@/server/angles";
 import { dailyFor, tomorrowVote } from "@/server/daily";
@@ -198,6 +200,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   const ballot = daily?.isToday ? await tomorrowVote(user) : null;
   // The ready video, for the creator and those who added an angle (null for everyone else).
   const montage = view.angleCount > 0 ? await latestMontageFor(user, view.code) : null;
+  // «أجزاء»: the film in parts of up to 40 seconds, for those who may see the video at all.
+  const parts = montage && !story ? await filmParts(view.id, view.code, momentIndexable(view)) : [];
   // Their own shots here still waiting for «نشر» (they left before it): back in the publish sheet.
   const drafts = await myDrafts(user, view.id);
   // The topic pages its shots are in («طماطم في الخضر») — linked below, for public moments.
@@ -316,11 +320,12 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         )}
 
         {/* The moment's ready video comes first, for those who may see it. */}
-        {view.angleCount > 0 && montage && (
+        {parts.length > 0 && <FilmParts code={view.code} parts={parts} labels={dict.filmParts} lasting={momentIndexable(view)} />}
+        {view.angleCount > 0 && montage && parts.length === 0 && (
           <MontagePanel code={view.code} initial={montage?.videoUrl && momentIndexable(view) ? { ...montage, videoUrl: `/v/${view.code}.mp4` } : montage} labels={story ? { ...dict.montage, ...dict.story.video } : dict.montage} locale={locale} soundLabels={dict.sounds} />
         )}
         {/* The film's own page (where search engines list it as a video). */}
-        {montage?.videoUrl && momentIndexable(view) && (
+        {montage?.videoUrl && momentIndexable(view) && parts.length === 0 && (
           <Link href={`/m/${view.code}/film`} className="-mt-2 self-start text-sm font-bold text-secondary underline-offset-4 hover:underline">
             ▶︎ {dict.filmPage.link}
           </Link>
