@@ -98,11 +98,11 @@ async function main() {
     assert.deepEqual(await askGemini(["a"]), { result: "allowed" });
     assert.equal(calls(), 2);
   });
-  await check("a picture gets its factual line with its #hashtags (tidied, ≤300)", async () => {
+  await check("a picture gets its factual line with its #hashtags (tidied, ≤360)", async () => {
     sequence([[200, answer(JSON.stringify({ verdict: "allow", category: "none", reason: "ok", description: " غروب  ذهبي فوق البحر \"الهادئ\" ", hashtags: ["#غروب", "بحر هادئ", "غروب", "!!"] }))]]);
     assert.deepEqual(await askGemini(["a"]), { result: "allowed", text: "غروب ذهبي فوق البحر الهادئ #غروب #بحر_هادئ" });
     assert.equal(aiTextOf("", ["x"]), "", "no sentence, no line");
-    assert.ok(aiTextOf("ك".repeat(400), ["وسم".repeat(9), "ثاني"]).length <= 300);
+    assert.ok(aiTextOf("ك".repeat(400), ["وسم".repeat(9), "ثاني"]).length <= 360);
   });
   await check("the SEO title comes tidied (no quotes or hashtags)", async () => {
     sequence([[200, answer(JSON.stringify({ verdict: "allow", category: "none", reason: "ok", seo_title: " «فنجان قهوة عربية»  بين #الزيتون " }))]]);

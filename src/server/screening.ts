@@ -82,7 +82,7 @@ Now write for search engines (Google Images and Google Video), as a senior SEO l
 
 "description": Arabic, one or two factual sentences, 18 to 35 words, naming concretely what is in the picture: the objects and their kind (Arabic coffee, a white cup, ripe tomatoes, olive trees), colours and materials, what the people are doing (never who they are), the setting (indoors or outdoors, in nature, between trees, by the sea, a street, a hall), and the time of day or season when clear. Say it is a real photo («صورة حقيقية») or a real video («فيديو حقيقي»). Mention the place and the year when they are given below — never invent a place. Use «قديمة» only for a clearly old picture (an old print, faded film colours) or a year long ago, «تراثي» or «تقليدي» only for traditional dress, dance or crafts actually seen, «نادرة» only for something genuinely rare. Never mood words with nothing behind them («أجواء مبهجة», «ساحرة», «رائعة»), no emoji, no quotation marks.
 
-"hashtags": 3 to 6 Arabic search keywords for what is seen — what people really type (single words or joined with _, no spaces, for example قهوة_عربية, زيتون, عرس_فلسطيني, دبكة).
+"hashtags": 4 to 8 Arabic search keywords (single words or joined with _, no spaces): first what is seen, as people type it (قهوة_عربية, زيتون, عرس_فلسطيني, دبكة); then the related practical topics people search for that come straight from something visible — the activity, the craft, the method, the kind of place. For example tomatoes with drip-irrigation hoses inside a greenhouse → زراعة_الطماطم, بيوت_بلاستيكية, ري_بالتنقيط, شبكة_ري_بالتنقيط, تمديد_شبكة_ري. Every keyword must come from something actually seen — never one for what is not in the picture (no سماد without fertiliser in sight).
 
 Also suggest 3 different short lines the person could write ON the shot itself, like TikTok text: 2 to 6 words each, in simple Arabic understood across the Arab world, warm or playful or proud, about what is seen (for example «أحلى صبحية ☕», «ريحة البلاد 🌿», «لمّة ما بتنتسى ❤️»). Each may end with one fitting emoji. Never name or guess who the people are, no hashtags, no quotation marks.
 
@@ -100,7 +100,7 @@ export function captionIdeasOf(raw: unknown) {
   return [...new Set(lines)].slice(0, 3);
 }
 
-// The description and its hashtags as one line (≤ 300).
+// The description and its hashtags as one line (≤ 360).
 export function aiTextOf(description: unknown, hashtags: unknown) {
   const line = typeof description === "string" ? description.replace(/[#"«»\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, 240) : "";
   if (!line) return "";
@@ -108,7 +108,7 @@ export function aiTextOf(description: unknown, hashtags: unknown) {
     .map((t) => (typeof t === "string" ? t.replace(/^#+/, "").trim().replace(/\s+/g, "_").replace(/[^\p{L}\p{N}_]/gu, "").slice(0, 30) : ""))
     .filter(Boolean);
   let out = line;
-  for (const t of [...new Set(tags)].slice(0, 6)) if (`${out} #${t}`.length <= 300) out += ` #${t}`;
+  for (const t of [...new Set(tags)].slice(0, 8)) if (`${out} #${t}`.length <= 360) out += ` #${t}`;
   return out;
 }
 
