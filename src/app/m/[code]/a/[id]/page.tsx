@@ -83,6 +83,8 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
     ...(shot.aiText || sound ? { keywords: [...new Set([...hashtagsIn(shot.aiText), ...(sound?.tags ?? [])])].map((k) => k.replace(/_/g, " ")).join(", ") } : {}),
     // Who shot it, and their page (a guest has none).
     author: { "@type": "Person", name: shot.contributor.displayName, ...(shot.contributor.isGuest ? {} : { url: `${site}/u/${shot.contributorId}` }) },
+    // (Google Images reads the picture's maker from «creator».)
+    creator: { "@type": "Person", name: shot.contributor.displayName, ...(shot.contributor.isGuest ? {} : { url: `${site}/u/${shot.contributorId}` }) },
     ...(where ? { contentLocation: { "@type": "Place", name: where } } : {}),
     isPartOf: { "@id": `${momentUrl}#post` },
     publisher: { "@id": `${site}/#org` },
