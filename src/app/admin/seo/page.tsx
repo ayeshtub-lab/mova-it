@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
-import { searchConsoleEnabled, searchReport, type TermRow } from "@/server/search-console";
+import { saveSearchTerms, searchConsoleEnabled, searchReport, type TermRow } from "@/server/search-console";
 
 export const metadata = { title: "زاومو · السيو", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -58,6 +58,14 @@ function Table({ title, rows }: { title: string; rows: TermRow[] }) {
 export default async function SeoPage() {
   const user = await getCurrentUser();
   if (!user?.isAdmin) notFound();
+  // Linked but nothing kept yet (the first Monday hasn't come): fetched now, once — and a
+  // linking problem (the key, or the account not added in Search Console) is said plainly.
+  let failed: string | null = null;
+  if (searchConsoleEnabled() && !(await searchReport()).rows.length) {
+    await saveSearchTerms().catch((error) => {
+      failed = String(error instanceof Error ? error.message : error).slice(0, 200);
+    });
+  }
   const [locale, report] = await Promise.all([getLocale(), searchReport()]);
   const dict = await getDictionary(locale);
   const byImpressions = [...report.rows].sort((a, b) => b.impressions - a.impressions).slice(0, 25);
@@ -77,6 +85,7 @@ export default async function SeoPage() {
           {report.day && ` آخر تحديث: ${report.day}.`}
         </p>
         {!searchConsoleEnabled() && <p className="rounded-2xl bg-accent-soft p-4 text-sm font-bold">لسا مش مربوط بكونسول: لازم مفتاح حساب الخدمة (GSC_SERVICE_ACCOUNT) على Vercel.</p>}
+        {failed && <p className="rounded-2xl bg-accent-soft p-4 text-sm font-bold">ما زبط السحب من كونسول: {failed}</p>}
         {report.rows.length === 0 ? (
           <p className="rounded-2xl bg-surface p-4 text-sm text-muted">لسا ما في بيانات. أول سحب بيصير يوم الاثنين الجاي بعد الربط.</p>
         ) : (
