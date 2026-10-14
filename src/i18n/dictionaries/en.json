@@ -431,9 +431,9 @@
     "cta": "Got an angle?"
   },
   "inbox": {
-    "open": "Inbox",
-    "openUnread": "Inbox, {n} new",
-    "title": "Inbox 📥",
+    "open": "Notifications",
+    "openUnread": "Notifications, {n} new",
+    "title": "Notifications 🔔",
     "empty": "Nothing here yet. When a friend sends you a moment, or you send one to a friend, it lands here and you can reply to each other.",
     "sentYou": "{name} sent you “{title}”",
     "youSent": "You sent “{title}” to {name}",

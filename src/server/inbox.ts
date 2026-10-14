@@ -189,6 +189,6 @@ export async function blockInThread(user: User, id: string) {
 export const currentUnread = cache(async () => {
   const user = await getCurrentUser();
   if (!user) return 0;
-  const [threads, activity] = await Promise.all([unreadCount(user), unreadNotifications(user)]);
-  return threads + activity;
+  // The 🔔 counts notifications only: conversations live in «الدردشة» now.
+  return unreadNotifications(user);
 });
