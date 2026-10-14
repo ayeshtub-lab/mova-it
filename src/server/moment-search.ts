@@ -21,17 +21,20 @@ export async function findMoments(viewer: User | null, rawQuery: string | null):
   const blocked = viewer ? [...(await blockedIdsFor(viewer.id))] : [];
   const shown = { status: "READY" as const, screening: "allowed", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }], contributorId: { notIn: blocked } };
 
-  // Each word must be found (in the name, the description or the place), as typed or in
-  // the normalized spelling places are kept in (أ/إ/آ → ا and so on, src/lib/arabic.ts).
-  const wordGroups = q ? q.split(" ").map((w) => [...new Set([w, normalize(w)].filter(Boolean))]) : [];
-  const matches = wordGroups.map((variants) => ({
-    OR: variants.flatMap((w) => [
-      { title: { contains: w, mode: "insensitive" as const } },
-      { description: { contains: w, mode: "insensitive" as const } },
-      { placeName: { contains: w, mode: "insensitive" as const } },
-      { place: { is: { search: { contains: w, mode: "insensitive" as const } } } },
-    ]),
-  }));
+  // Each word must be found in the name, the description or the place, however it was spelled:
+  // both sides are folded the same way (أ/إ/آ → ا، ة → ه، ى → ي…, src/lib/arabic.ts) inside
+  // the database, so «صفيحه» finds «صفيحة».
+  const words = q ? [...new Set(q.split(" ").map(normalize).filter(Boolean))] : [];
+  const ids = words.length
+    ? (
+        await db.$queryRaw<{ id: string }[]>`
+          SELECT m."id" FROM "Moment" m LEFT JOIN "Place" p ON p."id" = m."placeId"
+          WHERE m."visibility" = 'PUBLIC' AND m."status" = 'ACTIVE'
+            AND (SELECT bool_and(translate(lower(m."title" || ' ' || coalesce(m."description", '') || ' ' || coalesce(m."placeName", '')), 'أإآٱةىؤئ', 'ااااهيوي') LIKE '%' || w || '%' OR coalesce(p."search", '') LIKE '%' || w || '%')
+                 FROM unnest(${words}::text[]) AS w)
+          ORDER BY m."lastActivityAt" DESC LIMIT 200`
+      ).map((r) => r.id)
+    : null;
 
   const moments = await db.moment.findMany({
     where: {
@@ -41,7 +44,7 @@ export async function findMoments(viewer: User | null, rawQuery: string | null):
       kind: { notIn: ["DAILY", "STORY"] },
       creatorId: { notIn: blocked },
       angles: { some: shown },
-      AND: matches,
+      ...(ids ? { id: { in: ids } } : {}),
     },
     orderBy: { lastActivityAt: "desc" },
     take: TAKE,
