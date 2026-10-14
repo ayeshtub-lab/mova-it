@@ -789,6 +789,7 @@
     "back": "Back to the moment"
   },
   "branded": {
+    "waitLabel": "⏳ Wait, getting the video ready to share",
     "make": "📤 Share with Zawmo mark",
     "working": "⏳ Getting your video ready with the Zawmo mark… tap share again in a moment",
     "share": "📤 Share the video",

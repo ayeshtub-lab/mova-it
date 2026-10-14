@@ -91,7 +91,7 @@ type Labels = {
   actionFailed: string;
   isNew: string;
   edit: ShotEditorLabels & { open: string; failed: string };
-  branded: { make: string; working: string; share: string; failed: string; photoWorking: string };
+  branded: { make: string; working: string; share: string; failed: string; photoWorking: string; waitLabel: string };
   repost: { note: string; ask: string; asked: string };
   caption: CaptionLabels;
   sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
@@ -1020,7 +1020,7 @@ export function AngleGallery({
                     </>
                   )}
 
-                  {/* Your video's stamped copy still being made: the arrow turns into a spinning ring. */}
+                  {/* Your video's stamped copy still being made: the arrow turns into a spinning ring, with words under it. */}
                   <button type="button" aria-label={labels.share} aria-busy={branded?.id === a.id && !branded.file} onClick={() => shareAngle(a)} className={railButton}>
                     {branded?.id === a.id && !branded.file ? (
                       <span aria-hidden="true" className="size-8 animate-spin rounded-full border-4 border-white/30 border-t-white" />
@@ -1030,6 +1030,12 @@ export function AngleGallery({
                       </svg>
                     )}
                   </button>
+                  {/* …and says so in words: a ring alone means nothing to someone new. */}
+                  {branded?.id === a.id && !branded.file && (
+                    <span role="status" className="-mt-1 w-20 text-center text-[11px] font-bold leading-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+                      {labels.branded.waitLabel}
+                    </span>
+                  )}
                   {/* The sound disc, TikTok-style: spins, and opens the sound's page. */}
                   {soundByKey(soundOf(a.id)?.key) ? (
                     <Link
