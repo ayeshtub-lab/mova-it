@@ -1,3 +1,4 @@
+import { INDEXABLE } from "@/lib/indexable";
 import { MomentHint } from "./MomentHint";
 import { clip, plain } from "@/lib/clip";
 import { shotWords } from "@/lib/shot-words";
@@ -82,7 +83,7 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
     description,
     alternates: { canonical: `/m/${view.code}` },
     // Friends-only moments are for the people holding the link, never for search results.
-    robots: momentIndexable(view) ? undefined : { index: false, follow: false },
+    robots: momentIndexable(view) ? INDEXABLE : { index: false, follow: false },
     openGraph: { title: name, description, type: "website", siteName: dict.meta.brand },
   };
 }

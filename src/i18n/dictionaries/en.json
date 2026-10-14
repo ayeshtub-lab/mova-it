@@ -626,7 +626,7 @@
     "title": "#{tag}",
     "hint": "Public moments with this hashtag",
     "empty": "No public moments with this hashtag yet.",
-    "metaTitle": "#{tag} — real photos and moments | Zawmo",
+    "metaTitle": "Real {words} photos from people — #{tag} | Zawmo",
     "metaDescription": "Photos and videos of #{tag} from real people on Zawmo: {titles}. One moment, from every angle."
   },
   "sounds": {

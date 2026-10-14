@@ -1,3 +1,4 @@
+import { GRID_SIZES, gridSrcSet, INDEXABLE } from "@/lib/indexable";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { plain } from "@/lib/clip";
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]">): Prom
     title: fill(dict.place.metaTitle, data.place.name),
     description: fill(dict.place.metaDescription, data.place.name),
     // An empty place page says nothing: keep it out of search results until it has shots.
-    robots: data.shots.length ? undefined : { index: false },
+    robots: data.shots.length ? INDEXABLE : { index: false },
     // «?scene=sunset» views are slices of the same page.
     alternates: { canonical: `/p/${encodeURIComponent(data.place.slug)}` },
   };
@@ -141,7 +142,7 @@ export default async function PlacePage({ params, searchParams }: PageProps<"/p/
                 <Link href={`/m/${s.momentCode}#angle-${s.id}`} className="group relative block aspect-[3/4] overflow-hidden rounded-2xl bg-surface">
                   {s.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
-                    <img src={s.imageUrl} alt={`${plain(s.title)} — ${name} — ${s.name}`} loading={i < 2 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined} className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(s.filter) }} />
+                    <img src={s.imageUrl} srcSet={gridSrcSet(s.imageUrl)} sizes={GRID_SIZES} alt={`${plain(s.title)} — ${name} — ${s.name}`} loading={i < 2 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined} className="size-full object-cover transition-transform group-hover:scale-105" style={{ filter: filterCss(s.filter) }} />
                   ) : (
                     <span aria-hidden="true" className="block size-full bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
                   )}

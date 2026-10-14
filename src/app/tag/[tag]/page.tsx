@@ -1,3 +1,4 @@
+import { GRID_SIZES, gridSrcSet, INDEXABLE } from "@/lib/indexable";
 import { clip, plain } from "@/lib/clip";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -17,13 +18,14 @@ export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Pro
   const tag = decodeURIComponent((await params).tag);
   const [locale, moments] = await Promise.all([getLocale(), visitorList(tag)]);
   const dict = await getDictionary(locale);
-  const title = dict.tag.metaTitle.replace("{tag}", tag);
+  // (Words as people type them: «قهوة_المساء» → «قهوة المساء».)
+  const title = dict.tag.metaTitle.replace("{words}", tag.replace(/_/g, " ")).replace("{tag}", tag);
   const description = clip(dict.tag.metaDescription.replace("{tag}", tag).replace("{titles}", moments.slice(0, 4).map((m) => m.title).join("، ")));
   return {
     title,
     description,
     alternates: { canonical: `/tag/${encodeURIComponent(tag)}` },
-    robots: { index: moments.length >= INDEX_FROM, follow: true },
+    robots: moments.length >= INDEX_FROM ? INDEXABLE : { index: false, follow: true },
     // Its link shared anywhere shows the newest moment's picture (full size).
     openGraph: { title, description, type: "website", images: moments.find((m) => m.coverUrl?.startsWith("/i/"))?.coverUrl?.replace("-small.jpg", ".jpg") },
   };
@@ -54,7 +56,7 @@ export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
                 <Link href={`/m/${m.code}`} className="group relative block aspect-[3/4] overflow-hidden rounded-2xl bg-surface">
                   {m.coverUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
-                    <img src={m.coverUrl} alt={plain(`${m.title} — #${tag}`)} loading={i < 2 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined} className="size-full object-cover transition-transform group-hover:scale-105" />
+                    <img src={m.coverUrl} srcSet={gridSrcSet(m.coverUrl)} sizes={GRID_SIZES} alt={plain(`${m.title} — #${tag}`)} loading={i < 2 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined} className="size-full object-cover transition-transform group-hover:scale-105" />
                   ) : (
                     <span aria-hidden="true" className="block size-full bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
                   )}

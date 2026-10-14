@@ -208,10 +208,11 @@ export async function getMomentView(code: string, viewer: User | null) {
         width: a.width,
         height: a.height,
         // A public photo full size: the lasting address too (src/app/i); a video plays from storage.
-        mediaUrl: everyone && a.screening === "allowed" && a.mediaType === "PHOTO" ? `/i/${a.id}.jpg` : await viewUrl(a.mediaPath),
+        // A public video too (src/app/v): never a signed address that expires in Google's index.
+        mediaUrl: everyone && a.screening === "allowed" ? (a.mediaType === "PHOTO" ? `/i/${a.id}.jpg` : `/v/${a.id}.mp4`) : await viewUrl(a.mediaPath),
         // Videos: the adaptive stream once Cloudflare has it (the file above stays the fallback).
         hlsUrl: a.mediaType === "VIDEO" ? hlsUrl(a) : null,
-        thumbUrl: await viewUrl(a.thumbPath),
+        thumbUrl: everyone && a.screening === "allowed" && a.thumbPath ? `/i/${a.id}.jpg` : await viewUrl(a.thumbPath),
         // A public moment's shots: at their lasting address, for search engines (see publicCover).
         gridUrl: everyone && a.screening === "allowed" ? await publicCover(a) : await coverOf(a),
         // Where it was taken («📍 بيت لحم ✓»); its owner may remove or change it.
