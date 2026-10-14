@@ -29,7 +29,8 @@ export default async function InboxPage() {
   const unseenThreads = threads.filter((th) => th.unread).map((th) => th.id);
   after(() => markThreadsSeen(user, unseenThreads));
 
-  const line = (n: NotificationView) =>
+  const line = (n: NotificationView & { others: number }) =>
+    n.others > 0 ? fill({ LIKE: t.likedOthers, COMMENT: t.commentedOthers, NEW_ANGLE: t.addedOthers, JOINED: t.addedOthers }[n.kind as "LIKE"], { name: n.actorName, n: n.others.toLocaleString(locale), title: n.momentTitle ?? "" }) :
     // A heart from Zawmo itself says so: «⭐ زاومو حبّ لقطتك!»
     n.kind === "LIKE" && n.actorVerified ? t.likedOfficial :
     n.kind === "LIKE" && n.count > 1 ? fill(t.likedMany, { name: n.actorName, n: n.count.toLocaleString(locale) }) :
@@ -68,13 +69,30 @@ export default async function InboxPage() {
   );
 
   // Hearts from one person on one moment, side by side, read as one line («حبّ ٣٠ من لقطاتك»).
-  const grouped = activity.reduce<NotificationView[]>((list, n) => {
+  const byPerson = activity.reduce<NotificationView[]>((list, n) => {
     const prev = list[list.length - 1];
     if (prev && n.kind === "LIKE" && prev.kind === "LIKE" && !n.actorVerified && prev.actorId === n.actorId && prev.momentTitle === n.momentTitle) {
       list[list.length - 1] = { ...prev, count: prev.count + n.count, unread: prev.unread || n.unread };
     } else list.push(n);
     return list;
   }, []);
+  // Then many people doing the same on one moment fold into its newest line: «سارة و٤ كمان
+  // حبّوا…» — one row per moment and kind, never a hundred.
+  const FOLD = new Set(["LIKE", "COMMENT", "NEW_ANGLE", "JOINED"]);
+  const folded = new Map<string, { n: NotificationView; people: Set<string> }>();
+  const grouped: (NotificationView & { others: number })[] = [];
+  for (const n of byPerson) {
+    const key = FOLD.has(n.kind) && n.momentTitle !== null && !n.actorVerified ? `${n.kind}|${n.href.split("#")[0]}` : null;
+    const seen = key ? folded.get(key) : undefined;
+    if (seen) {
+      seen.people.add(n.actorId);
+      const at = grouped.findIndex((g) => g.id === seen.n.id);
+      grouped[at] = { ...grouped[at], others: seen.people.size - 1, unread: grouped[at].unread || n.unread };
+      continue;
+    }
+    if (key) folded.set(key, { n, people: new Set([n.actorId]) });
+    grouped.push({ ...n, others: 0 });
+  }
 
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">

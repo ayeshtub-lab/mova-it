@@ -6,7 +6,6 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { CONTACT_EMAIL } from "@/lib/site";
-import { currentUnread } from "@/server/inbox";
 import { ActivityPing } from "./ActivityPing";
 import { PresencePing } from "./PresencePing";
 import { BottomNav } from "./BottomNav";
@@ -43,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
-  const [user, unread] = await Promise.all([getCurrentUser(), currentUnread()]);
+  const user = await getCurrentUser();
   return (
     <html
       lang={locale}
@@ -76,7 +75,6 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         </footer>
         {user && (
           <BottomNav
-            unread={unread}
             meHref={user.isGuest ? "/#save" : `/u/${user.id}`}
             labels={{ ...dict.nav, me: user.isGuest ? dict.nav.account : dict.nav.me }}
           />

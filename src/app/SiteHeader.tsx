@@ -40,9 +40,10 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
             >
               <span className="text-lg">💬</span>
             </Link>
-            <InboxLink unread={unread} label={unread ? dict.inbox.openUnread.replace("{n}", String(unread)) : dict.inbox.open} />
           </span>
         )}
+        {/* «الوارد» is a 🔔, on phones too: it keeps the bottom bar's ＋ in the middle. */}
+        {user && <InboxLink unread={unread} label={unread ? dict.inbox.openUnread.replace("{n}", String(unread)) : dict.inbox.open} />}
         {user && !user.isGuest && (
           <Link
             href={`/u/${user.id}`}

@@ -78,6 +78,27 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
         </section>
       )}
 
+      {/* Zawmo's two doors, on top: watch what others shot, or start your own. */}
+      <section aria-label={dict.home.doorsLine} className="flex flex-col gap-2">
+        <div className="grid grid-cols-2 gap-3">
+          <Link href="/discover" className="flex min-h-28 flex-col justify-between gap-2 rounded-3xl bg-gradient-to-br from-brand-blue to-[#8e3a8f] p-4 text-white shadow-md transition-transform active:scale-[0.98] sm:hover:scale-[1.01]">
+            <span aria-hidden="true" className="text-3xl">🔍</span>
+            <span className="flex flex-col">
+              <span className="text-lg font-extrabold leading-tight">{dict.home.doorDiscover}</span>
+              <span className="text-xs opacity-90">{dict.home.doorDiscoverHint}</span>
+            </span>
+          </Link>
+          <Link href="/new" className="flex min-h-28 flex-col justify-between gap-2 rounded-3xl bg-gradient-to-br from-brand-red to-[#8e3a8f] p-4 text-white shadow-md transition-transform active:scale-[0.98] sm:hover:scale-[1.01]">
+            <span aria-hidden="true" className="text-3xl">＋</span>
+            <span className="flex flex-col">
+              <span className="text-lg font-extrabold leading-tight">{dict.home.doorCreate}</span>
+              <span className="text-xs opacity-90">{dict.home.doorCreateHint}</span>
+            </span>
+          </Link>
+        </div>
+        <p className="text-center text-sm font-bold text-muted">{dict.home.doorsLine}</p>
+      </section>
+
       <HomeNews news={news} locale={locale} dict={dict} />
 
       <div id="people" className="scroll-mt-6">
@@ -86,17 +107,6 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
 
       <DailyCard user={user} locale={locale} dict={dict} />
 
-      {/* The ＋ lives in the bottom bar on phones; wider screens get this banner. */}
-      <Link
-        href="/new"
-        className="hidden items-center gap-4 rounded-3xl bg-gradient-to-l from-brand-red to-brand-blue p-5 text-white shadow-md transition-transform hover:scale-[1.01] sm:flex"
-      >
-        <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white/20 text-3xl">＋</span>
-        <span className="flex flex-col">
-          <span className="text-xl font-extrabold">{dict.create.title}</span>
-          <span className="text-sm opacity-90">{dict.home.createHint}</span>
-        </span>
-      </Link>
 
       <FriendsActivity user={user} locale={locale} dict={dict} />
 

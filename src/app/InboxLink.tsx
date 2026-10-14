@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useInboxToggle } from "@/app/useInboxToggle";
 
-// A tray in the logo's red-to-blue with a yellow heart dropping in; a red badge counts
-// threads with something new. A toggle: tap again inside the inbox to close it.
+// «الوارد» as a bell; a red badge counts what is new. A toggle: tap again inside the inbox to close it.
 export function InboxLink({ unread, label }: { unread: number; label: string }) {
   const { onClick } = useInboxToggle();
   return (
@@ -22,17 +21,16 @@ export function InboxLink({ unread, label }: { unread: number; label: string }) 
             <stop offset="1" stopColor="var(--brand-blue)" />
           </linearGradient>
         </defs>
+        {/* A bell in the logo's red-to-blue, its clapper in the moment yellow. */}
         <path
-          d="M2.5 13.2 5 6.6A2.4 2.4 0 0 1 7.2 5h1.3M15.5 5h1.3A2.4 2.4 0 0 1 19 6.6l2.5 6.6V18a2.5 2.5 0 0 1-2.5 2.5H5A2.5 2.5 0 0 1 2.5 18Z"
+          d="M6 10a6 6 0 0 1 12 0c0 4.2 1.6 5.8 2.5 6.6a.6.6 0 0 1-.4 1H3.9a.6.6 0 0 1-.4-1C4.4 15.8 6 14.2 6 10Z"
           fill="url(#inbox-tray)"
           fillOpacity="0.18"
           stroke="url(#inbox-tray)"
           strokeWidth="1.8"
           strokeLinejoin="round"
-          strokeLinecap="round"
         />
-        <path d="M2.5 13.2H7.6l1.6 2.6h5.6l1.6-2.6h5.1" fill="none" stroke="url(#inbox-tray)" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />
-        <path d="M12 11.2s-3.3-1.9-3.3-4.3A1.8 1.8 0 0 1 12 5.9a1.8 1.8 0 0 1 3.3 1c0 2.4-3.3 4.3-3.3 4.3Z" fill="var(--moment)" />
+        <path d="M9.8 20.2a2.4 2.4 0 0 0 4.4 0" fill="none" stroke="var(--moment)" strokeWidth="2" strokeLinecap="round" />
       </svg>
       {unread > 0 && (
         <span className="absolute -end-0.5 -top-0.5 flex min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[11px] font-extrabold leading-5 text-white ring-2 ring-background">
