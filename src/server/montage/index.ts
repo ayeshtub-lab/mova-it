@@ -143,7 +143,7 @@ const isWorking = (m: Montage) => m.status !== "READY" && isAlive(m);
 async function montageFor(momentId: string, soundKey: string | null) {
   const { angleIds, signature } = await currentContent(momentId, soundKey);
   if (!angleIds.length) return null;
-  const latest = await db.montage.findFirst({ where: { momentId }, orderBy: { createdAt: "desc" } });
+  const latest = await db.montage.findFirst({ where: { part: null, momentId }, orderBy: { createdAt: "desc" } });
   if (latest && isAlive(latest) && latest.signature === signature) return { montage: latest, created: false };
   const montage = await db.montage.create({ data: { momentId, angleIds, soundKey, signature } });
   return { montage, created: true };
@@ -151,7 +151,7 @@ async function montageFor(momentId: string, soundKey: string | null) {
 
 // The sound the moment's video uses: whatever was last chosen for it.
 async function chosenSound(momentId: string) {
-  const latest = await db.montage.findFirst({ where: { momentId }, orderBy: { createdAt: "desc" }, select: { soundKey: true } });
+  const latest = await db.montage.findFirst({ where: { part: null, momentId }, orderBy: { createdAt: "desc" }, select: { soundKey: true } });
   return latest?.soundKey ?? null;
 }
 
@@ -175,7 +175,7 @@ async function videoRights(momentId: string) {
 // A video was made by hand once the moment had enough angles: from then on it keeps
 // itself up to date.
 async function madeByHand(momentId: string) {
-  const made = await db.montage.findMany({ where: { momentId }, select: { angleIds: true } });
+  const made = await db.montage.findMany({ where: { part: null, momentId }, select: { angleIds: true } });
   const { min } = await sizeFor(momentId);
   return made.some((m) => m.angleIds.length >= min);
 }
@@ -223,7 +223,7 @@ export async function refreshMontage(momentId: string, host: string, { settle = 
 
 export async function waitForMore(momentId: string, now = new Date()) {
   const [shown, current, newest] = await Promise.all([
-    db.montage.findFirst({ where: { momentId, status: "READY" }, orderBy: { createdAt: "desc" }, select: { angleIds: true } }),
+    db.montage.findFirst({ where: { part: null, momentId, status: "READY" }, orderBy: { createdAt: "desc" }, select: { angleIds: true } }),
     chosenSound(momentId).then((sound) => currentContent(momentId, sound)),
     db.angle.findFirst({ where: liveAngles(momentId), orderBy: { uploadedAt: "desc" }, select: { uploadedAt: true } }),
   ]);
@@ -237,7 +237,7 @@ export async function waitForMore(momentId: string, now = new Date()) {
 // stopped without finishing (still «QUEUED»/«RENDERING» past the time a render takes).
 export async function failingLately(momentId: string, now: Date) {
   const tries = await db.montage.findMany({
-    where: { momentId, status: { not: "READY" }, createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
+    where: { part: null, momentId, status: { not: "READY" }, createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
     orderBy: { createdAt: "desc" },
     select: { status: true, createdAt: true, error: true },
   });
@@ -258,7 +258,7 @@ export async function failingLately(momentId: string, now: Date) {
 export async function refreshPendingMontages(host: string, limit = 1, now = new Date()) {
   const quietSince = new Date(now.getTime() - QUIET_MS);
   const candidates = await db.moment.findMany({
-    where: { montages: { some: { status: "READY" } } },
+    where: { montages: { some: { status: "READY", part: null } } },
     orderBy: { lastActivityAt: "desc" },
     select: { id: true },
     take: 100,
@@ -267,17 +267,17 @@ export async function refreshPendingMontages(host: string, limit = 1, now = new 
   for (const { id } of candidates) {
     if (made >= limit) break;
     const [ready, last, newest] = await Promise.all([
-      db.montage.findFirst({ where: { momentId: id, status: "READY" }, orderBy: { createdAt: "desc" }, select: { createdAt: true, signature: true } }),
-      db.montage.findFirst({ where: { momentId: id }, orderBy: { createdAt: "desc" }, select: { status: true, createdAt: true } }),
+      db.montage.findFirst({ where: { part: null, momentId: id, status: "READY" }, orderBy: { createdAt: "desc" }, select: { createdAt: true, signature: true } }),
+      db.montage.findFirst({ where: { part: null, momentId: id }, orderBy: { createdAt: "desc" }, select: { status: true, createdAt: true } }),
       db.angle.findFirst({ where: liveAngles(id), orderBy: { uploadedAt: "desc" }, select: { uploadedAt: true } }),
     ]);
     if (!ready || !newest || newest.uploadedAt > quietSince) continue;
     if (last && last.status !== "READY" && (await failingLately(id, now))) continue;
     const current = await currentContent(id, await chosenSound(id));
     if (newest.uploadedAt <= ready.createdAt && ready.signature === current.signature) continue;
-    const before = await db.montage.count({ where: { momentId: id } });
+    const before = await db.montage.count({ where: { part: null, momentId: id } });
     await refreshMontage(id, host, { settle: false, now }).catch((error) => console.error("pending montage failed", id, error));
-    if ((await db.montage.count({ where: { momentId: id } })) > before) made++;
+    if ((await db.montage.count({ where: { part: null, momentId: id } })) > before) made++;
   }
   return made;
 }
@@ -290,7 +290,7 @@ export async function refreshMontageForAngle(angleId: string, host: string) {
 // «🆕 الجديد»: the shots the latest version of the video added to the version before it (still
 // there, in film order) — what someone who shared the earlier video hasn't shown yet.
 async function newShotIds(momentId: string) {
-  const ready = await db.montage.findMany({ where: { momentId, status: "READY" }, orderBy: { createdAt: "desc" }, take: 10, select: { angleIds: true } });
+  const ready = await db.montage.findMany({ where: { part: null, momentId, status: "READY" }, orderBy: { createdAt: "desc" }, take: 10, select: { angleIds: true } });
   const [latest, ...older] = ready;
   const before = latest && older.find((m) => m.angleIds.join() !== latest.angleIds.join());
   if (!latest || !before) return [];
@@ -334,8 +334,8 @@ export type MontageView = Awaited<ReturnType<typeof momentVideo>>;
 // one is being made), whether a newer one is on its way, and the moment's hearts.
 async function momentVideo(user: User | null, momentId: string) {
   const [latest, ready, likes, liked, current, rights, size] = await Promise.all([
-    db.montage.findFirst({ where: { momentId }, orderBy: { createdAt: "desc" } }),
-    db.montage.findFirst({ where: { momentId, status: "READY" }, orderBy: { createdAt: "desc" } }),
+    db.montage.findFirst({ where: { part: null, momentId }, orderBy: { createdAt: "desc" } }),
+    db.montage.findFirst({ where: { part: null, momentId, status: "READY" }, orderBy: { createdAt: "desc" } }),
     db.momentLike.count({ where: { momentId } }),
     user ? db.momentLike.count({ where: { momentId, userId: user.id } }) : 0,
     chosenSound(momentId).then((sound) => currentContent(momentId, sound)),

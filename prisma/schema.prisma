@@ -552,6 +552,11 @@ model Montage {
   // What it was made from (angles, their looks and sounds, the montage sound): a change
   // to any of them makes a fresh montage.
   signature   String?
+  // «أجزاء» (2026-10-15): the moment's films in parts of up to 40 seconds, each made once from
+  // the shots that came after the part before (src/server/montage/parts.ts): 1, 2, 3… — null
+  // for the older one-film-per-moment video. Each part has its own name and page.
+  part        Int?
+  title       String?
   soundKey    String? // library sound mixed under the whole montage
   videoUrl    String?
   durationSec Float?
@@ -591,6 +596,7 @@ enum NotificationKind {
   PICKED // «⭐ اختيار زاومو»: an official account picked your shot
   DRAFT_WAITING // a shot you added an hour ago still waits for «نشر» (from Zawmo, once per shot)
   SHOT_READY // «نشر» pressed before the shot was checked: it is up now (from Zawmo, once)
+  FILM_PART // a new part of a moment's film is ready: everyone with a shot in the moment (from Zawmo)
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.

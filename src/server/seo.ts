@@ -73,7 +73,7 @@ export async function sitemapTags(now = new Date(), min = 3) {
 const indexableMoment = { visibility: "PUBLIC" as const, status: "ACTIVE" as const, kind: { not: "DAILY" as const }, demo: false };
 export async function publicMontage(code: string) {
   const film = await db.montage.findFirst({
-    where: { status: "READY", videoUrl: { not: null }, moment: { code, ...indexableMoment } },
+    where: { part: null, status: "READY", videoUrl: { not: null }, moment: { code, ...indexableMoment } },
     orderBy: { createdAt: "desc" },
     select: { videoUrl: true, durationSec: true, finishedAt: true, createdAt: true },
   });
@@ -89,7 +89,7 @@ export async function sitemapEntries(now = new Date()) {
         title: true,
         lastActivityAt: true,
         // its film, when there is one (listed as the page's video)
-        montages: { where: { status: "READY", videoUrl: { not: null } }, orderBy: { createdAt: "desc" }, take: 1, select: { durationSec: true, finishedAt: true, createdAt: true } },
+        montages: { where: { part: null, status: "READY", videoUrl: { not: null } }, orderBy: { createdAt: "desc" }, take: 1, select: { durationSec: true, finishedAt: true, createdAt: true } },
       },
       orderBy: { lastActivityAt: "desc" },
       take: 5000,

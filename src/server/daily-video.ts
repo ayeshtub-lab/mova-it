@@ -67,7 +67,7 @@ export async function dailyVideoUrl(code: string, siteHost: string, kicker: stri
   if (!moment || moment.kind !== "DAILY") throw new DailyVideoError("not_found");
   const angles = await dailyShots(moment.id);
   if (angles.length < DAILY_MIN_SHOTS) throw new DailyVideoError("too_few");
-  const latest = await db.montage.findFirst({ where: { momentId: moment.id }, orderBy: { createdAt: "desc" }, select: { soundKey: true } });
+  const latest = await db.montage.findFirst({ where: { part: null, momentId: moment.id }, orderBy: { createdAt: "desc" }, select: { soundKey: true } });
   const soundKey = latest?.soundKey ?? DAILY_SOUND;
   const version = createHash("sha256")
     .update(JSON.stringify([DAILY_STYLE, soundKey, ...wordsMark(soundKey), siteHost, kicker, filmLimit(soundKey), angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null, ...wordsMark(a.soundKey, a.lyrics)])]))

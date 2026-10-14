@@ -61,7 +61,7 @@ export async function notify(event: Event, once?: { key: string; where: Prisma.N
         actorVerified: created.actor.verified,
         momentTitle: created.angle?.moment.title ?? null,
         comment: created.comment?.body ?? null,
-        url: created.angle ? (event.kind === "VIDEO_READY" ? `/m/${created.angle.moment.code}#video` : `/m/${created.angle.moment.code}#angle-${created.angle.id}`) : `/u/${event.actorId}`,
+        url: created.angle ? (event.kind === "VIDEO_READY" || event.kind === "FILM_PART" ? `/m/${created.angle.moment.code}#video` : `/m/${created.angle.moment.code}#angle-${created.angle.id}`) : `/u/${event.actorId}`,
       }).catch((error) => console.error("push failed", error));
     try {
       after(push);
@@ -138,7 +138,7 @@ export async function listNotifications(user: User, take = 40) {
       // Guests have no profile page; everyone else links to theirs.
       actorHasProfile: !n.actor.isGuest,
       comment: n.comment?.body ?? null,
-      href: n.angle ? (n.kind === "VIDEO_READY" ? `/m/${n.angle.moment.code}#video` : `/m/${n.angle.moment.code}#angle-${n.angle.id}`) : `/u/${n.actor.id}`,
+      href: n.angle ? (n.kind === "VIDEO_READY" || n.kind === "FILM_PART" ? `/m/${n.angle.moment.code}#video` : `/m/${n.angle.moment.code}#angle-${n.angle.id}`) : `/u/${n.actor.id}`,
       momentTitle: n.angle?.moment.title ?? null,
       thumbUrl: n.angle ? await coverOf(n.angle) : null,
       // «صوّر معك»: the host may give the joined shot back («شيلها»).

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { refreshPendingMontages } from "@/server/montage";
+import { makeDuePart } from "@/server/montage/parts";
 import { rescanReposts } from "@/server/repost-scan";
 
 // A moment's film may be made here (big films take minutes on the server).
@@ -23,6 +24,9 @@ export async function GET(request: Request) {
     console.error("pending montages failed", error);
     return -1;
   });
-  console.log("pending montages", made);
-  return NextResponse.json({ made });
+  // «أجزاء» (src/server/montage/parts.ts): one part, only when no film was made above — so a run
+  // never renders more than one video (the server is kept light).
+  const part = made === 0 ? await makeDuePart(CANONICAL_HOST).catch((error) => (console.error("film part failed", error), null)) : null;
+  console.log("pending montages", made, "part", part ? `${part.part} ${part.status}` : "-");
+  return NextResponse.json({ made, part: part ? { part: part.part, status: part.status } : null });
 }

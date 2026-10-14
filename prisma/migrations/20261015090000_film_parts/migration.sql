@@ -1,0 +1,3 @@
+ALTER TYPE "NotificationKind" ADD VALUE 'FILM_PART';
+ALTER TABLE "Montage" ADD COLUMN "part" INTEGER;
+ALTER TABLE "Montage" ADD COLUMN "title" TEXT;
