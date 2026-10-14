@@ -1,3 +1,4 @@
+import { MomentHint } from "./MomentHint";
 import { clip, plain } from "@/lib/clip";
 import { shotWords } from "@/lib/shot-words";
 import { soundSearch } from "@/lib/sound-search";
@@ -254,6 +255,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
             </p>
           )}
           {view.description && <Description text={view.description} className="text-lg" />}
+          {!daily && !story && <MomentHint text={dict.momentHint.text} close={dict.momentHint.close} />}
           {daily?.theme.tip && <p className="rounded-2xl bg-secondary-soft px-3 py-2 text-sm font-semibold text-secondary">🤍 {locale === "ar" ? daily.theme.tip.ar : daily.theme.tip.en}</p>}
           {(view.place || view.placeName) && (
             <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">

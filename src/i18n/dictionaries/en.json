@@ -547,6 +547,7 @@
     "open": "Open angle",
     "locked": "Locked angle — add yours to see it"
   },
+  "momentHint": {"text": "📸 This is a “moment”: every photo or video in it is an “angle” from someone who was there. Got one? Add it!", "close": "Close"},
   "discover": {
     "title": "Discover 🧭",
     "gateTitle": "Moments from everywhere 🌍",
