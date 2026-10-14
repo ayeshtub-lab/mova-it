@@ -139,10 +139,16 @@ async function videoFrames(url: string, durationSec: number | null) {
 }
 
 // What the app knows for sure about the shot, given to Gemini for its title and description.
-export type ShotContext = { moment?: string | null; place?: string | null; year?: number | null };
+export type ShotContext = { moment?: string | null; place?: string | null; year?: number | null; searches?: string[] };
 const contextLine = (c?: ShotContext) => {
   const known = [c?.moment && `the moment's name: «${c.moment}»`, c?.place && `the place: ${c.place}`, c?.year && `taken in ${c.year}`].filter(Boolean);
-  return known.length ? `\n\nKnown for sure about this shot (use them): ${known.join("; ")}.` : "";
+  const facts = known.length ? `\n\nKnown for sure about this shot (use them): ${known.join("; ")}.` : "";
+  // Real Google searches that already bring people to Zawmo (Search Console): one is used only
+  // when it truly describes what is seen — never forced onto an unrelated picture.
+  const searches = c?.searches?.length
+    ? `\n\nSearches people really make on Google that already find Zawmo: ${c.searches.map((q) => `«${q}»`).join("، ")}. When one of them truly describes what is seen in THIS picture, use its exact words in "seo_title" or "hashtags"; ignore every one that doesn't fit.`
+    : "";
+  return facts + searches;
 };
 
 export async function askGemini(imagesBase64: string[], context?: ShotContext): Promise<Verdict> {

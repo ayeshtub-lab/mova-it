@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { remindStories } from "@/server/stories";
 import { remindDaily, SUMMARY_WEEKDAY, weeklySummary } from "@/server/nudges";
 import { sendWeatherAlerts } from "@/server/weather-alerts";
+import { saveSearchTerms } from "@/server/search-console";
 
 export const maxDuration = 120;
 
@@ -18,6 +19,9 @@ export async function GET(request: Request) {
   const summaries = friday ? await weeklySummary().catch((error) => (console.error("weekly summary failed", error), -1)) : 0;
   // Snow or real rain on the way (src/server/weather-alerts.ts): members there are told tonight.
   const weather = await sendWeatherAlerts().catch((error) => (console.error("weather alerts failed", error), -1));
-  console.log("reminders", { stories, daily, summaries, weather });
-  return NextResponse.json({ stories, daily, summaries, weather });
+  // Mondays: what people searched in Google to find Zawmo, the last 28 days (src/server/search-console.ts).
+  const monday = new Date(Date.now() + 3 * 3600e3).getUTCDay() === 1;
+  const searches = monday ? await saveSearchTerms().catch((error) => (console.error("search terms failed", error), -1)) : 0;
+  console.log("reminders", { stories, daily, summaries, weather, searches });
+  return NextResponse.json({ stories, daily, summaries, weather, searches });
 }

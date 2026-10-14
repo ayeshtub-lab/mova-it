@@ -61,6 +61,9 @@ export default async function AdminPage() {
           <Link href="/admin/costs" className="flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-surface px-2 py-2 text-center text-sm font-extrabold">
             <span className="text-2xl">💰</span>التكاليف
           </Link>
+          <Link href="/admin/seo" className="flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl bg-surface px-2 py-2 text-center text-sm font-extrabold">
+            <span className="text-2xl">🔎</span>السيو
+          </Link>
         </nav>
         <section className="flex flex-col gap-3 rounded-3xl border border-line p-4">
           <h2 className="text-lg font-extrabold">☀️ لحظة اليوم</h2>

@@ -8,6 +8,7 @@ import { blobExists, viewUrl } from "@/server/media";
 import { probeDuration } from "@/server/ffmpeg";
 import { screenAngle, screeningEnabled, screenText, type ShotContext } from "@/server/screening";
 import { deleteFromStream } from "@/server/stream";
+import { searchesForGemini } from "@/server/search-console";
 
 export const MAX_VIDEO_SECONDS = 40;
 // A little slack: containers round durations, and a 40.3 s clip is still "40 seconds".
@@ -309,6 +310,7 @@ export async function shotContext(angle: { momentId: string; placeId: string | n
     moment: moment?.named ? moment.title : null,
     place: place ? (place.kind === "GOVERNORATE" ? `محافظة ${place.nameAr}` : place.nameAr) : (moment?.placeName ?? null),
     year: angle.capturedAt?.getFullYear() ?? null,
+    searches: await searchesForGemini().catch(() => []),
   };
 }
 

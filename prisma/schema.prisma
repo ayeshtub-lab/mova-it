@@ -812,3 +812,16 @@ model AngleVector {
 
   @@id([angleId, kind])
 }
+
+// What people typed in Google to find Zawmo (Search Console, read only — src/server/search-console.ts):
+// one snapshot a week of the last 28 days, web and images, kept to follow searches week on week.
+model SearchTerm {
+  day         String // the snapshot's date, "2026-10-19"
+  type        String // "web" | "image"
+  query       String
+  clicks      Int
+  impressions Int
+  position    Float
+
+  @@id([day, type, query])
+}
