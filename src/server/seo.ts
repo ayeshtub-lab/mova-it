@@ -141,6 +141,8 @@ const shotSelect = {
   caption: true,
   scene: true,
   aiText: true,
+  aiTitle: true,
+  updatedAt: true,
   capturedAt: true,
   uploadedAt: true,
   contributorId: true,
@@ -176,6 +178,12 @@ export const shotPath = (shot: { id: string; moment: { code: string } }) => `/m/
 // have several: «غيوم وسماء جميلة — طبيعة — عزالدين (٢)». Every shot page gets its own.
 type Ordinal = { n: number; of: number };
 export function shotTitle(shot: PublicShot, locale: string, ordinal?: Ordinal) {
+  // Its own SEO title (what is seen, in searched words — src/server/screening.ts): unique to
+  // the shot, so no number is needed; the place added when the title doesn't say it.
+  if (shot.aiTitle) {
+    const where = shot.place ? placeName(shot.place) : null;
+    return where && !shot.aiTitle.includes(shot.place!.nameAr) ? `${shot.aiTitle} — ${where}` : shot.aiTitle;
+  }
   const base = `${shotLabel(shot, locale)} — ${shot.contributor.displayName}`;
   return ordinal && ordinal.of > 1 ? `${base} (${ordinal.n.toLocaleString(locale === "ar" ? "ar-EG" : "en")})` : base;
 }

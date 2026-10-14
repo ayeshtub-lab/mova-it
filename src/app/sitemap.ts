@@ -58,7 +58,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const image = `${base}/i/${s.id}.jpg`;
       return {
         url: `${base}${shotPath(s)}`,
-        lastModified: s.uploadedAt,
+        lastModified: s.updatedAt,
         changeFrequency: "monthly" as const,
         priority: 0.5,
         images: [image],
@@ -69,7 +69,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // through its moment.
     ...shots
       .filter((s) => s.mediaType === "PHOTO")
-      .map((s) => ({ url: `${base}${shotPath(s)}`, lastModified: s.uploadedAt, changeFrequency: "monthly" as const, priority: 0.4, images: [`${base}/i/${s.id}.jpg`] })),
+      .map((s) => ({ url: `${base}${shotPath(s)}`, lastModified: s.updatedAt, changeFrequency: "monthly" as const, priority: 0.4, images: [`${base}/i/${s.id}.jpg`] })),
     // Who shot them: a member's page with their public shots (E-E-A-T).
     ...authors.map((a) => ({ url: `${base}/u/${a.id}`, lastModified: a.updatedAt, changeFrequency: "weekly" as const, priority: 0.5 })),
     // A day's rain, snow, sunset… in one area (src/server/events.ts): 3 shots by 2 people at least.

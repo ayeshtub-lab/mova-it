@@ -46,7 +46,7 @@ function reportGemini(where: "screening" | "text" | "lens", detail: string) {
 
 export type Verdict =
   // repost: clearly not shot by the person uploading it (why, in a few words) — see DESCRIBE.
-  | { result: "allowed"; scene?: Scene; seen?: string; title?: string; text?: string; captions?: string[]; repost?: string }
+  | { result: "allowed"; scene?: Scene; seen?: string; title?: string; seoTitle?: string; text?: string; captions?: string[]; repost?: string }
   | { result: "blocked"; category: string; reason: string }
   | { result: "error"; reason: string };
 
@@ -72,13 +72,21 @@ Answer only with JSON: {"verdict":"allow"|"block","category":"none"|"sexual"|"mi
 
 // Pictures only (not text): a line about the shot, for search engines and for a moment left
 // without a description.
+// The SEO rules (agreed with the owner of the site, 2026-10-14): written for Google Images and
+// Google Video, every word TRUE of what is seen — the things themselves, not feelings.
 const DESCRIBE = `
 
-Also write, in Arabic, a description of this shot for its public page: one warm, natural sentence (8 to 16 words) that says concretely what is seen — the place, food, occasion, weather or mood — the way a happy friend would caption it, so that someone searching for such a picture would find it. Never name or guess who the people are, never invent a city or country that is not clearly shown, no emoji, no quotation marks. Then 2 or 3 hashtags in Arabic that people really search for about what is seen (single words or joined with _, no spaces, for example غروب, قهوة_الصباح, عرس).
+Now write for search engines (Google Images and Google Video), as a senior SEO lead would. Google ranks a picture by the words around it, so name what is IN it, in the words people type to find such a picture. Every word must be true of what is seen.
+
+"seo_title": Arabic, 4 to 9 words — the main subject first, then its setting; add the place when given below. For example «فنجان قهوة عربية بين أشجار الزيتون», «زفة العريس على الأكتاف في عرس فلسطيني», «حبات طماطم حمراء في حقل بالخضر». No emoji, hashtags, quotation marks or app name.
+
+"description": Arabic, one or two factual sentences, 18 to 35 words, naming concretely what is in the picture: the objects and their kind (Arabic coffee, a white cup, ripe tomatoes, olive trees), colours and materials, what the people are doing (never who they are), the setting (indoors or outdoors, in nature, between trees, by the sea, a street, a hall), and the time of day or season when clear. Say it is a real photo («صورة حقيقية») or a real video («فيديو حقيقي»). Mention the place and the year when they are given below — never invent a place. Use «قديمة» only for a clearly old picture (an old print, faded film colours) or a year long ago, «تراثي» or «تقليدي» only for traditional dress, dance or crafts actually seen, «نادرة» only for something genuinely rare. Never mood words with nothing behind them («أجواء مبهجة», «ساحرة», «رائعة»), no emoji, no quotation marks.
+
+"hashtags": 3 to 6 Arabic search keywords for what is seen — what people really type (single words or joined with _, no spaces, for example قهوة_عربية, زيتون, عرس_فلسطيني, دبكة).
 
 Also suggest 3 different short lines the person could write ON the shot itself, like TikTok text: 2 to 6 words each, in simple Arabic understood across the Arab world, warm or playful or proud, about what is seen (for example «أحلى صبحية ☕», «ريحة البلاد 🌿», «لمّة ما بتنتسى ❤️»). Each may end with one fitting emoji. Never name or guess who the people are, no hashtags, no quotation marks.
 
-Add them to the same JSON: "description":"<the sentence>","hashtags":["<tag>","<tag>"],"captions":["<line>","<line>","<line>"]
+Add them to the same JSON: "seo_title":"<the title>","description":"<the sentences>","hashtags":["<tag>","<tag>"],"captions":["<line>","<line>","<line>"]
 
 Also judge where it comes from: was it clearly NOT shot by the person uploading it? Say so only on clear signs — a watermark or logo of another app with an account name (TikTok, Instagram, Snapchat, YouTube, Likee, a CapCut template), a TV channel logo or broadcast graphics, a scene from a film, series, music video, cartoon or advertisement, or a screen captured or filmed (a phone status bar, another app's buttons and comments, a TV or monitor filmed as the subject). NOT a repost: an ordinary phone photo or video, one with the person's own text, stickers or filters, a photo of an old printed family photo, people in front of a TV where the screen is not the subject. When unsure, it is not a repost.
 
@@ -92,15 +100,15 @@ export function captionIdeasOf(raw: unknown) {
   return [...new Set(lines)].slice(0, 3);
 }
 
-// The description and its hashtags as one line (≤150, a moment description's limit).
+// The description and its hashtags as one line (≤ 300).
 export function aiTextOf(description: unknown, hashtags: unknown) {
-  const line = typeof description === "string" ? description.replace(/[#"«»\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, 110) : "";
+  const line = typeof description === "string" ? description.replace(/[#"«»\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, 240) : "";
   if (!line) return "";
   const tags = (Array.isArray(hashtags) ? hashtags : [])
     .map((t) => (typeof t === "string" ? t.replace(/^#+/, "").trim().replace(/\s+/g, "_").replace(/[^\p{L}\p{N}_]/gu, "").slice(0, 30) : ""))
     .filter(Boolean);
   let out = line;
-  for (const t of [...new Set(tags)].slice(0, 3)) if (`${out} #${t}`.length <= 150) out += ` #${t}`;
+  for (const t of [...new Set(tags)].slice(0, 6)) if (`${out} #${t}`.length <= 300) out += ` #${t}`;
   return out;
 }
 
@@ -130,11 +138,18 @@ async function videoFrames(url: string, durationSec: number | null) {
   }
 }
 
-export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
+// What the app knows for sure about the shot, given to Gemini for its title and description.
+export type ShotContext = { moment?: string | null; place?: string | null; year?: number | null };
+const contextLine = (c?: ShotContext) => {
+  const known = [c?.moment && `the moment's name: «${c.moment}»`, c?.place && `the place: ${c.place}`, c?.year && `taken in ${c.year}`].filter(Boolean);
+  return known.length ? `\n\nKnown for sure about this shot (use them): ${known.join("; ")}.` : "";
+};
+
+export async function askGemini(imagesBase64: string[], context?: ShotContext): Promise<Verdict> {
   const res = await callGemini({
     purpose: "screening",
     body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: PROMPT + DESCRIBE }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
+      contents: [{ role: "user", parts: [{ text: PROMPT + DESCRIBE + contextLine(context) }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
       generationConfig: { temperature: 0, responseMimeType: "application/json" },
     }),
   });
@@ -158,7 +173,7 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
 
   const text = candidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   try {
-    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string; description?: unknown; hashtags?: unknown; captions?: unknown; repost?: unknown };
+    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string; seo_title?: unknown; description?: unknown; hashtags?: unknown; captions?: unknown; repost?: unknown };
     if (parsed.verdict === "block") {
       return { result: "blocked", category: String(parsed.category ?? "other").slice(0, 40), reason: String(parsed.reason ?? "").slice(0, 300) };
     }
@@ -168,9 +183,10 @@ export async function askGemini(imagesBase64: string[]): Promise<Verdict> {
       // A name to offer when the moment was started without one (the creator may change it).
       const title = typeof parsed.title === "string" ? parsed.title.replace(/["«»#]/g, "").replace(/\s+/g, " ").trim().slice(0, 40) : "";
       const described = aiTextOf(parsed.description, parsed.hashtags);
+      const seoTitle = typeof parsed.seo_title === "string" ? parsed.seo_title.replace(/["«»#\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, 90) : "";
       const captions = captionIdeasOf(parsed.captions);
       const repost = typeof parsed.repost === "string" ? parsed.repost.trim().slice(0, 160) : "";
-      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}), ...(described ? { text: described } : {}), ...(captions.length ? { captions } : {}), ...(repost ? { repost } : {}) };
+      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}), ...(seoTitle ? { seoTitle } : {}), ...(described ? { text: described } : {}), ...(captions.length ? { captions } : {}), ...(repost ? { repost } : {}) };
     }
   } catch {}
   return { result: "error", reason: `unreadable answer: ${text.slice(0, 200)}` };
@@ -181,7 +197,7 @@ export async function screenAngle(angle: {
   mediaPath: string | null;
   thumbPath: string | null;
   durationSec: number | null;
-}): Promise<Verdict> {
+}, context?: ShotContext): Promise<Verdict> {
   try {
     const images: string[] = [];
     if (angle.mediaType === "PHOTO") {
@@ -194,7 +210,7 @@ export async function screenAngle(angle: {
       if (videoUrl) images.push(...(await videoFrames(videoUrl, angle.durationSec).catch(() => [])));
       if (!images.length) return { result: "error", reason: "no frames" };
     }
-    return await askGemini(images);
+    return await askGemini(images, context);
   } catch (error) {
     return { result: "error", reason: String((error as Error)?.message ?? error).slice(0, 300) };
   }

@@ -119,6 +119,37 @@ export async function smokeChecks(base = "https://zawmo.com", expectBuild?: stri
     return "200";
   });
 
+  // «حارس السيو» (2026-10-14): the mistakes fixed once must never come back. Every kind of public
+  // page lets Google show its pictures large, and none hands out a short-lived storage link for
+  // a picture or a video (Google would index an address that expires). (A shot's writing — a
+  // transparent picture under /c/ — may stay on a signed link: it is never the picture itself.)
+  const pick = (re: RegExp) => re.exec(sitemap)?.[1]?.replace(/^https?:\/\/[^/]+/, base);
+  const seoPages = [
+    ["moment", moment],
+    ["place", place],
+    ["tag", pick(/<loc>(https?:\/\/[^<]+\/tag\/[^<]+)<\/loc>/)],
+    ["topic", pick(/<loc>(https?:\/\/[^<]+\/p\/[^</]+\/[^<]+)<\/loc>/)],
+    ["shot", pick(/<loc>(https?:\/\/[^<]+\/m\/[A-Z0-9]{6}\/a\/[a-z0-9]+)<\/loc>/)],
+  ] as const;
+  await run("seo guard", async () => {
+    const bad: string[] = [];
+    for (const [kind, url] of seoPages) {
+      if (!url) continue;
+      const { res } = await get(url);
+      if (res.status !== 200) {
+        bad.push(`${kind} ${res.status}`);
+        continue;
+      }
+      const html = await res.text();
+      const robots = /<meta name="googlebot" content="([^"]*)"/.exec(html)?.[1] ?? "";
+      if (!robots.includes("max-image-preview:large")) bad.push(`${kind}: no max-image-preview:large`);
+      const expiring = [...html.matchAll(/vercel-storage\.com\/([^"?\s]+)/g)].map((m) => m[1]).filter((path) => !path.startsWith("c/"));
+      if (expiring.length) bad.push(`${kind}: ${expiring.length} expiring storage links`);
+    }
+    must(!bad.length, bad.join("; "));
+    return `${seoPages.filter(([, u]) => u).length} kinds of page fine`;
+  });
+
   // A cron without its secret must be refused (they can render videos and send pushes).
   await run("crons locked", async () => {
     const { res } = await get(`${base}/api/cron/branded`);

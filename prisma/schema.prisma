@@ -235,6 +235,12 @@ model Angle {
   expiresAt     DateTime? // 24 h unless the moment becomes permanent
   // Automatic content check (Gemini) when the upload completes.
   screening     String? // "allowed" | "blocked" | "error"; null = not checked
+  // Its own title for search engines (src/server/screening.ts, the SEO rules): what is seen,
+  // in the words people search with — «زفة العريس على الأكتاف في عرس فلسطيني».
+  aiTitle       String?
+  // Last change to the shot (its words, look, sound…): «dateModified» and the sitemap's
+  // lastmod, so Google comes back for what is new.
+  updatedAt     DateTime  @default(now()) @updatedAt
   // «نشر» pressed while it was still being checked: published by the server once fine.
   autoPublish   Boolean   @default(false)
   screenedAt    DateTime?

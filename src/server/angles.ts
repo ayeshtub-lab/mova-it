@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
 import { blobExists, viewUrl } from "@/server/media";
 import { probeDuration } from "@/server/ffmpeg";
-import { screenAngle, screeningEnabled, screenText } from "@/server/screening";
+import { screenAngle, screeningEnabled, screenText, type ShotContext } from "@/server/screening";
 import { deleteFromStream } from "@/server/stream";
 
 export const MAX_VIDEO_SECONDS = 40;
@@ -279,6 +279,7 @@ export async function completeAngle(user: User, angleId: string) {
         scene: verdict?.result === "allowed" ? (verdict.scene ?? null) : null,
         seenText: verdict?.result === "allowed" ? (verdict.seen ?? null) : null,
         aiText: verdict?.result === "allowed" ? (verdict.text ?? null) : null,
+        aiTitle: verdict?.result === "allowed" ? (verdict.seoTitle ?? null) : null,
         screenedAt: verdict ? now : null,
       },
     });
@@ -298,14 +299,28 @@ export async function completeAngle(user: User, angleId: string) {
   return Object.assign(saved, { titleSuggestion, captionIdeas, wentLive: false });
 }
 
+// What the app knows for sure about a shot, for its SEO title and description: the moment's
+// name, the place (the shot's own, else the moment's) and the year it was taken.
+export async function shotContext(angle: { momentId: string; placeId: string | null; capturedAt: Date | null }): Promise<ShotContext> {
+  const moment = await db.moment.findUnique({ where: { id: angle.momentId }, select: { title: true, named: true, placeId: true, placeName: true } });
+  const placeId = angle.placeId ?? moment?.placeId ?? null;
+  const place = placeId ? await db.place.findUnique({ where: { id: placeId }, select: { nameAr: true, kind: true } }) : null;
+  return {
+    moment: moment?.named ? moment.title : null,
+    place: place ? (place.kind === "GOVERNORATE" ? `محافظة ${place.nameAr}` : place.nameAr) : (moment?.placeName ?? null),
+    year: angle.capturedAt?.getFullYear() ?? null,
+  };
+}
+
 // The check, tried again (a little later each time) when it fails rather than answers.
 const SCREEN_RETRY_MS = [2000, 5000];
-async function screenWithRetry(angle: Parameters<typeof screenAngle>[0]) {
-  let verdict = await screenAngle(angle);
+async function screenWithRetry(angle: Parameters<typeof screenAngle>[0] & Parameters<typeof shotContext>[0]) {
+  const context = await shotContext(angle).catch(() => undefined);
+  let verdict = await screenAngle(angle, context);
   for (const wait of SCREEN_RETRY_MS) {
     if (verdict.result !== "error") break;
     await new Promise((r) => setTimeout(r, wait));
-    verdict = await screenAngle(angle);
+    verdict = await screenAngle(angle, context);
   }
   return verdict;
 }
@@ -325,11 +340,11 @@ export async function recheckUnscreened(take = 4) {
   });
   let done = 0;
   for (const angle of angles) {
-    const verdict = await screenAngle(angle);
+    const verdict = await screenAngle(angle, await shotContext(angle).catch(() => undefined));
     const now = new Date();
     if (verdict.result === "allowed") {
       const repost = verdict.repost && !angle.contributor.verified ? verdict.repost : null;
-      await db.angle.update({ where: { id: angle.id }, data: { screening: repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null } });
+      await db.angle.update({ where: { id: angle.id }, data: { screening: repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null, aiTitle: verdict.seoTitle ?? null } });
       if (repost) await db.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "REPOST", note: repost.slice(0, 500) } });
       done++;
     } else if (verdict.result === "blocked") {
@@ -346,6 +361,37 @@ export async function recheckUnscreened(take = 4) {
   return done;
 }
 
+// Public shots described before the SEO rules (2026-10-14), or left without a title: described
+// again — a few per run of the cron «branded» — with the rules and what the app knows (moment,
+// place, year). Only their words change: the check's verdict stays as it was. Gemini failing
+// stops the run (the next one, 10 minutes later, tries again); a shot it answers without a
+// title gets "" so it is not asked twice.
+export async function describePending(take = 8) {
+  if (!screeningEnabled()) return 0;
+  const shots = await db.angle.findMany({
+    where: { aiTitle: null, status: "READY", screening: "allowed", moment: { visibility: "PUBLIC", status: "ACTIVE" } },
+    orderBy: { uploadedAt: "desc" },
+    take,
+    select: { id: true, momentId: true, placeId: true, capturedAt: true, mediaType: true, mediaPath: true, thumbPath: true, durationSec: true },
+  });
+  let done = 0;
+  for (const shot of shots) {
+    const verdict = await screenAngle(shot, await shotContext(shot).catch(() => undefined));
+    if (verdict.result === "error") {
+      console.error("describe failed", shot.id, verdict.reason);
+      break;
+    }
+    // (A second look that disagrees with the first is left to the admins, never acted on here.)
+    if (verdict.result === "blocked") console.error("describe: second look would block", shot.id, verdict.category);
+    await db.angle.update({
+      where: { id: shot.id },
+      data: verdict.result === "allowed" ? { aiTitle: verdict.seoTitle ?? "", ...(verdict.text ? { aiText: verdict.text } : {}) } : { aiTitle: "" },
+    });
+    done++;
+  }
+  return done;
+}
+
 // A moment just became public: angles added before (unchecked, or checked while the
 // check was failing) are checked now. (Explicit null: in SQL, NULL <> "allowed" is not true.) Anything not clearly fine is hidden for an admin.
 export async function screenForPublic(momentId: string) {
@@ -356,11 +402,11 @@ export async function screenForPublic(momentId: string) {
   }
   const angles = await db.angle.findMany({ where: { momentId, status: "READY", OR: [{ screening: null }, { screening: { not: "allowed" } }] }, include: { contributor: { select: { verified: true } } } });
   for (const angle of angles) {
-    const verdict = screeningEnabled() ? await screenAngle(angle) : null;
+    const verdict = screeningEnabled() ? await screenAngle(angle, await shotContext(angle).catch(() => undefined)) : null;
     const now = new Date();
     if (verdict?.result === "allowed") {
       const repost = verdict.repost && !angle.contributor.verified; // (an official account's: never)
-      await db.angle.update({ where: { id: angle.id }, data: { screening: repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null } });
+      await db.angle.update({ where: { id: angle.id }, data: { screening: repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null, aiTitle: verdict.seoTitle ?? null } });
       if (verdict.repost && repost && !(await db.report.count({ where: { angleId: angle.id, reason: "REPOST", resolvedAt: null } }))) {
         await db.report.create({ data: { momentId, angleId: angle.id, reason: "REPOST", note: verdict.repost.slice(0, 500) } });
       }
@@ -401,12 +447,22 @@ export async function publishAngle(user: User, angleId: string, title?: unknown)
   return goLive(angle, naming ? name : undefined);
 }
 
+// A shot's line as a moment's description (≤ 150): its words cut at a word, then its first hashtags.
+function momentLine(aiText: string) {
+  if (aiText.length <= 150) return aiText;
+  const words = aiText.replace(/#\S+/g, "").replace(/\s+/g, " ").trim();
+  const cut = words.length <= 120 ? words : `${words.slice(0, 120).replace(/\s+\S*$/, "")}…`;
+  let out = cut;
+  for (const tag of aiText.match(/#\S+/g) ?? []) if (`${out} ${tag}`.length <= 150) out += ` ${tag}`;
+  return out;
+}
+
 // A checked draft goes up: shown in the moment, the moment named and described if it wasn't.
 async function goLive(angle: { id: string; momentId: string; aiText: string | null; moment: { description: string | null; kind: string } }, naming?: string) {
   const now = new Date();
   // A moment without a description takes the first shot's line (with its #hashtags), so
   // nothing goes up undescribed; the creator may change it. ("" = they cleared it: left so.)
-  const describe = angle.moment.description === null && angle.aiText ? { description: angle.aiText } : {};
+  const describe = angle.moment.description === null && angle.aiText ? { description: momentLine(angle.aiText) } : {};
   const [done] = await db.$transaction([
     db.angle.update({ where: { id: angle.id }, data: { status: "READY", autoPublish: false } }),
     db.moment.update({

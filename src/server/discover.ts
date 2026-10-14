@@ -170,6 +170,9 @@ export async function listTag(viewer: User | null, rawTag: string) {
       demo: false,
       creatorId: { notIn: blocked },
       angles: { some: shown },
+      // «لحظة اليوم» is give-to-get: its pictures have no lasting public address, so visitors and
+      // search engines (who would index a link that expires) don't get it on a #hashtag page.
+      ...(viewer ? {} : { kind: { not: "DAILY" as const } }),
       // In the moment's description, or in the line written for one of its shots.
       OR: [{ description: { contains: `#${tag}`, mode: "insensitive" } }, { angles: { some: { ...shown, aiText: { contains: `#${tag}`, mode: "insensitive" } } } }],
     },

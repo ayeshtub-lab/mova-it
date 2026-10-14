@@ -97,6 +97,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         // The words heard on it, when its sound is from the library (a verse, a duaa, a nasheed).
         ...(sound?.words ? { transcript: sound.words } : {}),
         uploadDate: shot.uploadedAt.toISOString(),
+        dateModified: shot.updatedAt.toISOString(),
         contentUrl: `${site}/v/${shot.id}.mp4`,
         ...(shot.durationSec ? { duration: `PT${Math.max(1, Math.round(shot.durationSec))}S` } : {}),
       }
@@ -107,6 +108,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         caption: plain(shot.aiText ?? label),
         ...imageRights(shot.contributor.displayName, site),
         datePublished: shot.uploadedAt.toISOString(),
+        dateModified: shot.updatedAt.toISOString(),
         ...(shot.width && shot.height ? { width: shot.width, height: shot.height } : {}),
       };
   const crumbs = [

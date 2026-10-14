@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { brandPending } from "@/server/branded";
 import { markPending } from "@/server/marked";
-import { recheckUnscreened } from "@/server/angles";
+import { describePending, recheckUnscreened } from "@/server/angles";
 import { stampWeather } from "@/server/weather";
 
 // Each render takes a while (the whole clip is re-encoded once).
@@ -22,8 +22,13 @@ export async function GET(request: Request) {
     console.error("recheck failed", error);
     return 0;
   });
+  // Public shots given their SEO title and words (the rules of 2026-10-14), a few per run.
+  const described = await describePending().catch((error) => {
+    console.error("describe pending failed", error);
+    return 0;
+  });
   const made = await brandPending(3);
   const photos = await markPending(2);
-  console.log("branded ahead", { made, photos, weather, rechecked });
-  return NextResponse.json({ made, photos, weather, rechecked });
+  console.log("branded ahead", { made, photos, weather, rechecked, described });
+  return NextResponse.json({ made, photos, weather, rechecked, described });
 }
