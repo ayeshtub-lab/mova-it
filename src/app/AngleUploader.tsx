@@ -263,7 +263,6 @@ export function AngleUploader({
   const [picking, setPicking] = useState<number | null>(null);
   // «🎵 اختار الصوت أول»: the picker before any shot — the sound waits for the next one.
   const [choosingFirst, setChoosingFirst] = useState(false);
-  const soundAsked = useRef(initialDrafts.length > 0);
   const [editing, setEditing] = useState<number | null>(null);
   const [captioning, setCaptioning] = useState<number | null>(null);
   const longFiles = useRef(new Map<number, File>());
@@ -373,13 +372,9 @@ export function AngleUploader({
         placed: !!result.placeId,
         ideas: Array.isArray(result.captionIdeas) ? result.captionIdeas.filter((l: unknown) => typeof l === "string") : [],
       });
+      // A sound chosen beforehand (on a sound's page) goes on now. Otherwise nothing opens by
+      // itself: the person picks a sound only if they want, from the shot's «🎵» button.
       if (pending && (await saveSound(index, angleId, pending, false))) clearPending();
-      // Like TikTok: the first shot ready opens the sounds at once (once per batch; «بدون صوت» or
-      // closing skips it). Not when a sound was already chosen on a sound's page.
-      else if (!soundAsked.current) {
-        soundAsked.current = true;
-        setPicking(index);
-      }
     } catch (error) {
       // A gallery video past 40 s: offer to send its first 40 seconds instead.
       if (error instanceof PrepareError && error.code === "too_long" && input instanceof File) {
