@@ -34,7 +34,8 @@ async function main() {
     });
 
     await check("when the window ends, counting starts over", async () => {
-      await db.rateLimit.update({ where: { key: `report:${who}` }, data: { resetAt: new Date(Date.now() - 1000) } });
+      // (In SQL, like the limiter itself: a JS Date and the database's now() can sit in different zones.)
+      await db.$executeRaw`UPDATE "RateLimit" SET "resetAt" = now() - interval '1 second' WHERE "key" = ${`report:${who}`}`;
       assert.equal(await allow("report", who), true);
       assert.equal((await db.rateLimit.findUnique({ where: { key: `report:${who}` } }))?.count, 1);
     });
