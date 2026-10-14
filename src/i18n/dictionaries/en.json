@@ -548,6 +548,7 @@
     "locked": "Locked angle — add yours to see it"
   },
   "momentHint": {"text": "📸 This is a “moment”: every photo or video in it is an “angle” from someone who was there. Got one? Add it!", "close": "Close"},
+  "momentCards": {"tabsLabel": "View", "tabBrowse": "🎬 Browse", "tabMoments": "🗂️ Moments", "searchLabel": "Search moments", "searchPlaceholder": "Search a moment: wedding, morning coffee…", "watch": "Watch", "add": "Your angle", "found": "Found {n}", "noneTitle": "Nothing for “{q}”", "noneText": "Maybe nobody made it yet… make it and let people add their angles!", "emptyTitle": "No public moments here yet", "emptyText": "Be the first! Create a moment and choose “Everyone” 🌍", "create": "Create a moment", "failedTitle": "Something went wrong loading 😕", "retry": "Try again", "fewHint": "Didn't find it? ＋ Create a moment"},
   "discover": {
     "title": "Discover 🧭",
     "gateTitle": "Moments from everywhere 🌍",

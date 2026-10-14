@@ -10,6 +10,8 @@ import { googleEnabled } from "@/server/google";
 import { sceneCards } from "@/server/places";
 import { SCENES, type Scene } from "@/lib/scenes";
 import { DiscoverFeed } from "./DiscoverFeed";
+import { MomentCards } from "./MomentCards";
+import { findMoments, type MomentCard } from "@/server/moment-search";
 
 export const metadata = { title: "اكتشف · زاومو", robots: { index: false } };
 
@@ -17,9 +19,46 @@ export const metadata = { title: "اكتشف · زاومو", robots: { index: fa
 // the week's trending videos) scrolls away into the moments; a trending video opens a
 // full-screen viewer that carries on through everything else. Visitors and guests are
 // invited to sign in with Google to like, comment and add their angle.
-export default async function DiscoverPage() {
-  const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
+export default async function DiscoverPage({ searchParams }: PageProps<"/discover">) {
+  const [user, locale, params] = await Promise.all([getCurrentUser(), getLocale(), searchParams]);
   const dict = await getDictionary(locale);
+
+  // Two tabs: «🎬 تصفّح» (the feed, as it always was — the default) and «🗂️ لحظات» (cards + search).
+  const query = typeof params.q === "string" ? params.q.trim() : "";
+  const cardsTab = params.tab === "moments" || !!query;
+  const tabs = (
+    <nav aria-label={dict.momentCards.tabsLabel} className="grid grid-cols-2 gap-1 rounded-full bg-surface p-1 text-sm font-extrabold">
+      {[
+        { href: "/discover", label: dict.momentCards.tabBrowse, on: !cardsTab },
+        { href: "/discover?tab=moments", label: dict.momentCards.tabMoments, on: cardsTab },
+      ].map((x) => (
+        <Link key={x.href} href={x.href} aria-current={x.on ? "page" : undefined} className={`flex min-h-10 items-center justify-center rounded-full ${x.on ? "bg-accent text-white shadow-sm" : "text-muted"}`}>
+          {x.label}
+        </Link>
+      ))}
+    </nav>
+  );
+  if (cardsTab) {
+    let cards: MomentCard[] = [];
+    let failed = false;
+    try {
+      cards = await findMoments(user, query || null);
+    } catch (error) {
+      console.error("moment search failed", error);
+      failed = true;
+    }
+    return (
+      <div className="flex flex-1 flex-col">
+        <div className="px-4 sm:px-8">
+          <SiteHeader locale={locale} dict={dict} />
+        </div>
+        <main className="mx-auto flex w-full max-w-xl flex-col gap-4">
+          <div className="px-4">{tabs}</div>
+          <MomentCards cards={cards} query={query} failed={failed} focus={params.focus === "1"} locale={locale} dict={dict} />
+        </main>
+      </div>
+    );
+  }
   const t = dict.discover;
   const official = !!user && !user.isGuest;
 
@@ -33,6 +72,7 @@ export default async function DiscoverPage() {
 
   const intro = (
     <div className="flex flex-col gap-4 px-4 pb-5">
+      {tabs}
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-red via-[#8e3a8f] to-brand-blue p-5 text-white shadow-lg">
         <span aria-hidden="true" className="absolute -end-6 -top-8 size-32 rounded-full bg-moment/40 blur-2xl" />
         <h1 className="relative text-4xl font-extrabold">{t.heroTitle}</h1>

@@ -47,12 +47,14 @@ export function CreateMomentForm({
   publicLocked = null,
   initialPlace = null,
   initialKind = "EVERYDAY",
+  initialTitle,
 }: {
   labels: Labels;
   canPublic?: boolean;
   publicLocked?: ReactNode;
   initialPlace?: PlaceOption | null;
   initialKind?: "EVERYDAY" | "STORY";
+  initialTitle?: string;
 }) {
   const [state, action, pending] = useActionState(createMomentAction, undefined);
   // A moment (now, from every angle) or «مع الوقت» (one thing over days and weeks).
@@ -81,7 +83,7 @@ export function CreateMomentForm({
         <span>
           {kind === "STORY" ? labels.storyTitleLabel : labels.titleLabel} <span className="font-normal text-muted">{labels.titleOptional}</span>
         </span>
-        <input name="title" maxLength={80} placeholder={kind === "STORY" ? labels.storyPlaceholder : labels.titlePlaceholder} className={`${inputClass} font-normal`} />
+        <input name="title" maxLength={80} defaultValue={initialTitle} placeholder={kind === "STORY" ? labels.storyPlaceholder : labels.titlePlaceholder} className={`${inputClass} font-normal`} />
       </label>
       <label className="flex flex-col gap-1.5 text-sm font-bold">
         {labels.descriptionLabel}

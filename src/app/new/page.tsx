@@ -18,7 +18,7 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
   if (!user) redirect("/");
   const locale = await getLocale();
   const dict = await getDictionary(locale);
-  const { kind, shared } = await searchParams;
+  const { kind, shared, title } = await searchParams;
   // «/new?shared=3»: photos or videos shared to Zawmo from the gallery (public/sw.js).
   const sharedCount = typeof shared === "string" ? Math.min(10, Math.max(0, Number.parseInt(shared, 10) || 0)) : null;
   const inApp = isInAppBrowser((await headers()).get("user-agent"));
@@ -43,6 +43,8 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
             labels={dict.create}
             canPublic={!user.isGuest}
             initialKind={kind === "story" ? "STORY" : "EVERYDAY"}
+            // «/new?title=عرس أحمد»: from a search that found nothing — make that moment.
+            initialTitle={typeof title === "string" ? title.slice(0, 80) : undefined}
             publicLocked={
               user.isGuest && googleEnabled() ? (
                 // A guest can't post for everyone: «للكل» shows locked, one tap from Google

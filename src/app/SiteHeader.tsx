@@ -17,6 +17,17 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
         <Logo locale={locale} />
       </Link>
       <div className="flex items-center gap-2">
+        {/* Search moments by name, from every page («اكتشف ← لحظات»). */}
+        <Link
+          href="/discover?tab=moments&focus=1"
+          aria-label={dict.momentCards.searchLabel}
+          title={dict.momentCards.searchLabel}
+          className="flex size-11 items-center justify-center rounded-full bg-surface text-secondary transition-transform hover:scale-105"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" className="size-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" />
+          </svg>
+        </Link>
         {/* On phones these live in the bottom bar. */}
         {user && !user.isGuest && (
           <Link
