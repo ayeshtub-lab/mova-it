@@ -35,10 +35,13 @@ export async function deleteAccount(user: User) {
     select: { id: true, videoUrl: true },
   });
   const system = handOver.length ? await systemUser() : null;
+  // Their voice messages in «الدردشة»: the files go with the account.
+  const voices = await db.message.findMany({ where: { senderId: user.id, audioPath: { not: null } }, select: { audioPath: true } });
 
   const files = [
     ...myAngles.flatMap((a) => [a.mediaPath, a.thumbPath, a.smallPath, parseCaption(a.caption)?.path]),
     ...montages.map((m) => m.videoUrl),
+    ...voices.map((v) => v.audioPath),
     user.avatarUrl?.startsWith("/api/avatars/") ? `avatars/${user.avatarUrl.slice("/api/avatars/".length)}` : null,
   ].filter((p): p is string => !!p);
 

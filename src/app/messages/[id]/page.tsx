@@ -1,17 +1,58 @@
 "use client";
 
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Check, CheckCheck, Send, SmilePlus } from "lucide-react";
+import { ArrowRight, Check, CheckCheck, Mic, Pause, Play, Send, SmilePlus, X } from "lucide-react";
 import { Avatar, type Person } from "../Avatar";
 
-type Message = { id: string; body: string; mine: boolean; at: string };
+type Message = { id: string; body: string; mine: boolean; at: string; voice?: string; seconds?: number | null };
 type Chat = { id: string; other: Person; online: boolean; blocked: boolean; otherSeenAt: string | null; messages: Message[] };
 
 const EMOJIS = ["😀", "😂", "❤️", "😍", "🔥", "👍", "😎", "🙏", "✨", "🎉", "😢", "🤔", "👌", "💯", "🌹", "☕"];
 // While the conversation is on screen; never while the tab is hidden (the server is kept light).
 const POLL_MS = 4000;
+// «🎤»: up to two minutes (src/server/conversations.ts MAX_VOICE_SECONDS).
+const VOICE_MAX = 120;
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+// What this phone records: Opus in WebM (Android, Chrome), else MP4/AAC (iPhone).
+const voiceType = () => ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) ?? "";
+
+// A voice message in its bubble: play / pause, how far it has played, how long it is.
+function Voice({ src, seconds, mine }: { src: string; seconds: number | null | undefined; mine: boolean }) {
+  const audio = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [at, setAt] = useState(0);
+  const total = seconds ?? 0;
+  return (
+    <span className="flex w-56 max-w-full items-center gap-2" dir="ltr">
+      <button
+        type="button"
+        aria-label={playing ? "إيقاف" : "تشغيل"}
+        onClick={() => (playing ? audio.current?.pause() : audio.current?.play().catch(() => {}))}
+        className={`flex size-9 shrink-0 items-center justify-center rounded-full ${mine ? "bg-white/25" : "bg-accent text-white"}`}
+      >
+        {playing ? <Pause size={18} /> : <Play size={18} className="translate-x-px" />}
+      </button>
+      <span className={`h-1.5 flex-1 overflow-hidden rounded-full ${mine ? "bg-white/30" : "bg-line"}`}>
+        <span className={`block h-full ${mine ? "bg-white" : "bg-accent"}`} style={{ width: total ? `${Math.min(100, (at / total) * 100)}%` : "0%" }} />
+      </span>
+      <span className="w-9 shrink-0 text-xs tabular-nums">{clock(playing || at ? at : total)}</span>
+      <audio
+        ref={audio}
+        src={src}
+        preload="none"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => {
+          setPlaying(false);
+          setAt(0);
+        }}
+        onTimeUpdate={(e) => setAt(e.currentTarget.currentTime)}
+      />
+    </span>
+  );
+}
 
 const time = (at: string) => new Intl.DateTimeFormat("ar", { hour: "2-digit", minute: "2-digit", numberingSystem: "latn" }).format(new Date(at));
 const day = (at: string) => new Intl.DateTimeFormat("ar", { weekday: "long", day: "numeric", month: "long", numberingSystem: "latn" }).format(new Date(at));
@@ -44,6 +85,13 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
   const [showEmoji, setShowEmoji] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const lastId = useRef<string | null>(null);
+  // Go to the newest message once the next messages are on screen: on opening, after sending, and
+  // when something new comes while reading the end (never when scrolled up to read older ones).
+  const stick = useRef(true);
+  const [recording, setRecording] = useState<{ started: number; seconds: number } | null>(null);
+  const recorder = useRef<MediaRecorder | null>(null);
+  const chunks = useRef<Blob[]>([]);
+  const keep = useRef(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/conversations/${id}/messages`, { cache: "no-store" }).catch(() => null);
@@ -59,13 +107,33 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
     // Something new from them since the last look: a soft sound.
     if (lastId.current && newest && newest.id !== lastId.current && !newest.mine) ding();
     const list = listRef.current;
-    const nearBottom = !list || list.scrollHeight - list.scrollTop - list.clientHeight < 120;
-    const changed = newest?.id !== lastId.current;
+    const nearBottom = !list || list.scrollHeight - list.scrollTop - list.clientHeight < 160;
+    if (newest?.id !== lastId.current && nearBottom) stick.current = true;
     lastId.current = newest?.id ?? null;
     setChat(data);
-    // To the newest: on opening, and when something new comes while reading the end.
-    if (changed && nearBottom) requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight }));
   }, [id, router]);
+
+  // The recording's clock — and at two minutes it is sent by itself.
+  const recordingStarted = recording?.started ?? null;
+  useEffect(() => {
+    if (!recordingStarted) return;
+    const tick = setInterval(() => {
+      const seconds = Math.floor((Date.now() - recordingStarted) / 1000);
+      if (seconds >= VOICE_MAX) {
+        keep.current = true;
+        recorder.current?.stop();
+      } else setRecording((r) => (r ? { ...r, seconds } : r));
+    }, 500);
+    return () => clearInterval(tick);
+  }, [recordingStarted]);
+
+  const count = chat?.messages.length ?? 0;
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!list || !stick.current || !count) return;
+    list.scrollTop = list.scrollHeight;
+    stick.current = false;
+  }, [count]);
 
   useEffect(() => {
     const first = setTimeout(load, 0);
@@ -98,13 +166,55 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
     if (res?.ok) {
       const message = (await res.json()) as Message;
       lastId.current = message.id;
+      stick.current = true;
       setChat((c) => (c ? { ...c, messages: [...c.messages, message] } : c));
       setInput("");
       setShowEmoji(false);
-      requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" }));
       return;
     }
     setError(res?.status === 403 ? "ما بتقدر تراسل هالشخص." : res?.status === 429 ? "رسائل كثير بوقت قصير، ارتاح شوي وارجع." : res?.status === 400 ? "الرسالة طويلة كتير (١٠٠٠ حرف بالأكثر)." : "ما انبعتت الرسالة، جرّب مرة تانية.");
+  }
+
+  // «🎤»: recording starts at once; ✕ throws it away, ➤ sends it (at two minutes it sends itself).
+  async function startRecording() {
+    setError(null);
+    const type = voiceType();
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    } catch {
+      return setError("اسمح لزاومو يستعمل المايك من إعدادات المتصفح، وجرّب مرة تانية.");
+    }
+    const rec = new MediaRecorder(stream, { ...(type ? { mimeType: type } : {}), audioBitsPerSecond: 48_000 });
+    chunks.current = [];
+    rec.ondataavailable = (e) => e.data.size && chunks.current.push(e.data);
+    rec.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop());
+      const seconds = Math.max(1, Math.round((Date.now() - started) / 1000));
+      setRecording(null);
+      if (!keep.current) return;
+      const blob = new Blob(chunks.current, { type: rec.mimeType.split(";")[0] || "audio/webm" });
+      const form = new FormData();
+      form.append("audio", blob, `voice.${blob.type.includes("mp4") ? "m4a" : "webm"}`);
+      form.append("seconds", String(Math.min(seconds, VOICE_MAX)));
+      setSending(true);
+      const res = await fetch(`/api/conversations/${id}/voice`, { method: "POST", body: form }).catch(() => null);
+      setSending(false);
+      if (res?.ok) {
+        const message = (await res.json()) as Message;
+        lastId.current = message.id;
+        stick.current = true;
+        setChat((c) => (c ? { ...c, messages: [...c.messages, message] } : c));
+      } else setError(res?.status === 400 ? "التسجيل قصير كتير أو طويل كتير." : "ما انبعتت الرسالة الصوتية، جرّب مرة تانية.");
+    };
+    const started = Date.now();
+    recorder.current = rec;
+    rec.start(1000);
+    setRecording({ started, seconds: 0 });
+  }
+  function stopRecording(send: boolean) {
+    keep.current = send;
+    if (recorder.current && recorder.current.state !== "inactive") recorder.current.stop();
   }
 
   if (!chat) {
@@ -148,7 +258,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
               {newDay && <p className="my-3 text-center text-xs font-bold text-muted">{day(m.at)}</p>}
               <div className={`flex ${m.mine ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[80%] rounded-2xl px-4 py-2 shadow-sm ${m.mine ? "rounded-ee-md bg-accent text-white" : "rounded-es-md bg-surface"}`}>
-                  <p className="whitespace-pre-wrap break-words leading-relaxed">{m.body}</p>
+                  {m.voice ? <Voice src={m.voice} seconds={m.seconds} mine={m.mine} /> : <p className="whitespace-pre-wrap break-words leading-relaxed">{m.body}</p>}
                   <span className={`mt-1 flex items-center justify-end gap-1 text-[11px] ${m.mine ? "text-white/80" : "text-muted"}`}>
                     {time(m.at)}
                     {m.mine && (new Date(m.at).getTime() <= seen ? <CheckCheck size={14} aria-label="انقرأت" /> : <Check size={14} aria-label="انبعتت" />)}
@@ -179,6 +289,20 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                 ))}
               </div>
             )}
+            {recording ? (
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => stopRecording(false)} aria-label="إلغاء التسجيل" className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-background">
+                  <X size={22} />
+                </button>
+                <span className="flex min-h-11 flex-1 items-center gap-2 rounded-full bg-background px-4 font-bold">
+                  <span aria-hidden="true" className="size-2.5 animate-pulse rounded-full bg-red-500" />
+                  عم بسجّل… <span className="tabular-nums">{clock(recording.seconds)}</span>
+                </span>
+                <button type="button" onClick={() => stopRecording(true)} aria-label="إرسال التسجيل" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-white">
+                  <Send size={20} className="-scale-x-100" />
+                </button>
+              </div>
+            ) : (
             <form onSubmit={send} className="flex items-center gap-2">
               <button type="button" onClick={() => setShowEmoji((v) => !v)} aria-label="إيموجي" className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:bg-background">
                 <SmilePlus size={22} />
@@ -192,10 +316,18 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                 autoComplete="off"
                 className="min-h-11 min-w-0 flex-1 rounded-full border border-line bg-background px-4 text-base outline-none focus:border-accent"
               />
-              <button type="submit" disabled={sending || !input.trim()} aria-label="إرسال" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-white disabled:opacity-40">
-                {sending ? <span className="size-5 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Send size={20} className="-scale-x-100" />}
-              </button>
+              {/* Nothing written: the mic (like WhatsApp); something written: send. */}
+              {!input.trim() && !sending && typeof MediaRecorder !== "undefined" ? (
+                <button type="button" onClick={startRecording} aria-label="رسالة صوتية" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-white">
+                  <Mic size={20} />
+                </button>
+              ) : (
+                <button type="submit" disabled={sending || !input.trim()} aria-label="إرسال" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-accent text-white disabled:opacity-40">
+                  {sending ? <span className="size-5 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Send size={20} className="-scale-x-100" />}
+                </button>
+              )}
             </form>
+            )}
           </>
         )}
       </div>

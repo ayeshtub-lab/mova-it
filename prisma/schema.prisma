@@ -765,6 +765,9 @@ model Message {
   conversationId String
   senderId       String
   body           String
+  // A voice message (src/server/conversations.ts): its file in private Blob storage, and its length.
+  audioPath      String?
+  audioSeconds   Int?
   // حالة الرسالة: sent, delivered, read
   status         String   @default("sent")
   // متى تمت قراءة الرسالة

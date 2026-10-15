@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { put } from "@vercel/blob";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { blockedIdsFor } from "@/server/moderation";
@@ -10,9 +12,14 @@ import { pushInboxMessage } from "@/server/push";
 
 const MAX_LENGTH = 1000;
 const PAGE = 50;
+// «🎤»: a voice message of up to two minutes, recorded on the phone.
+export const MAX_VOICE_SECONDS = 120;
+const MAX_VOICE_BYTES = 3_500_000;
+const VOICE_TYPES: Record<string, string> = { "audio/webm": "webm", "audio/ogg": "ogg", "audio/mp4": "m4a", "audio/mpeg": "mp3", "audio/aac": "aac", "audio/x-m4a": "m4a" };
+export const VOICE_LABEL = "🎤 رسالة صوتية";
 
 export class ChatError extends Error {
-  constructor(public code: "not_found" | "invalid" | "blocked" | "too_many") {
+  constructor(public code: "not_found" | "invalid" | "blocked" | "too_many" | "bad_audio") {
     super(code);
   }
 }
@@ -82,7 +89,7 @@ export async function openConversation(user: User, id: string) {
   const c = await db.conversation.findUnique({ where: { id }, include: { user1: person, user2: person } });
   const side = c && sideOf(c, user.id);
   if (!c || !side) throw new ChatError("not_found");
-  const latest = await db.message.findMany({ where: { conversationId: id }, orderBy: { createdAt: "desc" }, take: PAGE, select: { id: true, body: true, senderId: true, createdAt: true } });
+  const latest = await db.message.findMany({ where: { conversationId: id }, orderBy: { createdAt: "desc" }, take: PAGE, select: { id: true, body: true, senderId: true, createdAt: true, audioPath: true, audioSeconds: true } });
   const messages = latest.reverse();
   const seenAt = side.mine === "user1" ? c.user1SeenAt : c.user2SeenAt;
   const newest = messages.findLast((m) => m.senderId !== user.id);
@@ -96,7 +103,8 @@ export async function openConversation(user: User, id: string) {
     online: online.has(side.otherId),
     blocked: blocked.has(side.otherId),
     otherSeenAt: side.mine === "user1" ? c.user2SeenAt : c.user1SeenAt,
-    messages: messages.map((m) => ({ id: m.id, body: m.body, mine: m.senderId === user.id, at: m.createdAt })),
+    // (a voice message's file only through a link checked for these two people — ./voice/[messageId])
+    messages: messages.map((m) => ({ id: m.id, body: m.body, mine: m.senderId === user.id, at: m.createdAt, ...(m.audioPath ? { voice: `/api/conversations/${id}/voice/${m.id}`, seconds: m.audioSeconds } : {}) })),
   };
 }
 
@@ -126,4 +134,35 @@ export async function startConversation(user: User, otherId: unknown) {
   const [user1Id, user2Id] = [user.id, otherId].sort();
   const c = await db.conversation.upsert({ where: { user1Id_user2Id: { user1Id, user2Id } }, create: { user1Id, user2Id }, update: {}, select: { id: true } });
   return c.id;
+}
+
+// «🎤»: a voice message — the recording kept in private storage, heard only by these two people.
+export async function sendVoiceMessage(user: User, id: string, file: unknown, rawSeconds: unknown, siteUrl: string) {
+  if (!(file instanceof Blob) || file.size < 500 || file.size > MAX_VOICE_BYTES) throw new ChatError("bad_audio");
+  const type = (file.type || "").split(";")[0].trim();
+  const ext = VOICE_TYPES[type];
+  const seconds = Math.round(Number(rawSeconds));
+  if (!ext || !Number.isFinite(seconds) || seconds < 1 || seconds > MAX_VOICE_SECONDS + 2) throw new ChatError("bad_audio");
+  const c = await db.conversation.findUnique({ where: { id } });
+  const side = c && sideOf(c, user.id);
+  if (!c || !side) throw new ChatError("not_found");
+  if ((await blockedIdsFor(user.id)).has(side.otherId)) throw new ChatError("blocked");
+  const path = `chat/${id}/${randomUUID()}.${ext}`;
+  await put(path, Buffer.from(await file.arrayBuffer()), { access: "private", contentType: type, addRandomSuffix: false });
+  const now = new Date();
+  const [message] = await db.$transaction([
+    db.message.create({ data: { conversationId: id, senderId: user.id, body: VOICE_LABEL, audioPath: path, audioSeconds: Math.min(seconds, MAX_VOICE_SECONDS) }, select: { id: true, body: true, createdAt: true, audioSeconds: true } }),
+    db.conversation.update({ where: { id }, data: { createdAt: now, ...(side.mine === "user1" ? { user1SeenAt: now } : { user2SeenAt: now }) } }),
+  ]);
+  return {
+    message: { id: message.id, body: message.body, mine: true, at: message.createdAt, voice: `/api/conversations/${id}/voice/${message.id}`, seconds: message.audioSeconds },
+    tell: () => pushInboxMessage(side.otherId, { senderName: user.displayName, body: VOICE_LABEL, url: `${siteUrl}/messages/${id}` }),
+  };
+}
+
+// The voice file of a message, for one of the conversation's two people only.
+export async function voicePath(user: User, id: string, messageId: string) {
+  const m = await db.message.findFirst({ where: { id: messageId, conversationId: id }, select: { audioPath: true, conversation: { select: { user1Id: true, user2Id: true } } } });
+  if (!m?.audioPath || !sideOf(m.conversation, user.id)) throw new ChatError("not_found");
+  return m.audioPath;
 }

@@ -5,7 +5,7 @@
 import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
-import { ChatError, chatUnread, listConversations, openConversation, sendChatMessage, startConversation } from "../src/server/conversations";
+import { ChatError, chatUnread, listConversations, openConversation, sendChatMessage, sendVoiceMessage, startConversation, voicePath } from "../src/server/conversations";
 
 const TAG = "[chattest]";
 const out: string[] = [];
@@ -35,7 +35,7 @@ async function main() {
       assert.ok(mine.otherSeenAt && new Date(mine.otherSeenAt) >= mine.messages.at(-1)!.at, "the sender sees it was read");
     });
     await check("the newest messages show, past fifty", async () => {
-      for (let i = 1; i <= 55; i++) await db.message.create({ data: { conversationId: id, senderId: sara.id, body: `رقم ${i}`, createdAt: new Date(Date.now() + i * 1000) } });
+      for (let i = 1; i <= 55; i++) await db.message.create({ data: { conversationId: id, senderId: sara.id, body: `رقم ${i}`, createdAt: new Date(Date.now() - (60 - i) * 1000) } });
       const c = await openConversation(omar, id);
       assert.equal(c.messages.length, 50);
       assert.equal(c.messages.at(-1)?.body, "رقم 55");
@@ -46,12 +46,27 @@ async function main() {
       const stranger = await mk("stranger");
       await assert.rejects(() => openConversation(stranger, id), ChatError);
     });
+    await check("a voice message: kept privately, heard only by the two of them", async () => {
+      const audio = new Blob([new Uint8Array(2000).fill(7)], { type: "audio/webm" });
+      const { message } = await sendVoiceMessage(sara, id, audio, 4, "x");
+      assert.ok(message.voice?.endsWith(`/voice/${message.id}`));
+      const c = await openConversation(omar, id);
+      assert.equal(c.messages.find((m) => m.id === message.id)?.seconds, 4);
+      assert.ok((await voicePath(omar, id, message.id)).startsWith(`chat/${id}/`));
+      const stranger = await mk("stranger2");
+      await assert.rejects(() => voicePath(stranger, id, message.id), ChatError);
+      await assert.rejects(() => sendVoiceMessage(sara, id, new Blob(["x"], { type: "audio/webm" }), 4, "x"), ChatError, "too small");
+      await assert.rejects(() => sendVoiceMessage(sara, id, audio, 999, "x"), ChatError, "too long");
+      await assert.rejects(() => sendVoiceMessage(sara, id, new Blob([new Uint8Array(2000)], { type: "video/mp4" }), 4, "x"), ChatError, "not audio");
+    });
     await check("blocked either way: no message", async () => {
       await db.block.create({ data: { blockerId: omar.id, blockedId: sara.id } });
       await assert.rejects(() => sendChatMessage(sara, id, "وينك؟", "x"), (e: unknown) => e instanceof ChatError && e.code === "blocked");
       assert.equal((await listConversations(sara)).length, 0);
     });
   } finally {
+    const voices = await db.message.findMany({ where: { sender: { displayName: { startsWith: TAG } }, audioPath: { not: null } }, select: { audioPath: true } });
+    if (voices.length) await (await import("@vercel/blob")).del(voices.map((v) => v.audioPath!)).catch(() => {});
     const ids = (await db.user.findMany({ where: { displayName: { startsWith: TAG } }, select: { id: true } })).map((u) => u.id);
     await db.block.deleteMany({ where: { OR: [{ blockerId: { in: ids } }, { blockedId: { in: ids } }] } });
     await db.conversation.deleteMany({ where: { OR: [{ user1Id: { in: ids } }, { user2Id: { in: ids } }] } });
