@@ -1,7 +1,7 @@
 import { GRID_SIZES, gridSrcSet } from "@/lib/indexable";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -11,7 +11,7 @@ import { clip, imageRights, plain } from "@/lib/clip";
 import { filterCss } from "@/lib/filters";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { getCurrentUser } from "@/lib/session";
-import { topicPage, topicPath } from "@/server/topics";
+import { placeBySlug, topicPage, topicPath } from "@/server/topics";
 
 // «خيار في الخضر»: the real public shots of one topic in one place — src/server/topics.ts.
 // Not a page until it is real (4 shots, 2 people), never the same shots as another page.
@@ -23,6 +23,8 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]/[topic]"
   const { slug, topic } = await params;
   const data = await load(slug, topic, null);
   if (!data) return { robots: { index: false } };
+  // (A page repeating another: shown, but the other is the one search engines should list.)
+  const canonical = data.canonicalOf ? topicPath(data.canonicalOf.slug, data.canonicalOf.topic) : topicPath(data.slug, data.topic);
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const t = dict.topic;
@@ -34,7 +36,7 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]/[topic]"
   return {
     title,
     description,
-    alternates: { canonical: topicPath(data.slug, data.topic) },
+    alternates: { canonical },
     openGraph: { title: fill(t.title, words), description, type: "website", ...(image ? { images: [image] } : {}) },
   };
 }
@@ -43,7 +45,13 @@ export default async function TopicPage({ params }: PageProps<"/p/[slug]/[topic]
   const { slug, topic } = await params;
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
   const data = await load(slug, topic, user?.id ?? null);
-  if (!data) notFound();
+  if (!data) {
+    // A topic gone from this place (its shots removed or retold): its place page, permanently —
+    // an address Google knows never ends in a 404.
+    const place = await placeBySlug(decodeURIComponent(slug));
+    if (place) permanentRedirect(`/p/${encodeURIComponent(place.slug)}`);
+    notFound();
+  }
   const dict = await getDictionary(locale);
   const t = dict.topic;
   const words = { topic: data.words, place: data.placeName };

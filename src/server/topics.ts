@@ -51,7 +51,12 @@ type Node = { id: string; slug: string; nameAr: string; kind: string; parentId: 
 
 // Every topic page there is, biggest first. Worked out from all public shots with a place (once
 // per request).
-export const topicIndex = cache(async (now = new Date()): Promise<Topic[]> => {
+export const topicIndex = cache(async (now = new Date()): Promise<Topic[]> => (await topicsAll(now)).kept);
+
+// The pages above, and also every real topic that was left out for repeating one of them (kept
+// with the page it repeats): such an address may already be in Google, and it must never become
+// a 404 — it still shows, pointing search engines to the page it repeats (src/app/p/[slug]/[topic]).
+const topicsAll = cache(async (now = new Date()) => {
   const shots = await db.angle.findMany({
     where: shownPublic(now),
     select: { id: true, scene: true, aiText: true, contributorId: true, placeId: true, uploadedAt: true, moment: { select: { title: true, description: true, _count: { select: { angles: true } } } } },
@@ -109,14 +114,18 @@ export const topicIndex = cache(async (now = new Date()): Promise<Topic[]> => {
   const depth = (p: Node) => chain(p.id).length;
   real.sort((x, y) => depth(y.place) - depth(x.place) || y.ids.length - x.ids.length || x.topic.length - y.topic.length);
   const kept: typeof real = [];
+  const repeated: { g: (typeof real)[number]; of: (typeof real)[number] }[] = [];
   for (const g of real) {
     // (a page kept for this place or a place inside it, whatever its topic)
-    const repeats = kept.some((k) => chain(k.place.id).some((p) => p.id === g.place.id) && overlap(k.ids, g.ids) >= SAME);
-    if (!repeats) kept.push(g);
+    const of = kept.find((k) => chain(k.place.id).some((p) => p.id === g.place.id) && overlap(k.ids, g.ids) >= SAME);
+    if (!of) kept.push(g);
+    else repeated.push({ g, of });
   }
-  return kept
-    .map((g) => ({ placeId: g.place.id, slug: g.place.slug, placeName: nameOf(g.place), topic: g.topic, words: topicWords(g.topic), shotIds: g.ids, people: g.people.size, updatedAt: g.updatedAt }))
-    .sort((x, y) => y.shotIds.length - x.shotIds.length);
+  const view = (g: (typeof real)[number]): Topic => ({ placeId: g.place.id, slug: g.place.slug, placeName: nameOf(g.place), topic: g.topic, words: topicWords(g.topic), shotIds: g.ids, people: g.people.size, updatedAt: g.updatedAt });
+  return {
+    kept: kept.map(view).sort((x, y) => y.shotIds.length - x.shotIds.length),
+    repeated: repeated.map((r) => ({ ...view(r.g), repeats: view(r.of) })),
+  };
 });
 
 // The topic pages of one place, biggest first (for its place page).
@@ -128,8 +137,11 @@ export async function placeTopics(placeId: string, take = 16) {
 // there is no such page (too few shots, or the same shots as another page).
 export async function topicPage(slug: string, rawTopic: string, viewerId: string | null, take = 60) {
   const topic = normalizeTag(rawTopic);
-  const all = await topicIndex();
-  const page = all.find((t) => t.slug === slug && t.topic === topic);
+  const { kept: all, repeated } = await topicsAll();
+  // A page left out for repeating another still shows (its address may be in Google), its
+  // canonical the page it repeats.
+  const again = all.find((t) => t.slug === slug && t.topic === topic) ? null : repeated.find((t) => t.slug === slug && t.topic === topic);
+  const page = all.find((t) => t.slug === slug && t.topic === topic) ?? again;
   if (!page) return null;
   const blocked = viewerId ? [...(await blockedIdsFor(viewerId))] : [];
   const [place, angles] = await Promise.all([
@@ -143,6 +155,7 @@ export async function topicPage(slug: string, rawTopic: string, viewerId: string
   ]);
   return {
     ...page,
+    canonicalOf: again ? again.repeats : null,
     lat: place.lat,
     lng: place.lng,
     trail: await placeTrail(place.parentId),
@@ -176,4 +189,9 @@ export async function momentTopics(shotIds: string[], take = 8) {
     .sort((a, b) => b.shared - a.shared || b.t.shotIds.length - a.t.shotIds.length)
     .slice(0, take)
     .map((x) => x.t);
+}
+
+// A place by its address (for a topic page whose topic is gone: its place page instead of a 404).
+export async function placeBySlug(slug: string) {
+  return db.place.findUnique({ where: { slug }, select: { slug: true } });
 }

@@ -1,8 +1,9 @@
+import { placeBySlug } from "@/server/topics";
 import { GRID_SIZES, gridSrcSet } from "@/lib/indexable";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { imageRights, plain } from "@/lib/clip";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -46,7 +47,13 @@ export async function generateMetadata({ params }: PageProps<"/e/[slug]/[scene]/
 export default async function EventPage({ params }: PageProps<"/e/[slug]/[scene]/[day]">) {
   const { slug, scene, day } = await params;
   const data = await load(slug, scene, day);
-  if (!data) notFound();
+  if (!data) {
+    // An event no longer there (its shots removed): the area's page, permanently — never a 404
+    // for an address Google may know.
+    const place = await placeBySlug(decodeURIComponent(slug));
+    if (place) permanentRedirect(`/p/${encodeURIComponent(place.slug)}`);
+    notFound();
+  }
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const t = dict.event;

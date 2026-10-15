@@ -118,7 +118,7 @@ async function main() {
       assert.ok(topics.includes("أكل") === false);
     });
 
-    await check("its page lists the shots, newest first; a page that isn't real is null", async () => {
+    await check("its page lists the shots, newest first; a page that isn't real is null; a repeat points to its original", async () => {
       const page = (await topicPage(town.slug, "خيار", null))!;
       assert.equal(page.shots.length, 5);
       assert.equal(page.placeName, town.nameAr);
@@ -127,7 +127,11 @@ async function main() {
         "its governorate in the trail",
       );
       assert.equal(await topicPage(town.slug, "زيتون", null), null);
-      assert.equal(await topicPage(gov.slug, "خيار", null), null, "the governorate's copy is not a page");
+      // The governorate's copy repeats the town's page: never listed as its own page, but its
+      // address still answers (it may be in Google) — pointing to the town's page.
+      const copy = (await topicPage(gov.slug, "خيار", null))!;
+      assert.equal(copy.canonicalOf?.slug, town.slug, "the governorate's copy points to the town's page");
+      assert.equal(page.canonicalOf, null, "the real page is its own canonical");
     });
 
     await check("a moment links the topic pages its shots are in", async () => {
