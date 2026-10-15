@@ -27,16 +27,17 @@ const INTRO = 1.8;
 const OUTRO = 2.6;
 const T = 0.45;
 const PHOTO = 3.2; // a photo without a sound
-const PHOTO_MAX = 5; // …stretched up to this to fill a part made when things went quiet
+const PHOTO_MAX = 8; // …stretched up to this to fill a part made when things went quiet
 const SOUND_MIN = 3.2; // a photo with a sound stays as long as its sound, within these
 const SOUND_MAX = 14;
 // A part with room left waits for more shots — unless nothing came for this long, then it is
-// made with what there is (a first part needs MIN_ANGLES shots, any part 15 seconds).
+// made with what there is (a first part needs MIN_ANGLES shots) — but never under 38 seconds: a
+// part is 38 to 40 seconds long (his rule, 2026-10-15); one that can't reach it waits for more.
 const QUIET_MS = 2 * 60 * 60 * 1000;
-const MIN_SECONDS = 15;
+const MIN_SECONDS = 38;
 // A part counts as full from here: a shorter one is never closed just because the next shot is
 // long (that shot waits for a part of its own, and later shots fill this one).
-const FULL_FROM = 30;
+const FULL_FROM = 38;
 const STALE_MS = 15 * 60 * 1000;
 // How parts are made: a part made another way is made again (quietly, one per run, nobody told).
 // "fill-1": each silent photo with a sound of its own (2026-10-15), not one sound under them all.
@@ -52,8 +53,10 @@ export const partLength = (seconds: number[]) =>
 
 // How long each shot stays in a part, whole.
 export async function shotSeconds(shot: Pick<Shot, "mediaType" | "durationSec" | "soundKey">) {
-  if (shot.mediaType === "VIDEO") return Math.max(1, Math.min(LIMIT, shot.durationSec ?? 6));
   const sound = await resolveSound(shot.soundKey);
+  // A video plays whole — and stays on its last frame while a verse laid on it is still heard
+  // (render.ts withShotSound): counted at the verse's length then, so the part never runs over.
+  if (shot.mediaType === "VIDEO") return Math.max(1, Math.min(LIMIT, shot.durationSec ?? 6), isQuran(sound) ? sound!.seconds + 0.8 : 0);
   if (!sound) return PHOTO;
   // A verse is heard once and whole, however long (as everywhere on Zawmo).
   if (isQuran(sound)) return sound.seconds + 0.8;
@@ -160,8 +163,8 @@ export async function duePart(momentId: string, now = new Date()) {
     const newest = Math.max(...pending.map((s) => s.uploadedAt.getTime()));
     if (now.getTime() - newest < QUIET_MS) return null;
     if (part === 1 && next.shots.length < MIN_ANGLES) return null;
-    if (partLength(next.seconds) < MIN_SECONDS) return null;
     next.seconds = stretch(next.shots, next.seconds);
+    if (partLength(next.seconds) < MIN_SECONDS) return null;
   }
   return { part, shots: next.shots, seconds: next.seconds, title: await partTitle(moment.title, part, next.shots.map((s) => s.id)), remake: false };
 }

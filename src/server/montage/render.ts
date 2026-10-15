@@ -12,10 +12,11 @@ import { parseCaption } from "@/lib/caption";
 import { filterByKey, stampText } from "@/lib/filters";
 import { lyricsOf, lyricTimes } from "@/lib/lyrics";
 import { resolveSound } from "@/server/sound-resolve";
-import { isPeopleKey, isQuran, isSolemn, soundByKey, soundFile, SOUNDS } from "@/lib/sounds";
+import { isPeopleKey, isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
 import { blobExists, viewUrl } from "@/server/media";
 import { isArabic } from "@/server/og-text";
+import { fillPicker } from "./fill-sounds";
 import { FRAME, renderIntro, renderLyric, renderOutro, renderOverlay, renderWatermark } from "./overlay";
 
 const PHOTO_SECONDS = 2.8;
@@ -324,19 +325,6 @@ type MontageInput = {
   fill?: boolean;
 };
 
-// The sounds a silent photo may get: calm music, the daf, nature — never a verse, a duaa or a
-// song with words; no thunder, storm or rain (weather that isn't in the picture). A moment of
-// prayer or loss: nature only.
-const NOT_WEATHER = (s: { en: string }) => !/thunder|storm|rain/i.test(s.en);
-const FILL_SOUNDS = SOUNDS.filter((s) => (s.cat === "calm" || s.cat === "daf" || s.cat === "nature") && NOT_WEATHER(s));
-const FILL_SOLEMN = SOUNDS.filter((s) => s.cat === "nature" && NOT_WEATHER(s));
-export function fillSound(angleId: string, solemn: boolean, avoid: string | null) {
-  const pool = (solemn ? FILL_SOLEMN : FILL_SOUNDS).filter((s) => s.key !== avoid);
-  let h = 0;
-  for (const ch of angleId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return pool[h % pool.length];
-}
-
 // A big film (many shots from phone videos) takes longer than one server run allows. Its pieces —
 // each shot ready to join, with its frame, look, writing and sound — are kept in Blob under a
 // name made of everything that shapes them, so the next run reuses them instead of starting
@@ -385,6 +373,8 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   // part goes quiet there, so a duaa or a verse is heard alone.
   const ownSound: boolean[] = [];
   let lastFill: string | null = null;
+  // (A part: the sounds for its silent photos, chosen for what each one shows — ./fill-sounds.ts.)
+  const pickFill = fill ? await fillPicker(SOLEMN_WORDS.test(moment.title)) : null;
   const times = shotTimes(ordered.filter((a) => a.mediaType !== "VIDEO").length, ordered.filter((a) => a.mediaType === "VIDEO").length, story, filmLimit(soundKey));
   const pieces: string[] = [];
   let made = 0;
@@ -412,7 +402,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
     let shotSound = soundKey || story ? null : await resolveSound(angle.soundKey);
     // (A part: a silent photo takes a sound of its own, never the one just before it.)
     const filled = !shotSound && fill && angle.mediaType !== "VIDEO";
-    if (filled) shotSound = fillSound(angle.id, SOLEMN_WORDS.test(moment.title), lastFill);
+    if (filled && pickFill) shotSound = await pickFill(angle, moment.title, lastFill);
     if (shotSound) lastFill = shotSound.key;
     if (shotSound) shotSounds = true;
     const writing = parseCaption(angle.caption);
