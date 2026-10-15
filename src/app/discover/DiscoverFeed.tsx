@@ -267,7 +267,7 @@ export function DiscoverFeed({
             {sheet.kind === "signin" && (
               <>
                 <p className="text-sm leading-relaxed text-muted">{labels.signInText}</p>
-                <a href={`/auth/google?returnTo=${encodeURIComponent(signInReturn)}`} className="flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-bold text-white">
+                <a href={`/auth/google?returnTo=${encodeURIComponent(signInReturn)}`} rel="nofollow" className="flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-bold text-white">
                   {labels.signIn}
                 </a>
               </>

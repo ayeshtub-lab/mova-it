@@ -1,9 +1,12 @@
 // "Continue with Google": a plain link to /auth/google, so it works without JavaScript.
+// rel="nofollow": a sign-in link is nothing for search engines to follow (robots.txt blocks
+// /auth/ anyway — this keeps it out of Search Console's «blocked» list).
 // Google's "G" mark in its official colours, as their sign-in branding asks.
 export function GoogleButton({ label, returnTo }: { label: string; returnTo: string }) {
   return (
     <a
       href={`/auth/google?returnTo=${encodeURIComponent(returnTo)}`}
+      rel="nofollow"
       className="flex min-h-12 items-center justify-center gap-3 rounded-full border border-line bg-white px-5 font-bold text-[#1f1f1f] shadow-sm transition-shadow hover:shadow-md"
     >
       <svg viewBox="0 0 48 48" aria-hidden="true" className="size-5">
