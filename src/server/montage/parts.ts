@@ -203,17 +203,19 @@ async function partsFailing(momentId: string, now: Date) {
   return failed >= 3;
 }
 
-// «🎬 جزء جديد جاهز»: everyone with a shot in the moment (and its creator) — one unread notice
-// per person and moment, brought back to the top by each new part.
+// «🎬 لقطتك صارت بفيديو!»: everyone whose shot is IN this part — and the moment's creator
+// («🎬 فيديو جديد للحظتك جاهز!» when none of theirs is in it). The notice carries the person's own
+// shot when they have one there (that is how its words know which to say — notifications.ts).
+// One unread notice per person and moment, brought back to the top by each new part.
 async function announcePart(montage: Montage) {
-  const [moment, people, zawmo] = await Promise.all([
+  const [moment, shots, zawmo] = await Promise.all([
     db.moment.findUnique({ where: { id: montage.momentId }, select: { creatorId: true } }),
-    db.angle.findMany({ where: { momentId: montage.momentId, status: "READY" }, distinct: ["contributorId"], select: { contributorId: true } }),
+    db.angle.findMany({ where: { id: { in: montage.angleIds }, status: "READY" }, select: { id: true, contributorId: true } }),
     systemUser(),
   ]);
-  const told = new Set([moment?.creatorId, ...people.map((p) => p.contributorId)].filter((id): id is string => !!id));
-  const angleId = montage.angleIds[0];
+  const told = new Set([moment?.creatorId, ...shots.map((p) => p.contributorId)].filter((id): id is string => !!id));
   for (const userId of told) {
+    const angleId = montage.angleIds.find((id) => shots.some((s) => s.id === id && s.contributorId === userId)) ?? montage.angleIds[0];
     const pending = await db.notification.findFirst({ where: { userId, kind: "FILM_PART", readAt: null, angle: { momentId: montage.momentId } }, select: { id: true } });
     if (pending) await db.notification.update({ where: { id: pending.id }, data: { count: { increment: 1 }, createdAt: new Date(), angleId } });
     else await notify({ userId, actorId: zawmo.id, kind: "FILM_PART", angleId });

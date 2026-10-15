@@ -44,7 +44,7 @@ export async function notify(event: Event, once?: { key: string; where: Prisma.N
         return;
       }
     }
-    const include = { actor: { select: { displayName: true, verified: true } }, angle: { select: { id: true, moment: { select: { code: true, title: true } } } }, comment: { select: { body: true } } } as const;
+    const include = { actor: { select: { displayName: true, verified: true } }, angle: { select: { id: true, contributorId: true, moment: { select: { code: true, title: true } } } }, comment: { select: { body: true } } } as const;
     const created = once
       ? await db.$transaction(async (tx) => {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${once.key}))`;
@@ -60,6 +60,7 @@ export async function notify(event: Event, once?: { key: string; where: Prisma.N
         actorName: created.actor.displayName,
         actorVerified: created.actor.verified,
         momentTitle: created.angle?.moment.title ?? null,
+        ownShot: created.angle?.contributorId === event.userId,
         comment: created.comment?.body ?? null,
         url: created.angle ? (event.kind === "VIDEO_READY" || event.kind === "FILM_PART" ? `/m/${created.angle.moment.code}#video` : `/m/${created.angle.moment.code}#angle-${created.angle.id}`) : `/u/${event.actorId}`,
       }).catch((error) => console.error("push failed", error));
@@ -120,7 +121,7 @@ export async function listNotifications(user: User, take = 40) {
     take,
     include: {
       actor: { select: { id: true, displayName: true, avatarUrl: true, isGuest: true, verified: true } },
-      angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, moment: { select: { code: true, title: true } } } },
+      angle: { select: { id: true, contributorId: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, moment: { select: { code: true, title: true } } } },
       comment: { select: { body: true } },
     },
   });
@@ -140,6 +141,8 @@ export async function listNotifications(user: User, take = 40) {
       comment: n.comment?.body ?? null,
       href: n.angle ? (n.kind === "VIDEO_READY" || n.kind === "FILM_PART" ? `/m/${n.angle.moment.code}#video` : `/m/${n.angle.moment.code}#angle-${n.angle.id}`) : `/u/${n.actor.id}`,
       momentTitle: n.angle?.moment.title ?? null,
+      // The person's own shot (a «🎬» notice: «لقطتك صارت بفيديو» rather than the creator's words).
+      ownShot: n.angle?.contributorId === user.id,
       thumbUrl: n.angle ? await coverOf(n.angle) : null,
       // «صوّر معك»: the host may give the joined shot back («شيلها»).
       angleId: n.angle?.id ?? null,

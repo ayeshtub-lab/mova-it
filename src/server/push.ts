@@ -46,7 +46,7 @@ export async function hasPushDevice(user: User, endpoint: string) {
   return (await db.pushDevice.count({ where: { endpoint, userId: user.id } })) > 0;
 }
 
-export type PushEvent = { kind: NotificationKind; actorName: string; actorVerified?: boolean; momentTitle: string | null; comment: string | null; url: string };
+export type PushEvent = { kind: NotificationKind; actorName: string; actorVerified?: boolean; momentTitle: string | null; ownShot?: boolean; comment: string | null; url: string };
 
 // The notification's words, in the device's language.
 export function pushMessage(e: PushEvent, locale: string) {
@@ -54,6 +54,11 @@ export function pushMessage(e: PushEvent, locale: string) {
   const fill = (s: string) => s.replace("{name}", e.actorName);
   // A heart from Zawmo itself says so: «⭐ زاومو حبّ لقطتك!»
   const title = e.kind === "LIKE" && e.actorVerified ? t.likeOfficial : fill({ LIKE: t.like, FOLLOW: t.follow, COMMENT: t.comment, REPLY: t.reply, NEW_ANGLE: t.newAngle, JOINED: t.joined, STORY_REMINDER: t.storyReminder, VIDEO_READY: t.videoReady, PICKED: t.picked, DRAFT_WAITING: t.draftWaiting, SHOT_READY: t.shotReady, FILM_PART: t.filmPart }[e.kind]);
+  // A video made with your shot in it — or, for the moment's creator, from everyone's.
+  if (e.kind === "FILM_PART") {
+    const words = (e.ownShot ? t.filmPartBody : t.filmPartOwnerBody).replace("{title}", e.momentTitle ?? "");
+    return { title: e.ownShot ? t.filmPart : t.filmPartOwner, body: words.length > 140 ? words.slice(0, 139) + "…" : words };
+  }
   const body = (e.kind === "COMMENT" || e.kind === "REPLY" ? e.comment : e.momentTitle) ?? t.open;
   return { title, body: body.length > 140 ? body.slice(0, 139) + "…" : body };
 }
