@@ -1,4 +1,5 @@
 import { SendToFriend } from "@/app/SendToFriend";
+import { StaffMomentEdit } from "@/app/StaffEdit";
 import { INDEXABLE } from "@/lib/indexable";
 import { MomentHint } from "./MomentHint";
 import { clip, plain } from "@/lib/clip";
@@ -288,6 +289,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           {/* What this moment is, in one sentence of its own (search engines show it rather than the
               invitations every moment shares). */}
           {!daily && summary && <p className="text-sm leading-relaxed text-muted">{summary}</p>}
+          {/* Zawmo's own accounts fix someone else's public moment (its owner edits inside «تعديل»). */}
+          {view.viewer.manage && !view.viewer.isCreator && !daily && <StaffMomentEdit code={view.code} title={view.title} description={view.description} labels={dict.momentDetails} />}
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full px-3 py-1 text-xs font-bold ${view.visibility === "PUBLIC" ? "bg-secondary-soft text-secondary" : "bg-surface text-muted"}`}>
               {dict.visibility[view.visibility as "PUBLIC" | "FRIENDS" | "LINK"] ?? dict.visibility.FRIENDS}

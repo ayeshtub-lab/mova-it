@@ -551,3 +551,16 @@ export async function purgeStaleUploads(now = new Date(), emptyMomentsFrom = EMP
   }
   return { shots: stale.length, moments };
 }
+
+// «✏️ عنوان ووصف اللقطة» — Zawmo's own accounts (src/lib/staff.ts) fix a public shot's search
+// title (aiTitle) and line (aiText, with its #hashtags) when the AI got them wrong. Only on a
+// public moment; screened shots are never re-described, so the fix stays.
+export async function updateShotSeo(user: User, angleId: string, input: { title?: unknown; text?: unknown }) {
+  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { visibility: true } } } });
+  if (!angle || !staffOver(user, angle.moment)) throw new AngleError("not_found");
+  const tidy = (raw: unknown, max: number) => (typeof raw === "string" ? raw.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max) : "");
+  const title = tidy(input.title, 90);
+  const text = tidy(input.text, 400);
+  if (!title) throw new AngleError("needs_title");
+  return db.angle.update({ where: { id: angle.id }, data: { aiTitle: title, aiText: text || null }, select: { aiTitle: true, aiText: true } });
+}

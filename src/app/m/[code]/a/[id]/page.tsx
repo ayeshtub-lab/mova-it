@@ -1,4 +1,5 @@
 import { SendToFriend } from "@/app/SendToFriend";
+import { StaffShotEdit } from "@/app/StaffEdit";
 import { getCurrentUser } from "@/lib/session";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -195,6 +196,8 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         >
           {t.open}
         </Link>
+        {/* Zawmo's own accounts fix the title and line search engines show (src/lib/staff.ts). */}
+        {viewer?.isAdmin && <StaffShotEdit id={shot.id} title={shot.aiTitle || label} text={shot.aiText} />}
         {/* «الدردشة»: this shot to a friend, as a card. */}
         {viewer && !viewer.isGuest && <SendToFriend code={shot.moment.code} angleId={shot.id} label="💬 ابعت اللقطة لصاحب" />}
       </main>

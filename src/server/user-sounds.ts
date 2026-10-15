@@ -17,6 +17,9 @@ import { callGemini, screeningEnabled } from "@/server/screening";
 //  • rights — AudD's fingerprint database (copyrighted songs), while AUDD_API_TOKEN is set and
 //    has credit; without it, a strict rule instead: no recorded music at all;
 //  • content — Gemini listens for insults, hate or sexual talk (always).
+// Zawmo's own accounts (admins — src/lib/staff.ts) may add music, a nasheed with instruments
+// included: for them only what is someone else's is refused — a fingerprint match, or a
+// recording Gemini knows as a published song or nasheed (the message says «حقوق نشر»).
 // (status "public" = checked and live — shared or not; "blocked"; "withdrawn".)
 
 export const MAX_SOUND_SECONDS = 40;
@@ -46,9 +49,10 @@ async function auddMatch(mp3: Buffer): Promise<{ title: string } | false | null>
 }
 
 const LISTEN_PROMPT = `You check a short sound from a video before it becomes a public sound on Zawmo, a family-friendly Arab social app.
-Answer only JSON: {"kind":"speech"|"ambient"|"music"|"mixed","offensive":true|false,"name":"<2 to 4 Arabic words naming the sound>"}
+Answer only JSON: {"kind":"speech"|"ambient"|"music"|"mixed","offensive":true|false,"published":true|false,"name":"<2 to 4 Arabic words naming the sound>"}
 - kind: "speech" = people talking, laughing, singing a few words without instruments; "ambient" = nature, street, crowd, animals, clapping; "music" = recorded or played music (instruments or a song); "mixed" = talking over music.
 - offensive: insults, swearing, hate, sexual talk, or mocking religion.
+- published: true when you recognise it as (part of) a released commercial song, nasheed or soundtrack by a known artist, munshid or label — someone else's copyrighted recording. False for anything you don't recognise.
 - name: what the sound is, the way people would call it (e.g. «ضحكة طفل», «مطر على الشباك», «زغرودة عرس»). No quotation marks.`;
 
 async function geminiListen(mp3: Buffer) {
@@ -63,18 +67,20 @@ async function geminiListen(mp3: Buffer) {
   if (!res?.ok) return null;
   const body = (await res.json().catch(() => null)) as { candidates?: { content?: { parts?: { text?: string }[] } }[] } | null;
   try {
-    const parsed = JSON.parse(body?.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "") as { kind?: string; offensive?: boolean; name?: string };
-    return { kind: String(parsed.kind ?? ""), offensive: parsed.offensive === true, name: typeof parsed.name === "string" ? parsed.name.replace(/["«»#]/g, "").trim().slice(0, 40) : "" };
+    const parsed = JSON.parse(body?.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "") as { kind?: string; offensive?: boolean; published?: boolean; name?: string };
+    return { kind: String(parsed.kind ?? ""), offensive: parsed.offensive === true, published: parsed.published === true, name: typeof parsed.name === "string" ? parsed.name.replace(/["«»#]/g, "").trim().slice(0, 40) : "" };
   } catch {
     return null;
   }
 }
 
-async function check(mp3: Buffer): Promise<Check> {
+async function check(mp3: Buffer, staff = false): Promise<Check> {
   const [listened, match] = await Promise.all([geminiListen(mp3), auddMatch(mp3)]);
   if (!listened) return { ok: false, reason: "check_failed", name: null }; // never public unchecked
   if (listened.offensive) return { ok: false, reason: "offensive", name: listened.name };
   if (match) return { ok: false, reason: "copyright", name: listened.name };
+  // Zawmo's own accounts: music of its own is fine; a recording known to be someone else's isn't.
+  if (staff) return listened.published ? { ok: false, reason: "copyright", name: listened.name } : { ok: true, reason: null, name: listened.name };
   // No fingerprint answer: the strict rule — no recorded music at all.
   if (match === null && (listened.kind === "music" || listened.kind === "mixed")) return { ok: false, reason: "music", name: listened.name };
   return { ok: true, reason: null, name: listened.name };
@@ -111,7 +117,7 @@ export async function addSound(user: User, file: Buffer, raw: { name?: unknown; 
   if (file.length > MAX_SOUND_BYTES) throw new UserSoundError("too_big");
   if (file.length < 1000) throw new UserSoundError("no_audio");
   const { mp3, seconds } = await toMp3(file);
-  const result = await check(mp3);
+  const result = await check(mp3, user.isAdmin);
   const key = `u${randomBytes(6).toString("hex")}`;
   const path = `sounds/u/${key}.mp3`;
   if (result.ok) await put(path, mp3, { access: "private", contentType: "audio/mpeg", addRandomSuffix: false, allowOverwrite: true });

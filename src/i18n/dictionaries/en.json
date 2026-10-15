@@ -637,6 +637,7 @@
   "sounds": {
     "title": "🎵 Pick a sound",
     "none": "No sound",
+    "pickList": "👆 Pick a list above to see its sounds",
     "cats": {
       "quran": "Quran",
       "nature": "Nature",
@@ -676,7 +677,7 @@
 
 
 
-    "whyCopyright": "it contains a copyrighted song",
+    "whyCopyright": "it contains a copyrighted song or nasheed",
 
     "whyMusic": "it contains recorded music (public sounds must be talk or real sounds)",
 

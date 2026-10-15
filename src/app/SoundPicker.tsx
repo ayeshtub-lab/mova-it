@@ -16,6 +16,7 @@ export type SoundLabels = {
   solemnNote: string;
   save: string;
   cancel: string;
+  pickList?: string; // the hint while every list is closed
   peopleEmpty?: string;
   peopleBy?: string;
   lyrics?: string;
@@ -58,7 +59,9 @@ export function SoundPicker({
   const [key, setKey] = useState(initialKey);
   const [mute, setMute] = useState(initialMute);
   const [lyrics, setLyrics] = useState(initialLyrics);
-  const [cat, setCat] = useState<SoundCategory>(soundByKey(initialKey)?.cat ?? SOUND_CATEGORIES[0].key);
+  // Every list closed when the library opens (not «قرآن» first): you pick the list you want,
+  // and a tap on the open one closes it again.
+  const [cat, setCat] = useState<SoundCategory | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   // Members' sounds, fetched once the picker opens: «🎤 من الناس», and those a curator put in a
   // library list (they show in it, after the library's own).
@@ -71,7 +74,9 @@ export function SoundPicker({
       .then(setPeople, () => setPeople([]));
   }, [people]);
   const rows =
-    cat === "people"
+    cat === null
+      ? []
+      : cat === "people"
       ? (people ?? []).filter((p) => p.mine || !p.category).map((p) => ({
           key: p.key,
           name: p.name,
@@ -86,6 +91,8 @@ export function SoundPicker({
             .filter((p) => p.category === cat)
             .map((p) => ({ key: p.key, name: p.name, sub: (labels.peopleBy ?? "{name}").replace("{name}", p.author), seconds: p.seconds, private: false, mine: !!p.mine })),
         ];
+  // The sound already on the shot, named while every list is closed.
+  const chosenRow = key ? (soundByKey(key) ? soundName(soundByKey(key)!, locale) : (people?.find((p) => p.key === key)?.name ?? null)) : null;
   const audio = useRef<HTMLAudioElement | null>(null);
   // (A member's sound put in «قرآن» or «أذكار» is solemn too: the clip's own sound goes under it.)
   const listed = people?.find((p) => p.key === key)?.category;
@@ -156,7 +163,7 @@ export function SoundPicker({
               role="tab"
               type="button"
               aria-selected={cat === c.key}
-              onClick={() => setCat(c.key)}
+              onClick={() => setCat(cat === c.key ? null : c.key)}
               className={`min-h-9 shrink-0 rounded-full px-3.5 text-sm font-bold ${cat === c.key ? "bg-foreground text-background" : "bg-surface text-muted"}`}
             >
               {c.emoji} {labels.cats[c.key]}
@@ -181,6 +188,14 @@ export function SoundPicker({
               {labels.none}
             </button>
           </li>
+          {cat === null && chosenRow && (
+            <li className="flex min-h-12 items-center gap-3 rounded-2xl border-2 border-accent bg-accent-soft/40 px-3">
+              <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-white">🎵</span>
+              <span className="flex-1 font-bold leading-snug">{chosenRow}</span>
+              <span className="shrink-0 text-xs text-muted">{labels.chosen}</span>
+            </li>
+          )}
+          {cat === null && <li className="px-1 pt-1 text-center text-sm font-bold text-muted">{labels.pickList ?? "👆"}</li>}
           {cat === "people" && labels.own && (
             <li>
               <button type="button" onClick={() => setAdding(true)} className="flex min-h-12 w-full items-center justify-center rounded-2xl border-2 border-dashed border-accent px-3 font-extrabold text-accent-ink">
