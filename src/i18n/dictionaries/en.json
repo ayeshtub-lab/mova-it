@@ -173,7 +173,9 @@
     "by": "Started by {name}"
   },
   "create": {
-    "shared": "📥 {n} from your gallery are ready — name your moment and start it, and they're added by themselves.",
+    "shared": "📥 {n} from your gallery are ready — pick one of your moments or start a new one, and they're added by themselves.",
+    "addToTitle": "📸 Add them to one of your moments",
+    "orNew": "— or start a new moment —",
     "sharedNone": "The files from your gallery didn't arrive. Open Zawmo once, then share from the gallery again.",
     "title": "Start a new moment",
     "titleLabel": "What is the moment?",
