@@ -8,7 +8,7 @@ type Labels = { home: string; inbox: string; create: string; discover: string; m
 // Phone navigation, thumb-reachable: five equal columns — home, chat, a big ＋ for a new
 // moment (always the exact middle), Discover, and you. «الوارد» is the 🔔 in the header.
 // Hidden on wider screens, where the header carries the same links.
-export function BottomNav({ labels, meHref }: { labels: Labels; meHref: string }) {
+export function BottomNav({ labels, meHref, chatUnread = 0 }: { labels: Labels; meHref: string; chatUnread?: number }) {
   const path = usePathname();
   const item = (href: string, label: string, icon: React.ReactNode, active: boolean, badge = 0) => (
     <Link
@@ -39,7 +39,7 @@ export function BottomNav({ labels, meHref }: { labels: Labels; meHref: string }
     <nav aria-label="Zawmo" className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 sm:hidden print:hidden">
       <div className="mx-auto grid max-w-md grid-cols-5 items-center rounded-3xl border border-line bg-surface/90 px-1 shadow-lg shadow-black/10 backdrop-blur-md">
         {item("/", labels.home, svg("M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"), path === "/")}
-        {item("/messages", "الدردشة", svg("M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM8 11h.01M12 11h.01M16 11h.01"), path === "/messages" || path.startsWith("/messages/"))}
+        {item("/messages", "الدردشة", svg("M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM8 11h.01M12 11h.01M16 11h.01"), path === "/messages" || path.startsWith("/messages/"), chatUnread)}
         <div className="flex justify-center">
           <Link
             href="/new"

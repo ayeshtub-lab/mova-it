@@ -1,3 +1,4 @@
+import { chatUnread } from "@/server/conversations";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Cairo, Syne } from "next/font/google";
@@ -43,6 +44,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const user = await getCurrentUser();
+  // Conversations with something new (the number on «الدردشة»).
+  const chatNew = user ? await chatUnread(user).catch(() => 0) : 0;
   return (
     <html
       lang={locale}
@@ -76,6 +79,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {user && (
           <BottomNav
             meHref={user.isGuest ? "/#save" : `/u/${user.id}`}
+            chatUnread={chatNew}
             labels={{ ...dict.nav, me: user.isGuest ? dict.nav.account : dict.nav.me }}
           />
         )}
