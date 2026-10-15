@@ -341,3 +341,11 @@ html[data-app] .site-footer {
 .animate-slideUp {
   animation: slideUp 0.3s ease-out;
 }
+
+/* «📲 ثبّت زاومو» (src/app/InstallPrompt.tsx) slides up from the bottom. */
+@keyframes install-in {
+  from {
+    transform: translateY(1.5rem);
+    opacity: 0;
+  }
+}

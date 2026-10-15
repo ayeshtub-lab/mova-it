@@ -6,6 +6,7 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { getStats, TARGET_RETURN } from "@/server/stats";
+import { installStats } from "@/server/install";
 import { LiveVisitors } from "./LiveVisitors";
 
 export const metadata = { title: "زاومو · لوحة القياس", robots: { index: false } };
@@ -45,6 +46,7 @@ export default async function StatsPage() {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const s = await getStats(user);
+  const installs = await installStats(14);
   const days = s.series.map((d) => d.day);
   const tiles = [
     ["👥", "النشطين اليوم", s.totals.active],
@@ -181,6 +183,32 @@ export default async function StatsPage() {
             <p className="text-sm text-muted">ما انضم أحد بعد.</p>
           )}
           <p className="text-xs text-muted">رابط كل إعلان: zawmo.com/start?src=اسم-الحملة · «وصلوا» = زوار جدد لصفحة الإعلان أو الألبوم أو صفحتي الدليل (قارنها بكبسات الإعلان: الفرق الكبير = كبسات وهمية) · «بلّشوا» = كبسوا الكاميرا أو كتبوا اسم · «كمّلوا» = نزّلوا أول لقطة أو كبسوا ابدأ · «رجعوا» = فتحوا زاومو بيوم بعد يوم انضمامهم. التسجيل بدأ ١ أكتوبر ٢٠٢٦.</p>
+        </section>
+
+        {/* «📲 ثبّت زاومو» (src/app/InstallPrompt.tsx): how many saw the card, pressed, installed. */}
+        <section className="flex flex-col gap-2 rounded-3xl bg-surface p-4">
+          <h2 className="font-extrabold">📲 تثبيت زاومو (آخر ١٤ يوم)</h2>
+          <table className="w-full text-sm">
+            <thead className="text-xs text-muted">
+              <tr>
+                <th className="py-1 text-start font-bold">الجهاز</th>
+                <th className="py-1 font-bold">شافوا الكرت</th>
+                <th className="py-1 font-bold">كبسوا</th>
+                <th className="py-1 font-bold">ثبّتوا</th>
+              </tr>
+            </thead>
+            <tbody>
+              {installs.map((r) => (
+                <tr key={r.platform} className="border-t border-line">
+                  <td className="py-2 font-bold">{r.platform === "android" ? "🤖 أندرويد" : r.platform === "ios" ? "🍏 آيفون" : "📱 جوّا تطبيق تاني"}</td>
+                  <td className="py-2 text-center tabular-nums">{num(r.shown)}</td>
+                  <td className="py-2 text-center tabular-nums">{num(r.pressed)}</td>
+                  <td className="py-2 text-center tabular-nums">{r.platform === "android" ? num(r.installed) : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="text-xs text-muted">«كبسوا»: بالأندرويد زر «ثبّت»، بالآيفون «فهمت» بعد الشرح، وجوّا فيسبوك/تيك توك «افتح بكروم». «ثبّتوا» بينحسب بالأندرويد بس — الآيفون ما بيخبّر. بدأ العد ١٥ أكتوبر ٢٠٢٦.</p>
         </section>
 
         {/* Per country (from the connection when they joined), for per-country plans and local ads. */}

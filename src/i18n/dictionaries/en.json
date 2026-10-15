@@ -886,5 +886,16 @@
     "title": "📸 Shots like this",
     "empty": "No shots like this yet — more show up as Zawmo grows.",
     "close": "Close"
+  },
+  "install": {
+    "title": "📲 Install Zawmo on your phone",
+    "hint": "Opens faster, full screen, with notifications.",
+    "install": "Install",
+    "iosHint": "Tap {share} below, then «Add to Home Screen».",
+    "gotIt": "Got it",
+    "inappAndroid": "Installing isn't possible inside this app. Open Zawmo in Chrome and install it there.",
+    "openChrome": "Open in Chrome",
+    "inappIos": "Installing isn't possible inside this app. Tap ⋯ at the top, then «Open in Safari».",
+    "close": "Close"
   }
 }
