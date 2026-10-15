@@ -316,6 +316,9 @@ type MontageInput = {
   // 40 seconds; and a calm sound of Zawmo's under every shot that has none of its own.
   plan?: number[];
   bed?: boolean;
+  // No opening title or closing card: one shot that fills a part by itself (a 39-second video)
+  // stays whole within 40 seconds — its frame still carries the Zawmo mark and the link.
+  cards?: boolean;
 };
 
 // A big film (many shots from phone videos) takes longer than one server run allows. Its pieces —
@@ -336,7 +339,7 @@ export class PartialFilm extends Error {
 // Builds the film in `dir`: an opening title, every shot moving (photos drift and zoom,
 // videos play) under the Zawmo frame, flowing into each other, a closing card with the
 // link, and a sound under it all. Returns the file and its length in seconds.
-export async function buildMontageVideo({ moment, angles: ordered, participants, soundKey, siteHost, kicker, stopAt, plan, bed: bedAll }: MontageInput, dir: string) {
+export async function buildMontageVideo({ moment, angles: ordered, participants, soundKey, siteHost, kicker, stopAt, plan, bed: bedAll, cards = true }: MontageInput, dir: string) {
   const story = moment.kind === "STORY";
   const arabic = isArabic(moment.title);
   const dict = arabic ? ar : en;
@@ -441,6 +444,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   if (!segments.length || !background) throw new Error("no angles");
 
   // Open on the title over the first shot, blurred; close on the card with the short link.
+  if (cards) {
   const intro = join(dir, "intro.png");
   await writeFile(intro, await renderIntro({ title: moment.title, meta, kicker: kicker ?? (story ? dict.montage.storyKicker : dict.montage.kicker) }, await readFile(background)));
   const introOut = join(dir, "seg-intro.mp4");
@@ -451,6 +455,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   await writeFile(card, await renderOutro({ name: dict.montage.outroName, tagline: dict.montage.outroTagline, cta: story ? dict.montage.storyOutroCta : dict.montage.outroCta, link: `${publicHost(siteHost)}/${moment.code}` }));
   durations.push(await cardSegment(card, outroOut, OUTRO_SECONDS));
   segments.push(outroOut);
+  }
 
   // Title → shots and shots → card fade; between shots the transitions take turns.
   const t = story ? STORY_TRANSITION : TRANSITION;
@@ -486,9 +491,10 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
       // (A part: the bed goes quiet under the shots that carry their own sound — from the cut
       // into them to the cut out, transitions included.)
       const starts = durations.map((_, k) => durations.slice(0, k).reduce((a, b) => a + b, 0) - k * t);
+      const first = cards ? 1 : 0; // (the shots start after the opening card)
       const quiet = bedAll
         ? ownSound
-            .map((own, i) => (own ? `between(t,${Math.max(0, starts[i + 1] - t).toFixed(2)},${(starts[i + 1] + durations[i + 1]).toFixed(2)})` : null))
+            .map((own, i) => (own ? `between(t,${Math.max(0, starts[i + first] - t).toFixed(2)},${(starts[i + first] + durations[i + first]).toFixed(2)})` : null))
             .filter(Boolean)
             .join("+")
         : "";
@@ -520,7 +526,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
 }
 
 // Renders a queued montage end to end and records the outcome on its row.
-export async function renderMontage(montageId: string, siteHost: string, parts: { plan?: number[]; bed?: boolean } = {}) {
+export async function renderMontage(montageId: string, siteHost: string, parts: { plan?: number[]; bed?: boolean; cards?: boolean } = {}) {
   const montage = await db.montage.update({ where: { id: montageId }, data: { status: "RENDERING" }, include: { moment: true } });
   const dir = await mkdtemp(join(tmpdir(), "mova-montage-"));
   try {
@@ -536,7 +542,7 @@ export async function renderMontage(montageId: string, siteHost: string, parts: 
     // over the opening title.)
     const plan = parts.plan && ordered.length === montage.angleIds.length ? parts.plan : undefined;
     const kicker = montage.part ? `الجزء ${montage.part.toLocaleString("ar-EG")}` : undefined;
-    const { output, total } = await buildMontageVideo({ moment: montage.moment, angles: ordered, participants, soundKey: montage.soundKey, siteHost, kicker, stopAt: Date.now() + 7 * 60_000, plan, bed: parts.bed }, dir);
+    const { output, total } = await buildMontageVideo({ moment: montage.moment, angles: ordered, participants, soundKey: montage.soundKey, siteHost, kicker, stopAt: Date.now() + 7 * 60_000, plan, bed: parts.bed, cards: parts.cards }, dir);
 
     const path = `m/${montage.moment.id}/montage-${montage.id}.mp4`;
     await put(path, await readFile(output), { access: "private", contentType: "video/mp4", addRandomSuffix: false, allowOverwrite: true });

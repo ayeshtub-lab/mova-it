@@ -2,7 +2,7 @@
 // a part made early comes as close to 40 as its silent photos allow.
 // Run: npx tsx tests/parts.test.ts
 import assert from "node:assert/strict";
-import { nextPart, partLength, shotSeconds, stretch } from "../src/server/montage/parts";
+import { nextPart, partLength, shotSeconds, stretch, withCards } from "../src/server/montage/parts";
 
 const out: string[] = [];
 const check = async (name: string, fn: () => Promise<void> | void) => {
@@ -28,6 +28,17 @@ async function main() {
   await check("a shot longer than a part makes a part of its own", async () => {
     const p = await nextPart([shot(1, "VIDEO", 39.9), shot(2, "PHOTO")]);
     assert.deepEqual(p.shots.map((s) => s.id), ["s1"]);
+  });
+  await check("a 39.9-second video makes a part of its own: no cards, never over 40", async () => {
+    const p = await nextPart([shot(1, "VIDEO", 39.9)]);
+    assert.equal(withCards(p.seconds), false);
+    assert.ok(partLength(p.seconds) <= 40);
+    assert.equal(p.full, true);
+  });
+  await check("a photo is never closed into a part of its own by the long video after it", async () => {
+    const p = await nextPart([shot(1, "PHOTO"), shot(2, "VIDEO", 39.9), shot(3, "PHOTO")]);
+    assert.deepEqual(p.shots.map((s) => s.id), ["s1", "s3"]);
+    assert.equal(p.full, false);
   });
   await check("a part made early is stretched toward 40 with its silent photos", async () => {
     const shots = Array.from({ length: 6 }, (_, i) => shot(i, "PHOTO"));

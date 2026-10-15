@@ -34,12 +34,18 @@ const SOUND_MAX = 14;
 // made with what there is (a first part needs MIN_ANGLES shots, any part 15 seconds).
 const QUIET_MS = 2 * 60 * 60 * 1000;
 const MIN_SECONDS = 15;
+// A part counts as full from here: a shorter one is never closed just because the next shot is
+// long (that shot waits for a part of its own, and later shots fill this one).
+const FULL_FROM = 30;
 const STALE_MS = 15 * 60 * 1000;
 
 type Shot = { id: string; contributorId: string; mediaType: string; capturedAt: Date | null; uploadedAt: Date; pickedAt: Date | null; durationSec: number | null; soundKey: string | null };
 
-// The length of a part: the cards, every shot, less the overlaps of the transitions.
-export const partLength = (seconds: number[]) => INTRO + OUTRO + seconds.reduce((a, b) => a + b, 0) - T * (seconds.length + 1);
+// The length of a part: the cards, every shot, less the overlaps of the transitions — or, for
+// one shot too long to leave room for the cards, the shot alone (see `withCards`).
+export const withCards = (seconds: number[]) => !(seconds.length === 1 && INTRO + OUTRO + seconds[0] - 2 * T > LIMIT);
+export const partLength = (seconds: number[]) =>
+  withCards(seconds) ? INTRO + OUTRO + seconds.reduce((a, b) => a + b, 0) - T * (seconds.length + 1) : seconds.reduce((a, b) => a + b, 0);
 
 // How long each shot stays in a part, whole.
 export async function shotSeconds(shot: Pick<Shot, "mediaType" | "durationSec" | "soundKey">) {
@@ -52,17 +58,22 @@ export async function shotSeconds(shot: Pick<Shot, "mediaType" | "durationSec" |
 }
 
 // The shots that go into the next part: the next ones in time order, as many as fit in 40
-// seconds. `full` when the part is full (the next shot didn't fit). A first shot longer than a
-// part (a 40-second video, a long verse) makes a part of its own.
+// seconds. `full` when it reached FULL_FROM and the next shot doesn't fit. A shot that doesn't fit
+// a part not yet full is left for a later part (the shots after it fill this one). A shot that
+// fills a part by itself (a 39-second video) makes a part of its own, without the cards.
 export async function nextPart(pending: Shot[]) {
   const shots: Shot[] = [];
   const seconds: number[] = [];
   for (const shot of pending) {
     const s = await shotSeconds(shot);
-    if (shots.length && partLength([...seconds, s]) > LIMIT) return { shots, seconds, full: true };
+    if (shots.length && partLength([...seconds, s]) > LIMIT) {
+      if (partLength(seconds) >= FULL_FROM) return { shots, seconds, full: true };
+      continue;
+    }
     shots.push(shot);
     seconds.push(s);
-    if (partLength(seconds) >= LIMIT) return { shots, seconds, full: true };
+    if (partLength(seconds) >= FULL_FROM && !withCards(seconds)) return { shots, seconds, full: true };
+    if (partLength(seconds) >= LIMIT - 0.5) return { shots, seconds, full: true };
   }
   return { shots, seconds, full: false };
 }
@@ -126,6 +137,8 @@ export async function duePart(momentId: string, now = new Date()) {
     return { part, shots: kept, seconds: await Promise.all(kept.map(shotSeconds)), title: made.title ?? (await partTitle(moment.title, part, kept.map((s) => s.id))), remake: true };
   }
 
+  // A moment's first part waits for MIN_ANGLES shots (as its one film always did).
+  if (!latest.size && shots.length < MIN_ANGLES) return null;
   const used = new Set([...latest.values()].flatMap((m) => m.angleIds));
   const pending = shots.filter((s) => !used.has(s.id));
   if (!pending.length) return null;
@@ -133,6 +146,12 @@ export async function duePart(momentId: string, now = new Date()) {
   if (!next.shots.length) return null;
   const part = (Math.max(0, ...latest.keys()) || 0) + 1;
   if (!next.full) {
+    // A shot that fills a part by itself (left out above because it didn't fit beside the
+    // others): its own part now — it never waits behind shorter ones.
+    for (const shot of pending) {
+      const s = await shotSeconds(shot);
+      if (partLength([s]) >= FULL_FROM) return { part, shots: [shot], seconds: [s], title: await partTitle(moment.title, part, [shot.id]), remake: false };
+    }
     // Room left: wait for more — unless nothing came for a while.
     const newest = Math.max(...pending.map((s) => s.uploadedAt.getTime()));
     if (now.getTime() - newest < QUIET_MS) return null;
@@ -160,7 +179,7 @@ export async function makeDuePart(host: string, now = new Date()) {
     const montage = await db.montage.create({
       data: { momentId: id, part: due.part, title: due.title, angleIds: due.shots.map((s) => s.id), signature: `part-${due.part}-${due.shots.map((s) => s.id).join(",")}`.slice(0, 190), soundKey: null },
     });
-    await renderMontage(montage.id, host, { plan: due.seconds, bed: true });
+    await renderMontage(montage.id, host, { plan: due.seconds, bed: true, cards: withCards(due.seconds) });
     const made = await db.montage.findUnique({ where: { id: montage.id } });
     // Told only for parts of fresh shots (a week): an old moment turned into parts by itself is
     // not news to anyone.
