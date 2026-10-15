@@ -54,8 +54,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       videos: [{ title: p.title, description: `${p.title} — فيديو حقيقي من لقطات الناس على زاومو`, thumbnail_loc: p.poster ? `${base}/i/${p.poster}.jpg` : `${base}/m/${p.code}/opengraph-image`, content_loc: `${base}/v/${p.code}-${p.part}.mp4`, publication_date: p.at.toISOString(), ...(p.durationSec ? { duration: Math.max(1, Math.round(p.durationSec)) } : {}) }],
     })),
     // Its film (every angle in one video), on its own watch page.
+    // (Not once the moment has parts — they replace it — nor an old film past 40 seconds.)
     ...moments
-      .filter((m) => m.film)
+      .filter((m) => m.film && !parts.some((p) => p.code === m.code) && (m.film.durationSec ?? 0) <= 40.5)
       .map((m) => ({
         url: `${base}/m/${m.code}/film`,
         lastModified: m.film!.at,

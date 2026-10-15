@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { publicPart } from "@/server/montage/parts";
 import { cache } from "react";
 import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -42,7 +43,10 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]/film">):
 }
 
 export default async function FilmPage({ params }: PageProps<"/m/[code]/film">) {
-  const found = await load((await params).code);
+  const { code } = await params;
+  // A moment whose film now comes in parts (src/server/montage/parts.ts): its first part, for good.
+  if (await publicPart(code.toUpperCase(), 1)) permanentRedirect(`/m/${code.toUpperCase()}/film/1`);
+  const found = await load(code);
   if (!found) notFound();
   const { view, film } = found;
   const locale = await getLocale();
