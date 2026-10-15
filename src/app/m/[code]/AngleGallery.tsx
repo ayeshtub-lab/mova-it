@@ -551,14 +551,24 @@ export function AngleGallery({
   // «شارك»: for a member, Zawmo's sheet first — their people (a card in «الدردشة»), then the phone's
   // own sheet (below, unchanged) and the link (src/app/ShareSheet.tsx).
   const [shareFor, setShareFor] = useState<GalleryAngle | null>(null);
+  function openShare(a: GalleryAngle) {
+    setShareFor(a);
+    // (someone else's video: its stamped file fetched now, ready for «تطبيقات تانية»)
+    if (a.mediaType === "VIDEO" && !a.isMine && branded?.id !== a.id) prepareBranded(a, true);
+  }
 
   async function shareAngle(a: GalleryAngle) {
-    // Your own video goes out with the Zawmo mark (made in the background when it opened).
-    if (a.isMine && a.mediaType === "VIDEO") {
-      const mine = branded?.id === a.id ? branded : null;
-      if (mine?.file) return shareBranded(mine.file);
-      if (!mine) prepareBranded(a);
-      return flash(labels.branded.working);
+    // A video goes out as the file with the Zawmo mark and who shot it (so TikTok and the rest take
+    // it): yours, made in the background when it opened; someone else's, fetched when «شارك» opened
+    // its sheet — while it is still on its way, a word to tap again; if it can't be had, the link.
+    if (a.mediaType === "VIDEO") {
+      const ready = branded?.id === a.id ? branded : null;
+      if (ready?.file) return shareBranded(ready.file);
+      if (a.isMine) {
+        if (!ready) prepareBranded(a);
+        return flash(labels.branded.working);
+      }
+      if (ready) return flash(labels.branded.working);
     }
     fetch(`/api/angles/${a.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
     // A photo goes out as a picture with the Zawmo mark (ready since it opened) — for a story or
@@ -1033,7 +1043,7 @@ export function AngleGallery({
                   )}
 
                   {/* Your video's stamped copy still being made: the arrow turns into a spinning ring, with words under it. */}
-                  <button type="button" aria-label={labels.share} aria-busy={branded?.id === a.id && !branded.file} onClick={() => (viewerId ? setShareFor(a) : shareAngle(a))} className={railButton}>
+                  <button type="button" aria-label={labels.share} aria-busy={branded?.id === a.id && !branded.file} onClick={() => (viewerId ? openShare(a) : shareAngle(a))} className={railButton}>
                     {branded?.id === a.id && !branded.file ? (
                       <span aria-hidden="true" className="size-8 animate-spin rounded-full border-4 border-white/30 border-t-white" />
                     ) : (

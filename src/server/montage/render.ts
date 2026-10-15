@@ -650,7 +650,7 @@ export async function buildMarkedPhotoVideo(picture: string, soundKey: string | 
 }
 
 export async function buildBrandedShot(
-  shot: { mediaPath: string; filter: string | null; caption: Parameters<typeof parseCaption>[0]; stamp: boolean; uploadedAt: Date; momentCode: string; momentTitle: string; soundKey?: string | null; muteOriginal?: boolean; lyrics?: boolean },
+  shot: { mediaPath: string; filter: string | null; caption: Parameters<typeof parseCaption>[0]; stamp: boolean; uploadedAt: Date; momentCode: string; momentTitle: string; soundKey?: string | null; muteOriginal?: boolean; lyrics?: boolean; by?: string },
   siteHost: string,
   dir: string,
 ) {
@@ -665,7 +665,7 @@ export async function buildBrandedShot(
   const link = `${publicHost(siteHost)}/${shot.momentCode}`;
 
   const mark = join(dir, "mark.png");
-  await writeFile(mark, await renderWatermark({ link, stamp: shot.stamp ? stampText(shot.uploadedAt, locale, "Asia/Riyadh") : undefined }));
+  await writeFile(mark, await renderWatermark({ link, by: shot.by, stamp: shot.stamp ? stampText(shot.uploadedAt, locale, "Asia/Riyadh") : undefined }));
   const writing = parseCaption(shot.caption);
   const writingUrl = writing ? await viewUrl(writing.path) : null;
   let caption: CaptionFile | undefined;

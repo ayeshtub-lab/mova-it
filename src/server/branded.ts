@@ -17,7 +17,8 @@ import { buildBrandedShot } from "@/server/montage/render";
 // cron for older videos), so a share never waits; one file per version (look, writing, stamp,
 // sound), kept next to the shot.
 
-const STYLE = "mark-2";
+// "mark-3" (2026-10-15): the name of who shot it on the mark — the file may go out from anyone now.
+const STYLE = "mark-3";
 
 export class BrandedError extends Error {
   constructor(public code: "not_found" | "not_video") {
@@ -26,11 +27,11 @@ export class BrandedError extends Error {
 }
 
 type Shot = NonNullable<Awaited<ReturnType<typeof findShot>>>;
-const findShot = (angleId: string) => db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { id: true, code: true, title: true } } } });
+const findShot = (angleId: string) => db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { id: true, code: true, title: true, visibility: true } }, contributor: { select: { displayName: true } } } });
 
 function brandedPath(angle: Shot) {
   const version = createHash("sha256")
-    .update(JSON.stringify([STYLE, angle.mediaPath, angle.filter, angle.stamp, parseCaption(angle.caption)?.path ?? null, angle.soundKey, angle.muteOriginal, angle.moment.code, CANONICAL_HOST, ...wordsMark(angle.soundKey, angle.lyrics)]))
+    .update(JSON.stringify([STYLE, angle.contributor.displayName, angle.mediaPath, angle.filter, angle.stamp, parseCaption(angle.caption)?.path ?? null, angle.soundKey, angle.muteOriginal, angle.moment.code, CANONICAL_HOST, ...wordsMark(angle.soundKey, angle.lyrics)]))
     .digest("hex")
     .slice(0, 16);
   return `m/${angle.moment.id}/${angle.id}-zawmo-${version}.mp4`;
@@ -56,6 +57,7 @@ export async function ensureBranded(angleId: string) {
         soundKey: angle.soundKey,
         muteOriginal: angle.muteOriginal,
         lyrics: angle.lyrics,
+        by: angle.contributor.displayName,
       },
       CANONICAL_HOST,
       dir,
@@ -67,10 +69,13 @@ export async function ensureBranded(angleId: string) {
   return path;
 }
 
-// The owner asks for it (to share): usually ready already.
+// Asked for to share (usually ready already): by its owner — or, for a public shot that passed the
+// check, by anyone (the owner agreed 2026-10-15: it goes out with the Zawmo mark and the name of who
+// shot it, so TikTok and the rest take the video itself).
 export async function brandedShotUrl(user: User, angleId: string) {
   const angle = await findShot(angleId);
-  if (!angle || angle.contributorId !== user.id || angle.status !== "READY" || !angle.mediaPath) throw new BrandedError("not_found");
+  const mayShare = angle && (angle.contributorId === user.id || (angle.moment.visibility === "PUBLIC" && angle.screening === "allowed"));
+  if (!angle || !mayShare || angle.status !== "READY" || !angle.mediaPath) throw new BrandedError("not_found");
   if (angle.mediaType !== "VIDEO") throw new BrandedError("not_video");
   const path = await ensureBranded(angleId);
   return path ? viewUrl(path) : null;
@@ -91,7 +96,7 @@ export async function brandPending(limit = 3) {
     where: { mediaType: "VIDEO", status: "READY", mediaPath: { not: null } },
     orderBy: { uploadedAt: "desc" },
     take: 300,
-    include: { moment: { select: { id: true, code: true, title: true } } },
+    include: { moment: { select: { id: true, code: true, title: true, visibility: true } }, contributor: { select: { displayName: true } } },
   });
   let made = 0;
   for (const v of videos) {

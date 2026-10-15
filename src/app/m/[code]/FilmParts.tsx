@@ -12,8 +12,22 @@ export type FilmPartsLabels = { title: string; hint: string; share: string; down
 export function FilmParts({ code, parts, labels, lasting, member = false }: { code: string; parts: FilmPart[]; labels: FilmPartsLabels; lasting: boolean; member?: boolean }) {
   const [copied, setCopied] = useState<number | null>(null);
   const [sheetFor, setSheetFor] = useState<FilmPart | null>(null);
+  // The part's file (it carries the Zawmo mark): fetched when the sheet opens, so «تطبيقات تانية»
+  // sends the video itself — TikTok takes files, not links.
+  const [file, setFile] = useState<{ part: number; file: File | null } | null>(null);
+  function openSheet(p: FilmPart) {
+    setSheetFor(p);
+    if (file?.part === p.part || !p.url) return;
+    setFile({ part: p.part, file: null });
+    fetch(p.url)
+      .then((r) => (r.ok ? r.blob() : null))
+      .then((blob) => blob && setFile((f) => (f?.part === p.part ? { part: p.part, file: new File([blob], `zawmo-${code}-${p.part}.mp4`, { type: "video/mp4" }) } : f)))
+      .catch(() => {});
+  }
   async function share(p: FilmPart) {
     const url = `${location.origin}/m/${code}${lasting ? `/film/${p.part}` : ""}?src=share-part`;
+    const ready = file?.part === p.part ? file.file : null;
+    if (ready && navigator.canShare?.({ files: [ready] })) return void navigator.share({ files: [ready], text: url }).catch(() => {});
     if (navigator.share) return void navigator.share({ title: p.title, url }).catch(() => {});
     await navigator.clipboard?.writeText(url).catch(() => {});
     setCopied(p.part);
@@ -32,7 +46,7 @@ export function FilmParts({ code, parts, labels, lasting, member = false }: { co
             </div>
             <p className="line-clamp-2 text-sm font-bold leading-snug">{p.title}</p>
             <div className="grid grid-cols-2 gap-1.5 text-sm font-bold">
-              <button type="button" onClick={() => (member ? setSheetFor(p) : share(p))} className="min-h-10 rounded-full bg-accent text-white">
+              <button type="button" onClick={() => (member ? openSheet(p) : share(p))} className="min-h-10 rounded-full bg-accent text-white">
                 {copied === p.part ? labels.copied : labels.share}
               </button>
               <a href={p.url ?? "#"} download={`zawmo-${code}-${p.part}.mp4`} className="flex min-h-10 items-center justify-center rounded-full bg-surface">

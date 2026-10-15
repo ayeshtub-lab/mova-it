@@ -83,13 +83,32 @@ export function DiscoverFeed({
   // «شارك»: a member gets Zawmo's sheet first (their people, then the phone's sheet — below — and the
   // link: src/app/ShareSheet.tsx); a visitor the phone's sheet straight away.
   const [shareFor, setShareFor] = useState<{ a: FeedAngle; code: string; title: string } | null>(null);
+  // A video goes out as its file with the Zawmo mark and who shot it (so TikTok takes it): fetched
+  // when the sheet opens, used by «تطبيقات تانية» once here (the link meanwhile).
+  const [stamped, setStamped] = useState<{ id: string; file: File | null } | null>(null);
   function askShare(a: FeedAngle, code: string, title: string) {
-    if (canAct) setShareFor({ a, code, title });
-    else share(a, code, title);
+    if (!canAct) return share(a, code, title);
+    setShareFor({ a, code, title });
+    if (a.mediaType !== "VIDEO" || stamped?.id === a.id) return;
+    setStamped({ id: a.id, file: null });
+    fetch(`/api/angles/${a.id}/branded`, { method: "POST" })
+      .then((r) => (r.ok ? (r.json() as Promise<{ url: string }>) : null))
+      .then((j) => (j ? fetch(j.url).then((r) => r.blob()) : null))
+      .then((blob) => blob && setStamped((s) => (s?.id === a.id ? { id: a.id, file: new File([blob], `zawmo-${code}.mp4`, { type: "video/mp4" }) } : s)))
+      .catch(() => {});
   }
 
   async function share(a: FeedAngle, code: string, title: string) {
     const url = `${location.origin}/m/${code}?src=share-discover#angle-${a.id}`;
+    const file = stamped?.id === a.id ? stamped.file : null;
+    if (file && navigator.canShare?.({ files: [file] })) {
+      const sent = await navigator.share({ files: [file], text: url }).then(() => true, () => false);
+      if (sent) {
+        setShares((m) => new Map(m).set(a.id, sharesOf(a) + 1));
+        fetch(`/api/angles/${a.id}/share`, { method: "POST" }).catch(() => {});
+      }
+      return;
+    }
     const copy = () => navigator.clipboard.writeText(url).then(() => (flash(labels.copied), true), () => false);
     // The phone's share sheet; if it isn't there or fails (other than the person closing
     // it), the link is copied instead.
