@@ -358,22 +358,51 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
     load();
   }
 
-  // Long press on a message (or right click): its actions.
+  // Long press on a message (or right click): its actions. Swiped to the left (like WhatsApp):
+  // answer it — the bubble follows the finger, ↩️ shows, the box to write in opens.
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const swipe = useRef<{ x: number; y: number; dx: number; sideways: boolean | null } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const open = (m: Message) => !m.deleted && setActing(withUnsend(m));
+  const SWIPE_AT = 56;
+  const answer = (m: Message) => {
+    setReplying(m);
+    navigator.vibrate?.(12);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  };
   const holdProps = (m: Message) => ({
     onContextMenu: (e: React.MouseEvent) => {
       e.preventDefault();
       open(m);
     },
-    onTouchStart: () => {
+    onTouchStart: (e: React.TouchEvent<HTMLDivElement>) => {
+      const t = e.touches[0];
+      swipe.current = { x: t.clientX, y: t.clientY, dx: 0, sideways: null };
       press.current = setTimeout(() => open(m), 450);
     },
-    onTouchEnd: () => {
-      if (press.current) clearTimeout(press.current);
+    onTouchMove: (e: React.TouchEvent<HTMLDivElement>) => {
+      const s = swipe.current;
+      if (!s) return;
+      const t = e.touches[0];
+      const dx = t.clientX - s.x;
+      const dy = t.clientY - s.y;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+        if (press.current) clearTimeout(press.current);
+        // (decided once: sideways is a swipe, up or down is scrolling the conversation)
+        if (s.sideways === null) s.sideways = Math.abs(dx) > Math.abs(dy) * 1.5;
+      }
+      if (!s.sideways || m.deleted) return;
+      s.dx = Math.max(-90, Math.min(0, dx));
+      e.currentTarget.style.transform = `translateX(${s.dx}px)`;
+      e.currentTarget.style.transition = "none";
     },
-    onTouchMove: () => {
+    onTouchEnd: (e: React.TouchEvent<HTMLDivElement>) => {
       if (press.current) clearTimeout(press.current);
+      const s = swipe.current;
+      swipe.current = null;
+      e.currentTarget.style.transition = "transform 150ms ease-out";
+      e.currentTarget.style.transform = "";
+      if (s?.sideways && s.dx <= -SWIPE_AT && !m.deleted) answer(m);
     },
   });
 
@@ -451,7 +480,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             <div key={m.id} id={`msg-${m.id}`}>
               {newDay && <p className="my-3 text-center text-xs font-bold text-muted">{day(m.at)}</p>}
               <div className={`flex flex-col ${m.mine ? "items-end" : "items-start"}`}>
-                <div {...holdProps(m)} className={`relative max-w-[80%] select-none rounded-2xl px-3 py-2 shadow-sm sm:select-text ${m.deleted ? "border border-dashed border-line bg-transparent text-muted" : m.mine ? "rounded-ee-md bg-accent text-white" : "rounded-es-md bg-surface"}`}>
+                <div {...holdProps(m)} className={`relative max-w-[80%] touch-pan-y select-none rounded-2xl px-3 py-2 shadow-sm sm:select-text ${m.deleted ? "border border-dashed border-line bg-transparent text-muted" : m.mine ? "rounded-ee-md bg-accent text-white" : "rounded-es-md bg-surface"}`}>
                   {m.deleted ? (
                     <p className="text-sm italic">🚫 انحذفت هالرسالة</p>
                   ) : (
@@ -511,7 +540,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
             <button
               type="button"
               onClick={() => {
-                setReplying(acting);
+                answer(acting);
                 setActing(null);
               }}
               className="flex min-h-12 items-center gap-3 rounded-2xl px-4 font-bold hover:bg-surface"
@@ -609,6 +638,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
                   }}
                 />
                 <input
+                  ref={inputRef}
                   value={input}
                   onChange={(e) => typing(e.target.value)}
                   maxLength={1000}

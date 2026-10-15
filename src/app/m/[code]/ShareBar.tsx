@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { ShareSheet } from "@/app/ShareSheet";
 import { tagged } from "@/lib/source";
 
 type Labels = { share: string; copied: string; whatsapp: string };
 
-export function ShareBar({ url, text, labels }: { url: string; text: string; labels: Labels }) {
+// `code` + `member`: a member's «شارك» opens Zawmo's sheet first — their people in «الدردشة», then
+// the phone's sheet (below, unchanged) and the link (src/app/ShareSheet.tsx).
+export function ShareBar({ url, text, labels, code, member = false }: { url: string; text: string; labels: Labels; code?: string; member?: boolean }) {
   const [copied, setCopied] = useState(false);
+  const [sheet, setSheet] = useState(false);
 
   async function share() {
     if (navigator.share) {
@@ -37,9 +41,10 @@ export function ShareBar({ url, text, labels }: { url: string; text: string; lab
       >
         {labels.whatsapp}
       </a>
+      {sheet && code && <ShareSheet target={{ code, url: tagged(url, "share-moment") }} onOther={share} onClose={() => setSheet(false)} />}
       <button
         type="button"
-        onClick={share}
+        onClick={() => (member && code ? setSheet(true) : share())}
         className="min-h-11 flex-1 rounded-full bg-foreground px-5 text-sm font-bold text-background"
       >
         <span aria-live="polite">{copied ? labels.copied : labels.share}</span>

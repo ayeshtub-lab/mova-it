@@ -321,7 +321,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         )}
 
         {/* The moment's ready video comes first, for those who may see it. */}
-        {parts.length > 0 && <FilmParts code={view.code} parts={parts} labels={dict.filmParts} lasting={momentIndexable(view)} />}
+        {parts.length > 0 && <FilmParts code={view.code} parts={parts} labels={dict.filmParts} lasting={momentIndexable(view)} member={!!user && !user.isGuest} />}
         {view.angleCount > 0 && montage && parts.length === 0 && (
           <MontagePanel code={view.code} initial={montage?.videoUrl && momentIndexable(view) ? { ...montage, videoUrl: `/v/${view.code}.mp4` } : montage} labels={story ? { ...dict.montage, ...dict.story.video } : dict.montage} locale={locale} soundLabels={dict.sounds} />
         )}
@@ -566,14 +566,16 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           ))}
 
         <div data-nosnippet>
-          <ShareBar url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={t} />
+          <ShareBar url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={t} code={view.code} member={!!user && !user.isGuest && view.kind !== "DAILY"} />
         </div>
         {/* «الدردشة»: the moment to a friend, or «ضيف زاويتك» — a card in your conversation with them. */}
         {user && !user.isGuest && view.kind !== "DAILY" && (
-          <div data-nosnippet className="grid grid-cols-2 gap-2">
-            <SendToFriend code={view.code} label="💬 ابعتها لصاحب" />
-            {view.kind !== "STORY" && <SendToFriend code={view.code} invite label="📸 ادعِ صاحب يضيف زاويته" />}
-          </div>
+          // («💬 ابعتها لصاحب» is in «شارك» above: Zawmo's sheet.)
+          view.kind !== "STORY" && (
+            <div data-nosnippet className="grid">
+              <SendToFriend code={view.code} invite label="📸 ادعِ صاحب يضيف زاويته" />
+            </div>
+          )
         )}
         {/* For weddings and parties: a card with the moment's QR code, for the guests' tables. */}
         {view.viewer.isCreator && view.kind !== "STORY" && view.kind !== "DAILY" && (

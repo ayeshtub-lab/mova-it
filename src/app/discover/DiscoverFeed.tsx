@@ -1,5 +1,6 @@
 "use client";
 
+import { ShareSheet } from "@/app/ShareSheet";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AngleUploader } from "@/app/AngleUploader";
@@ -79,6 +80,14 @@ export function DiscoverFeed({
     } else setLikes((m) => new Map(m).set(a.id, current));
   }
 
+  // «شارك»: a member gets Zawmo's sheet first (their people, then the phone's sheet — below — and the
+  // link: src/app/ShareSheet.tsx); a visitor the phone's sheet straight away.
+  const [shareFor, setShareFor] = useState<{ a: FeedAngle; code: string; title: string } | null>(null);
+  function askShare(a: FeedAngle, code: string, title: string) {
+    if (canAct) setShareFor({ a, code, title });
+    else share(a, code, title);
+  }
+
   async function share(a: FeedAngle, code: string, title: string) {
     const url = `${location.origin}/m/${code}?src=share-discover#angle-${a.id}`;
     const copy = () => navigator.clipboard.writeText(url).then(() => (flash(labels.copied), true), () => false);
@@ -152,6 +161,13 @@ export function DiscoverFeed({
 
   return (
     <>
+      {shareFor && (
+        <ShareSheet
+          target={{ code: shareFor.code, angleId: shareFor.a.id, url: `${location.origin}/m/${shareFor.code}#angle-${shareFor.a.id}` }}
+          onOther={() => share(shareFor.a, shareFor.code, shareFor.title)}
+          onClose={() => setShareFor(null)}
+        />
+      )}
       <div ref={feedRef} className="h-[calc(100dvh-5.75rem)] snap-y snap-mandatory overflow-y-auto overscroll-contain [scrollbar-width:none] sm:rounded-3xl">
         <div className="snap-start">
           {intro}
@@ -170,7 +186,7 @@ export function DiscoverFeed({
             sharesOf={sharesOf}
             commentsOf={commentsOf}
             onLike={toggleLike}
-            onShare={(a) => share(a, m.code, m.title)}
+            onShare={(a) => askShare(a, m.code, m.title)}
             onSeen={markSeen}
             onComments={(angleId) => setSheet({ kind: "comments", angleId })}
             onAdd={() => setSheet(canAct ? { kind: "add", code: m.code } : { kind: "signin" })}
@@ -188,7 +204,7 @@ export function DiscoverFeed({
           sharesOf={sharesOf}
           commentsOf={commentsOf}
           onLike={toggleLike}
-          onShare={(item) => share(item, item.momentCode, item.title)}
+          onShare={(item) => askShare(item, item.momentCode, item.title)}
           onComments={(item) => setSheet({ kind: "comments", angleId: item.id })}
           onAdd={(item) => setSheet(canAct ? { kind: "add", code: item.momentCode } : { kind: "signin" })}
           onSeen={markSeen}

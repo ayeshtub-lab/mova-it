@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { ShareSheet } from "@/app/ShareSheet";
 import type { FilmPart } from "@/server/montage/parts";
 
 export type FilmPartsLabels = { title: string; hint: string; share: string; download: string; page: string; copied: string };
 
 // «🎬 فيديوهات اللحظة»: the moment's film in parts of up to 40 seconds (src/server/montage/parts.ts),
 // each made by itself with the Zawmo mark — watch, share (its page's link) or save the file.
-export function FilmParts({ code, parts, labels, lasting }: { code: string; parts: FilmPart[]; labels: FilmPartsLabels; lasting: boolean }) {
+// (A member's «شارك» opens Zawmo's sheet first: their people in «الدردشة», then the phone's sheet.)
+export function FilmParts({ code, parts, labels, lasting, member = false }: { code: string; parts: FilmPart[]; labels: FilmPartsLabels; lasting: boolean; member?: boolean }) {
   const [copied, setCopied] = useState<number | null>(null);
+  const [sheetFor, setSheetFor] = useState<FilmPart | null>(null);
   async function share(p: FilmPart) {
     const url = `${location.origin}/m/${code}${lasting ? `/film/${p.part}` : ""}?src=share-part`;
     if (navigator.share) return void navigator.share({ title: p.title, url }).catch(() => {});
@@ -18,6 +21,7 @@ export function FilmParts({ code, parts, labels, lasting }: { code: string; part
   }
   return (
     <section id="video" aria-label={labels.title} className="flex scroll-mt-4 flex-col gap-3">
+      {sheetFor && <ShareSheet target={{ code, url: `${location.origin}/m/${code}${lasting ? `/film/${sheetFor.part}` : ""}` }} onOther={() => share(sheetFor)} onClose={() => setSheetFor(null)} />}
       <h2 className="text-xl font-extrabold">{labels.title}</h2>
       <p className="-mt-2 text-sm text-muted">{labels.hint}</p>
       <ul className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:none]">
@@ -28,7 +32,7 @@ export function FilmParts({ code, parts, labels, lasting }: { code: string; part
             </div>
             <p className="line-clamp-2 text-sm font-bold leading-snug">{p.title}</p>
             <div className="grid grid-cols-2 gap-1.5 text-sm font-bold">
-              <button type="button" onClick={() => share(p)} className="min-h-10 rounded-full bg-accent text-white">
+              <button type="button" onClick={() => (member ? setSheetFor(p) : share(p))} className="min-h-10 rounded-full bg-accent text-white">
                 {copied === p.part ? labels.copied : labels.share}
               </button>
               <a href={p.url ?? "#"} download={`zawmo-${code}-${p.part}.mp4`} className="flex min-h-10 items-center justify-center rounded-full bg-surface">

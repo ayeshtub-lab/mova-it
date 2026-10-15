@@ -1,5 +1,6 @@
 "use client";
 
+import { ShareSheet } from "@/app/ShareSheet";
 import Link from "next/link";
 import { VerifiedBadge } from "@/app/VerifiedBadge";
 import { useRouter } from "next/navigation";
@@ -547,6 +548,10 @@ export function AngleGallery({
     }
   }
 
+  // «شارك»: for a member, Zawmo's sheet first — their people (a card in «الدردشة»), then the phone's
+  // own sheet (below, unchanged) and the link (src/app/ShareSheet.tsx).
+  const [shareFor, setShareFor] = useState<GalleryAngle | null>(null);
+
   async function shareAngle(a: GalleryAngle) {
     // Your own video goes out with the Zawmo mark (made in the background when it opened).
     if (a.isMine && a.mediaType === "VIDEO") {
@@ -758,6 +763,13 @@ export function AngleGallery({
 
   return (
     <>
+      {shareFor && (
+        <ShareSheet
+          target={{ code: share.url.split("/").pop() ?? "", angleId: shareFor.id, url: `${share.url}#angle-${shareFor.id}` }}
+          onOther={() => shareAngle(shareFor)}
+          onClose={() => setShareFor(null)}
+        />
+      )}
       <ul className="contents">
         {angles.map((a, i) => (
           <li key={a.id} id={`angle-${a.id}`} className="relative overflow-hidden rounded-2xl bg-surface">
@@ -1021,7 +1033,7 @@ export function AngleGallery({
                   )}
 
                   {/* Your video's stamped copy still being made: the arrow turns into a spinning ring, with words under it. */}
-                  <button type="button" aria-label={labels.share} aria-busy={branded?.id === a.id && !branded.file} onClick={() => shareAngle(a)} className={railButton}>
+                  <button type="button" aria-label={labels.share} aria-busy={branded?.id === a.id && !branded.file} onClick={() => (viewerId ? setShareFor(a) : shareAngle(a))} className={railButton}>
                     {branded?.id === a.id && !branded.file ? (
                       <span aria-hidden="true" className="size-8 animate-spin rounded-full border-4 border-white/30 border-t-white" />
                     ) : (
