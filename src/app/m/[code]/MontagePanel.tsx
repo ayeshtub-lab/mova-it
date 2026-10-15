@@ -1,5 +1,6 @@
 "use client";
 
+import { ShareSheet } from "@/app/ShareSheet";
 import { useEffect, useState } from "react";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { soundByKey, soundName } from "@/lib/sounds";
@@ -60,7 +61,9 @@ export function MontagePanel({
   labels,
   locale,
   soundLabels,
+  member = false,
 }: {
+  member?: boolean; // a member's «شارك» opens Zawmo's sheet first (src/app/ShareSheet.tsx)
   code: string;
   initial: MontageView;
   labels: Labels;
@@ -68,6 +71,7 @@ export function MontagePanel({
   soundLabels: SoundLabels & { none: string; montage: string };
 }) {
   const [video, setVideo] = useState(initial);
+  const [sheet, setSheet] = useState(false);
   const [requesting, setRequesting] = useState(false);
   const [picking, setPicking] = useState(false);
   const [waited, setWaited] = useState(false);
@@ -133,6 +137,9 @@ export function MontagePanel({
     if (file && navigator.canShare?.({ files: [file] })) {
       // The short link goes along as text, for the apps that keep it (WhatsApp does).
       await navigator.share({ files: [file], text: `${location.host}/${code}?src=share-film` }).catch(() => {});
+    } else if (navigator.share) {
+      // (the file not here yet: its link)
+      await navigator.share({ url: `${location.origin}/m/${code}?src=share-film#video` }).catch(() => {});
     } else save();
   }
 
@@ -200,6 +207,7 @@ export function MontagePanel({
 
   return (
     <section id="video" className="flex scroll-mt-20 flex-col gap-3 rounded-3xl bg-surface p-5">
+      {sheet && <ShareSheet target={{ code }} onOther={share} onClose={() => setSheet(false)} />}
       <div className="flex flex-col gap-1">
         <h2 className="text-xl font-extrabold">🎬 {labels.title}</h2>
         <p className="text-sm text-muted">{labels.hint}</p>
@@ -236,7 +244,7 @@ export function MontagePanel({
                 </svg>
               </button>
               <span className={railCount}>{n(video.likes)}</span>
-              <button type="button" aria-label={labels.share} onClick={share} disabled={!file} className={railButton}>
+              <button type="button" aria-label={labels.share} onClick={() => (member ? setSheet(true) : share())} disabled={!member && !file} className={railButton}>
                 <svg viewBox="0 0 24 24" className="size-8 fill-white">
                   <path d="M14 4.5 21 11l-7 6.5V13.6c-5 0-8.2 1.5-11 5.4 1-5.4 4-10.3 11-11.3V4.5z" />
                 </svg>

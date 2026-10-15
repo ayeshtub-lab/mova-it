@@ -323,7 +323,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         {/* The moment's ready video comes first, for those who may see it. */}
         {parts.length > 0 && <FilmParts code={view.code} parts={parts} labels={dict.filmParts} lasting={momentIndexable(view)} member={!!user && !user.isGuest} />}
         {view.angleCount > 0 && montage && parts.length === 0 && (
-          <MontagePanel code={view.code} initial={montage?.videoUrl && momentIndexable(view) ? { ...montage, videoUrl: `/v/${view.code}.mp4` } : montage} labels={story ? { ...dict.montage, ...dict.story.video } : dict.montage} locale={locale} soundLabels={dict.sounds} />
+          <MontagePanel code={view.code} initial={montage?.videoUrl && momentIndexable(view) ? { ...montage, videoUrl: `/v/${view.code}.mp4` } : montage} labels={story ? { ...dict.montage, ...dict.story.video } : dict.montage} locale={locale} soundLabels={dict.sounds} member={!!user && !user.isGuest} />
         )}
         {/* The film's own page (where search engines list it as a video). */}
         {montage?.videoUrl && momentIndexable(view) && parts.length === 0 && (

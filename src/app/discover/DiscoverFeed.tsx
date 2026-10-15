@@ -163,7 +163,7 @@ export function DiscoverFeed({
     <>
       {shareFor && (
         <ShareSheet
-          target={{ code: shareFor.code, angleId: shareFor.a.id, url: `${location.origin}/m/${shareFor.code}#angle-${shareFor.a.id}` }}
+          target={{ code: shareFor.code, angleId: shareFor.a.id }}
           onOther={() => share(shareFor.a, shareFor.code, shareFor.title)}
           onClose={() => setShareFor(null)}
         />

@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Avatar } from "@/app/messages/Avatar";
 
 type Friend = { id: string; displayName: string; avatarUrl: string | null; verified?: boolean };
-export type ShareTarget = { code: string; angleId?: string; url: string };
+export type ShareTarget = { code: string; angleId?: string };
 
 // The people to send to, once per page: those you talk with first, then your friends (src/app/api/friends).
 let cached: Promise<Friend[]> | null = null;
@@ -22,13 +23,13 @@ function people() {
 
 // «شارك», Zawmo's way (like Instagram's): your people in a row on top — a tap sends the shot or the
 // moment into your conversation with them, as a card (src/server/conversations.ts sendCard) — then
-// the phone's own share sheet (WhatsApp, Messenger…) and «copy the link». Only for members; a
-// visitor's «شارك» opens the phone's sheet straight away, as before.
+// the phone's own share sheet (WhatsApp, Messenger…). Only for members; a visitor's «شارك» opens
+// the phone's sheet straight away, as before. Drawn inside whatever is open on top (a viewer is a
+// modal <dialog>, above everything else — 2026-10-15 the sheet showed behind it, unseen).
 export function ShareSheet({ target, onOther, onClose }: { target: ShareTarget; onOther: () => void; onClose: () => void }) {
   const [list, setList] = useState<Friend[] | null>(null);
   const [sent, setSent] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let live = true;
@@ -48,10 +49,13 @@ export function ShareSheet({ target, onOther, onClose }: { target: ShareTarget; 
       navigator.vibrate?.(10);
       const { id } = (await res.json()) as { id: string };
       setSent((s) => ({ ...s, [f.id]: id }));
+      // Sent: «✓» for a moment, then the sheet closes by itself — back where you were.
+      setTimeout(onClose, 1100);
     }
   }
 
-  return (
+  const host = document.querySelector("dialog[open]") ?? document.body;
+  return createPortal(
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 p-3" onClick={onClose}>
       <div role="dialog" aria-label="شارك" onClick={(e) => e.stopPropagation()} className="flex w-full max-w-md flex-col gap-3 rounded-3xl bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-foreground shadow-2xl">
         <div className="flex items-center justify-between">
@@ -88,29 +92,19 @@ export function ShareSheet({ target, onOther, onClose }: { target: ShareTarget; 
             </Link>
           )}
         </section>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onOther();
-            }}
-            className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-surface px-3 text-sm font-bold"
-          >
-            📤 تطبيقات تانية
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard?.writeText(target.url).then(() => setCopied(true), () => {});
-            }}
-            className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-surface px-3 text-sm font-bold"
-          >
-            {copied ? "✓ انتسخ" : "🔗 انسخ الرابط"}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onOther();
+          }}
+          className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-surface px-3 text-sm font-bold"
+        >
+          📤 تطبيقات تانية
+        </button>
         <p className="-mt-1 text-center text-[11px] text-muted">«تطبيقات تانية»: واتساب، ماسنجر، إنستغرام، تيك توك…</p>
       </div>
-    </div>
+    </div>,
+    host,
   );
 }

@@ -41,7 +41,7 @@ export function ShareBar({ url, text, labels, code, member = false }: { url: str
       >
         {labels.whatsapp}
       </a>
-      {sheet && code && <ShareSheet target={{ code, url: tagged(url, "share-moment") }} onOther={share} onClose={() => setSheet(false)} />}
+      {sheet && code && <ShareSheet target={{ code }} onOther={share} onClose={() => setSheet(false)} />}
       <button
         type="button"
         onClick={() => (member && code ? setSheet(true) : share())}

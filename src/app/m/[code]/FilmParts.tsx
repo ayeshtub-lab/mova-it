@@ -21,7 +21,7 @@ export function FilmParts({ code, parts, labels, lasting, member = false }: { co
   }
   return (
     <section id="video" aria-label={labels.title} className="flex scroll-mt-4 flex-col gap-3">
-      {sheetFor && <ShareSheet target={{ code, url: `${location.origin}/m/${code}${lasting ? `/film/${sheetFor.part}` : ""}` }} onOther={() => share(sheetFor)} onClose={() => setSheetFor(null)} />}
+      {sheetFor && <ShareSheet target={{ code }} onOther={() => share(sheetFor)} onClose={() => setSheetFor(null)} />}
       <h2 className="text-xl font-extrabold">{labels.title}</h2>
       <p className="-mt-2 text-sm text-muted">{labels.hint}</p>
       <ul className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:none]">

@@ -765,7 +765,7 @@ export function AngleGallery({
     <>
       {shareFor && (
         <ShareSheet
-          target={{ code: share.url.split("/").pop() ?? "", angleId: shareFor.id, url: `${share.url}#angle-${shareFor.id}` }}
+          target={{ code: share.url.split("/").pop() ?? "", angleId: shareFor.id }}
           onOther={() => shareAngle(shareFor)}
           onClose={() => setShareFor(null)}
         />
