@@ -12,7 +12,7 @@ import { parseCaption } from "@/lib/caption";
 import { filterByKey, stampText } from "@/lib/filters";
 import { lyricsOf, lyricTimes } from "@/lib/lyrics";
 import { resolveSound } from "@/server/sound-resolve";
-import { isPeopleKey, isQuran, isSolemn, soundByKey, soundFile } from "@/lib/sounds";
+import { isPeopleKey, isQuran, isSolemn, soundByKey, soundFile, SOUNDS } from "@/lib/sounds";
 import { ffmpeg } from "@/server/ffmpeg";
 import { blobExists, viewUrl } from "@/server/media";
 import { isArabic } from "@/server/og-text";
@@ -319,7 +319,23 @@ type MontageInput = {
   // No opening title or closing card: one shot that fills a part by itself (a 39-second video)
   // stays whole within 40 seconds — its frame still carries the Zawmo mark and the link.
   cards?: boolean;
+  // A part: every silent photo gets a sound of its own from Zawmo's library — a different one
+  // from the photo before it (one sound under them all grew dull, the owner said, 2026-10-15).
+  fill?: boolean;
 };
+
+// The sounds a silent photo may get: calm music, the daf, nature — never a verse, a duaa or a
+// song with words; no thunder, storm or rain (weather that isn't in the picture). A moment of
+// prayer or loss: nature only.
+const NOT_WEATHER = (s: { en: string }) => !/thunder|storm|rain/i.test(s.en);
+const FILL_SOUNDS = SOUNDS.filter((s) => (s.cat === "calm" || s.cat === "daf" || s.cat === "nature") && NOT_WEATHER(s));
+const FILL_SOLEMN = SOUNDS.filter((s) => s.cat === "nature" && NOT_WEATHER(s));
+export function fillSound(angleId: string, solemn: boolean, avoid: string | null) {
+  const pool = (solemn ? FILL_SOLEMN : FILL_SOUNDS).filter((s) => s.key !== avoid);
+  let h = 0;
+  for (const ch of angleId) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return pool[h % pool.length];
+}
 
 // A big film (many shots from phone videos) takes longer than one server run allows. Its pieces —
 // each shot ready to join, with its frame, look, writing and sound — are kept in Blob under a
@@ -339,7 +355,7 @@ export class PartialFilm extends Error {
 // Builds the film in `dir`: an opening title, every shot moving (photos drift and zoom,
 // videos play) under the Zawmo frame, flowing into each other, a closing card with the
 // link, and a sound under it all. Returns the file and its length in seconds.
-export async function buildMontageVideo({ moment, angles: ordered, participants, soundKey, siteHost, kicker, stopAt, plan, bed: bedAll, cards = true }: MontageInput, dir: string) {
+export async function buildMontageVideo({ moment, angles: ordered, participants, soundKey, siteHost, kicker, stopAt, plan, bed: bedAll, cards = true, fill = false }: MontageInput, dir: string) {
   const story = moment.kind === "STORY";
   const arabic = isArabic(moment.title);
   const dict = arabic ? ar : en;
@@ -368,6 +384,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   // Which pieces carry a sound of their own (a library sound laid on the shot): the bed under a
   // part goes quiet there, so a duaa or a verse is heard alone.
   const ownSound: boolean[] = [];
+  let lastFill: string | null = null;
   const times = shotTimes(ordered.filter((a) => a.mediaType !== "VIDEO").length, ordered.filter((a) => a.mediaType === "VIDEO").length, story, filmLimit(soundKey));
   const pieces: string[] = [];
   let made = 0;
@@ -392,7 +409,11 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
       stamp: angle.stamp ? stampText(angle.uploadedAt, locale, "Asia/Riyadh") : undefined,
     };
     // A story moves too fast for each shot's own sound: only the video's sound plays.
-    const shotSound = soundKey || story ? null : await resolveSound(angle.soundKey);
+    let shotSound = soundKey || story ? null : await resolveSound(angle.soundKey);
+    // (A part: a silent photo takes a sound of its own, never the one just before it.)
+    const filled = !shotSound && fill && angle.mediaType !== "VIDEO";
+    if (filled) shotSound = fillSound(angle.id, SOLEMN_WORDS.test(moment.title), lastFill);
+    if (shotSound) lastFill = shotSound.key;
     if (shotSound) shotSounds = true;
     const writing = parseCaption(angle.caption);
     const kept = piecePath(moment.id, [angle.id, angle.mediaPath, angle.mediaType, angle.filter, writing?.path ?? null, frame, plan ? plan[i] : times, story, i, shotSound?.key ?? null, angle.muteOriginal, angle.lyrics]);
@@ -431,7 +452,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
     const shotSoundFile = shotSound ? await soundAt(shotSound) : null;
     if (shotSound && shotSoundFile) {
       segment = join(dir, `seg-${i}-sound.mp4`);
-      seconds = await withShotSound(out, shotSoundFile, shotSound, angle.muteOriginal, seconds, segment, angle.lyrics);
+      seconds = await withShotSound(out, shotSoundFile, shotSound, angle.muteOriginal, seconds, segment, filled ? false : angle.lyrics);
     }
     durations.push(seconds);
     segments.push(segment);
@@ -526,7 +547,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
 }
 
 // Renders a queued montage end to end and records the outcome on its row.
-export async function renderMontage(montageId: string, siteHost: string, parts: { plan?: number[]; bed?: boolean; cards?: boolean } = {}) {
+export async function renderMontage(montageId: string, siteHost: string, parts: { plan?: number[]; bed?: boolean; cards?: boolean; fill?: boolean } = {}) {
   const montage = await db.montage.update({ where: { id: montageId }, data: { status: "RENDERING" }, include: { moment: true } });
   const dir = await mkdtemp(join(tmpdir(), "mova-montage-"));
   try {
@@ -542,7 +563,7 @@ export async function renderMontage(montageId: string, siteHost: string, parts: 
     // over the opening title.)
     const plan = parts.plan && ordered.length === montage.angleIds.length ? parts.plan : undefined;
     const kicker = montage.part ? `الجزء ${montage.part.toLocaleString("ar-EG")}` : undefined;
-    const { output, total } = await buildMontageVideo({ moment: montage.moment, angles: ordered, participants, soundKey: montage.soundKey, siteHost, kicker, stopAt: Date.now() + 7 * 60_000, plan, bed: parts.bed, cards: parts.cards }, dir);
+    const { output, total } = await buildMontageVideo({ moment: montage.moment, angles: ordered, participants, soundKey: montage.soundKey, siteHost, kicker, stopAt: Date.now() + 7 * 60_000, plan, bed: parts.bed, cards: parts.cards, fill: parts.fill }, dir);
 
     const path = `m/${montage.moment.id}/montage-${montage.id}.mp4`;
     await put(path, await readFile(output), { access: "private", contentType: "video/mp4", addRandomSuffix: false, allowOverwrite: true });

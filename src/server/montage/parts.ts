@@ -38,6 +38,9 @@ const MIN_SECONDS = 15;
 // long (that shot waits for a part of its own, and later shots fill this one).
 const FULL_FROM = 30;
 const STALE_MS = 15 * 60 * 1000;
+// How parts are made: a part made another way is made again (quietly, one per run, nobody told).
+// "fill-1": each silent photo with a sound of its own (2026-10-15), not one sound under them all.
+const PART_STYLE = "fill-1";
 
 type Shot = { id: string; contributorId: string; mediaType: string; capturedAt: Date | null; uploadedAt: Date; pickedAt: Date | null; durationSec: number | null; soundKey: string | null };
 
@@ -109,7 +112,7 @@ const alive = (m: Pick<Montage, "status" | "createdAt">) => m.status === "READY"
 async function partTitle(momentTitle: string, part: number, shotIds: string[]) {
   const titled = await db.angle.findMany({ where: { id: { in: shotIds }, aiTitle: { not: null } }, select: { id: true, aiTitle: true } });
   const words = shotIds.map((id) => titled.find((t) => t.id === id)?.aiTitle).filter((t): t is string => !!t);
-  const about = words.slice(0, 2).join(" و");
+  const about = words[0] ?? "";
   return `${momentTitle} — الجزء ${part.toLocaleString("ar-EG")}${about ? `: ${about}` : ""}`.slice(0, 160);
 }
 
@@ -125,16 +128,17 @@ export async function duePart(momentId: string, now = new Date()) {
   const shots = await liveShots(momentId);
   const live = new Set(shots.map((s) => s.id));
 
-  // A part that lost a shot: made again without it (the others stay where they are).
+  // A part that lost a shot: made again without it (the others stay where they are) — and one made
+  // in an older style, again with the same shots.
   for (const [part, made] of [...latest].sort((a, b) => a[0] - b[0])) {
-    if (made.angleIds.every((id) => live.has(id))) continue;
+    if (made.angleIds.every((id) => live.has(id)) && made.signature?.startsWith(`${PART_STYLE}:`)) continue;
     const kept = shots.filter((s) => made.angleIds.includes(s.id));
     // Every shot of it gone: the part goes (its number is not reused while others follow it).
     if (!kept.length) {
       await db.montage.updateMany({ where: { momentId, part, status: "READY" }, data: { status: "FAILED", error: "emptied" } });
       continue;
     }
-    return { part, shots: kept, seconds: await Promise.all(kept.map(shotSeconds)), title: made.title ?? (await partTitle(moment.title, part, kept.map((s) => s.id))), remake: true };
+    return { part, shots: kept, seconds: stretch(kept, await Promise.all(kept.map(shotSeconds))), title: made.title ?? (await partTitle(moment.title, part, kept.map((s) => s.id))), remake: true };
   }
 
   // A moment's first part waits for MIN_ANGLES shots (as its one film always did).
@@ -177,9 +181,9 @@ export async function makeDuePart(host: string, now = new Date()) {
     const due = await duePart(id, now);
     if (!due) continue;
     const montage = await db.montage.create({
-      data: { momentId: id, part: due.part, title: due.title, angleIds: due.shots.map((s) => s.id), signature: `part-${due.part}-${due.shots.map((s) => s.id).join(",")}`.slice(0, 190), soundKey: null },
+      data: { momentId: id, part: due.part, title: due.title, angleIds: due.shots.map((s) => s.id), signature: `${PART_STYLE}:part-${due.part}-${due.shots.map((s) => s.id).join(",")}`.slice(0, 190), soundKey: null },
     });
-    await renderMontage(montage.id, host, { plan: due.seconds, bed: true, cards: withCards(due.seconds) });
+    await renderMontage(montage.id, host, { plan: due.seconds, fill: true, cards: withCards(due.seconds) });
     const made = await db.montage.findUnique({ where: { id: montage.id } });
     // Told only for parts of fresh shots (a week): an old moment turned into parts by itself is
     // not news to anyone.
