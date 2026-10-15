@@ -77,7 +77,7 @@ test("a photo shared from the gallery goes into one of your moments", async ({ p
     form.append("media", new File([blob], "from-gallery.jpg", { type: "image/jpeg" }));
     return (await fetch("/share", { method: "POST", body: form })).url;
   });
-  expect(new URL(landed).search).toBe("?shared=1");
+  expect(new URL(landed).pathname + new URL(landed).search).toBe("/new?shared=1");
 
   await page.goto("/new?shared=1");
   await page.locator(`a[href="/m/${code}#join"]`).click();
@@ -86,4 +86,25 @@ test("a photo shared from the gallery goes into one of your moments", async ({ p
   await expect(sheet).toBeVisible({ timeout: 60_000 });
   await expect(sheet.locator("img").first()).toBeVisible();
   expect(errors, "no browser errors").toEqual([]);
+});
+
+// As on the phone: the share comes from OUTSIDE Zawmo (Android's share sheet) — a cross-site form
+// POST, which carries no sign-in cookie. It must still end on /new signed in, not on the home
+// page (2026-10-15: a video shared from the gallery on the Play app landed on the home page).
+test("a share from outside Zawmo still lands signed in on /new", async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.goto("/");
+  await page.locator("#displayName").first().fill(`${E2E_NAME} معرض٣`);
+  await page.getByRole("button", { name: "ابدأ" }).first().click();
+  await expect.poll(async () => (await page.context().cookies()).some((c) => c.name === "mova_session"), { timeout: 30_000 }).toBe(true);
+  await page.goto("/");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  const target = new URL("/share", page.url()).href;
+
+  await page.goto("about:blank");
+  await page.setContent(`<form method="post" enctype="multipart/form-data" action="${target}"><input type="file" name="media"><button>go</button></form>`);
+  await page.locator('input[type="file"]').setInputFiles({ name: "clip.mp4", mimeType: "video/mp4", buffer: Buffer.alloc(4096, 1) });
+  await page.locator("button").click();
+  await page.waitForURL(/\/new\?shared=1/, { timeout: 60_000 });
+  await expect(page.getByText(/من معرضك جاهزين/)).toBeVisible();
 });

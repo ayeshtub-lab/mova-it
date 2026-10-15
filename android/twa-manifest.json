@@ -20,15 +20,15 @@
   "monochromeIconUrl": "https://zawmo.com/icons/badge-96.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": { "path": "./zawmo-upload.keystore", "alias": "zawmo" },
-  "appVersionName": "1.0.0",
-  "appVersionCode": 1,
+  "appVersionName": "1.0.1",
+  "appVersionCode": 2,
   "shortcuts": [
     { "name": "صوّر لحظة", "shortName": "صوّر", "url": "https://zawmo.com/new?src=app-shortcut", "chosenIconUrl": "https://zawmo.com/icons/icon-192.png" },
     { "name": "اكتشف", "shortName": "اكتشف", "url": "https://zawmo.com/discover?src=app-shortcut", "chosenIconUrl": "https://zawmo.com/icons/icon-192.png" },
     { "name": "الوارد", "shortName": "الوارد", "url": "https://zawmo.com/inbox?src=app-shortcut", "chosenIconUrl": "https://zawmo.com/icons/icon-192.png" }
   ],
   "shareTarget": {
-    "action": "/share",
+    "action": "https://zawmo.com/share",
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": { "title": "title", "text": "text", "files": [{ "name": "media", "accept": ["image/*", "video/*"] }] }
