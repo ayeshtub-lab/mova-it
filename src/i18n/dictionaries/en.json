@@ -854,6 +854,7 @@
     "filmPart": "🎬 A new part of the moment’s video is ready — share it!",
     "shotReady": "✅ Your angle is up!",
     "draftWaiting": "📸 Your shot isn't posted yet — one tap and it's up",
+    "chatRequest": "📩 {name} sent you a message request",
     "message": "💬 {name} sent you a message",
     "dailyNudge": "☀️ Moment of the day: {theme}",
     "dailyNudgeCount": "{n} so far — add yours before it ends 📸",

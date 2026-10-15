@@ -117,7 +117,7 @@ export default async function AdminPage() {
               )}
               <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
                 <p className="font-bold">
-                  {item.kind === "angle" ? (item.mediaType === "VIDEO" ? "فيديو" : "صورة") : "تعليق"} من {item.authorName ?? "—"}
+                  {item.kind === "angle" ? (item.mediaType === "VIDEO" ? "فيديو" : "صورة") : item.kind === "message" ? "💬 رسالة دردشة" : "تعليق"}{item.kind !== "message" && ` من ${item.authorName ?? "—"}`}
                   {item.angleStatus === "HIDDEN" && <span className="ms-2 rounded-full bg-surface px-2 text-xs">مخفية</span>}
                 </p>
                 {item.momentCode && (
@@ -146,7 +146,7 @@ export default async function AdminPage() {
                 </button>
               ) : (
                 <button name="action" value="delete" className="min-h-11 rounded-full bg-accent px-5 text-sm font-bold text-white">
-                  حذف التعليق
+                  {item.kind === "message" ? "حذف الرسالة" : "حذف التعليق"}
                 </button>
               )}
               {/* A suspected repost: keep it with its owner and the moment's creator only. */}

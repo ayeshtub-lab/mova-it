@@ -658,6 +658,7 @@ model Report {
   momentId   String?
   angleId    String?
   commentId  String?
+  messageId  String? // a message in «الدردشة» (no link: it may be deleted)
   reason     String
   note       String?
   createdAt  DateTime  @default(now())
@@ -749,6 +750,15 @@ model Conversation {
   // متى كان آخر ظهور للمستخدم (للـ online status)
   user1LastSeen DateTime?
   user2LastSeen DateTime?
+  // 🔕 each side may mute it; «عم يكتب…» while one of them types
+  user1Muted    Boolean   @default(false)
+  user2Muted    Boolean   @default(false)
+  user1TypingAt DateTime?
+  user2TypingAt DateTime?
+  // «طلبات المراسلة»: started by someone the other doesn't know — it waits in their requests until
+  // they answer or accept it (acceptedAt). Known people's conversations are accepted at once.
+  requestBy     String?
+  acceptedAt    DateTime?
 
   user1    User      @relation("ConversationUser1", fields: [user1Id], references: [id], onDelete: Cascade)
   user2    User      @relation("ConversationUser2", fields: [user2Id], references: [id], onDelete: Cascade)
@@ -768,6 +778,18 @@ model Message {
   // A voice message (src/server/conversations.ts): its file in private Blob storage, and its length.
   audioPath      String?
   audioSeconds   Int?
+  // 📷 a private photo between the two (never published)
+  imagePath      String?
+  imageWidth     Int?
+  imageHeight    Int?
+  // A card: a shot or moment sent from Zawmo, or «ضيف زاويتك» to a moment — { type, code, angleId?, title }
+  card           Json?
+  // ↩️ the message this one answers; ❤️😂👏 { emoji: [userId] }
+  replyToId      String?
+  reactions      Json?
+  // Deleted for both (the sender, within minutes), or hidden for some (each person's own)
+  deletedAt      DateTime?
+  hiddenFor      String[]  @default([])
   // حالة الرسالة: sent, delivered, read
   status         String   @default("sent")
   // متى تمت قراءة الرسالة

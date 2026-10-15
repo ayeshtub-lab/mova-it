@@ -1,3 +1,4 @@
+import { del } from "@vercel/blob";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { visibleAngle } from "@/server/access";
@@ -92,7 +93,7 @@ export async function openReports(admin: User) {
 
   const groups = new Map<string, typeof reports>();
   for (const r of reports) {
-    const key = r.commentId ? `c:${r.commentId}` : `a:${r.angleId}`;
+    const key = r.messageId ? `m:${r.messageId}` : r.commentId ? `c:${r.commentId}` : `a:${r.angleId}`;
     groups.set(key, [...(groups.get(key) ?? []), r]);
   }
 
@@ -100,9 +101,11 @@ export async function openReports(admin: User) {
     [...groups.entries()].map(async ([key, rs]) => {
       const first = rs[0];
       const isComment = key.startsWith("c:");
+      // A message in «الدردشة»: its words as they were reported (the note), its sender in them.
+      const isMessage = key.startsWith("m:");
       return {
         key,
-        kind: isComment ? ("comment" as const) : ("angle" as const),
+        kind: isMessage ? ("message" as const) : isComment ? ("comment" as const) : ("angle" as const),
         count: rs.length,
         reasons: [...new Set(rs.map((r) => r.reason))],
         notes: rs.map((r) => r.note).filter((n): n is string => !!n),
@@ -111,7 +114,7 @@ export async function openReports(admin: User) {
         momentCode: first.moment?.code ?? null,
         momentTitle: first.moment?.title ?? null,
         authorName: isComment ? first.comment?.user.displayName : first.angle?.contributor.displayName,
-        commentBody: isComment ? first.comment?.body ?? null : null,
+        commentBody: isMessage ? (first.note ?? null) : isComment ? first.comment?.body ?? null : null,
         angleStatus: first.angle?.status ?? null,
         previewUrl: !isComment && first.angle ? await coverOf(first.angle) : null,
         mediaType: first.angle?.mediaType ?? null,
@@ -126,7 +129,19 @@ export async function openReports(admin: User) {
 export async function resolveReports(admin: User, key: string, action: "hide" | "delete" | "dismiss" | "keep") {
   assertAdmin(admin);
   const [type, id] = key.split(":");
-  if (!id || (type !== "a" && type !== "c")) throw new ModerationError("invalid");
+  if (!id || (type !== "a" && type !== "c" && type !== "m")) throw new ModerationError("invalid");
+  // A chat message: deleted for both (its words and file gone), or left as it is.
+  if (type === "m") {
+    if (action !== "delete" && action !== "dismiss") throw new ModerationError("invalid");
+    if (action === "delete") {
+      const m = await db.message.findUnique({ where: { id }, select: { audioPath: true, imagePath: true } });
+      await db.message.updateMany({ where: { id }, data: { deletedAt: new Date(), body: "", audioPath: null, imagePath: null } });
+      const files = [m?.audioPath, m?.imagePath].filter((p): p is string => !!p);
+      if (files.length) await del(files).catch(() => {});
+    }
+    await db.report.updateMany({ where: { messageId: id, resolvedAt: null }, data: { resolvedAt: new Date(), resolution: action === "delete" ? "deleted" : "dismissed" } });
+    return;
+  }
   // Angles are hidden (reversible); comments are deleted. Anything else is a mistake.
   if ((type === "a" && action === "delete") || (type === "c" && (action === "hide" || action === "keep"))) throw new ModerationError("invalid");
   const where = type === "c" ? { commentId: id, resolvedAt: null } : { angleId: id, commentId: null, resolvedAt: null };

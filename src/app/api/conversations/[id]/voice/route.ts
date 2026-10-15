@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/session";
 import { ChatError, sendVoiceMessage } from "@/server/conversations";
 import { limited } from "@/server/rate-limit";
 
-// «🎤»: a voice message — form data { audio: the recording, seconds } (src/server/conversations.ts).
+// «🎤»: a voice message — form data { audio: the recording, seconds, replyTo? } (src/server/conversations.ts).
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -11,7 +11,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (slow) return slow;
   const form = await request.formData().catch(() => null);
   try {
-    const { message, tell } = await sendVoiceMessage(user, (await params).id, form?.get("audio"), form?.get("seconds"), new URL(request.url).origin);
+    const { message, tell } = await sendVoiceMessage(user, (await params).id, form?.get("audio"), form?.get("seconds"), new URL(request.url).origin, form?.get("replyTo"));
     after(() => tell().catch((error) => console.error("chat push failed", error)));
     return NextResponse.json(message, { status: 201 });
   } catch (error) {
