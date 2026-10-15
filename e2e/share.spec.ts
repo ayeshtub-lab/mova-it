@@ -46,3 +46,44 @@ test("a photo shared from the gallery lands in the new moment", async ({ page })
 
   expect(errors, "no browser errors").toEqual([]);
 });
+
+// «📸 ضيفها كزاوية للحظة عندك»: the same share, into a moment you already have.
+test("a photo shared from the gallery goes into one of your moments", async ({ page }) => {
+  test.setTimeout(240_000);
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+
+  await page.goto("/");
+  await page.locator("#displayName").first().fill(`${E2E_NAME} معرض٢`);
+  await page.getByRole("button", { name: "ابدأ" }).first().click();
+  await expect.poll(async () => (await page.context().cookies()).some((c) => c.name === "mova_session"), { timeout: 30_000 }).toBe(true);
+  // A moment of theirs first.
+  await page.goto("/new");
+  await page.locator('input[name="title"]').fill(`${E2E_NAME} لحظة قديمة`);
+  await page.getByRole("button", { name: "ابدأ اللحظة" }).click();
+  await page.waitForURL(/\/m\/[A-Z0-9]{6}/);
+  const code = new URL(page.url()).pathname.split("/")[2];
+
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  const landed = await page.evaluate(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 900;
+    canvas.height = 1200;
+    const g = canvas.getContext("2d")!;
+    g.fillStyle = "#5c9ef6";
+    g.fillRect(0, 0, 900, 1200);
+    const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.85));
+    const form = new FormData();
+    form.append("media", new File([blob], "from-gallery.jpg", { type: "image/jpeg" }));
+    return (await fetch("/share", { method: "POST", body: form })).url;
+  });
+  expect(new URL(landed).search).toBe("?shared=1");
+
+  await page.goto("/new?shared=1");
+  await page.locator(`a[href="/m/${code}#join"]`).click();
+  await page.waitForURL(new RegExp(`/m/${code}`));
+  const sheet = page.getByRole("dialog", { name: "زاويتك الجديدة" });
+  await expect(sheet).toBeVisible({ timeout: 60_000 });
+  await expect(sheet.locator("img").first()).toBeVisible();
+  expect(errors, "no browser errors").toEqual([]);
+});
