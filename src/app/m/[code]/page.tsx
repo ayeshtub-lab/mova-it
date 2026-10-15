@@ -1,3 +1,4 @@
+import { SendToFriend } from "@/app/SendToFriend";
 import { INDEXABLE } from "@/lib/indexable";
 import { MomentHint } from "./MomentHint";
 import { clip, plain } from "@/lib/clip";
@@ -567,6 +568,13 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         <div data-nosnippet>
           <ShareBar url={shareUrl} text={fill(t.shareText, { title: view.title })} labels={t} />
         </div>
+        {/* «الدردشة»: the moment to a friend, or «ضيف زاويتك» — a card in your conversation with them. */}
+        {user && !user.isGuest && view.kind !== "DAILY" && (
+          <div data-nosnippet className="grid grid-cols-2 gap-2">
+            <SendToFriend code={view.code} label="💬 ابعتها لصاحب" />
+            {view.kind !== "STORY" && <SendToFriend code={view.code} invite label="📸 ادعِ صاحب يضيف زاويته" />}
+          </div>
+        )}
         {/* For weddings and parties: a card with the moment's QR code, for the guests' tables. */}
         {view.viewer.isCreator && view.kind !== "STORY" && view.kind !== "DAILY" && (
           <Link href={`/m/${view.code}/qr`} className="flex min-h-12 items-center justify-center rounded-full border border-line px-5 text-center text-sm font-bold hover:bg-surface">

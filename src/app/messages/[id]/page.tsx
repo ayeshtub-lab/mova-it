@@ -39,6 +39,9 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60))
 // What this phone records: Opus in WebM (Android, Chrome), else MP4/AAC (iPhone).
 const voiceType = () => ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) ?? "";
 
+// A message with whether its sender may still delete it for both (when its actions open).
+const withUnsend = (m: Message): Message => ({ ...m, unsend: m.mine && Date.now() - new Date(m.at).getTime() < UNSEND_MS });
+
 // A short, soft sound for a message that just came in (only when the page is open).
 function ding() {
   try {
@@ -357,7 +360,7 @@ export default function ConversationPage({ params }: { params: Promise<{ id: str
 
   // Long press on a message (or right click): its actions.
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const open = (m: Message) => !m.deleted && setActing({ ...m, unsend: m.mine && Date.now() - new Date(m.at).getTime() < UNSEND_MS });
+  const open = (m: Message) => !m.deleted && setActing(withUnsend(m));
   const holdProps = (m: Message) => ({
     onContextMenu: (e: React.MouseEvent) => {
       e.preventDefault();

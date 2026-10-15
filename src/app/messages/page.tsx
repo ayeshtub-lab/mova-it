@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MessageCircle, Plus, X } from "lucide-react";
+import { BellOff, MessageCircle, Plus, X } from "lucide-react";
 import { Avatar, type Person } from "./Avatar";
 
-type Row = { id: string; other: Person; online: boolean; last: { body: string; at: string; mine: boolean } | null; unread: boolean };
+type Row = { id: string; other: Person; online: boolean; last: { body: string; at: string; mine: boolean } | null; unread: boolean; muted: boolean; request: boolean };
 type Friend = { id: string; displayName: string; avatarUrl: string | null; verified?: boolean };
 
 // While the list is on screen; never while the tab is hidden.
@@ -28,6 +28,8 @@ export default function MessagesPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [picking, setPicking] = useState(false);
+  // «طلبات المراسلة»: from people who don't know you (src/server/conversations.ts).
+  const [tab, setTab] = useState<"chats" | "requests">("chats");
 
   const load = useCallback(async () => {
     const res = await fetch("/api/conversations", { cache: "no-store" }).catch(() => null);
@@ -36,7 +38,11 @@ export default function MessagesPage() {
   }, [router]);
 
   useEffect(() => {
-    const first = setTimeout(load, 0);
+    // (a request's notice opens /messages?requests=1, on its tab)
+    const first = setTimeout(() => {
+      if (location.search.includes("requests=1")) setTab("requests");
+      load();
+    }, 0);
     fetch("/api/friends")
       .then((r) => (r.ok ? r.json() : []))
       .then(setFriends)
@@ -91,25 +97,39 @@ export default function MessagesPage() {
         </section>
       )}
 
+      {(rows?.some((r) => r.request) || tab === "requests") && (
+        <nav aria-label="المحادثات والطلبات" className="mx-4 mt-3 grid grid-cols-2 gap-1 rounded-full bg-surface p-1 text-sm font-extrabold">
+          {(["chats", "requests"] as const).map((t) => (
+            <button key={t} type="button" onClick={() => setTab(t)} aria-current={tab === t ? "page" : undefined} className={`min-h-10 rounded-full ${tab === t ? "bg-accent text-white" : "text-muted"}`}>
+              {t === "chats" ? "المحادثات" : `📩 طلبات المراسلة (${rows?.filter((r) => r.request).length ?? 0})`}
+            </button>
+          ))}
+        </nav>
+      )}
+      {tab === "requests" && <p className="px-4 pt-3 text-xs leading-relaxed text-muted">رسائل من ناس مش من معارفك. ما بيعرفوا إنك شفتها لحد ما تقبل أو ترد، وما بيوصلك منهم إشعار بعد أول رسالة.</p>}
+
       {rows === null ? (
         <div className="flex flex-1 items-center justify-center">
           <span aria-label="جاري التحميل" className="size-10 animate-spin rounded-full border-4 border-line border-t-accent" />
         </div>
-      ) : rows.length === 0 ? (
+      ) : rows.filter((r) => r.request === (tab === "requests")).length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-muted">
           <MessageCircle size={64} className="opacity-30" />
-          <p className="font-bold">لسا ما في محادثات</p>
-          <p className="text-sm">{friends.length ? "اكبس ＋ وابدأ محادثة مع صاحب." : "افتح صفحة أي حدا على زاومو واكبس «راسل»."}</p>
+          <p className="font-bold">{tab === "requests" ? "ما في طلبات مراسلة" : "لسا ما في محادثات"}</p>
+          {tab === "chats" && <p className="text-sm">{friends.length ? "اكبس ＋ وابدأ محادثة مع صاحب." : "افتح صفحة أي حدا على زاومو واكبس «راسل»."}</p>}
         </div>
       ) : (
         <ul className="divide-y divide-line">
-          {rows.map((r) => (
+          {rows.filter((r) => r.request === (tab === "requests")).map((r) => (
             <li key={r.id}>
               <Link href={`/messages/${r.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-surface">
                 <Avatar person={r.other} online={r.online} size="size-14" />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="flex items-center justify-between gap-2">
-                    <span className={`truncate ${r.unread ? "font-extrabold" : "font-bold"}`}>{r.other.displayName}</span>
+                    <span className={`flex items-center gap-1 truncate ${r.unread ? "font-extrabold" : "font-bold"}`}>
+                      {r.other.displayName}
+                      {r.muted && <BellOff size={13} className="shrink-0 text-muted" aria-label="مكتومة" />}
+                    </span>
                     {r.last && <span className={`shrink-0 text-xs ${r.unread ? "font-bold text-accent-ink" : "text-muted"}`}>{when(r.last.at)}</span>}
                   </span>
                   <span className="flex items-center gap-2">

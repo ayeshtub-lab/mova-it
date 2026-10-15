@@ -1,3 +1,5 @@
+import { SendToFriend } from "@/app/SendToFriend";
+import { getCurrentUser } from "@/lib/session";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -58,7 +60,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   const shot = await loadShot(id);
   if (!shot) notFound();
   if (shot.moment.code !== code) redirect(shotPath(shot));
-  const locale = await getLocale();
+  const [locale, viewer] = await Promise.all([getLocale(), getCurrentUser()]);
   const dict = await getDictionary(locale);
   const t = dict.shotPage;
   const label = shotLabel(shot, locale);
@@ -193,6 +195,8 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         >
           {t.open}
         </Link>
+        {/* «الدردشة»: this shot to a friend, as a card. */}
+        {viewer && !viewer.isGuest && <SendToFriend code={shot.moment.code} angleId={shot.id} label="💬 ابعت اللقطة لصاحب" />}
       </main>
     </div>
   );

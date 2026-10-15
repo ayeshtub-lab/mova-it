@@ -1,59 +1,20 @@
-import { getCurrentUser } from "@/lib/session";
-import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
+import { friendsOf } from "@/server/friends";
+import { blockedIdsFor } from "@/server/moderation";
 
-// جلب قائمة الأصدقاء (الأشخاص الذي يتابعهم المستخدم)
+// The people to start a conversation with, or send a shot to: the ones you shared a moment with
+// first (the closest), then the ones you follow — never someone blocked either way.
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user?.id) {
-    return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
-  }
-
-  try {
-    // جلب الأصدقاء (الأشخاص الذي يتابعهم المستخدم)
-    const friends = await db.follow.findMany({
-      where: { followerId: user.id },
-      include: {
-        following: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    // تصفية الأصدقاء المحظورين
-    const blocked = await db.block.findMany({
-      where: {
-        OR: [
-          { blockerId: user.id },
-          { blockedId: user.id },
-        ],
-      },
-    });
-
-    const blockedIds = new Set<string>();
-    blocked.forEach((block) => {
-      if (block.blockerId === user.id) {
-        blockedIds.add(block.blockedId);
-      } else {
-        blockedIds.add(block.blockerId);
-      }
-    });
-
-    const filteredFriends = friends
-      .filter((f) => !blockedIds.has(f.following.id))
-      .map((f) => f.following);
-
-    return NextResponse.json(filteredFriends);
-  } catch (error) {
-    console.error("خطأ في جلب الأصدقاء:", error);
-    return NextResponse.json(
-      { error: "خطأ في جلب الأصدقاء" },
-      { status: 500 }
-    );
-  }
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const [together, follows, blocked] = await Promise.all([
+    friendsOf(user, 60),
+    db.follow.findMany({ where: { followerId: user.id }, orderBy: { createdAt: "desc" }, take: 100, select: { followingId: true } }),
+    blockedIdsFor(user.id),
+  ]);
+  const ids = [...new Set([...together.map((f) => f.id), ...follows.map((f) => f.followingId)])].filter((id) => !blocked.has(id) && id !== user.id);
+  const people = await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, displayName: true, avatarUrl: true, verified: true } });
+  return NextResponse.json(ids.map((id) => people.find((p) => p.id === id)).filter(Boolean));
 }

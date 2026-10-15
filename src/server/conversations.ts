@@ -206,7 +206,9 @@ export async function openConversation(user: User, id: string, before?: string |
   });
   const more = latest.length > PAGE;
   const rows = latest.slice(0, PAGE).reverse();
-  if (!before) {
+  // (a request isn't marked read: its sender doesn't know it was seen until it is accepted)
+  const request = !c.acceptedAt && c.requestBy !== user.id;
+  if (!before && !request) {
     const seenAt = c[mineField(side, "SeenAt")];
     const newest = rows.findLast((m) => m.senderId !== user.id);
     if (newest && (!seenAt || newest.createdAt > seenAt)) await db.conversation.update({ where: { id }, data: { [mineField(side, "SeenAt")]: new Date() } });
@@ -220,7 +222,7 @@ export async function openConversation(user: User, id: string, before?: string |
     typing: !!typingAt && Date.now() - typingAt.getTime() < TYPING_MS,
     blocked: blocked.has(side.otherId),
     muted: c[mineField(side, "Muted")],
-    request: !c.acceptedAt && c.requestBy !== user.id,
+    request,
     otherSeenAt: c[otherField(side, "SeenAt")],
     more,
     messages: await shape(id, user.id, rows),
@@ -366,8 +368,8 @@ export async function setMuted(user: User, id: string, muted: boolean) {
 
 // «قبول» a request (answering it accepts it too).
 export async function acceptRequest(user: User, id: string) {
-  const { c } = await conversationOf(user, id);
-  if (!c.acceptedAt && c.requestBy !== user.id) await db.conversation.update({ where: { id }, data: { acceptedAt: new Date() } });
+  const { c, side } = await conversationOf(user, id);
+  if (!c.acceptedAt && c.requestBy !== user.id) await db.conversation.update({ where: { id }, data: { acceptedAt: new Date(), [mineField(side, "SeenAt")]: new Date() } });
 }
 
 // 🚩 a message reported to the admins (who may delete it), with its words as they were.
