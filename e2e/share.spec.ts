@@ -108,3 +108,36 @@ test("a share from outside Zawmo still lands signed in on /new", async ({ page }
   await page.waitForURL(/\/new\?shared=1/, { timeout: 60_000 });
   await expect(page.getByText(/من معرضك جاهزين/)).toBeVisible();
 });
+
+// «📍 أرطاس؟»: a moment whose name says where offers that place on the publish sheet; one tap
+// places the shot (src/server/place-guess.ts).
+test("the place in the moment's name is offered, one tap places the shot", async ({ page }) => {
+  test.setTimeout(480_000);
+  await page.goto("/");
+  await page.locator("#displayName").first().fill(`${E2E_NAME} مكان`);
+  await page.getByRole("button", { name: "ابدأ" }).first().click();
+  await expect.poll(async () => (await page.context().cookies()).some((c) => c.name === "mova_session"), { timeout: 30_000 }).toBe(true);
+  await page.goto("/");
+  await page.evaluate(() => navigator.serviceWorker.ready);
+  await page.evaluate(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 900;
+    canvas.height = 1200;
+    const g = canvas.getContext("2d")!;
+    g.fillStyle = "#7bc96f";
+    g.fillRect(0, 0, 900, 1200);
+    const blob = await new Promise<Blob>((resolve) => canvas.toBlob((b) => resolve(b!), "image/jpeg", 0.85));
+    const form = new FormData();
+    form.append("media", new File([blob], "artas.jpg", { type: "image/jpeg" }));
+    await fetch("/share", { method: "POST", body: form });
+  });
+  await page.goto("/new?shared=1");
+  await page.locator('input[name="title"]').fill(`${E2E_NAME} عرس في أرطاس`);
+  await page.getByRole("button", { name: "ابدأ اللحظة" }).click();
+  await page.waitForURL(/\/m\/[A-Z0-9]{6}/);
+  const sheet = page.getByRole("dialog", { name: "زاويتك الجديدة" });
+  await expect(sheet).toBeVisible({ timeout: 60_000 });
+  await expect(sheet.getByText("📍 أرطاس؟")).toBeVisible({ timeout: 240_000 });
+  await sheet.getByRole("button", { name: "أيوه، هون" }).click();
+  await expect(sheet.getByText("📍 أرطاس ✓")).toBeVisible({ timeout: 120_000 });
+});

@@ -1,5 +1,6 @@
 import { SendToFriend } from "@/app/SendToFriend";
 import { StaffMomentEdit } from "@/app/StaffEdit";
+import { guessPlace } from "@/server/place-guess";
 import { INDEXABLE } from "@/lib/indexable";
 import { MomentHint } from "./MomentHint";
 import { clip, plain } from "@/lib/clip";
@@ -514,7 +515,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 soundLabels={dict.sounds}
                 editLabels={dict.editShot}
                 captionLabels={dict.caption}
-                placeLabels={{ ...dict.upload.place, placeholder: dict.create.placePlaceholder, here: dict.create.placeHere }}
+                placeLabels={{ ...dict.upload.place, placeholder: dict.create.placePlaceholder, here: dict.create.placeHere, guess: dict.create.placeGuess }}
+                placeGuess={view.place ? null : await guessPlace(view.title)}
                 code={view.code}
                 labels={dict.upload}
                 needsName={view.viewer.isCreator && !view.named}

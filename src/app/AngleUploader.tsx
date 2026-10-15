@@ -14,6 +14,7 @@ import { filterCss, stampText } from "@/lib/filters";
 import { MAX_VIDEO_SECONDS, PrepareError, prepareAngleFile, type PreparedAngle } from "@/lib/media-client";
 import { PENDING_SOUND, soundByKey, soundName } from "@/lib/sounds";
 import { SHARED_MARK } from "@/app/new/SharedArrival";
+import { PlaceGuess, type PlaceGuessLabels } from "@/app/PlaceGuess";
 import type { DraftView } from "@/server/drafts";
 
 
@@ -85,7 +86,7 @@ type ItemState = {
   placed?: boolean; // it has a place (from the photo itself or the moment)
 };
 // «📍 وين صوّرت؟»: asked when a shot has no place (phones strip a photo's location on the web).
-type PlaceLabels = { ask: string; hint: string; failed: string; placeholder: string; here: { label: string; why: string; finding: string; denied: string; blocked: string; outside: string; approx: string } };
+type PlaceLabels = { ask: string; hint: string; failed: string; placeholder: string; guess?: PlaceGuessLabels; here: { label: string; why: string; finding: string; denied: string; blocked: string; outside: string; approx: string } };
 type UploaderSoundLabels = SoundLabels & { add: string; failed: string; pending: string; pendingClear: string };
 
 // The files shared from the gallery (kept by public/sw.js), when this visit started a moment from
@@ -126,6 +127,7 @@ export function AngleUploader({
   editLabels,
   captionLabels,
   placeLabels,
+  placeGuess = null,
   needsName = false,
   initialDrafts = [],
 }: {
@@ -138,6 +140,8 @@ export function AngleUploader({
   editLabels: ShotEditorLabels & { open: string; failed: string; cover: CoverLabels };
   captionLabels?: CaptionLabels; // «✍️ كتابة على اللقطة» after upload
   placeLabels?: PlaceLabels;
+  // «📍 أرطاس؟»: the place the moment's name says (src/server/place-guess.ts), offered first.
+  placeGuess?: PlaceOption | null;
   // Shots this person added here before and left without «نشر» (kept 48 hours): back, ready.
   initialDrafts?: DraftView[];
 }) {
@@ -174,18 +178,21 @@ export function AngleUploader({
   // The place picked for this visit's shots, and whether saving it failed.
   const [place, setPlace] = useState<PlaceOption | null>(null);
   const [placeFailed, setPlaceFailed] = useState(false);
+  const [placing, setPlacing] = useState(false);
   const unplaced = drafts.filter(({ it }) => !it.placed);
 
   // One answer places every shot of this visit that has none (they were taken in one place).
   async function placeAll(picked: PlaceOption | null) {
-    if (!picked) return;
+    if (!picked || placing) return;
     setPlaceFailed(false);
+    setPlacing(true);
     let failed = false;
     for (const { it, i } of unplaced) {
       const res = await fetch(`/api/angles/${it.angleId}/place`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ placeId: picked.id }) }).catch(() => null);
       if (res?.ok) update(i, { placed: true });
       else failed = true;
     }
+    setPlacing(false);
     if (failed) setPlaceFailed(true);
     else setPlace(picked);
   }
@@ -694,7 +701,7 @@ export function AngleUploader({
                   <span className="font-semibold text-secondary">📍 {place.name} ✓</span>
                 ) : (
                   <>
-                    <span className="text-xs text-muted">{placeLabels.hint}</span>
+                    {placeGuess && placeLabels.guess ? <PlaceGuess guess={placeGuess} labels={placeLabels.guess} busy={placing} onYes={placeAll} /> : <span className="text-xs text-muted">{placeLabels.hint}</span>}
                     <PlaceField
                       textName="shotPlaceName"
                       idName="shotPlaceId"

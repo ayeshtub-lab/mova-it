@@ -9,7 +9,8 @@ const files = readdirSync("tests")
   .filter((f) => /\.(test|integration)\.ts$/.test(f))
   .filter((f) => !only.length || only.some((w) => f.includes(w)))
   .map((f) => `tests/${f}`);
-const AT_ONCE = 6;
+// (TEST_AT_ONCE=2 on a busy or small machine: six at once can time out there.)
+const AT_ONCE = Number(process.env.TEST_AT_ONCE) || 6;
 
 // The tests share one database and clean up by their tag («[xtest]»): two with the same tag
 // would remove each other's rows mid-run.

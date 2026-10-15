@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { coverOf } from "@/server/media";
 import { phenomenonOf } from "@/server/events";
+import { guessPlace } from "@/server/place-guess";
 
 // «📍 وين صوّرتهن؟»: a person's public shots that have no place (phones strip a photo's
 // location on the web), grouped by moment — one answer places a moment's shots. A place puts
@@ -33,7 +34,9 @@ export async function unplacedShots(userId: string, take = 60) {
     if (phenomenonOf(s.scene, s.weather)) g.sky = true;
     groups.set(s.moment.code, g);
   }
-  return [...groups.values()].sort((a, b) => Number(b.sky) - Number(a.sky));
+  // «📍 أرطاس؟» when the moment's name says where (src/server/place-guess.ts).
+  const sorted = [...groups.values()].sort((a, b) => Number(b.sky) - Number(a.sky));
+  return Promise.all(sorted.map(async (g) => ({ ...g, guess: await guessPlace(g.title) })));
 }
 
 // Who to ask once: people with public sky shots (sunset, moon, rain…) that have no place.

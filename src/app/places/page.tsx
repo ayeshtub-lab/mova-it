@@ -26,7 +26,7 @@ export default async function PlacesPage() {
         {groups.length ? (
           <ul className="flex flex-col gap-3">
             {groups.map((g) => (
-              <PlaceGroup key={g.code} title={g.title} shots={g.shots} labels={{ placeholder: dict.create.placePlaceholder, done: t.done, failed: t.failed, here: dict.create.placeHere }} />
+              <PlaceGroup key={g.code} title={g.title} shots={g.shots} guess={g.guess} labels={{ placeholder: dict.create.placePlaceholder, done: t.done, failed: t.failed, guess: dict.create.placeGuess, here: dict.create.placeHere }} />
             ))}
           </ul>
         ) : (

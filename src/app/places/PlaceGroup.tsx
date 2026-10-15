@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { PlaceField, type PlaceOption } from "@/app/PlaceField";
+import { PlaceGuess, type PlaceGuessLabels } from "@/app/PlaceGuess";
 import { filterCss } from "@/lib/filters";
 
-type Labels = { placeholder: string; done: string; failed: string; here: { label: string; why: string; finding: string; denied: string; blocked: string; outside: string; approx: string } };
+type Labels = { placeholder: string; done: string; failed: string; guess: PlaceGuessLabels; here: { label: string; why: string; finding: string; denied: string; blocked: string; outside: string; approx: string } };
 
 // One moment's shots without a place: one answer places them all.
-export function PlaceGroup({ title, shots, labels }: { title: string; shots: { id: string; coverUrl: string | null; filter: string | null }[]; labels: Labels }) {
+export function PlaceGroup({ title, shots, guess, labels }: { title: string; shots: { id: string; coverUrl: string | null; filter: string | null }[]; guess: PlaceOption | null; labels: Labels }) {
   const [place, setPlace] = useState<PlaceOption | null>(null);
   const [failed, setFailed] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -42,7 +43,10 @@ export function PlaceGroup({ title, shots, labels }: { title: string; shots: { i
       {place ? (
         <p className="font-semibold text-secondary">{labels.done.replace("{place}", place.name)}</p>
       ) : (
-        <PlaceField textName={`p-${title}`} idName={`pid-${title}`} placeholder={labels.placeholder} className="min-h-11 w-full rounded-full border border-line bg-background px-4 outline-none focus:border-accent" here={labels.here} onPick={placeAll} />
+        <>
+          {guess && <PlaceGuess guess={guess} labels={labels.guess} busy={saving} onYes={placeAll} />}
+          <PlaceField textName={`p-${title}`} idName={`pid-${title}`} placeholder={labels.placeholder} className="min-h-11 w-full rounded-full border border-line bg-background px-4 outline-none focus:border-accent" here={labels.here} onPick={placeAll} />
+        </>
       )}
       {failed && (
         <p role="alert" className="text-xs font-semibold text-accent-ink">

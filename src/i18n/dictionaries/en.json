@@ -189,6 +189,7 @@
     "storyTitleLabel": "What will you follow over time?",
     "untitled": "New moment",
     "placeLabel": "Where? (optional)",
+    "placeGuess": {"guess": "📍 {place}?", "yes": "Yes, here", "other": "Or type another place:"},
     "placePlaceholder": "e.g. Bethlehem",
     "placeHere": {
       "label": "📍 Where I am",

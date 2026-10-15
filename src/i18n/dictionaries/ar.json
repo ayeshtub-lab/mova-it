@@ -189,6 +189,7 @@
     "storyTitleLabel": "شو بدك توثّق مع الوقت؟",
     "untitled": "لحظة جديدة",
     "placeLabel": "وين؟ (اختياري)",
+    "placeGuess": {"guess": "📍 {place}؟", "yes": "أيوه، هون", "other": "أو اكتب مكان تاني:"},
     "placePlaceholder": "مثلًا: بيت لحم",
     "placeHere": {
       "label": "📍 مكاني",
