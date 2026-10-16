@@ -6,6 +6,10 @@ Sentry.init({
   enabled: process.env.NODE_ENV === "production" && !!process.env.NEXT_PUBLIC_SENTRY_DSN,
   environment: process.env.NEXT_PUBLIC_VERCEL_ENV ?? "production",
   tracesSampleRate: 0,
+  // No sentry-trace/baggage headers on our requests: on a fetch that redirects to Blob (/v/ID.mp4)
+  // they force a CORS preflight, which Blob refuses — the film-part share fell back to its link
+  // (2026-10-16). We don't trace anyway.
+  tracePropagationTargets: [],
   // Zawmo privacy: no cookies (they carry the session), no bodies, no user data, no
   // query strings; only the browser/app kind, to reproduce a bug.
   dataCollection: {
