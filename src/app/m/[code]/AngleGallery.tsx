@@ -135,6 +135,15 @@ function timeAgo(iso: string, locale: string) {
 
 const compact = (n: number, locale: string) => (n ? new Intl.NumberFormat(locale, { notation: "compact" }).format(n) : "");
 
+// «⬇️ اللحظة الجاية»: a public moment's angles for a viewer already open (the next moment, carried
+// on to inside it — src/app/api/moments/[code]/viewer). Null when it can't be had.
+type Chain = { code: string; title: string; url: string; angles: GalleryAngle[]; next: NextMoment[] };
+const fetchChain = (code: string) =>
+  fetch(`/api/moments/${code}/viewer`)
+    .then((r) => (r.ok ? (r.json() as Promise<Chain>) : null))
+    .then((c) => (c && c.angles.length ? c : null))
+    .catch(() => null);
+
 // The grid of a moment's angles, plus a full-screen viewer that swipes sideways
 // between angles of the same moment — the horizontal half of Zawmo's two-way feed.
 // Swiping is native scroll-snap, so it follows the finger on phones with no library.
@@ -152,6 +161,8 @@ export function AngleGallery({
   altBase = "",
   story = false,
   continueTo,
+  autoOpen = false,
+  onLeave,
 }: {
   angles: GalleryAngle[];
   story?: boolean; // «مع الوقت»: each shot shows its day
@@ -166,6 +177,10 @@ export function AngleGallery({
   altBase?: string; // «روااااق — بيت لحم»: each grid picture's alt is this and whose shot it is
   // «⬇️ اللحظة الجاية»: the public moments the viewer carries on to (src/server/next-moments.ts).
   continueTo?: { code: string; next: NextMoment[]; labels: { next: string; done: string; hint: string } };
+  // The next moment carried on to inside the viewer: it opens at once on its first angle, and
+  // closing it leaves for that moment's page.
+  autoOpen?: boolean;
+  onLeave?: () => void;
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -286,17 +301,36 @@ export function AngleGallery({
   }, [opened, continueTo]);
   // A sheet or a panel is open over the viewer: a swipe belongs to it.
   const busyOver = () => !!(sheetFor || soundFor || editFor || captionFor || shareFor || reportTarget);
-  function goNext() {
-    if (!upcoming || !continueTo) return;
+  // The next moment's angles are fetched as soon as it is known (src/app/api/moments/[code]/viewer),
+  // so going down shows its first shot at once, inside this same viewer — no page in between.
+  const prefetched = useRef<{ code: string; data: Promise<Chain | null> } | null>(null);
+  const [chain, setChain] = useState<Chain | null>(null);
+  const handingOver = useRef(false);
+  const leaving = useRef(false);
+  useEffect(() => {
+    if (upcoming && prefetched.current?.code !== upcoming.code) prefetched.current = { code: upcoming.code, data: fetchChain(upcoming.code) };
+  }, [upcoming]);
+  async function goNext() {
+    if (!upcoming || !continueTo || leaving.current) return;
+    leaving.current = true;
     try {
       const passed: string[] = JSON.parse(sessionStorage.getItem("zawmo:passed") ?? "[]");
       sessionStorage.setItem("zawmo:passed", JSON.stringify([...passed.filter((c) => c !== continueTo.code), continueTo.code].slice(-40)));
     } catch {}
+    const ready = prefetched.current?.code === upcoming.code ? prefetched.current.data : fetchChain(upcoming.code);
+    const next = await Promise.race([ready, new Promise<null>((r) => setTimeout(() => r(null), 6000))]);
+    if (!next) {
+      // Couldn't fetch it: its page, opened on its first shot (a full load).
+      dialogRef.current?.close();
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign(`/m/${upcoming.code}#angle-${upcoming.firstAngleId}`);
+      return;
+    }
+    handingOver.current = true;
     dialogRef.current?.close();
-    // A full load, not router.push: this gallery keeps per-moment state (hearts, sounds, looks)
-    // that must start fresh for the next moment.
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.assign(`/m/${upcoming.code}#angle-${upcoming.firstAngleId}`);
+    history.replaceState(null, "", `/m/${next.code}`);
+    setChain(next);
+    leaving.current = false;
   }
 
   // The angle wheel above the grid opens the viewer through a window event, so the
@@ -315,6 +349,14 @@ export function AngleGallery({
     if (fromLink >= 0) openRef.current(fromLink);
     return () => window.removeEventListener("zawmo:open-angle", onOpen);
   }, [angles]);
+
+  // A chained viewer (the next moment, carried on to) opens by itself on its first angle.
+  useEffect(() => {
+    if (!autoOpen) return;
+    const t = setTimeout(() => openRef.current(0), 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when it is mounted
+  }, []);
 
   // Track which slide is on screen, and pause any video that scrolled away.
   useEffect(() => {
@@ -904,6 +946,8 @@ export function AngleGallery({
         onClose={() => {
           slides().forEach((s) => s.querySelector("video")?.pause());
           player.current?.pause();
+          if (handingOver.current) handingOver.current = false;
+          else onLeave?.();
           setSheetFor(null);
           setSoundFor(null);
           if (window.location.hash.startsWith("#angle-")) history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -1518,6 +1562,26 @@ export function AngleGallery({
         )}
         {reportTarget && <ReportSheet key={JSON.stringify(reportTarget)} target={reportTarget} labels={labels.report} onClose={() => setReportTarget(null)} />}
       </dialog>
+      {/* «⬇️ اللحظة الجاية», carried on to inside the viewer: the next moment's gallery, out of
+          sight (only its viewer shows, on top of everything), and so on after it. */}
+      {chain && (
+        <div className="fixed left-0 top-0 h-0 w-0 overflow-hidden">
+          <AngleGallery
+            key={chain.code}
+            angles={chain.angles}
+            locale={locale}
+            labels={labels}
+            canReact={canReact}
+            viewerId={viewerId}
+            share={{ url: chain.url, title: chain.title }}
+            altBase={chain.title}
+            continueTo={chain.next.length && continueTo ? { code: chain.code, next: chain.next, labels: continueTo.labels } : undefined}
+            autoOpen
+            // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+            onLeave={() => window.location.assign(`/m/${chain.code}`)}
+          />
+        </div>
+      )}
     </>
   );
 }

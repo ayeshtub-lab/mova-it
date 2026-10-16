@@ -37,6 +37,7 @@ import { myDrafts } from "@/server/drafts";
 import { momentIndexable, titleTwin } from "@/server/seo";
 import { momentTopics, topicPath } from "@/server/topics";
 import { nextMoments } from "@/server/next-moments";
+import { galleryAngles } from "@/server/gallery";
 import { AngleGallery } from "./AngleGallery";
 import { AngleWheel } from "./AngleWheel";
 import { MontagePanel } from "./MontagePanel";
@@ -371,43 +372,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <AngleGallery
-              angles={view.angles.map((a) => ({
-                id: a.id,
-                mediaType: a.mediaType,
-                presence: a.presence,
-                soundKey: a.soundKey,
-                muteOriginal: a.muteOriginal,
-                lyrics: a.lyrics,
-                filter: a.filter,
-                stamp: a.stamp,
-                takenAt: a.takenAt.toISOString(),
-                stampAt: a.stampAt.toISOString(),
-                contributorName: a.contributorName,
-                aiText: a.aiText,
-                contributorVerified: a.contributorVerified,
-                profileId: a.profileId,
-                contributorAvatar: a.contributorAvatar,
-                following: a.following,
-                saved: a.saved,
-                capturedAt: a.capturedAt?.toISOString() ?? null,
-                mediaUrl: a.mediaUrl,
-                thumbUrl: a.thumbUrl,
-                hlsUrl: a.hlsUrl,
-                gridUrl: a.gridUrl,
-                place: a.place ? { slug: a.place.slug, name: a.place.name } : null,
-                placeVerified: a.placeVerified,
-                weather: a.weather,
-                weatherTemp: a.weatherTemp,
-                likes: a.likes,
-                commentCount: a.commentCount,
-                canDelete: a.canDelete,
-                isMine: a.isMine,
-                repost: a.repost,
-                views: a.views,
-                isNew: a.isNew,
-                picked: a.picked,
-                caption: a.caption,
-              }))}
+              angles={galleryAngles(view)}
               locale={locale}
               labels={{ ...dict.viewer, verified: dict.verified, pick: dict.pick, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds, similar: dict.similar, edit: dict.editShot, branded: dict.branded, caption: dict.caption }}
               canReact={!!user}
