@@ -1,3 +1,4 @@
+import { plain } from "@/lib/clip";
 import type { User } from "@/generated/prisma/client";
 import { normalize } from "@/lib/arabic";
 import { db } from "@/lib/db";
@@ -61,7 +62,7 @@ export async function findMoments(viewer: User | null, rawQuery: string | null):
   return Promise.all(
     moments.map(async (m) => ({
       code: m.code,
-      title: m.title,
+      title: plain(m.title),
       placeName: (m.placeId && places.get(m.placeId)?.name) || m.placeName,
       coverUrl: await publicCover(m.angles[0]),
       angles: m._count.angles,

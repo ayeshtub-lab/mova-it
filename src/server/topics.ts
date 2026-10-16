@@ -1,3 +1,4 @@
+import { plain } from "@/lib/clip";
 import { cache } from "react";
 import { db } from "@/lib/db";
 import { hashtagsIn, normalizeTag } from "@/lib/hashtags";
@@ -128,9 +129,30 @@ const topicsAll = cache(async (now = new Date()) => {
   };
 });
 
+// The chips people see, without near-repeats (2026-10-16: at أرطاس eight of fifteen were coffee —
+// «صور قهوة حقيقية», «صور فنجان قهوة»…): a topic sharing a main word with one already shown, over
+// mostly the same shots, isn't shown again. Its page stays (and in the sitemap) — only the chip goes.
+const FILLER = new Set(["صور", "صوره", "صورة", "حقيقيه", "حقيقية", "حقيقي", "في", "من", "مع", "على"]);
+const mainWords = (words: string) => new Set(words.split(/\s+/).filter((w) => w && !FILLER.has(w)));
+function distinct(topics: Topic[], take: number) {
+  const shown: Topic[] = [];
+  for (const t of topics) {
+    const words = mainWords(t.words);
+    const repeats = shown.some((s) => {
+      if (![...mainWords(s.words)].some((w) => words.has(w))) return false;
+      const inS = new Set(s.shotIds);
+      const shared = t.shotIds.filter((id) => inS.has(id)).length;
+      return shared / Math.min(t.shotIds.length, s.shotIds.length) >= 0.5;
+    });
+    if (!repeats) shown.push(t);
+    if (shown.length >= take) break;
+  }
+  return shown;
+}
+
 // The topic pages of one place, biggest first (for its place page).
-export async function placeTopics(placeId: string, take = 16) {
-  return (await topicIndex()).filter((t) => t.placeId === placeId).slice(0, take);
+export async function placeTopics(placeId: string, take = 8) {
+  return distinct((await topicIndex()).filter((t) => t.placeId === placeId), take);
 }
 
 // One topic page: its shots (newest first), the place above it, and pages nearby; null when
@@ -169,7 +191,7 @@ export async function topicPage(slug: string, rawTopic: string, viewerId: string
         filter: a.filter,
         imageUrl: await publicCover(a),
         momentCode: a.moment.code,
-        title: a.moment.title,
+        title: plain(a.moment.title),
         name: a.contributor.displayName,
         place: a.place?.nameAr ?? page.placeName,
         at: a.capturedAt ?? a.uploadedAt,
@@ -181,14 +203,14 @@ export async function topicPage(slug: string, rawTopic: string, viewerId: string
 
 // The topic pages a moment's shots are in («طماطم في الخضر»), those with the most of them first:
 // linked from the moment's page, so readers — and search engines — find them.
-export async function momentTopics(shotIds: string[], take = 8) {
+export async function momentTopics(shotIds: string[], take = 5) {
   const mine = new Set(shotIds);
-  return (await topicIndex())
+  const ranked = (await topicIndex())
     .map((t) => ({ t, shared: t.shotIds.filter((id) => mine.has(id)).length }))
     .filter((x) => x.shared > 0)
     .sort((a, b) => b.shared - a.shared || b.t.shotIds.length - a.t.shotIds.length)
-    .slice(0, take)
     .map((x) => x.t);
+  return distinct(ranked, take);
 }
 
 // A place by its address (for a topic page whose topic is gone: its place page instead of a 404).

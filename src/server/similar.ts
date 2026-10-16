@@ -1,3 +1,4 @@
+import { plain } from "@/lib/clip";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { SCENES } from "@/lib/scenes";
@@ -151,5 +152,5 @@ export async function similarShots(viewer: User | null, angleId: string, take = 
     picked.push(a);
     if (picked.length >= take) break;
   }
-  return Promise.all(picked.map(async (a) => ({ id: a.id, momentCode: a.moment.code, title: a.moment.title, video: a.mediaType === "VIDEO", coverUrl: await coverOf(a) })));
+  return Promise.all(picked.map(async (a) => ({ id: a.id, momentCode: a.moment.code, title: plain(a.moment.title), video: a.mediaType === "VIDEO", coverUrl: await coverOf(a) })));
 }

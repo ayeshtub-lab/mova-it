@@ -1,3 +1,4 @@
+import { plain } from "@/lib/clip";
 import { db } from "@/lib/db";
 import { normalize, withoutAl } from "@/lib/arabic";
 import { SKY_SCENES } from "@/lib/scenes";
@@ -169,7 +170,7 @@ export async function placePage(slug: string, viewerId: string | null, take = 60
         caption: await captionView(a.caption), // the words written on the shot
         verified: a.placeVerified,
         momentCode: a.moment.code,
-        title: a.moment.title,
+        title: plain(a.moment.title),
         name: a.contributor.displayName,
         line: a.aiText?.replace(/#\S+/g, "").trim() || null, // what it shows, in words
       })),

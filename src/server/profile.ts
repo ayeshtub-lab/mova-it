@@ -1,3 +1,4 @@
+import { plain } from "@/lib/clip";
 import { randomBytes } from "node:crypto";
 import { del, put } from "@vercel/blob";
 import type { User } from "@/generated/prisma/client";
@@ -128,7 +129,7 @@ export async function getProfile(viewer: User | null, userId: string) {
       .filter((p) => can.moment(p.moment))
       .map(async ({ moment: m }) => ({
         code: m.code,
-        title: m.title,
+        title: plain(m.title),
         angleCount: m.angles.length,
         lastActivityAt: m.lastActivityAt,
         coverUrl: m.angles[0] ? await cover(m.angles[0]) : null,

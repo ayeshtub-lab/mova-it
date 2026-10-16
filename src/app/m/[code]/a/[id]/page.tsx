@@ -15,7 +15,7 @@ import { soundSearch } from "@/lib/sound-search";
 import { filterCss } from "@/lib/filters";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { WEATHER_CREDIT, weatherLine } from "@/lib/weather";
-import { publicShot, shotLabel, shotOrdinal, shotPath, shotTitle, type PublicShot } from "@/server/seo";
+import { publicShot, shotLabel, shotOrdinal, shotPath, shotTitle, siblingShots, type PublicShot } from "@/server/seo";
 
 // One public shot on its own page: what Google Images and Google Video list (a moment's page
 // holds many shots; a search result needs one). Friends-only shots have no such page.
@@ -71,6 +71,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   // The weather it was taken in («🌧️ مطر · 12°»), when known (src/server/weather.ts).
   const weather = weatherLine(shot.weather, shot.weatherTemp, locale);
   const sound = soundSearch(shot.soundKey);
+  const siblings = await siblingShots(shot);
   const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Riyadh" }).format(at);
 
   const site = `https://${CANONICAL_HOST}`;
@@ -190,10 +191,35 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
           )}
           <p className="text-sm text-muted">{fill(t.from, { title: shot.moment.title })}</p>
         </header>
+        {/* «▶︎ شوفها كلها»: the moment's viewer, on this shot — sideways its other angles, down the
+            next moment (src/app/m/[code]/AngleGallery.tsx). */}
         <Link
           href={`/m/${shot.moment.code}#angle-${shot.id}`}
           className="flex min-h-12 items-center justify-center rounded-full bg-accent px-6 font-extrabold text-white shadow-sm"
         >
+          {t.watchAll}
+        </Link>
+        {siblings.length > 0 && (
+          <section aria-label={t.more} className="flex flex-col gap-2">
+            <h2 className="text-base font-extrabold">{t.more}</h2>
+            <ul className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+              {siblings.map((s) => (
+                <li key={s.id} className="w-28 shrink-0 snap-start">
+                  <Link href={s.href} className="relative block aspect-[3/4] overflow-hidden rounded-2xl bg-surface">
+                    {/* eslint-disable-next-line @next/next/no-img-element -- the fixed small copy */}
+                    <img src={s.cover} alt={s.title ?? ""} loading="lazy" className="size-full object-cover" />
+                    {s.video && (
+                      <span aria-hidden="true" className="absolute bottom-1.5 end-1.5 flex size-6 items-center justify-center rounded-full bg-black/55 text-[10px] text-white">
+                        ▶
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        <Link href={`/m/${shot.moment.code}`} className="self-center text-sm font-bold text-secondary underline-offset-4 hover:underline">
           {t.open}
         </Link>
         {/* Zawmo's own accounts fix the title and line search engines show (src/lib/staff.ts). */}

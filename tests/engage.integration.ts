@@ -58,15 +58,16 @@ async function main() {
       assert.deepEqual(await setAngleLook(owner, angle.id, null, false), { filter: null, stamp: false });
     });
 
-    await check("trending: ranked by the week's views, likes, comments and shares", async () => {
+    await check("trending: ranked by the week's views, likes, comments and shares — one video per moment", async () => {
       const quiet = await db.angle.create({ data: { momentId: m.id, contributorId: friend.id, mediaType: "VIDEO", status: "READY", screening: "allowed" } });
       await db.angle.update({ where: { id: angle.id }, data: { shares: 3 } });
       await db.reaction.create({ data: { angleId: quiet.id, userId: other.id, kind: "HEART" } });
       const list = await trendingVideos(null, 50);
       const mine = list.findIndex((x) => x.id === angle.id);
       const theirs = list.findIndex((x) => x.id === quiet.id);
-      assert.ok(mine >= 0 && theirs >= 0, "both listed");
-      assert.ok(mine < theirs, "3 shares + a comment outrank one like");
+      // (Same moment: only its best video is listed — 3 shares + a comment outrank one like.)
+      assert.ok(mine >= 0, "the best one listed");
+      assert.equal(theirs, -1, "one video per moment");
       assert.equal(list[mine].shares, 3);
     });
 

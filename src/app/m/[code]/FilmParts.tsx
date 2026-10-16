@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { ShareSheet } from "@/app/ShareSheet";
 import type { FilmPart } from "@/server/montage/parts";
+import type { NextMoment } from "@/server/next-moments";
 
-export type FilmPartsLabels = { title: string; hint: string; share: string; download: string; page: string; copied: string };
+export type FilmPartsLabels = { title: string; hint: string; share: string; download: string; page: string; copied: string; another?: string };
 
 // «🎬 فيديوهات اللحظة»: the moment's film in parts of up to 40 seconds (src/server/montage/parts.ts),
 // each made by itself with the Zawmo mark — watch, share (its page's link) or save the file.
 // (A member's «شارك» opens Zawmo's sheet first: their people in «الدردشة», then the phone's sheet.)
-export function FilmParts({ code, parts, labels, lasting, member = false }: { code: string; parts: FilmPart[]; labels: FilmPartsLabels; lasting: boolean; member?: boolean }) {
+export function FilmParts({ code, parts, labels, lasting, member = false, another = null }: { code: string; parts: FilmPart[]; labels: FilmPartsLabels; lasting: boolean; member?: boolean; another?: NextMoment | null }) {
   const [copied, setCopied] = useState<number | null>(null);
   const [sheetFor, setSheetFor] = useState<FilmPart | null>(null);
   // The part's file (it carries the Zawmo mark): fetched when the sheet opens, so «تطبيقات تانية»
@@ -60,6 +61,19 @@ export function FilmParts({ code, parts, labels, lasting, member = false }: { co
             )}
           </li>
         ))}
+        {/* The strip doesn't end in a wall: another public moment's film (src/server/next-moments.ts). */}
+        {another && another.firstPart !== null && (
+          <li className="flex w-40 shrink-0 snap-start">
+            <a href={`/m/${another.code}/film/${another.firstPart}`} className="relative flex aspect-[9/16] w-full flex-col justify-end overflow-hidden rounded-2xl bg-black">
+              {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed cover */}
+              <img src={another.cover} alt="" loading="lazy" className="absolute inset-0 size-full object-cover opacity-60" />
+              <span className="relative flex flex-col gap-1 bg-gradient-to-t from-black/85 to-transparent p-3 pt-10 text-white">
+                <span className="text-xs font-bold">{labels.another}</span>
+                <span className="line-clamp-2 text-sm font-extrabold">{another.title}</span>
+              </span>
+            </a>
+          </li>
+        )}
       </ul>
     </section>
   );

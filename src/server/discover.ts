@@ -1,3 +1,4 @@
+import { plain } from "@/lib/clip";
 import { unstable_cache } from "next/cache";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
@@ -19,7 +20,8 @@ import { firstName } from "@/lib/names";
 
 const CANDIDATES = 60;
 const PAGE = 20;
-const ANGLES_PER_MOMENT = 12;
+// 8, not 12 (2026-10-16): the page was 430 KB on a phone; «افتح اللحظة» shows them all.
+const ANGLES_PER_MOMENT = 8;
 
 // All-time hearts (and whether the viewer gave one), comments and views of some angles.
 export async function engagementFor(ids: string[], viewer: User | null) {
@@ -120,12 +122,13 @@ export async function listDiscover(viewer: User | null) {
   return Promise.all(
     ranked.map(async (m) => {
       const locked = m.kind === "DAILY" && !joined.has(m.id);
+      const lasting = m.kind !== "DAILY";
       const angles = locked ? m.angles.slice(0, 1) : m.angles;
       return {
         code: m.code,
         daily: m.kind === "DAILY",
         lockedCount: m.angles.length - angles.length,
-        title: m.title,
+        title: plain(m.title),
         placeName: (m.placeId && places.get(m.placeId)?.name) || m.placeName,
         creatorName: m.creator.displayName,
         people: m._count.participants,
@@ -139,10 +142,12 @@ export async function listDiscover(viewer: User | null) {
             soundKey: a.soundKey,
             muteOriginal: a.muteOriginal,
             lyrics: a.lyrics,
-            // A video at its lasting address (/v/ID.mp4, the one search engines index), its
-            // short-lived link kept as the player's backup.
-            mediaUrl: a.mediaType === "VIDEO" ? `/v/${a.id}.mp4` : await viewUrl(a.mediaPath),
-            backupUrl: a.mediaType === "VIDEO" ? await viewUrl(a.mediaPath) : null,
+            // A video at its lasting address (/v/ID.mp4, the one search engines index — a cheap
+            // redirect), its short-lived link kept as the player's backup. Not «لحظة اليوم»: its
+            // shots have no lasting address (src/server/seo.ts shownAngle). Pictures stay on their
+            // short-lived links: through /i every one would pass through a server function.
+            mediaUrl: lasting && a.mediaType === "VIDEO" ? `/v/${a.id}.mp4` : await viewUrl(a.mediaPath),
+            backupUrl: lasting && a.mediaType === "VIDEO" ? await viewUrl(a.mediaPath) : null,
             hlsUrl: a.mediaType === "VIDEO" ? hlsUrl(a) : null,
             posterUrl: await viewUrl(a.thumbPath),
             name: a.contributor.displayName,
@@ -199,7 +204,7 @@ export async function listTag(viewer: User | null, rawTag: string) {
         const a = m.angles[0];
         return {
           code: m.code,
-          title: m.title,
+          title: plain(m.title),
           angleCount: m._count.angles,
           coverUrl: a ? await (m.kind === "DAILY" ? coverOf(a) : publicCover(a)) : null,
         };
@@ -210,7 +215,8 @@ export async function listTag(viewer: User | null, rawTag: string) {
 // Recent public shots that passed the check (not «لحظة اليوم», which is give-to-get),
 // a few videos first so they lead the grid: the visitor's home page, and members' «جديد من
 // الناس» (without their own shots, nor those of anyone either side blocked).
-const MAX_PER_MOMENT = 2;
+// One shot per moment (2026-10-16: two of the same moment, side by side, read as a repeat).
+const MAX_PER_MOMENT = 1;
 export async function publicShowcase(take = 12, exclude: string[] = []) {
   const angles = await db.angle.findMany({
     where: {
@@ -248,7 +254,7 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
       hlsUrl: a.mediaType === "VIDEO" ? hlsUrl(a) : null,
       imageUrl: await publicCover(a),
       momentCode: a.moment.code,
-      title: a.moment.title,
+      title: plain(a.moment.title),
       name: a.contributor.displayName,
       picked: !!a.pickedAt,
     })),
@@ -306,7 +312,7 @@ export async function wheelShots(take = 12) {
     picked.map(async (s) => ({
       id: s.id,
       momentCode: s.moment.code,
-      title: s.moment.title,
+      title: plain(s.moment.title),
       name: firstName(s.contributor.displayName),
       avatarUrl: s.contributor.avatarUrl,
       imageUrl: await publicCover(s),
@@ -354,12 +360,14 @@ export async function trendingVideos(viewer: User | null, take = 10) {
     })
     .filter((x) => x.score > 0)
     .sort((x, y) => y.score - x.score || y.a.uploadedAt.getTime() - x.a.uploadedAt.getTime())
+    // One video per moment: its best one (the same moment twice in the top ten read as a repeat).
+    .filter((x, i, all) => all.findIndex((y) => y.a.moment.code === x.a.moment.code) === i)
     .slice(0, take);
   return Promise.all(
     ranked.map(async ({ a, stats }) => ({
       id: a.id,
       momentCode: a.moment.code,
-      title: a.moment.title,
+      title: plain(a.moment.title),
       name: a.contributor.displayName,
       avatarUrl: a.contributor.avatarUrl,
       profileId: a.contributor.isGuest ? null : a.contributor.id,

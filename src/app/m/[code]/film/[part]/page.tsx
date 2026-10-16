@@ -7,7 +7,8 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { plain } from "@/lib/clip";
 import { CANONICAL_HOST } from "@/lib/hosts";
-import { publicPart } from "@/server/montage/parts";
+import { partNumbers, publicPart } from "@/server/montage/parts";
+import { nextMoments } from "@/server/next-moments";
 import { getMomentView } from "@/server/moments";
 import { momentIndexable } from "@/server/seo";
 
@@ -50,6 +51,14 @@ export default async function FilmPartPage({ params }: PageProps<"/m/[code]/film
   const dict = await getDictionary(locale);
   const title = plain(film.title);
   const where = view.place?.name ?? view.placeName;
+  // «◀ الجزء السابق · الجزء الجاي ▶», and «🎬 فيديو لحظة تانية»: the next public moment with a film
+  // (src/server/next-moments.ts) — the watcher carries on instead of reaching an end.
+  const [numbers, next] = await Promise.all([partNumbers(view.code), nextMoments(view.id)]);
+  const at = numbers.indexOf(film.part);
+  const before = at > 0 ? numbers[at - 1] : null;
+  const after = at >= 0 && at < numbers.length - 1 ? numbers[at + 1] : null;
+  const another = next.find((m) => m.firstPart !== null) ?? null;
+  const n = (k: number) => k.toLocaleString(locale === "ar" ? "ar-EG" : "en");
   const description = fill(dict.filmPart.description, { title, where: where ? ` ${dict.moment.metaIn} ${where}` : "" });
   const site = `https://${CANONICAL_HOST}`;
   const momentUrl = `${site}/m/${view.code}`;
@@ -96,9 +105,36 @@ export default async function FilmPartPage({ params }: PageProps<"/m/[code]/film
           <h1 className="text-2xl font-extrabold leading-snug">{title}</h1>
           <p className="text-sm leading-relaxed text-muted">{description}</p>
         </header>
+        {(before !== null || after !== null) && (
+          <nav aria-label={dict.filmPart.parts} className="grid grid-cols-2 gap-2 text-sm font-bold">
+            {before !== null ? (
+              <Link href={`/m/${view.code}/film/${before}`} className="flex min-h-11 items-center justify-center gap-1 rounded-full bg-surface px-3">
+                <span aria-hidden="true" className="rtl:rotate-180">◀</span> {fill(dict.filmPart.part, { n: n(before) })}
+              </Link>
+            ) : (
+              <span />
+            )}
+            {after !== null && (
+              <Link href={`/m/${view.code}/film/${after}`} className="flex min-h-11 items-center justify-center gap-1 rounded-full bg-surface px-3">
+                {fill(dict.filmPart.part, { n: n(after) })} <span aria-hidden="true" className="rtl:rotate-180">▶</span>
+              </Link>
+            )}
+          </nav>
+        )}
         <Link href={`/m/${view.code}#video`} className="flex min-h-12 items-center justify-center rounded-full bg-accent px-6 font-extrabold text-white shadow-sm">
           {dict.filmPart.open}
         </Link>
+        {another && (
+          <Link href={`/m/${another.code}/film/${another.firstPart}`} className="flex items-center gap-3 rounded-2xl bg-surface p-2 pe-4">
+            {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed cover */}
+            <img src={another.cover} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
+            <span className="flex min-w-0 flex-col">
+              <span className="text-xs font-bold text-muted">{dict.filmPart.another}</span>
+              <span className="truncate font-extrabold">{another.title}</span>
+            </span>
+            <span aria-hidden="true" className="ms-auto">⬇️</span>
+          </Link>
+        )}
       </main>
     </div>
   );

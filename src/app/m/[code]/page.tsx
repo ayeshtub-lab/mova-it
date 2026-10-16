@@ -36,6 +36,7 @@ import { getMomentView, MomentError, setMomentVisibility } from "@/server/moment
 import { myDrafts } from "@/server/drafts";
 import { momentIndexable, titleTwin } from "@/server/seo";
 import { momentTopics, topicPath } from "@/server/topics";
+import { nextMoments } from "@/server/next-moments";
 import { AngleGallery } from "./AngleGallery";
 import { AngleWheel } from "./AngleWheel";
 import { MontagePanel } from "./MontagePanel";
@@ -209,6 +210,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   const drafts = await myDrafts(user, view.id);
   // The topic pages its shots are in («طماطم في الخضر») — linked below, for public moments.
   const topics = momentIndexable(view) ? await momentTopics(view.angles.map((a) => a.id)) : [];
+  // «⬇️ اللحظة الجاية»: where the viewer and the films strip carry on to (public moments only).
+  const next = view.kind === "DAILY" ? [] : await nextMoments(view.id).catch(() => []);
   // «لحظة «روااااق» في بيت لحم، صوّرها عزالدين وNareman Ayesh.»
   const people = [...new Set(view.angles.map((a) => a.contributorName))];
   const where = view.place?.name ?? view.placeName;
@@ -232,7 +235,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           <svg viewBox="0 0 24 24" aria-hidden="true" className="size-4 rtl:rotate-180" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 6l-6 6 6 6" />
           </svg>
-          {dict.mine.title}
+          {user ? dict.mine.title : dict.nav.home}
         </Link>
         {/* An illustrative, AI-made example (Moment.demo): said plainly, before anything else. */}
         {view.demo && (
@@ -247,7 +250,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               {daily.isToday && <> · {dict.daily.endsIn.replace("{time}", new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(daily.hoursLeft, "hour"))}</>}
             </p>
           )}
-          <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">{daily ? `${daily.theme.emoji} ${themeText(daily.theme, locale)}` : view.title}</h1>
+          <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">{daily ? `${daily.theme.emoji} ${themeText(daily.theme, locale)}` : plain(view.title)}</h1>
           {daily?.won && daily.won.votes > 0 && (
             <p className="flex w-fit flex-wrap items-center gap-2 rounded-2xl bg-moment/20 px-3 py-1.5 text-sm font-extrabold">
               {dict.daily.won.replace("{n}", String(daily.won.votes))}
@@ -322,18 +325,6 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               {dict.visibility.makePublic}
             </button>
           </form>
-        )}
-
-        {/* The moment's ready video comes first, for those who may see it. */}
-        {parts.length > 0 && <FilmParts code={view.code} parts={parts} labels={dict.filmParts} lasting={momentIndexable(view)} member={!!user && !user.isGuest} />}
-        {view.angleCount > 0 && montage && parts.length === 0 && (
-          <MontagePanel code={view.code} initial={montage?.videoUrl && momentIndexable(view) ? { ...montage, videoUrl: `/v/${view.code}.mp4` } : montage} labels={story ? { ...dict.montage, ...dict.story.video } : dict.montage} locale={locale} soundLabels={dict.sounds} member={!!user && !user.isGuest} />
-        )}
-        {/* The film's own page (where search engines list it as a video). */}
-        {montage?.videoUrl && momentIndexable(view) && parts.length === 0 && (
-          <Link href={`/m/${view.code}/film`} className="-mt-2 self-start text-sm font-bold text-secondary underline-offset-4 hover:underline">
-            ▶︎ {dict.filmPage.link}
-          </Link>
         )}
 
         {!story && <AngleWheel
@@ -426,6 +417,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               story={story}
               altBase={[plain(view.title), view.place?.name ?? view.placeName].filter(Boolean).join(" — ")}
               momentEdit={view.viewer.manage && view.kind !== "DAILY" ? { code: view.code, title: view.title, description: view.description, labels: dict.momentDetails } : undefined}
+              continueTo={next.length ? { code: view.code, next, labels: dict.viewerContinue } : undefined}
             />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (
               <div
@@ -435,6 +427,19 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               />
             ))}
           </div>
+        )}
+
+        {/* The moment's videos, under its shots (2026-10-16: people come for the pictures first;
+            the films sit below as a clear strip). */}
+        {parts.length > 0 && <FilmParts code={view.code} parts={parts} labels={dict.filmParts} lasting={momentIndexable(view)} member={!!user && !user.isGuest} another={next.find((m) => m.firstPart !== null) ?? null} />}
+        {view.angleCount > 0 && montage && parts.length === 0 && (
+          <MontagePanel code={view.code} initial={montage?.videoUrl && momentIndexable(view) ? { ...montage, videoUrl: `/v/${view.code}.mp4` } : montage} labels={story ? { ...dict.montage, ...dict.story.video } : dict.montage} locale={locale} soundLabels={dict.sounds} member={!!user && !user.isGuest} />
+        )}
+        {/* The film's own page (where search engines list it as a video). */}
+        {montage?.videoUrl && momentIndexable(view) && parts.length === 0 && (
+          <Link href={`/m/${view.code}/film`} className="-mt-2 self-start text-sm font-bold text-secondary underline-offset-4 hover:underline">
+            ▶︎ {dict.filmPage.link}
+          </Link>
         )}
 
         {/* «🏷️ طماطم في الخضر»: the topic pages its shots are in (src/server/topics.ts) — public moments only. */}

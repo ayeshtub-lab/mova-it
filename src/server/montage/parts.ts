@@ -256,6 +256,16 @@ export async function publicPart(code: string, part: number) {
   return { path: m.videoUrl!, part, title: await partTitle(m.moment.title, part, m.angleIds), durationSec: m.durationSec, at: m.finishedAt ?? m.createdAt, poster: m.angleIds[0] ?? null };
 }
 
+// A public moment's finished part numbers, in order (the film page's «◀ الجزء ٢ · الجزء ٤ ▶»).
+export async function partNumbers(code: string) {
+  const rows = await db.montage.findMany({
+    where: { part: { not: null }, status: "READY", videoUrl: { not: null }, moment: { code, visibility: "PUBLIC", status: "ACTIVE", kind: { in: ["EVERYDAY", "BIG"] }, demo: false } },
+    distinct: ["part"],
+    select: { part: true },
+  });
+  return rows.map((r) => r.part!).sort((a, b) => a - b);
+}
+
 // Every public moment's parts, for the sitemap.
 export async function sitemapParts() {
   const made = await db.montage.findMany({

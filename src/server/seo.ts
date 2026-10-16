@@ -174,6 +174,18 @@ export function shotLabel(shot: PublicShot, locale: string) {
 
 export const shotPath = (shot: { id: string; moment: { code: string } }) => `/m/${shot.moment.code}/a/${shot.id}`;
 
+// «لقطات تانية من نفس اللحظة»: the moment's other public shots, each a link to its own page —
+// the shot page no longer ends in a wall, and search engines find the pages through each other.
+export async function siblingShots(shot: { id: string; moment: { id: string; code: string } }, take = 12, now = new Date()) {
+  const rows = await db.angle.findMany({
+    where: { ...shownAngle(now), momentId: shot.moment.id, id: { not: shot.id } },
+    orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
+    take,
+    select: { id: true, mediaType: true, aiTitle: true },
+  });
+  return rows.map((r) => ({ id: r.id, video: r.mediaType === "VIDEO", title: r.aiTitle || null, href: `/m/${shot.moment.code}/a/${r.id}`, cover: `/i/${r.id}-small.jpg` }));
+}
+
 // A shot's own title — its label, who shot it, and which of theirs in that moment when they
 // have several: «غيوم وسماء جميلة — طبيعة — عزالدين (٢)». Every shot page gets its own.
 type Ordinal = { n: number; of: number };

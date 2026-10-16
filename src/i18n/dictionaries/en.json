@@ -309,7 +309,7 @@
     "verified": "Verified from the photo",
     "today": "today",
     "allShots": "All shots here",
-    "aroundTitle": "📍 Around today",
+    "aroundTitle": "📍 Today on Zawmo",
     "angles": "{n} angles",
     "metaTitle": "Recent photos of {name} — real shots from people | Zawmo",
     "metaDescription": "Recent, real photos of {name}, taken by people there and shared on Zawmo. Moments from every angle, always up to date."
@@ -559,8 +559,8 @@
   },
   "momentHint": {"text": "📸 This is a “moment”: every photo or video in it is an “angle” from someone who was there. Got one? Add it!", "close": "Close"},
   "momentCards": {"tabsLabel": "View", "tabBrowse": "🎬 Browse", "tabMoments": "🗂️ Moments", "searchLabel": "Search moments", "searchPlaceholder": "Search a moment: wedding, morning coffee…", "watch": "Watch", "add": "Your angle", "found": "Found {n}", "noneTitle": "Nothing for “{q}”", "noneText": "Maybe nobody made it yet… make it and let people add their angles!", "emptyTitle": "No public moments here yet", "emptyText": "Be the first! Create a moment and choose “Everyone” 🌍", "create": "Create a moment", "failedTitle": "Something went wrong loading 😕", "retry": "Try again", "fewHint": "Didn't find it? ＋ Create a moment"},
-  "filmParts": {"title": "🎬 The moment's videos", "hint": "Each up to 40 seconds with the Zawmo mark, made by itself as new shots come in.", "share": "📤 Share", "download": "⬇️ Save", "page": "Video page", "copied": "✓ Link copied"},
-  "filmPart": {"description": "{title}{where}: a real video of up to 40 seconds from people who were there, on Zawmo.", "open": "See all the shots and the moment"},
+  "filmParts": {"title": "🎬 The moment's videos", "hint": "Each up to 40 seconds with the Zawmo mark, made by itself as new shots come in.", "share": "📤 Share", "download": "⬇️ Save", "page": "Video page", "copied": "✓ Link copied", "another": "🎬 Another moment's video"},
+  "filmPart": {"description": "{title}{where}: a real video of up to 40 seconds from people who were there, on Zawmo.", "open": "See all the shots and the moment", "parts": "Video parts", "part": "Part {n}", "another": "🎬 Another moment's video"},
   "discover": {
     "title": "Discover 🧭",
     "gateTitle": "Moments from everywhere 🌍",
@@ -774,6 +774,8 @@
     "photo": "photo",
     "video": "video",
     "from": "From the moment “{title}”",
+    "watchAll": "▶︎ See them all, angle by angle",
+    "more": "📸 More shots from this moment",
     "open": "See the whole moment, every angle",
     "description": "{label} — a {kind} by {name} on Zawmo, from the moment “{title}”."
   },
@@ -903,5 +905,6 @@
     "openChrome": "Open in Chrome",
     "inappIos": "Installing isn't possible inside this app. Tap ⋯ at the top, then «Open in Safari».",
     "close": "Close"
-  }
+  },
+  "viewerContinue": {"next": "Next moment", "done": "That's all the angles ✓", "hint": "⬅️ ➡️ angles of this moment · ⬇️ swipe up for the next moment"}
 }

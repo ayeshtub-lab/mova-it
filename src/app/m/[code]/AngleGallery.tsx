@@ -21,6 +21,7 @@ import { isQuran, soundByKey, soundFile, soundName } from "@/lib/sounds";
 import { weatherLine } from "@/lib/weather";
 import { useFreshLikes } from "@/lib/fresh-likes";
 import { ReportSheet, type ReportLabels } from "./ReportSheet";
+import type { NextMoment } from "@/server/next-moments";
 
 type Likes = { count: number; liked: boolean };
 
@@ -150,6 +151,7 @@ export function AngleGallery({
   momentEdit,
   altBase = "",
   story = false,
+  continueTo,
 }: {
   angles: GalleryAngle[];
   story?: boolean; // «مع الوقت»: each shot shows its day
@@ -162,6 +164,8 @@ export function AngleGallery({
   // The moment's creator edits its title and description from «تعديل» too.
   momentEdit?: { code: string; title: string; description: string | null; labels: MomentDetailsLabels };
   altBase?: string; // «روااااق — بيت لحم»: each grid picture's alt is this and whose shot it is
+  // «⬇️ اللحظة الجاية»: the public moments the viewer carries on to (src/server/next-moments.ts).
+  continueTo?: { code: string; next: NextMoment[]; labels: { next: string; done: string; hint: string } };
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -249,6 +253,50 @@ export function AngleGallery({
     // Focus the close button, not the first control (the hidden video play/pause one).
     dialogRef.current?.querySelector<HTMLElement>("[data-close]")?.focus();
     requestAnimationFrame(() => goTo(index, false));
+  }
+
+  // «⬇️ اللحظة الجاية» (his idea, 2026-10-16): sideways = this moment's angles; down = the next
+  // public moment, opened on its first shot — so nobody reaches the end and has to go back.
+  // Moments already passed in this visit are skipped. A first-time hint says how it works.
+  const [upcoming, setUpcoming] = useState<NextMoment | null>(null);
+  const [hint, setHint] = useState(false);
+  const touch = useRef<{ x: number; y: number } | null>(null);
+  const wheelAt = useRef(0);
+  useEffect(() => {
+    if (!opened || !continueTo?.next.length) return;
+    let passed: string[] = [];
+    try {
+      passed = JSON.parse(sessionStorage.getItem("zawmo:passed") ?? "[]");
+    } catch {}
+    const pick = continueTo.next.find((m) => m.code !== continueTo.code && !passed.includes(m.code)) ?? continueTo.next[0];
+    let first = false;
+    try {
+      first = !localStorage.getItem("zawmo:hint-down");
+      if (first) localStorage.setItem("zawmo:hint-down", "1");
+    } catch {}
+    const t = setTimeout(() => {
+      setUpcoming(pick);
+      if (first) setHint(true);
+    }, 0);
+    const off = first ? setTimeout(() => setHint(false), 3500) : undefined;
+    return () => {
+      clearTimeout(t);
+      if (off) clearTimeout(off);
+    };
+  }, [opened, continueTo]);
+  // A sheet or a panel is open over the viewer: a swipe belongs to it.
+  const busyOver = () => !!(sheetFor || soundFor || editFor || captionFor || shareFor || reportTarget);
+  function goNext() {
+    if (!upcoming || !continueTo) return;
+    try {
+      const passed: string[] = JSON.parse(sessionStorage.getItem("zawmo:passed") ?? "[]");
+      sessionStorage.setItem("zawmo:passed", JSON.stringify([...passed.filter((c) => c !== continueTo.code), continueTo.code].slice(-40)));
+    } catch {}
+    dialogRef.current?.close();
+    // A full load, not router.push: this gallery keeps per-moment state (hearts, sounds, looks)
+    // that must start fresh for the next moment.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign(`/m/${upcoming.code}#angle-${upcoming.firstAngleId}`);
   }
 
   // The angle wheel above the grid opens the viewer through a window event, so the
@@ -755,15 +803,15 @@ export function AngleGallery({
     const rtl = document.documentElement.dir === "rtl";
     if (event.key === "ArrowLeft") goTo(current + (rtl ? 1 : -1));
     if (event.key === "ArrowRight") goTo(current + (rtl ? -1 : 1));
+    if (event.key === "ArrowDown" && !busyOver()) goNext();
   }
 
   const caption = (a: GalleryAngle) => (
     <>
       <span className="truncate">{a.contributorName}</span>
       {a.contributorVerified && <VerifiedBadge label={labels.verified.badge} />}
-      <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">
-        {a.presence === "REMOTE" ? labels.remoteTag : labels.thereTag}
-      </span>
+      {/* Only «من بعيد» is worth a tag: «كنت هناك» was on every tile (2026-10-16). */}
+      {a.presence === "REMOTE" && <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{labels.remoteTag}</span>}
     </>
   );
 
@@ -836,6 +884,23 @@ export function AngleGallery({
         ref={dialogRef}
         aria-label={labels.label}
         onKeyDown={onKeyDown}
+        onTouchStart={(event) => {
+          const t = event.touches[0];
+          touch.current = t ? { x: t.clientX, y: t.clientY } : null;
+        }}
+        onTouchEnd={(event) => {
+          const start = touch.current;
+          touch.current = null;
+          const t = event.changedTouches[0];
+          if (!start || !t || busyOver()) return;
+          // A clear swipe up (the page "goes down"), not a sideways one.
+          if (t.clientY - start.y < -90 && Math.abs(t.clientX - start.x) < 60) goNext();
+        }}
+        onWheel={(event) => {
+          if (event.deltaY < 60 || busyOver() || Date.now() - wheelAt.current < 1500) return;
+          wheelAt.current = Date.now();
+          goNext();
+        }}
         onClose={() => {
           slides().forEach((s) => s.querySelector("video")?.pause());
           player.current?.pause();
@@ -1218,6 +1283,30 @@ export function AngleGallery({
               </svg>
             </button>
           </>
+        )}
+
+        {upcoming && (
+          <button
+            type="button"
+            onClick={goNext}
+            className={`absolute inset-x-0 mx-auto flex w-fit max-w-[88vw] items-center gap-2 rounded-full bg-black/60 font-bold backdrop-blur-sm ${
+              current === angles.length - 1 ? "bottom-[max(6rem,calc(env(safe-area-inset-bottom)+5rem))] p-1.5 pe-4 text-sm" : "top-[4.25rem] px-3 py-1 text-xs"
+            }`}
+          >
+            {current === angles.length - 1 && (
+              // eslint-disable-next-line @next/next/no-img-element -- a small fixed cover
+              <img src={upcoming.cover} alt="" className="size-9 shrink-0 rounded-full object-cover" />
+            )}
+            <span className="truncate">
+              {current === angles.length - 1 ? `${continueTo!.labels.done} · ${upcoming.title}` : continueTo!.labels.next}
+            </span>
+            <span aria-hidden="true">⬇️</span>
+          </button>
+        )}
+        {hint && (
+          <p role="status" className="pointer-events-none absolute inset-x-0 top-1/3 mx-auto w-fit max-w-[90vw] rounded-2xl bg-black/75 px-5 py-3 text-center text-sm font-bold leading-relaxed">
+            {continueTo?.labels.hint}
+          </p>
         )}
 
         {toast && (
