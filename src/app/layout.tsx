@@ -13,6 +13,7 @@ import { BottomNav } from "./BottomNav";
 import { FreshVersion } from "@/app/FreshVersion";
 import { AppShell } from "@/app/AppShell";
 import { InstallPrompt } from "@/app/InstallPrompt";
+import { GoogleAnalytics } from "@/app/GoogleAnalytics";
 import "./globals.css";
 
 const cairo = Cairo({
@@ -64,6 +65,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         {user && <ActivityPing userId={user.id} />}
         <PresencePing />
+        <GoogleAnalytics />
         <InstallPrompt labels={dict.install} aboveNav={!!user} />
         {/* The website's footer (hidden inside the app: its links are on your own profile). */}
         <footer className={`site-footer px-4 py-6 text-center text-xs text-muted print:hidden ${user ? "pb-28 sm:pb-6" : ""}`}>

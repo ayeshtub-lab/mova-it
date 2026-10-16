@@ -7,7 +7,7 @@ import { CONTACT_EMAIL } from "@/lib/site";
 // Privacy policy. Every statement here must match what the code actually does —
 // update this page (and UPDATED) whenever data handling changes.
 
-const UPDATED = { ar: "٣٠ سبتمبر ٢٠٢٦", en: "September 30, 2026" };
+const UPDATED = { ar: "١٦ أكتوبر ٢٠٢٦", en: "October 16, 2026" };
 
 type Section = { title: string; items: string[] };
 
@@ -85,13 +85,14 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "Google: تسجيل الدخول، إذا اخترته.",
           "Google Gemini: الفحص التلقائي للصور والفيديوهات. تُرسل الصورة (أو لقطات من الفيديو) للفحص فقط، ولا يستخدمها Google لتدريب نماذجه.",
           "Sentry (خوادمه في ألمانيا): تنبيهنا بالأعطال لنصلحها. يصله نوع الخطأ والصفحة ونوع المتصفح فقط، بلا أسماء ولا عناوين شبكة ولا كوكيز.",
+          "Google Analytics: إحصاءات عامة عن الزيارات (عدد الزوار، الصفحات الأكثر مشاهدة، الدولة ونوع الجهاز) لنعرف ما يفيد الناس فنحسّنه. بلا أسمائكم ولا محتواكم، ومع إيقاف ميزات الإعلانات.",
           "قائمة الأماكن من بيانات مفتوحة: Wikidata، و GeoNames، و© مساهمو OpenStreetMap.",
           "هذه الخدمات تحفظ البيانات نيابة عنا، ولا يحق لها استخدامها لأغراضها الخاصة.",
         ],
       },
       {
         title: "ملفات تعريف الارتباط (الكوكيز)",
-        items: ["نستخدم كوكيز أساسية فقط: واحد لإبقائك مسجّل الدخول، وواحد لتذكّر لغتك. لا كوكيز إعلانية أو تحليلية."],
+        items: ["كوكيز أساسية: واحد لإبقائك مسجّل الدخول، وواحد لتذكّر لغتك.", "كوكيز Google Analytics لإحصاء الزيارات فقط (انظر أعلاه). لا كوكيز إعلانية."],
       },
       {
         title: "مدة الاحتفاظ",
@@ -189,13 +190,14 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
           "Google: sign-in, if you choose it.",
           "Google Gemini: the automatic check of photos and videos. The image (or a few frames of a video) is sent only to be checked, and Google does not use it to train its models.",
           "Sentry (servers in Germany): alerts us to errors so we can fix them. It receives the error, the page and the browser type only: no names, network addresses or cookies.",
+          "Google Analytics: general visit statistics (number of visitors, most viewed pages, country and device type) so we know what helps people and improve it. No names or content of yours, with advertising features turned off.",
           "The list of places comes from open data: Wikidata, GeoNames, and © OpenStreetMap contributors.",
           "These services store data on our behalf and may not use it for their own purposes.",
         ],
       },
       {
         title: "Cookies",
-        items: ["Essential cookies only: one keeps you signed in, one remembers your language. No advertising or analytics cookies."],
+        items: ["Essential cookies: one keeps you signed in, one remembers your language.", "Google Analytics cookies, for visit statistics only (see above). No advertising cookies."],
       },
       {
         title: "How long we keep things",
