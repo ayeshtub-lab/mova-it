@@ -40,7 +40,8 @@ async function compute(momentId: string, take: number): Promise<NextMoment[]> {
       placeId: true,
       angles: {
         where: shownAt(now),
-        orderBy: { uploadedAt: "asc" },
+        // (the moment page's order, so the viewer opens on its first angle — src/server/moments.ts)
+        orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
         take: 12,
         select: { id: true, scene: true, placeId: true },
       },
@@ -65,4 +66,4 @@ async function compute(momentId: string, take: number): Promise<NextMoment[]> {
 export const nextMomentsNow = compute;
 
 export const nextMoments = (momentId: string, take = 8) =>
-  unstable_cache(() => compute(momentId, take), ["next-moments-1", momentId, String(take)], { revalidate: 600 })();
+  unstable_cache(() => compute(momentId, take), ["next-moments-2", momentId, String(take)], { revalidate: 600 })();
