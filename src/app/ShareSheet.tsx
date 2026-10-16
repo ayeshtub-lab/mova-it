@@ -29,7 +29,8 @@ function people() {
 // modal <dialog>, above everything else — 2026-10-15 the sheet showed behind it, unseen).
 // `media`: a video or a picture goes out as a file — «📹 فيديو» (alone, the link copied: Facebook
 // makes a real video post) or «💬 واتساب» (with the link) — src/lib/share-file.ts.
-export function ShareSheet({ target, onOther, onClose, media = false }: { target: ShareTarget; onOther: () => void; onClose: () => void; media?: false | "video" | "photo" }) {
+// `status`: a line above the buttons while the file is being got ready («⏳ 60%» → «✅ جاهز»).
+export function ShareSheet({ target, onOther, onClose, media = false, status }: { target: ShareTarget; onOther: () => void; onClose: () => void; media?: false | "video" | "photo"; status?: string }) {
   const [list, setList] = useState<Friend[] | null>(null);
   const [sent, setSent] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -95,6 +96,7 @@ export function ShareSheet({ target, onOther, onClose, media = false }: { target
             </Link>
           )}
         </section>
+        {status && <p role="status" className="text-center text-sm font-bold">{status}</p>}
         {media ? (
           <>
             <div className="grid grid-cols-2 gap-2">

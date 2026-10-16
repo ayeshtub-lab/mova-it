@@ -11,6 +11,7 @@ import { partNumbers, publicPart } from "@/server/montage/parts";
 import { nextMoments } from "@/server/next-moments";
 import { getMomentView } from "@/server/moments";
 import { momentIndexable } from "@/server/seo";
+import { PartShare } from "../../PartShare";
 
 // One part of a public moment's film (src/server/montage/parts.ts) on a page of its own — its
 // watch page for Google Video, with its own name and lasting file (/v/CODE-N.mp4).
@@ -105,6 +106,14 @@ export default async function FilmPartPage({ params }: PageProps<"/m/[code]/film
           <h1 className="text-2xl font-extrabold leading-snug">{title}</h1>
           <p className="text-sm leading-relaxed text-muted">{description}</p>
         </header>
+        {/* «📤 شارك»: the video file itself, so TikTok and YouTube show up too (../../PartShare.tsx) —
+            the phone's sheet, as the page is the same for everyone. */}
+        <div className="grid grid-cols-2 gap-2 text-sm font-bold">
+          <PartShare code={view.code} part={film.part} url={`/v/${view.code}-${film.part}.mp4`} title={title} lasting labels={dict.filmParts} className="min-h-11 rounded-full bg-accent px-3 text-white" />
+          <a href={`/v/${view.code}-${film.part}.mp4`} download={`zawmo-${view.code}-${film.part}.mp4`} className="flex min-h-11 items-center justify-center rounded-full bg-surface px-3">
+            {dict.filmParts.download}
+          </a>
+        </div>
         {(before !== null || after !== null) && (
           <nav aria-label={dict.filmPart.parts} className="grid grid-cols-2 gap-2 text-sm font-bold">
             {before !== null ? (
