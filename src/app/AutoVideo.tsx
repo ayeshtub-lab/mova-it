@@ -6,7 +6,7 @@ import { StreamVideo } from "@/app/StreamVideo";
 // A silent, looping preview that loads and plays only while it is on screen — so a grid
 // full of videos costs nothing until someone scrolls to them. Plays Stream's adaptive
 // stream when there is one (hls), else the file (src).
-export function AutoVideo({ src, hls, poster, className, style }: { src: string; hls?: string | null; poster?: string | null; className?: string; style?: React.CSSProperties }) {
+export function AutoVideo({ src, backup, hls, poster, className, style }: { src: string; backup?: string | null; hls?: string | null; poster?: string | null; className?: string; style?: React.CSSProperties }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [seen, setSeen] = useState(false);
   useEffect(() => {
@@ -28,5 +28,5 @@ export function AutoVideo({ src, hls, poster, className, style }: { src: string;
   useEffect(() => {
     if (seen) ref.current?.play().catch(() => {});
   }, [seen]);
-  return <StreamVideo ref={ref} file={src} hls={hls} load={seen} poster={poster ?? undefined} muted loop playsInline preload="none" aria-hidden="true" className={className} style={style} />;
+  return <StreamVideo ref={ref} file={src} backup={backup} hls={hls} load={seen} poster={poster ?? undefined} muted loop playsInline preload="none" aria-hidden="true" className={className} style={style} />;
 }

@@ -157,6 +157,7 @@ export function Viewer({
                 <StreamVideo
                   data-index={i}
                   file={item.mediaUrl}
+                  backup={item.backupUrl}
                   hls={item.hlsUrl}
                   load={near}
                   poster={item.posterUrl ?? undefined}

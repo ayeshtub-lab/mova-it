@@ -150,6 +150,7 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
             muteOriginal: v.muteOriginal,
             lyrics: v.lyrics,
             mediaUrl: v.mediaUrl,
+            backupUrl: v.backupUrl,
             hlsUrl: v.hlsUrl,
             posterUrl: v.posterUrl,
             name: v.name,

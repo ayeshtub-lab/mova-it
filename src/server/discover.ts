@@ -139,7 +139,10 @@ export async function listDiscover(viewer: User | null) {
             soundKey: a.soundKey,
             muteOriginal: a.muteOriginal,
             lyrics: a.lyrics,
-            mediaUrl: await viewUrl(a.mediaPath),
+            // A video at its lasting address (/v/ID.mp4, the one search engines index), its
+            // short-lived link kept as the player's backup.
+            mediaUrl: a.mediaType === "VIDEO" ? `/v/${a.id}.mp4` : await viewUrl(a.mediaPath),
+            backupUrl: a.mediaType === "VIDEO" ? await viewUrl(a.mediaPath) : null,
             hlsUrl: a.mediaType === "VIDEO" ? hlsUrl(a) : null,
             posterUrl: await viewUrl(a.thumbPath),
             name: a.contributor.displayName,
@@ -240,7 +243,8 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
       id: a.id,
       video: a.mediaType === "VIDEO",
       filter: a.filter,
-      mediaUrl: a.mediaType === "VIDEO" ? await viewUrl(a.mediaPath) : null,
+      mediaUrl: a.mediaType === "VIDEO" ? `/v/${a.id}.mp4` : null,
+      backupUrl: a.mediaType === "VIDEO" ? await viewUrl(a.mediaPath) : null,
       hlsUrl: a.mediaType === "VIDEO" ? hlsUrl(a) : null,
       imageUrl: await publicCover(a),
       momentCode: a.moment.code,
@@ -364,7 +368,9 @@ export async function trendingVideos(viewer: User | null, take = 10) {
       soundKey: a.soundKey,
       muteOriginal: a.muteOriginal,
       lyrics: a.lyrics,
-      mediaUrl: await viewUrl(a.mediaPath),
+      // (Trending is videos only: at their lasting address, the short-lived link as backup.)
+      mediaUrl: `/v/${a.id}.mp4`,
+      backupUrl: await viewUrl(a.mediaPath),
       hlsUrl: hlsUrl(a),
       posterUrl: await viewUrl(a.thumbPath),
       ...stats,

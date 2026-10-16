@@ -15,6 +15,7 @@ export type FeedAngle = {
   muteOriginal: boolean;
   lyrics: boolean; // «📝» its sound's words on it
   mediaUrl: string | null;
+  backupUrl?: string | null; // a video's short-lived link, should its lasting /v/ address fail
   hlsUrl?: string | null; // videos: Cloudflare Stream's adaptive stream, once ready
   posterUrl: string | null;
   name: string;

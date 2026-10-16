@@ -4,6 +4,9 @@ import { useEffect, useRef } from "react";
 
 type Props = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, "src"> & {
   file?: string | null; // the original upload (Blob) — always works as a fallback
+  // When `file` is a public shot's lasting address (/v/ID.mp4 — what search engines index): its
+  // short-lived link, tried should that address ever fail, so a video never stays black.
+  backup?: string | null;
   hls?: string | null; // Cloudflare Stream's adaptive stream, once ready
   load?: boolean; // false: attach nothing yet (off-screen), like src={undefined}
   ref?: React.Ref<HTMLVideoElement>;
@@ -12,16 +15,22 @@ type Props = Omit<React.VideoHTMLAttributes<HTMLVideoElement>, "src"> & {
 // A video that plays Stream's adaptive HLS when there is one (through hls.js, loaded only then;
 // the browser's own HLS where hls.js can't run), and the original file otherwise — or as
 // soon as the stream fails, so a video never stays black.
-export function StreamVideo({ file, hls, load = true, ref, ...props }: Props) {
+export function StreamVideo({ file, backup, hls, load = true, ref, ...props }: Props) {
   const inner = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     const video = inner.current;
     if (!video || !load) return;
     let stop = () => {};
+    const onFileError = () => {
+      if (backup && video.src !== backup) video.src = backup;
+    };
     const fallBackToFile = () => {
       stop();
-      if (file && video.src !== file) video.src = file;
+      if (file && video.src !== file) {
+        video.src = file;
+        if (backup) video.addEventListener("error", onFileError, { once: true });
+      }
     };
     if (!hls) {
       fallBackToFile();
@@ -70,9 +79,10 @@ export function StreamVideo({ file, hls, load = true, ref, ...props }: Props) {
     return () => {
       cancelled = true;
       stop();
+      video.removeEventListener("error", onFileError);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- preload is read once per source
-  }, [file, hls, load]);
+  }, [file, backup, hls, load]);
 
   return (
     <video
