@@ -31,13 +31,17 @@ export function shareNote(text: string, ms = 3500) {
 
 // The file through the phone's sheet: alone (+ the link copied) for «📹 فيديو», with the link as
 // text otherwise. Both are started within the tap — phones refuse a share after a wait. Resolves
-// true when it went out.
-export function shareFile(file: File, link: string, copied = "📋 الرابط انسخ، الصقه بنص المنشور"): Promise<boolean> {
+// true when it went out; `failed` hears why it didn't (not when the person just closed the sheet).
+export function shareFile(file: File, link: string, copied = "📋 الرابط انسخ، الصقه بنص المنشور", failed?: (error: unknown) => void): Promise<boolean> {
+  const no = (error: unknown) => {
+    if (!(error instanceof DOMException && error.name === "AbortError")) failed?.(error);
+    return false;
+  };
   const alone = mode === "video";
   mode = "with-link";
-  if (!alone) return navigator.share({ files: [file], text: link }).then(() => true, () => false);
+  if (!alone) return navigator.share({ files: [file], text: link }).then(() => true, no);
   const copy = navigator.clipboard?.writeText(link.startsWith("http") ? link : `https://${link}`);
-  const sent = navigator.share({ files: [file] }).then(() => true, () => false);
+  const sent = navigator.share({ files: [file] }).then(() => true, no);
   copy?.then(() => shareNote(copied), () => {});
   return sent;
 }
