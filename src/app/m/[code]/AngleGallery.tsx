@@ -307,12 +307,14 @@ export function AngleGallery({
   const [chain, setChain] = useState<Chain | null>(null);
   const handingOver = useRef(false);
   const leaving = useRef(false);
+  const [going, setGoing] = useState(false);
   useEffect(() => {
     if (upcoming && prefetched.current?.code !== upcoming.code) prefetched.current = { code: upcoming.code, data: fetchChain(upcoming.code) };
   }, [upcoming]);
   async function goNext() {
     if (!upcoming || !continueTo || leaving.current) return;
     leaving.current = true;
+    setGoing(true);
     try {
       const passed: string[] = JSON.parse(sessionStorage.getItem("zawmo:passed") ?? "[]");
       sessionStorage.setItem("zawmo:passed", JSON.stringify([...passed.filter((c) => c !== continueTo.code), continueTo.code].slice(-40)));
@@ -321,16 +323,32 @@ export function AngleGallery({
     const next = await Promise.race([ready, new Promise<null>((r) => setTimeout(() => r(null), 6000))]);
     if (!next) {
       // Couldn't fetch it: its page, opened on its first shot (a full load).
+      setGoing(false);
       dialogRef.current?.close();
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign(`/m/${upcoming.code}#angle-${upcoming.firstAngleId}`);
       return;
     }
-    handingOver.current = true;
-    dialogRef.current?.close();
+    // Like a feed: this moment slides up and away while the next one comes up from below (its
+    // viewer opens on top at once, sliding in); this viewer closes only once it is covered — no
+    // black gap in between.
+    const track = trackRef.current;
+    if (track) {
+      track.style.transition = "transform .35s ease-in";
+      track.style.transform = "translateY(-100%)";
+    }
     history.replaceState(null, "", `/m/${next.code}`);
     setChain(next);
-    leaving.current = false;
+    setTimeout(() => {
+      handingOver.current = true;
+      dialogRef.current?.close();
+      if (track) {
+        track.style.transition = "";
+        track.style.transform = "";
+      }
+      setGoing(false);
+      leaving.current = false;
+    }, 420);
   }
 
   // The angle wheel above the grid opens the viewer through a window event, so the
@@ -930,13 +948,30 @@ export function AngleGallery({
           const t = event.touches[0];
           touch.current = t ? { x: t.clientX, y: t.clientY } : null;
         }}
+        onTouchMove={(event) => {
+          // An upward drag (more up than sideways) moves the shot with the finger, toward the next moment.
+          const start = touch.current;
+          const t = event.touches[0];
+          const track = trackRef.current;
+          if (!start || !t || !track || !upcoming || busyOver() || leaving.current) return;
+          const dy = t.clientY - start.y;
+          if (dy < 0 && Math.abs(dy) > Math.abs(t.clientX - start.x)) {
+            track.style.transition = "none";
+            track.style.transform = `translateY(${Math.round(dy * 0.6)}px)`;
+          }
+        }}
         onTouchEnd={(event) => {
           const start = touch.current;
           touch.current = null;
           const t = event.changedTouches[0];
+          const track = trackRef.current;
           if (!start || !t || busyOver()) return;
-          // A clear swipe up (the page "goes down"), not a sideways one.
-          if (t.clientY - start.y < -90 && Math.abs(t.clientX - start.x) < 60) goNext();
+          // A clear swipe up (the page "goes down"), not a sideways one: on to the next moment.
+          if (t.clientY - start.y < -90 && Math.abs(t.clientX - start.x) < 60) return void goNext();
+          if (track && track.style.transform) {
+            track.style.transition = "transform .2s ease-out";
+            track.style.transform = "";
+          }
         }}
         onWheel={(event) => {
           if (event.deltaY < 60 || busyOver() || Date.now() - wheelAt.current < 1500) return;
@@ -952,7 +987,7 @@ export function AngleGallery({
           setSoundFor(null);
           if (window.location.hash.startsWith("#angle-")) history.replaceState(null, "", window.location.pathname + window.location.search);
         }}
-        className="m-0 h-dvh max-h-none w-screen max-w-none bg-black p-0 text-white backdrop:bg-black"
+        className={`m-0 h-dvh max-h-none w-screen max-w-none bg-black p-0 text-white backdrop:bg-black ${autoOpen ? "animate-[viewer-up_.35s_ease-out]" : ""}`}
       >
         <div ref={trackRef} className="flex h-full snap-x snap-mandatory overflow-x-auto overscroll-contain [scrollbar-width:none]">
           {angles.map((a) => {
@@ -1304,12 +1339,14 @@ export function AngleGallery({
         {/* Desktop arrows, kept above the rail. */}
         {angles.length > 1 && (
           <>
+            {/* ⬅️ ➡️ on phones too (2026-10-16: people didn't know there were more angles) — only
+                where there is one to go to. */}
             <button
               type="button"
               onClick={() => goTo(current - 1)}
               disabled={current === 0}
               aria-label={labels.prev}
-              className="absolute start-2 top-[30%] hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 disabled:opacity-30 sm:flex"
+              className="absolute start-1.5 top-[24%] flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 disabled:hidden sm:start-2 sm:size-11 sm:bg-black/50"
             >
               <svg viewBox="0 0 24 24" className="size-6 stroke-white rtl:rotate-180" fill="none" strokeWidth="2.4" strokeLinecap="round">
                 <path d="M15 6l-6 6 6 6" />
@@ -1320,7 +1357,7 @@ export function AngleGallery({
               onClick={() => goTo(current + 1)}
               disabled={current === angles.length - 1}
               aria-label={labels.next}
-              className="absolute end-2 top-[30%] hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 disabled:opacity-30 sm:flex"
+              className="absolute end-1.5 top-[24%] flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 disabled:hidden sm:end-2 sm:size-11 sm:bg-black/50"
             >
               <svg viewBox="0 0 24 24" className="size-6 stroke-white rtl:rotate-180" fill="none" strokeWidth="2.4" strokeLinecap="round">
                 <path d="M9 6l6 6-6 6" />
@@ -1333,8 +1370,8 @@ export function AngleGallery({
           <button
             type="button"
             onClick={goNext}
-            className={`absolute inset-x-0 mx-auto flex w-fit max-w-[88vw] items-center gap-2 rounded-full bg-black/60 font-bold backdrop-blur-sm ${
-              current === angles.length - 1 ? "bottom-[max(6rem,calc(env(safe-area-inset-bottom)+5rem))] p-1.5 pe-4 text-sm" : "top-[4.25rem] px-3 py-1 text-xs"
+            className={`absolute inset-x-0 bottom-[max(6rem,calc(env(safe-area-inset-bottom)+5rem))] mx-auto flex w-fit max-w-[88vw] items-center gap-2 rounded-full bg-black/60 font-bold backdrop-blur-sm ${
+              current === angles.length - 1 ? "p-1.5 pe-4 text-sm" : "px-3 py-1.5 text-xs"
             }`}
           >
             {current === angles.length - 1 && (
@@ -1342,9 +1379,9 @@ export function AngleGallery({
               <img src={upcoming.cover} alt="" className="size-9 shrink-0 rounded-full object-cover" />
             )}
             <span className="truncate">
-              {current === angles.length - 1 ? `${continueTo!.labels.done} · ${upcoming.title}` : continueTo!.labels.next}
+              {going ? "…" : current === angles.length - 1 ? `${continueTo!.labels.done} · ${upcoming.title}` : continueTo!.labels.next}
             </span>
-            <span aria-hidden="true">⬇️</span>
+            <span aria-hidden="true" className="animate-[nudge_1.6s_ease-in-out_infinite]">⬇️</span>
           </button>
         )}
         {hint && (

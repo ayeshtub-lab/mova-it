@@ -343,6 +343,22 @@ html[data-app] .site-footer {
 }
 
 /* «📲 ثبّت زاومو» (src/app/InstallPrompt.tsx) slides up from the bottom. */
+/* «⬇️ اللحظة الجاية» (src/app/m/[code]/AngleGallery.tsx): the next moment's viewer comes up from
+   below, and the arrow nudges, so it is clear there is more down there. */
+@keyframes viewer-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
 @keyframes install-in {
   from {
     transform: translateY(1.5rem);
