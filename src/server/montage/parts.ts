@@ -110,11 +110,18 @@ async function liveShots(momentId: string) {
 
 const alive = (m: Pick<Montage, "status" | "createdAt">) => m.status === "READY" || ((m.status === "QUEUED" || m.status === "RENDERING") && Date.now() - m.createdAt.getTime() < STALE_MS);
 
+// The shots' SEO titles (src/server/screening.ts), by id.
+async function shotTitles(ids: string[]) {
+  const rows = ids.length ? await db.angle.findMany({ where: { id: { in: ids }, aiTitle: { not: null } }, select: { id: true, aiTitle: true } }) : [];
+  return new Map(rows.flatMap((r) => (r.aiTitle ? [[r.id, r.aiTitle] as const] : [])));
+}
+
 // A part's name: the moment's, the part's number, and what its shots show (their SEO titles —
 // src/server/screening.ts) — close to its sisters, never the same.
-async function partTitle(momentTitle: string, part: number, shotIds: string[]) {
-  const titled = await db.angle.findMany({ where: { id: { in: shotIds }, aiTitle: { not: null } }, select: { id: true, aiTitle: true } });
-  const words = shotIds.map((id) => titled.find((t) => t.id === id)?.aiTitle).filter((t): t is string => !!t);
+// `known`: the shots' titles already fetched (one query for all of a moment's parts).
+async function partTitle(momentTitle: string, part: number, shotIds: string[], known?: Map<string, string>) {
+  const titled = known ?? (await shotTitles(shotIds));
+  const words = shotIds.map((id) => titled.get(id)).filter((t): t is string => !!t);
   const about = words[0] ?? "";
   return `${momentTitle} — الجزء ${part.toLocaleString("ar-EG")}${about ? `: ${about}` : ""}`.slice(0, 160);
 }
@@ -229,13 +236,16 @@ export async function filmParts(momentId: string, code: string, lasting: boolean
   const made = await db.montage.findMany({ where: { momentId, part: { not: null }, status: "READY", videoUrl: { not: null } }, orderBy: { createdAt: "desc" } });
   const latest = new Map<number, Montage>();
   for (const m of made) if (!latest.has(m.part!)) latest.set(m.part!, m);
-  const moment = await db.moment.findUnique({ where: { id: momentId }, select: { title: true } });
+  const [moment, titles] = await Promise.all([
+    db.moment.findUnique({ where: { id: momentId }, select: { title: true } }),
+    shotTitles([...latest.values()].flatMap((m) => m.angleIds)),
+  ]);
   return Promise.all(
     [...latest.values()]
       .sort((a, b) => a.part! - b.part!)
       .map(async (m) => ({
         part: m.part!,
-        title: moment ? await partTitle(moment.title, m.part!, m.angleIds) : (m.title ?? ""),
+        title: moment ? await partTitle(moment.title, m.part!, m.angleIds, titles) : (m.title ?? ""),
         durationSec: m.durationSec,
         at: m.finishedAt ?? m.createdAt,
         poster: m.angleIds[0] ?? null,

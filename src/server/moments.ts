@@ -146,15 +146,15 @@ export async function getMomentView(code: string, viewer: User | null) {
   const visibleIds = visible.map((a) => a.id);
   // Views and likes are shown to everyone.
   const contributorIds = [...new Set(visible.map((a) => a.contributorId))];
-  const [reactions, comments, views, saved, follows] = await Promise.all([
+  const [reactions, comments, views, saved, follows, places] = await Promise.all([
     reactionsFor(visibleIds, viewer),
     commentCounts(visibleIds),
     viewCounts(visibleIds),
     savedFor(visibleIds, viewer),
     viewer ? db.follow.findMany({ where: { followerId: viewer.id, followingId: { in: contributorIds } }, select: { followingId: true } }) : [],
+    placeViews([moment.placeId, ...visible.map((a) => a.placeId)]),
   ]);
   const following = new Set(follows.map((f) => f.followingId));
-  const places = await placeViews([moment.placeId, ...visible.map((a) => a.placeId)]);
   const everyone = moment.visibility === Visibility.PUBLIC && moment.status === "ACTIVE" && moment.kind !== "DAILY" && !moment.demo;
 
   return {

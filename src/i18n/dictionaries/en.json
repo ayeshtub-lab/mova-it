@@ -906,5 +906,6 @@
     "inappIos": "Installing isn't possible inside this app. Tap ⋯ at the top, then «Open in Safari».",
     "close": "Close"
   },
-  "viewerContinue": {"back": "Previous moment", "next": "Next moment", "done": "That's all the angles ✓", "hint": "⬅️ ➡️ angles of this moment · ⬇️ swipe up for the next moment"}
+  "viewerContinue": {"back": "Previous moment", "next": "Next moment", "done": "That's all the angles ✓", "hint": "⬅️ ➡️ angles of this moment · ⬇️ swipe up for the next moment"},
+  "notFound": {"title": "This page isn't here", "body": "Its owner may have deleted it or made it private, or the link has a typo. There are plenty of other moments worth seeing 👇", "discover": "🧭 Discover moments on Zawmo", "home": "🏠 Home"}
 }

@@ -196,23 +196,38 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   const shareUrl = `${await siteOrigin()}/m/${view.code}`;
   // «مع الوقت»: one thing over days and weeks, shot by its owner alone.
   const story = view.kind === "STORY";
-  const timeline = story ? [] : timelineOf(view.angles);
-  const storyDays = story ? daysOf(view.angles, locale) : [];
+  // The strip above the shots: a moment of one sitting (≤ 12 hours) by its 5-minute steps; one that
+  // runs over days (a coffee every morning) by its days — times of day from different days, with no
+  // date, read as noise («10:26 ص · 1» × 32, 2026-10-16). More chips than can be read: no strip.
+  const STRIP_MAX = 12;
+  const times = view.angles.flatMap((a) => (a.capturedAt ? [a.capturedAt.getTime()] : []));
+  const overDays = times.length > 1 && Math.max(...times) - Math.min(...times) > 12 * 3600 * 1000;
+  const steps = story || overDays ? [] : timelineOf(view.angles);
+  const timeline = steps.length <= STRIP_MAX ? steps : [];
+  const days = story || overDays ? daysOf(view.angles, locale) : [];
+  const storyDays = story || days.length <= STRIP_MAX ? days : [];
   const storyDates = view.angles.map((a) => (a.capturedAt ?? a.takenAt).getTime());
   const storySpan = storyDates.length ? Math.round((Math.max(...storyDates) - Math.min(...storyDates)) / 86_400_000) + 1 : 0;
-  // «لحظة اليوم»: its theme, time left, and (while it's today) the vote for tomorrow.
-  const daily = view.kind === "DAILY" ? await dailyFor(view.id, user) : null;
-  const ballot = daily?.isToday ? await tomorrowVote(user) : null;
-  // The ready video, for the creator and those who added an angle (null for everyone else).
-  const montage = view.angleCount > 0 ? await latestMontageFor(user, view.code) : null;
-  // «أجزاء»: the film in parts of up to 40 seconds, for those who may see the video at all.
-  const parts = montage && !story ? await filmParts(view.id, view.code, momentIndexable(view)) : [];
-  // Their own shots here still waiting for «نشر» (they left before it): back in the publish sheet.
-  const drafts = await myDrafts(user, view.id);
-  // The topic pages its shots are in («طماطم في الخضر») — linked below, for public moments.
-  const topics = momentIndexable(view) ? await momentTopics(view.angles.map((a) => a.id)) : [];
-  // «⬇️ اللحظة الجاية»: where the viewer and the films strip carry on to (public moments only).
-  const next = view.kind === "DAILY" ? [] : await nextMoments(view.id).catch(() => []);
+  // All asked of the database together, not one after another (2026-10-16: the page took ~0.7 s
+  // to start answering, most of it waiting in line):
+  // - «لحظة اليوم»: its theme, time left, and (while it's today) the vote for tomorrow;
+  // - the ready video, for the creator and those who added an angle (null for everyone else);
+  // - their own shots here still waiting for «نشر» (they left before it): back in the publish sheet;
+  // - the topic pages its shots are in («طماطم في الخضر») — linked below, for public moments;
+  // - «⬇️ اللحظة الجاية»: where the viewer and the films strip carry on to (public moments only).
+  const [daily, montage, drafts, topics, next] = await Promise.all([
+    view.kind === "DAILY" ? dailyFor(view.id, user) : null,
+    view.angleCount > 0 ? latestMontageFor(user, view.code) : null,
+    myDrafts(user, view.id),
+    momentIndexable(view) ? momentTopics(view.angles.map((a) => a.id)) : [],
+    view.kind === "DAILY" ? [] : nextMoments(view.id).catch(() => []),
+  ]);
+  // Then what depends on those: the vote, and «أجزاء» — the film in parts of up to 40 seconds,
+  // for those who may see the video at all.
+  const [ballot, parts] = await Promise.all([
+    daily?.isToday ? tomorrowVote(user) : null,
+    montage && !story ? filmParts(view.id, view.code, momentIndexable(view)) : [],
+  ]);
   // «لحظة «روااااق» في بيت لحم، صوّرها عزالدين وNareman Ayesh.»
   const people = [...new Set(view.angles.map((a) => a.contributorName))];
   const where = view.place?.name ?? view.placeName;

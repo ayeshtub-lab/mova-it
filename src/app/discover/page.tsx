@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DemoWheel } from "@/app/DemoWheel";
 import { GoogleButton } from "@/app/GoogleButton";
+import { GuestForm } from "@/app/GuestForm";
 import { SiteHeader } from "@/app/SiteHeader";
 import { plural } from "@/i18n/plural";
 import { getDictionary, getLocale } from "@/i18n/server";
@@ -116,6 +117,15 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
         <div className="flex flex-col gap-2">
           <p className="rounded-2xl bg-secondary-soft px-4 py-3 text-sm font-semibold leading-relaxed text-secondary">{user?.isGuest ? t.gateGuest : t.visitorBar}</p>
           {googleEnabled() && <GoogleButton label={user?.isGuest ? dict.account.saveButton : dict.account.google} returnTo="/discover" />}
+          {/* A visitor can also just give a name, as on the home page — not Google only. */}
+          {!user && (
+            <details className="rounded-2xl bg-surface px-4 py-2">
+              <summary className="cursor-pointer py-1 text-center text-sm font-bold">{dict.account.guestOption}</summary>
+              <div className="pt-2">
+                <GuestForm labels={dict.guest} next="/discover" />
+              </div>
+            </details>
+          )}
         </div>
       )}
     </div>
