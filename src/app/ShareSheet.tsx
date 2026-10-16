@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { setShareMode } from "@/lib/share-file";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Avatar } from "@/app/messages/Avatar";
@@ -26,7 +27,9 @@ function people() {
 // the phone's own share sheet (WhatsApp, Messenger…). Only for members; a visitor's «شارك» opens
 // the phone's sheet straight away, as before. Drawn inside whatever is open on top (a viewer is a
 // modal <dialog>, above everything else — 2026-10-15 the sheet showed behind it, unseen).
-export function ShareSheet({ target, onOther, onClose }: { target: ShareTarget; onOther: () => void; onClose: () => void }) {
+// `media`: a video or a picture goes out as a file — «📹 فيديو» (alone, the link copied: Facebook
+// makes a real video post) or «💬 واتساب» (with the link) — src/lib/share-file.ts.
+export function ShareSheet({ target, onOther, onClose, media = false }: { target: ShareTarget; onOther: () => void; onClose: () => void; media?: false | "video" | "photo" }) {
   const [list, setList] = useState<Friend[] | null>(null);
   const [sent, setSent] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -92,17 +95,51 @@ export function ShareSheet({ target, onOther, onClose }: { target: ShareTarget; 
             </Link>
           )}
         </section>
-        <button
-          type="button"
-          onClick={() => {
-            onClose();
-            onOther();
-          }}
-          className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-surface px-3 text-sm font-bold"
-        >
-          📤 تطبيقات تانية
-        </button>
-        <p className="-mt-1 text-center text-[11px] text-muted">«تطبيقات تانية»: واتساب، ماسنجر، إنستغرام، تيك توك…</p>
+        {media ? (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShareMode("video");
+                  onClose();
+                  onOther();
+                }}
+                className="flex min-h-12 flex-col items-center justify-center rounded-2xl bg-surface px-2 py-1.5 text-sm font-bold"
+              >
+                {media === "photo" ? "🖼️ صورة" : "📹 فيديو"}
+                <span className="text-[10px] font-semibold text-muted">فيسبوك، تيك توك، إنستغرام</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShareMode("with-link");
+                  onClose();
+                  onOther();
+                }}
+                className="flex min-h-12 flex-col items-center justify-center rounded-2xl bg-surface px-2 py-1.5 text-sm font-bold"
+              >
+                💬 واتساب
+                <span className="text-[10px] font-semibold text-muted">{media === "photo" ? "الصورة مع الرابط" : "الفيديو مع الرابط"}</span>
+              </button>
+            </div>
+            <p className="-mt-1 text-center text-[11px] text-muted">{media === "photo" ? "«🖼️ صورة»: بتنزل صورة حقيقية" : "«📹 فيديو»: بينزل فيديو حقيقي"}، والرابط بينسخ لتلصقه بالمنشور.</p>
+          </>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOther();
+              }}
+              className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-surface px-3 text-sm font-bold"
+            >
+              📤 تطبيقات تانية
+            </button>
+            <p className="-mt-1 text-center text-[11px] text-muted">«تطبيقات تانية»: واتساب، ماسنجر، إنستغرام، تيك توك…</p>
+          </>
+        )}
       </div>
     </div>,
     host,

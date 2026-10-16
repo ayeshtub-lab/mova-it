@@ -81,7 +81,8 @@ export async function friendsActivity(user: User, limit = 10): Promise<ActivityI
   const since = new Date(Date.now() - DAY_MS);
   const now = new Date();
   const liveAngles = { where: { status: "READY" as const, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] } };
-  const firstAngle = { ...liveAngles, orderBy: [{ capturedAt: "asc" as const }, { uploadedAt: "asc" as const }], select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } };
+  // The newest angle first: it is the card's cover (a moment just added to looks new — 2026-10-16).
+  const firstAngle = { ...liveAngles, orderBy: { uploadedAt: "desc" as const }, select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } };
 
   const blocked = [...(await blockedIdsFor(user.id))];
   const [invites, friendIds] = await Promise.all([

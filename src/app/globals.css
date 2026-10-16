@@ -350,6 +350,11 @@ html[data-app] .site-footer {
     transform: translateY(100%);
   }
 }
+@keyframes viewer-down {
+  from {
+    transform: translateY(-100%);
+  }
+}
 @keyframes nudge {
   0%,
   100% {

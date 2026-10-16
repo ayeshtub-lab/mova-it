@@ -1,6 +1,7 @@
 "use client";
 
 import { ShareSheet } from "@/app/ShareSheet";
+import { setShareMode, shareFile, shareMode, shareNote } from "@/lib/share-file";
 import { useEffect, useState } from "react";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { soundByKey, soundName } from "@/lib/sounds";
@@ -135,8 +136,11 @@ export function MontagePanel({
 
   async function share() {
     if (file && navigator.canShare?.({ files: [file] })) {
-      // The short link goes along as text, for the apps that keep it (WhatsApp does).
-      await navigator.share({ files: [file], text: `${location.host}/${code}?src=share-film` }).catch(() => {});
+      // The short link goes along as text for WhatsApp; alone (the link copied) for «📹 فيديو».
+      await shareFile(file, `${location.host}/${code}?src=share-film`);
+    } else if (shareMode() === "video") {
+      setShareMode("with-link");
+      shareNote("⏳ عم نجهّز الفيديو… كبسة كمان مرة بعد لحظة");
     } else if (navigator.share) {
       // (the file not here yet: its link)
       await navigator.share({ url: `${location.origin}/m/${code}?src=share-film#video` }).catch(() => {});
@@ -156,7 +160,7 @@ export function MontagePanel({
 
   async function shareFresh() {
     if (fresh.state !== "ready" || !fresh.file) return;
-    if (navigator.canShare?.({ files: [fresh.file] })) await navigator.share({ files: [fresh.file], text: `${location.host}/${code}?src=share-film` }).catch(() => {});
+    if (navigator.canShare?.({ files: [fresh.file] })) await shareFile(fresh.file, `${location.host}/${code}?src=share-film`);
     else saveFile(fresh.file);
   }
 
@@ -207,7 +211,7 @@ export function MontagePanel({
 
   return (
     <section id="video" className="flex scroll-mt-20 flex-col gap-3 rounded-3xl bg-surface p-5">
-      {sheet && <ShareSheet target={{ code }} onOther={share} onClose={() => setSheet(false)} />}
+      {sheet && <ShareSheet media="video" target={{ code }} onOther={share} onClose={() => setSheet(false)} />}
       <div className="flex flex-col gap-1">
         <h2 className="text-xl font-extrabold">🎬 {labels.title}</h2>
         <p className="text-sm text-muted">{labels.hint}</p>

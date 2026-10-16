@@ -906,5 +906,5 @@
     "inappIos": "Installing isn't possible inside this app. Tap ⋯ at the top, then «Open in Safari».",
     "close": "Close"
   },
-  "viewerContinue": {"next": "Next moment", "done": "That's all the angles ✓", "hint": "⬅️ ➡️ angles of this moment · ⬇️ swipe up for the next moment"}
+  "viewerContinue": {"back": "Previous moment", "next": "Next moment", "done": "That's all the angles ✓", "hint": "⬅️ ➡️ angles of this moment · ⬇️ swipe up for the next moment"}
 }

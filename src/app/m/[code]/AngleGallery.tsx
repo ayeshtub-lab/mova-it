@@ -1,6 +1,7 @@
 "use client";
 
 import { ShareSheet } from "@/app/ShareSheet";
+import { shareFile } from "@/lib/share-file";
 import Link from "next/link";
 import { VerifiedBadge } from "@/app/VerifiedBadge";
 import { useRouter } from "next/navigation";
@@ -163,6 +164,7 @@ export function AngleGallery({
   continueTo,
   autoOpen = false,
   onLeave,
+  onBack,
 }: {
   angles: GalleryAngle[];
   story?: boolean; // «مع الوقت»: each shot shows its day
@@ -176,11 +178,13 @@ export function AngleGallery({
   momentEdit?: { code: string; title: string; description: string | null; labels: MomentDetailsLabels };
   altBase?: string; // «روااااق — بيت لحم»: each grid picture's alt is this and whose shot it is
   // «⬇️ اللحظة الجاية»: the public moments the viewer carries on to (src/server/next-moments.ts).
-  continueTo?: { code: string; next: NextMoment[]; labels: { next: string; done: string; hint: string } };
+  continueTo?: { code: string; next: NextMoment[]; labels: { next: string; done: string; hint: string; back: string } };
   // The next moment carried on to inside the viewer: it opens at once on its first angle, and
   // closing it leaves for that moment's page.
   autoOpen?: boolean;
   onLeave?: () => void;
+  // «⬆️ اللحظة اللي قبل»: back to the moment this one was carried on from, on the angle left there.
+  onBack?: () => void;
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -308,6 +312,8 @@ export function AngleGallery({
   const handingOver = useRef(false);
   const leaving = useRef(false);
   const [going, setGoing] = useState(false);
+  // Coming back from the next moment: this viewer comes down from above, not up from below.
+  const [enter, setEnter] = useState<"up" | "down">("up");
   useEffect(() => {
     if (upcoming && prefetched.current?.code !== upcoming.code) prefetched.current = { code: upcoming.code, data: fetchChain(upcoming.code) };
   }, [upcoming]);
@@ -315,6 +321,7 @@ export function AngleGallery({
     if (!upcoming || !continueTo || leaving.current) return;
     leaving.current = true;
     setGoing(true);
+    setEnter("up"); // (next time this viewer opens, it comes up as usual)
     try {
       const passed: string[] = JSON.parse(sessionStorage.getItem("zawmo:passed") ?? "[]");
       sessionStorage.setItem("zawmo:passed", JSON.stringify([...passed.filter((c) => c !== continueTo.code), continueTo.code].slice(-40)));
@@ -349,6 +356,30 @@ export function AngleGallery({
       setGoing(false);
       leaving.current = false;
     }, 420);
+  }
+
+  // ⬆️ back to the moment before: it comes down over this one, then this one closes (as going
+  // down, the other way round).
+  function goBack() {
+    if (!onBack || leaving.current) return;
+    leaving.current = true;
+    const track = trackRef.current;
+    if (track) {
+      track.style.transition = "transform .35s ease-in";
+      track.style.transform = "translateY(100%)";
+    }
+    onBack();
+    setTimeout(() => {
+      handingOver.current = true;
+      dialogRef.current?.close();
+    }, 420);
+  }
+  // (the parent's side: reopen on the angle it was left on, then let the next moment go)
+  function comeBack() {
+    setEnter("down");
+    openRef.current(current);
+    if (continueTo) history.replaceState(null, "", `/m/${continueTo.code}`);
+    setTimeout(() => setChain(null), 450);
   }
 
   // The angle wheel above the grid opens the viewer through a window event, so the
@@ -587,9 +618,9 @@ export function AngleGallery({
       return;
     }
     lastTap.current = { id: a.id, at: now };
-    // One tap: a video pauses; a photo is scanned for shots like it.
+    // One tap: a video pauses; a photo — nothing (2026-10-16: a tap scanning for look-alikes
+    // happened by mistake all the time; «📸 لقطات بتشبهها» is the 🔍 on the side). Two: ❤️.
     if (a.mediaType === "VIDEO") singleTap.current = setTimeout(() => togglePlay(area.parentElement!), 260);
-    else singleTap.current = setTimeout(() => findSimilar(a), 260);
   }
 
   function togglePlay(figure: HTMLElement) {
@@ -690,7 +721,7 @@ export function AngleGallery({
       return flash(labels.branded.photoWorking);
     }
     if (photo && navigator.canShare?.({ files: [photo] })) {
-      await navigator.share({ files: [photo], text: `${share.title} — ${tagged(share.url, "share-photo")}` }).catch(() => {});
+      await shareFile(photo, `${share.title} — ${tagged(share.url, "share-photo")}`);
       return;
     }
     const url = `${tagged(share.url, "share-shot")}#angle-${a.id}`;
@@ -758,7 +789,7 @@ export function AngleGallery({
   async function shareBranded(file: File) {
     fetch(`/api/angles/${branded?.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
     if (navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file], text: tagged(share.url, "share-video") }).catch(() => {});
+      await shareFile(file, tagged(share.url, "share-video"));
       return;
     }
     const href = URL.createObjectURL(file);
@@ -864,6 +895,7 @@ export function AngleGallery({
     if (event.key === "ArrowLeft") goTo(current + (rtl ? 1 : -1));
     if (event.key === "ArrowRight") goTo(current + (rtl ? -1 : 1));
     if (event.key === "ArrowDown" && !busyOver()) goNext();
+    if (event.key === "ArrowUp" && !busyOver()) goBack();
   }
 
   const caption = (a: GalleryAngle) => (
@@ -883,6 +915,7 @@ export function AngleGallery({
     <>
       {shareFor && (
         <ShareSheet
+          media={shareFor.mediaType === "VIDEO" ? "video" : "photo"}
           target={{ code: share.url.split("/").pop() ?? "", angleId: shareFor.id }}
           onOther={() => shareAngle(shareFor)}
           onClose={() => setShareFor(null)}
@@ -953,9 +986,9 @@ export function AngleGallery({
           const start = touch.current;
           const t = event.touches[0];
           const track = trackRef.current;
-          if (!start || !t || !track || !upcoming || busyOver() || leaving.current) return;
+          if (!start || !t || !track || busyOver() || leaving.current) return;
           const dy = t.clientY - start.y;
-          if (dy < 0 && Math.abs(dy) > Math.abs(t.clientX - start.x)) {
+          if (((dy < 0 && upcoming) || (dy > 0 && onBack)) && Math.abs(dy) > Math.abs(t.clientX - start.x)) {
             track.style.transition = "none";
             track.style.transform = `translateY(${Math.round(dy * 0.6)}px)`;
           }
@@ -968,15 +1001,18 @@ export function AngleGallery({
           if (!start || !t || busyOver()) return;
           // A clear swipe up (the page "goes down"), not a sideways one: on to the next moment.
           if (t.clientY - start.y < -90 && Math.abs(t.clientX - start.x) < 60) return void goNext();
+          // …and a clear swipe down: back to the moment before (when there is one).
+          if (onBack && t.clientY - start.y > 90 && Math.abs(t.clientX - start.x) < 60) return void goBack();
           if (track && track.style.transform) {
             track.style.transition = "transform .2s ease-out";
             track.style.transform = "";
           }
         }}
         onWheel={(event) => {
-          if (event.deltaY < 60 || busyOver() || Date.now() - wheelAt.current < 1500) return;
+          if (Math.abs(event.deltaY) < 60 || busyOver() || Date.now() - wheelAt.current < 1500) return;
           wheelAt.current = Date.now();
-          goNext();
+          if (event.deltaY > 0) goNext();
+          else goBack();
         }}
         onClose={() => {
           slides().forEach((s) => s.querySelector("video")?.pause());
@@ -987,7 +1023,7 @@ export function AngleGallery({
           setSoundFor(null);
           if (window.location.hash.startsWith("#angle-")) history.replaceState(null, "", window.location.pathname + window.location.search);
         }}
-        className={`m-0 h-dvh max-h-none w-screen max-w-none bg-black p-0 text-white backdrop:bg-black ${autoOpen ? "animate-[viewer-up_.35s_ease-out]" : ""}`}
+        className={`m-0 h-dvh max-h-none w-screen max-w-none bg-black p-0 text-white backdrop:bg-black ${enter === "down" ? "animate-[viewer-down_.35s_ease-out]" : autoOpen ? "animate-[viewer-up_.35s_ease-out]" : ""}`}
       >
         <div ref={trackRef} className="flex h-full snap-x snap-mandatory overflow-x-auto overscroll-contain [scrollbar-width:none]">
           {angles.map((a) => {
@@ -1366,6 +1402,16 @@ export function AngleGallery({
           </>
         )}
 
+        {onBack && continueTo && (
+          <button
+            type="button"
+            onClick={goBack}
+            className="absolute inset-x-0 top-[4.25rem] mx-auto flex w-fit items-center gap-1.5 rounded-full bg-black/60 px-3 py-1.5 text-xs font-bold backdrop-blur-sm"
+          >
+            <span aria-hidden="true">⬆️</span>
+            {continueTo.labels.back}
+          </button>
+        )}
         {upcoming && (
           <button
             type="button"
@@ -1612,10 +1658,11 @@ export function AngleGallery({
             viewerId={viewerId}
             share={{ url: chain.url, title: chain.title }}
             altBase={chain.title}
-            continueTo={chain.next.length && continueTo ? { code: chain.code, next: chain.next, labels: continueTo.labels } : undefined}
+            continueTo={continueTo ? { code: chain.code, next: chain.next, labels: continueTo.labels } : undefined}
             autoOpen
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             onLeave={() => window.location.assign(`/m/${chain.code}`)}
+            onBack={comeBack}
           />
         </div>
       )}

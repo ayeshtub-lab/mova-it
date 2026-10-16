@@ -1,6 +1,7 @@
 "use client";
 
 import { ShareSheet } from "@/app/ShareSheet";
+import { setShareMode, shareFile, shareMode, shareNote } from "@/lib/share-file";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AngleUploader } from "@/app/AngleUploader";
@@ -102,13 +103,19 @@ export function DiscoverFeed({
     const url = `${location.origin}/m/${code}?src=share-discover#angle-${a.id}`;
     const file = stamped?.id === a.id ? stamped.file : null;
     if (file && navigator.canShare?.({ files: [file] })) {
-      const sent = await navigator.share({ files: [file], text: url }).then(() => true, () => false);
+      const sent = await shareFile(file, url);
       if (sent) {
         setShares((m) => new Map(m).set(a.id, sharesOf(a) + 1));
         fetch(`/api/angles/${a.id}/share`, { method: "POST" }).catch(() => {});
       }
       return;
     }
+    // «📹 فيديو» while the stamped file is still on its way: a word to tap again, not the link.
+    if (shareMode() === "video" && a.mediaType === "VIDEO" && stamped?.id === a.id) {
+      setShareMode("with-link");
+      return shareNote("⏳ عم نجهّز الفيديو… كبسة كمان مرة بعد لحظة");
+    }
+    setShareMode("with-link");
     const copy = () => navigator.clipboard.writeText(url).then(() => (flash(labels.copied), true), () => false);
     // The phone's share sheet; if it isn't there or fails (other than the person closing
     // it), the link is copied instead.
@@ -182,6 +189,7 @@ export function DiscoverFeed({
     <>
       {shareFor && (
         <ShareSheet
+          media={shareFor.a.mediaType === "VIDEO" ? "video" : false}
           target={{ code: shareFor.code, angleId: shareFor.a.id }}
           onOther={() => share(shareFor.a, shareFor.code, shareFor.title)}
           onClose={() => setShareFor(null)}

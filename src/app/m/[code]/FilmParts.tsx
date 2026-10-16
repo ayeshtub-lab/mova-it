@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { setShareMode, shareFile, shareMode, shareNote } from "@/lib/share-file";
 import { ShareSheet } from "@/app/ShareSheet";
 import type { FilmPart } from "@/server/montage/parts";
 import type { NextMoment } from "@/server/next-moments";
@@ -15,20 +16,26 @@ export function FilmParts({ code, parts, labels, lasting, member = false, anothe
   const [sheetFor, setSheetFor] = useState<FilmPart | null>(null);
   // The part's file (it carries the Zawmo mark): fetched when the sheet opens, so «تطبيقات تانية»
   // sends the video itself — TikTok takes files, not links.
-  const [file, setFile] = useState<{ part: number; file: File | null } | null>(null);
+  const [file, setFile] = useState<{ part: number; file: File | null; failed?: boolean } | null>(null);
   function openSheet(p: FilmPart) {
     setSheetFor(p);
     if (file?.part === p.part || !p.url) return;
     setFile({ part: p.part, file: null });
     fetch(p.url)
       .then((r) => (r.ok ? r.blob() : null))
-      .then((blob) => blob && setFile((f) => (f?.part === p.part ? { part: p.part, file: new File([blob], `zawmo-${code}-${p.part}.mp4`, { type: "video/mp4" }) } : f)))
-      .catch(() => {});
+      .then((blob) => setFile((f) => (f?.part !== p.part ? f : blob ? { part: p.part, file: new File([blob], `zawmo-${code}-${p.part}.mp4`, { type: "video/mp4" }) } : { part: p.part, file: null, failed: true })))
+      .catch(() => setFile((f) => (f?.part === p.part ? { part: p.part, file: null, failed: true } : f)));
   }
   async function share(p: FilmPart) {
     const url = `${location.origin}/m/${code}${lasting ? `/film/${p.part}` : ""}?src=share-part`;
     const ready = file?.part === p.part ? file.file : null;
-    if (ready && navigator.canShare?.({ files: [ready] })) return void navigator.share({ files: [ready], text: url }).catch(() => {});
+    if (ready && navigator.canShare?.({ files: [ready] })) return void shareFile(ready, url);
+    // «📹 فيديو» while the file is still on its way: never its link instead (Facebook would make a
+    // link post) — a word to tap again in a moment.
+    if (shareMode() === "video" && file?.part === p.part && !file.failed) {
+      setShareMode("with-link");
+      return shareNote("⏳ عم نجهّز الفيديو… كبسة كمان مرة بعد لحظة");
+    }
     if (navigator.share) return void navigator.share({ title: p.title, url }).catch(() => {});
     await navigator.clipboard?.writeText(url).catch(() => {});
     setCopied(p.part);
@@ -36,7 +43,7 @@ export function FilmParts({ code, parts, labels, lasting, member = false, anothe
   }
   return (
     <section id="video" aria-label={labels.title} className="flex scroll-mt-4 flex-col gap-3">
-      {sheetFor && <ShareSheet target={{ code }} onOther={() => share(sheetFor)} onClose={() => setSheetFor(null)} />}
+      {sheetFor && <ShareSheet media="video" target={{ code }} onOther={() => share(sheetFor)} onClose={() => setSheetFor(null)} />}
       <h2 className="text-xl font-extrabold">{labels.title}</h2>
       <p className="-mt-2 text-sm text-muted">{labels.hint}</p>
       <ul className="flex snap-x gap-3 overflow-x-auto pb-1 [scrollbar-width:none]">

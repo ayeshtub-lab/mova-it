@@ -237,7 +237,8 @@ export async function getMomentView(code: string, viewer: User | null) {
 }
 
 // "My moments": everything the user created or took part in, most recently active first.
-// The cover is the moment's first angle — the one every link holder may already see.
+// The cover is the moment's LATEST angle (his call, 2026-10-16): a moment someone just added to
+// looks new on the home page. (Its link preview and search image stay its first angle.)
 export async function listMyMoments(user: User, limit = 20) {
   const now = new Date();
   const moments = await db.moment.findMany({
@@ -254,7 +255,7 @@ export async function listMyMoments(user: User, limit = 20) {
       _count: { select: { participants: true } },
       angles: {
         where: { status: "READY", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
-        orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
+        orderBy: { uploadedAt: "desc" },
         select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true },
       },
     },
