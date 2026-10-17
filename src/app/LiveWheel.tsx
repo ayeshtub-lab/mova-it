@@ -2,20 +2,37 @@
 
 // The visitor home's hero wheel, with real public shots from Zawmo: four slices, one
 // swapping every few seconds for another from the pool (each fades in once its picture
-// has loaded). A slice opens its moment; its owner's photo sits on the ring and their
-// first name in the slice. Still for anyone who asked for reduced motion.
+// has loaded). A slice is a MOMENT (2026-10-17): its name in the slice, how many angles it has
+// on the ring, and a tap opens it; the yellow heart opens «اكتشف». Still for anyone who asked
+// for reduced motion.
 
 import { useEffect, useState } from "react";
 import { arcPath, bbox, pt, R_OUT, R_RING, slicePath } from "@/lib/wheel";
 
-export type WheelShot = { id: string; momentCode: string; title: string; name: string; avatarUrl: string | null; imageUrl: string | null };
+export type WheelShot = { id: string; momentCode: string; title: string; angles: number; anglesLabel?: string; name: string; avatarUrl: string | null; imageUrl: string | null };
+
+// A moment's name in two short lines at most, on word boundaries («قهوة / الصباح»).
+function lines(title: string, max = 12) {
+  const words = title.split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  for (const w of words) {
+    const last = out.at(-1);
+    if (last !== undefined && [...`${last} ${w}`].length <= max) out[out.length - 1] = `${last} ${w}`;
+    else if (out.length < 2) out.push([...w].length > max ? `${[...w].slice(0, max - 1).join("")}…` : w);
+    else {
+      out[1] = `${[...out[1]].slice(0, max - 1).join("")}…`;
+      break;
+    }
+  }
+  return out;
+}
 
 const SLOTS = 4;
 const EVERY_MS = 3200;
 const FACE_R = 17;
-const NAME_R = 80; // mid-slice, clear of the face on the ring
+const NAME_R = 80; // mid-slice, clear of the count on the ring
 
-export function LiveWheel({ shots, className, openLabel }: { shots: WheelShot[]; className?: string; openLabel: string }) {
+export function LiveWheel({ shots, className, openLabel, exploreLabel }: { shots: WheelShot[]; className?: string; openLabel: string; exploreLabel: string }) {
   // Which shot each slot shows, and what it showed before its last swap (kept underneath
   // while the new one fades in).
   const [{ slots, previous }, setWheel] = useState(() => {
@@ -52,19 +69,11 @@ export function LiveWheel({ shots, className, openLabel }: { shots: WheelShot[];
   return (
     <svg viewBox="-162 -162 324 324" className={className} role="group" aria-label={openLabel}>
       <defs>
-        {slots.map((_, i) => {
-          const [fx, fy] = pt(R_RING, start(i) + step / 2);
-          return (
-            <g key={i}>
-              <clipPath id={`live-slice-${i}`}>
-                <path d={slicePath(start(i), start(i) + step)} />
-              </clipPath>
-              <clipPath id={`live-face-${i}`}>
-                <circle cx={fx} cy={fy} r={FACE_R} />
-              </clipPath>
-            </g>
-          );
-        })}
+        {slots.map((_, i) => (
+          <clipPath key={i} id={`live-slice-${i}`}>
+            <path d={slicePath(start(i), start(i) + step)} />
+          </clipPath>
+        ))}
       </defs>
 
       <circle r={R_OUT + 6} fill="none" stroke="var(--surface)" strokeWidth="10" />
@@ -91,7 +100,7 @@ export function LiveWheel({ shots, className, openLabel }: { shots: WheelShot[];
         const ring = i % 2 ? "var(--brand-blue)" : "var(--brand-red)";
         const under = shots[previous[i] ?? -1]?.imageUrl;
         return (
-          <a key={i} href={`/m/${s.momentCode}`} aria-label={`${openLabel}: ${s.title} — ${s.name}`} className="wheel-slice outline-none" style={{ animationDelay: `${i * 90}ms` }}>
+          <a key={i} href={`/m/${s.momentCode}`} aria-label={`${openLabel}: ${s.title}${s.anglesLabel ? ` — ${s.anglesLabel}` : ""}`} className="wheel-slice outline-none" style={{ animationDelay: `${i * 90}ms` }}>
             {under && (
               <g clipPath={`url(#live-slice-${i})`}>
                 <image href={under} x={box.x} y={box.y} width={box.w} height={box.h} preserveAspectRatio="xMidYMid slice" />
@@ -102,29 +111,32 @@ export function LiveWheel({ shots, className, openLabel }: { shots: WheelShot[];
                 <rect x={box.x} y={box.y} width={box.w} height={box.h} fill="var(--surface)" />
                 {s.imageUrl && <image href={s.imageUrl} x={box.x} y={box.y} width={box.w} height={box.h} preserveAspectRatio="xMidYMid slice" />}
               </g>
-              <text x={nx} y={ny} dy="0.35em" textAnchor="middle" fontSize="13" fontWeight="800" fill="#fff" stroke="rgb(0 0 0 / 0.55)" strokeWidth="3" paintOrder="stroke" strokeLinejoin="round">
-                {[...s.name].slice(0, 12).join("")}
+              {/* The moment's name, and under it how many angles it has («١٥ زاوية»). */}
+              <text x={nx} y={ny} textAnchor="middle" fontWeight="800" fill="#fff" stroke="rgb(0 0 0 / 0.6)" strokeWidth="3.5" paintOrder="stroke" strokeLinejoin="round">
+                {[...lines(s.title), s.anglesLabel ?? ""].filter(Boolean).map((line, k, all) => (
+                  <tspan key={k} x={nx} fontSize={s.anglesLabel && k === all.length - 1 ? 11 : 14} dy={k === 0 ? `${0.35 - (all.length - 1) * 0.6}em` : "1.25em"}>
+                    {line}
+                  </tspan>
+                ))}
               </text>
+              {/* A camera on the ring (where the owner's face used to be): angles, from people there. */}
               <circle cx={fx} cy={fy} r={FACE_R + 3} fill={ring} />
-              {s.avatarUrl ? (
-                <>
-                  <circle cx={fx} cy={fy} r={FACE_R} fill="var(--surface)" />
-                  <image href={s.avatarUrl} x={fx - FACE_R} y={fy - FACE_R} width={FACE_R * 2} height={FACE_R * 2} clipPath={`url(#live-face-${i})`} preserveAspectRatio="xMidYMid slice" />
-                </>
-              ) : (
-                <text x={fx} y={fy} dy="0.35em" textAnchor="middle" fontSize="15" fontWeight="800" fill="#fff">
-                  {[...s.name][0] ?? "?"}
-                </text>
-              )}
+              <circle cx={fx} cy={fy} r={FACE_R} fill="var(--surface)" />
+              <text x={fx} y={fy} dy="0.35em" textAnchor="middle" fontSize="15" aria-hidden="true">
+                📸
+              </text>
             </g>
             <path d={slicePath(start(i), start(i) + step)} fill="none" className="wheel-outline" strokeWidth="3" />
           </a>
         );
       })}
 
-      <circle r="30" fill="var(--surface)" stroke="var(--line)" strokeWidth="2" />
-      <circle r="17" fill="var(--moment)" className="wheel-pulse" />
-      <circle r="11" fill="var(--moment)" />
+      {/* The yellow heart: into the site — «اكتشف», every moment as you swipe. */}
+      <a href="/discover" aria-label={exploreLabel} className="outline-none">
+        <circle r="30" fill="var(--surface)" stroke="var(--line)" strokeWidth="2" />
+        <circle r="17" fill="var(--moment)" className="wheel-pulse" />
+        <circle r="11" fill="var(--moment)" />
+      </a>
     </svg>
   );
 }

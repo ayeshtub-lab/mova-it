@@ -20,6 +20,7 @@ export function galleryAngles(view: MomentView): GalleryAngle[] {
     stampAt: a.stampAt.toISOString(),
     contributorName: a.contributorName,
     aiText: a.aiText,
+    aiTitle: a.aiTitle,
     contributorVerified: a.contributorVerified,
     profileId: a.profileId,
     contributorAvatar: a.contributorAvatar,

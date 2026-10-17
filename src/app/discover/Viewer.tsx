@@ -196,10 +196,16 @@ export function Viewer({
               />
 
               <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-2 bg-gradient-to-t from-black/85 via-black/40 to-transparent pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-4 pr-16 pt-24">
+                {/* Its own name, then the moment, where and which shot, then who (2026-10-17). */}
+                {item.shotTitle && <p className="line-clamp-2 text-xl font-extrabold leading-snug [text-shadow:0_1px_6px_rgb(0_0_0/0.5)]">{item.shotTitle}</p>}
+                <p className="flex flex-wrap items-center gap-x-1.5 text-sm font-bold">
+                  <Link href={`/m/${item.momentCode}`} className={`pointer-events-auto underline-offset-4 hover:underline ${item.shotTitle ? "" : "text-xl font-extrabold leading-tight [text-shadow:0_1px_6px_rgb(0_0_0/0.5)]"}`}>
+                    {item.shotTitle ? `🎬 ${item.title}` : item.title}
+                  </Link>
+                  {item.placeName && <span className="opacity-90">· 📍 {item.placeName}</span>}
+                  {item.number && item.of && item.of > 1 ? <span className="opacity-90">· {labels.angleOf.replace("{n}", String(item.number)).replace("{of}", String(item.of))}</span> : null}
+                </p>
                 <p className="text-sm font-bold opacity-90">📸 {item.name}</p>
-                <Link href={`/m/${item.momentCode}`} className="pointer-events-auto w-fit text-xl font-extrabold leading-tight [text-shadow:0_1px_6px_rgb(0_0_0/0.5)]">
-                  {item.title}
-                </Link>
                 <button type="button" onClick={() => onAdd(item)} className="pointer-events-auto min-h-11 w-fit rounded-full bg-accent px-5 text-sm font-bold shadow-md active:scale-95">
                   ＋ {labels.add}
                 </button>

@@ -180,6 +180,7 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
           uploader={{ locale, labels: dict.upload, soundLabels: dict.sounds, editLabels: dict.editShot, captionLabels: dict.caption }}
           labels={{
             open: t.open,
+            angleOf: t.angleOf,
             add: t.add,
             swipe: t.swipe,
             by: t.by,

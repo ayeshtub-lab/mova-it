@@ -56,7 +56,7 @@ export async function listDiscover(viewer: User | null) {
     take: CANDIDATES,
     include: {
       creator: { select: { displayName: true } },
-      _count: { select: { participants: true } },
+      _count: { select: { participants: true, angles: { where: shown } } },
       angles: {
         where: shown,
         orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
@@ -134,9 +134,13 @@ export async function listDiscover(viewer: User | null) {
         people: m._count.participants,
         lastActivityAt: m.lastActivityAt,
         angles: await Promise.all(
-          angles.map(async (a) => ({
+          angles.map(async (a, i) => ({
             id: a.id,
             mediaType: a.mediaType,
+            // (the first ANGLES_PER_MOMENT in the moment's own order: this is its i+1th shot)
+            shotTitle: a.aiTitle || null,
+            number: i + 1,
+            of: m._count.angles,
             filter: a.filter,
             caption: await captionView(a.caption),
             soundKey: a.soundKey,
@@ -263,7 +267,13 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
 
 // The visitor home's wheel: real public shots (checked, members' only — guests can't post
 // publicly), the best liked first, then the newest — one per moment, and different people
-// before the same person twice, so the wheel shows Zawmo's variety. Only the owner's first name is shown, with their photo.
+// before the same person twice, so the wheel shows Zawmo's variety. Each slice is named after its
+// MOMENT («قهوة الصباح · ١٥ زاوية», 2026-10-17: a visitor learns what Zawmo holds, not who posted),
+// so only moments with a name that says something: not a stretched word («روااااق») or a scrap.
+const sayable = (title: string) => {
+  const t = plain(title).trim();
+  return [...t].length >= 3 && !/(\p{L})\1{2,}/u.test(t) && /\p{L}{2,}/u.test(t);
+};
 export async function wheelShots(take = 12) {
   const shots = await db.angle.findMany({
     where: {
@@ -277,12 +287,13 @@ export async function wheelShots(take = 12) {
     take: 300,
     select: {
       id: true, shares: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, contributorId: true, pickedAt: true,
-      moment: { select: { code: true, title: true } },
+      moment: { select: { code: true, title: true, _count: { select: { angles: { where: { status: "READY", screening: "allowed" } } } } } },
       contributor: { select: { displayName: true, avatarUrl: true } },
     },
   });
-  if (!shots.length) return [];
-  const ids = shots.map((s) => s.id);
+  const named = shots.filter((s) => sayable(s.moment.title));
+  if (!named.length) return [];
+  const ids = named.map((s) => s.id);
   const [views, likes, comments] = await Promise.all([
     db.angleView.groupBy({ by: ["angleId"], where: { angleId: { in: ids } }, _count: { _all: true } }),
     db.reaction.groupBy({ by: ["angleId"], where: { angleId: { in: ids } }, _count: { _all: true } }),
@@ -291,14 +302,14 @@ export async function wheelShots(take = 12) {
   const count = (rows: { angleId: string; _count: { _all: number } }[]) => new Map(rows.map((r) => [r.angleId, r._count._all]));
   const [v, l, c] = [count(views), count(likes), count(comments)];
   // Stable sort: equal scores keep the newest-first order.
-  const ranked = shots
-    // «⭐ اختيار زاومو» comes before everything else.
-    .map((s, i) => ({ s, i, score: (s.pickedAt ? 1_000_000 : 0) + (v.get(s.id) ?? 0) + 3 * (l.get(s.id) ?? 0) + 4 * (c.get(s.id) ?? 0) + 5 * s.shares }))
+  const ranked = named
+    // «⭐ اختيار زاومو» comes before everything else; a moment of many angles shows Zawmo best.
+    .map((s, i) => ({ s, i, score: (s.pickedAt ? 1_000_000 : 0) + (v.get(s.id) ?? 0) + 3 * (l.get(s.id) ?? 0) + 4 * (c.get(s.id) ?? 0) + 5 * s.shares + 2 * s.moment._count.angles }))
     .sort((x, y) => y.score - x.score || x.i - y.i);
   // Different people first; while Zawmo is small, the rest from other moments of the same people.
   const moments = new Set<string>();
   const people = new Set<string>();
-  const picked: typeof shots = [];
+  const picked: typeof named = [];
   for (const samePersonOk of [false, true]) {
     for (const { s } of ranked) {
       if (picked.length >= take) break;
@@ -313,6 +324,7 @@ export async function wheelShots(take = 12) {
       id: s.id,
       momentCode: s.moment.code,
       title: plain(s.moment.title),
+      angles: s.moment._count.angles,
       name: firstName(s.contributor.displayName),
       avatarUrl: s.contributor.avatarUrl,
       imageUrl: await publicCover(s),
@@ -337,8 +349,8 @@ export async function trendingVideos(viewer: User | null, take = 10) {
       moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false },
     },
     select: {
-      id: true, shares: true, uploadedAt: true, mediaPath: true, thumbPath: true, filter: true, caption: true, soundKey: true, muteOriginal: true, lyrics: true, streamUid: true, streamReady: true,
-      moment: { select: { code: true, title: true } },
+      id: true, shares: true, uploadedAt: true, mediaPath: true, thumbPath: true, filter: true, caption: true, soundKey: true, muteOriginal: true, lyrics: true, streamUid: true, streamReady: true, aiTitle: true,
+      moment: { select: { code: true, title: true, placeId: true, placeName: true } },
       contributor: { select: { id: true, displayName: true, avatarUrl: true, isGuest: true } },
     },
     take: 200,
@@ -363,11 +375,14 @@ export async function trendingVideos(viewer: User | null, take = 10) {
     // One video per moment: its best one (the same moment twice in the top ten read as a repeat).
     .filter((x, i, all) => all.findIndex((y) => y.a.moment.code === x.a.moment.code) === i)
     .slice(0, take);
+  const places = await placeViews(ranked.map(({ a }) => a.moment.placeId));
   return Promise.all(
     ranked.map(async ({ a, stats }) => ({
       id: a.id,
       momentCode: a.moment.code,
       title: plain(a.moment.title),
+      shotTitle: a.aiTitle || null,
+      placeName: (a.moment.placeId && places.get(a.moment.placeId)?.name) || a.moment.placeName,
       name: a.contributor.displayName,
       avatarUrl: a.contributor.avatarUrl,
       profileId: a.contributor.isGuest ? null : a.contributor.id,
@@ -390,4 +405,4 @@ export async function trendingVideos(viewer: User | null, take = 10) {
 // needs no database at all — no wait while the database wakes after a quiet while (the home
 // page's occasional 4 seconds) — and the video links in it (good for 30 minutes) stay good.
 export const visitorShowcase = unstable_cache(() => publicShowcase(12), ["visitor-showcase-1"], { revalidate: 300 });
-export const visitorWheel = unstable_cache(() => wheelShots(12), ["visitor-wheel-1"], { revalidate: 300 });
+export const visitorWheel = unstable_cache(() => wheelShots(12), ["visitor-wheel-2"], { revalidate: 300 });

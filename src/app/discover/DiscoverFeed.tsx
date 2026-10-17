@@ -180,7 +180,7 @@ export function DiscoverFeed({
   // The viewer's list: the trending videos, then every other shot on the page.
   const viewerItems = useMemo<FeedItem[]>(() => {
     const trendingIds = new Set(trending.map((t) => t.id));
-    const rest = moments.flatMap((m) => m.angles.filter((a) => !trendingIds.has(a.id)).map((a) => ({ ...a, momentCode: m.code, title: m.title })));
+    const rest = moments.flatMap((m) => m.angles.filter((a) => !trendingIds.has(a.id)).map((a) => ({ ...a, momentCode: m.code, title: m.title, placeName: m.placeName })));
     return [...trending, ...rest];
   }, [trending, moments]);
   const closeViewer = useCallback(() => setViewerAt(null), []);
@@ -432,10 +432,16 @@ function MomentSlide({
             ))}
           </div>
         )}
+        {/* What this shot is (2026-10-17: people swiped not knowing): its own name first, then the
+            moment it is part of, where, and which of its shots — then who shot it. */}
+        {angle?.shotTitle && <p className="line-clamp-2 text-xl font-extrabold leading-snug [text-shadow:0_1px_6px_rgb(0_0_0/0.5)]">{angle.shotTitle}</p>}
+        <p className="flex flex-wrap items-center gap-x-1.5 text-sm font-bold">
+          <Link href={`/m/${m.code}`} className={`pointer-events-auto underline-offset-4 hover:underline ${angle?.shotTitle ? "" : "text-2xl font-extrabold leading-tight [text-shadow:0_1px_6px_rgb(0_0_0/0.5)]"}`}>
+            {angle?.shotTitle ? `🎬 ${m.title}` : m.title}
+          </Link>
+          {angle?.number && angle.of && angle.of > 1 ? <span className="opacity-90">· {labels.angleOf.replace("{n}", String(angle.number)).replace("{of}", String(angle.of))}</span> : null}
+        </p>
         {angle && <p className="text-sm font-bold opacity-90">📸 {angle.name}</p>}
-        <Link href={`/m/${m.code}`} className="pointer-events-auto w-fit text-2xl font-extrabold leading-tight [text-shadow:0_1px_6px_rgb(0_0_0/0.5)]">
-          {m.title}
-        </Link>
         {m.lockedCount > 0 && (
           <p className="w-fit rounded-full bg-black/45 px-3 py-1 text-sm font-bold backdrop-blur-sm">{labels.locked.replace("{n}", String(m.lockedCount))}</p>
         )}

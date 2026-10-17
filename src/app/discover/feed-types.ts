@@ -25,10 +25,15 @@ export type FeedAngle = {
   comments: number;
   shares: number;
   views: number;
+  // What it is, on it as it plays (2026-10-17: people swiped through videos not knowing what they
+  // were): its own name, and which of the moment's shots it is («زاوية ٣ من ١٥»).
+  shotTitle?: string | null;
+  number?: number;
+  of?: number;
 };
 
 // A shot with the moment it belongs to (the trending row and the full-screen viewer).
-export type FeedItem = FeedAngle & { momentCode: string; title: string };
+export type FeedItem = FeedAngle & { momentCode: string; title: string; placeName?: string | null };
 
 // A trending video also carries its week: the row shows the week's views and hearts.
 export type TrendingItem = FeedItem & { weekViews: number; weekLikes: number };
@@ -47,6 +52,7 @@ export type FeedMoment = {
 
 export type DiscoverLabels = {
   open: string;
+  angleOf: string; // «زاوية ٣ من ١٥»
   add: string;
   swipe: string;
   by: string;

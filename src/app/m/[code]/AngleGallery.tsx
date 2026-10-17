@@ -1,5 +1,6 @@
 "use client";
 
+import { plain } from "@/lib/clip";
 import { ShareSheet } from "@/app/ShareSheet";
 import { download, progressText, shareFile } from "@/lib/share-file";
 import Link from "next/link";
@@ -41,6 +42,7 @@ export type GalleryAngle = {
   stampAt: string; // when it was shared: the retro stamp's date and time
   contributorName: string;
   aiText?: string | null; // the line written for the shot (image alt text)
+  aiTitle?: string | null; // its own name («فنجان قهوة بين الأشجار»), on it in the viewer
   contributorVerified?: boolean;
   contributorAvatar: string | null;
   profileId: string | null;
@@ -1142,7 +1144,12 @@ export function AngleGallery({
                   </button>
                 )}
 
-                <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-black/80 to-transparent p-4 pr-20 pt-10 text-sm font-bold">
+                {/* What this shot is, then the moment it is in (the viewer carries on into other moments —
+                    2026-10-17: people swiped not knowing what they were watching), then the row below. */}
+                <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-1.5 bg-gradient-to-t from-black/80 to-transparent p-4 pr-20 pt-14 text-sm font-bold">
+                  {a.aiTitle && <p className="line-clamp-2 text-lg font-extrabold leading-snug [text-shadow:0_1px_6px_rgb(0_0_0/0.5)]">{a.aiTitle}</p>}
+                  <p className="truncate text-xs font-bold text-white/85">🎬 {plain(share.title)}</p>
+                  <div className="flex items-center gap-2">
                   {a.profileId ? (
                     <>
                       <Link href={`/u/${a.profileId}`} className="pointer-events-auto truncate underline-offset-4 hover:underline">
@@ -1184,6 +1191,7 @@ export function AngleGallery({
                       <LocalTime iso={a.capturedAt} locale={locale} />
                     </span>
                   )}
+                  </div>
                 </figcaption>
 
                 {/* Side rail, TikTok-style, on the right in both languages. */}

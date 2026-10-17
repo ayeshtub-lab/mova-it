@@ -196,6 +196,8 @@ export async function getMomentView(code: string, viewer: User | null) {
         stampAt: a.uploadedAt,
         contributorName: a.contributor.displayName,
         aiText: a.aiText,
+        // Its own name («فنجان قهوة بين الأشجار»), shown on it in the viewer (2026-10-17).
+        aiTitle: a.aiTitle || null,
         contributorVerified: a.contributor.verified,
         contributorAvatar: a.contributor.avatarUrl,
         // Official accounts have a profile page; guests don't.
@@ -237,8 +239,9 @@ export async function getMomentView(code: string, viewer: User | null) {
 }
 
 // "My moments": everything the user created or took part in, most recently active first.
-// The cover is the moment's LATEST angle (his call, 2026-10-16): a moment someone just added to
-// looks new on the home page. (Its link preview and search image stay its first angle.)
+// The cover is the LATEST shot the user added there himself (his call, 2026-10-17 — each person
+// sees their own newest addition, not someone else's); a moment they haven't added to yet shows its
+// latest shot of all. (Its link preview and search image stay its first angle.)
 export async function listMyMoments(user: User, limit = 20) {
   const now = new Date();
   const moments = await db.moment.findMany({
@@ -256,7 +259,7 @@ export async function listMyMoments(user: User, limit = 20) {
       angles: {
         where: { status: "READY", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
         orderBy: { uploadedAt: "desc" },
-        select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true },
+        select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, contributorId: true },
       },
     },
   });
@@ -264,7 +267,7 @@ export async function listMyMoments(user: User, limit = 20) {
   const places = await placeViews(moments.map((m) => m.placeId));
   return Promise.all(
     moments.map(async (m) => {
-      const cover = m.angles[0];
+      const cover = m.angles.find((a) => a.contributorId === user.id) ?? m.angles[0];
       return {
         code: m.code,
         title: m.title,
