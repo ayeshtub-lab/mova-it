@@ -1491,7 +1491,7 @@ export function AngleGallery({
           <button
             type="button"
             onClick={goNext}
-            className={`absolute inset-x-0 bottom-[max(6rem,calc(env(safe-area-inset-bottom)+5rem))] mx-auto flex w-fit max-w-[88vw] items-center gap-2 rounded-full bg-black/60 font-bold backdrop-blur-sm ${
+            className={`absolute inset-x-0 bottom-[max(10.5rem,calc(env(safe-area-inset-bottom)+9.5rem))] mx-auto flex w-fit max-w-[88vw] items-center gap-2 rounded-full bg-black/60 font-bold backdrop-blur-sm ${
               current === angles.length - 1 ? "p-1.5 pe-4 text-sm" : "px-3 py-1.5 text-xs"
             }`}
           >
