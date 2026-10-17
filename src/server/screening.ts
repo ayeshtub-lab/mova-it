@@ -19,14 +19,23 @@ const TIMEOUT_MS = 25_000;
 // hidden until an admin looks at it.
 const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
 export const RETRY_DELAYS_MS = [1500, 4500];
-export async function callGemini({ body, purpose = "other" }: { body: string; purpose?: string }) {
+// `timeoutMs` / `retryTimeout`: a call that may take longer (the lens: many pictures at once) waits
+// longer, and one that ran out of time is tried once more — «صوّر معك» lost its matching to a
+// timeout every few days (Sentry, 2026-09-30 → 10-16), and it is the heart of Zawmo.
+export async function callGemini({ body, purpose = "other", timeoutMs = TIMEOUT_MS, retryTimeout = false }: { body: string; purpose?: string; timeoutMs?: number; retryTimeout?: boolean }) {
   for (let attempt = 0; ; attempt++) {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-      body,
-    });
+    let res: Response;
+    try {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
+        signal: AbortSignal.timeout(timeoutMs),
+        body,
+      });
+    } catch (error) {
+      if (retryTimeout && attempt === 0 && (error as Error)?.name === "TimeoutError") continue;
+      throw error;
+    }
     if (res.ok) recordGemini(purpose, res); // counted for «💰 التكاليف»
     if (res.ok || !RETRY_STATUS.has(res.status) || attempt >= RETRY_DELAYS_MS.length) return res;
     await res.body?.cancel().catch(() => {});
@@ -281,7 +290,9 @@ export async function likeness(mine: string, others: string[]): Promise<Likeness
   if (!screeningEnabled() || !others.length) return none;
   try {
     const res = await callGemini({
-    purpose: "lens",
+      purpose: "lens",
+      timeoutMs: 40_000,
+      retryTimeout: true,
       body: JSON.stringify({
         // Every picture labelled with its number: counting unlabelled pictures, the model
         // sometimes answered one short (5 answers for 6 pictures) and the whole check was lost.
