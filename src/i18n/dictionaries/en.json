@@ -799,6 +799,9 @@
     "back": "Back to the moment"
   },
   "branded": {
+    "progress": "⏳ {pct}",
+    "ready": "✅ Ready, tap",
+    "readySheet": "✅ The video is ready — pick where to post it",
     "waitLabel": "⏳ Wait, getting the video ready to share",
     "make": "📤 Share with Zawmo mark",
     "working": "⏳ Getting your video ready with the Zawmo mark… tap share again in a moment",

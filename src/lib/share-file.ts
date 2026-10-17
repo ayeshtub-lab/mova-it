@@ -49,3 +49,37 @@ export function shareFile(file: File, link: string, copied = "📋 الرابط 
   copy?.then(() => shareNote(copied), () => {});
   return sent;
 }
+
+// The file, with how far it has come; one more try if the first goes wrong (a phone network drops).
+export async function download(url: string, progress: (got: number, total: number) => void, type = "video/mp4"): Promise<Blob> {
+  let last: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const total = Number(res.headers.get("content-length")) || 0;
+      if (!res.body) return await res.blob();
+      const reader = res.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let got = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        got += value.length;
+        progress(got, total);
+      }
+      return new Blob(chunks as BlobPart[], { type });
+    } catch (error) {
+      last = error;
+    }
+  }
+  throw last;
+}
+
+// How far, for a person: «٦٠٪» — or «٢٫٣ MB» while the size isn't known.
+export function progressText(got: number, total: number) {
+  const ar = document.documentElement.lang === "ar";
+  const n = (k: number, digits = 0) => k.toLocaleString(ar ? "ar-EG" : "en", { maximumFractionDigits: digits });
+  return total ? `${n(Math.min(99, Math.round((got / total) * 100)))}${ar ? "٪" : "%"}` : `${n(got / 1048576, 1)} MB`;
+}

@@ -3,7 +3,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { useState } from "react";
 import { ShareSheet } from "@/app/ShareSheet";
-import { shareFile, setShareMode, shareMode, shareNote } from "@/lib/share-file";
+import { download, shareFile, setShareMode, shareMode, shareNote } from "@/lib/share-file";
 
 export type PartShareLabels = { share: string; copied: string; preparing: string; ready: string; readySheet: string; failed: string };
 
@@ -17,32 +17,6 @@ export type PartShareLabels = { share: string; copied: string; preparing: string
 const report = (stage: string, detail: unknown) =>
   Sentry.captureMessage(`part-share ${stage}`, { level: "warning", extra: { detail: detail instanceof Error ? `${detail.name}: ${detail.message}` : String(detail) } });
 
-// The file, with how far it has come; one more try if the first goes wrong (a phone network drops).
-async function download(url: string, progress: (got: number, total: number) => void): Promise<Blob> {
-  let last: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const total = Number(res.headers.get("content-length")) || 0;
-      if (!res.body) return await res.blob();
-      const reader = res.body.getReader();
-      const chunks: Uint8Array[] = [];
-      let got = 0;
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        chunks.push(value);
-        got += value.length;
-        progress(got, total);
-      }
-      return new Blob(chunks as BlobPart[], { type: "video/mp4" });
-    } catch (error) {
-      last = error;
-    }
-  }
-  throw last;
-}
 export function PartShare({ code, part, url, title, lasting, member = false, labels, className }: {
   code: string;
   part: number;

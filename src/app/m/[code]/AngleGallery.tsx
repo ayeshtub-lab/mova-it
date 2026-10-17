@@ -1,7 +1,7 @@
 "use client";
 
 import { ShareSheet } from "@/app/ShareSheet";
-import { shareFile } from "@/lib/share-file";
+import { download, progressText, shareFile } from "@/lib/share-file";
 import Link from "next/link";
 import { VerifiedBadge } from "@/app/VerifiedBadge";
 import { useRouter } from "next/navigation";
@@ -94,7 +94,7 @@ type Labels = {
   actionFailed: string;
   isNew: string;
   edit: ShotEditorLabels & { open: string; failed: string };
-  branded: { make: string; working: string; share: string; failed: string; photoWorking: string; waitLabel: string };
+  branded: { make: string; working: string; share: string; failed: string; photoWorking: string; waitLabel: string; progress: string; ready: string; readySheet: string };
   repost: { note: string; ask: string; asked: string };
   caption: CaptionLabels;
   sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
@@ -690,24 +690,27 @@ export function AngleGallery({
   // «شارك»: for a member, Zawmo's sheet first — their people (a card in «الدردشة»), then the phone's
   // own sheet (below, unchanged) and the link (src/app/ShareSheet.tsx).
   const [shareFor, setShareFor] = useState<GalleryAngle | null>(null);
+  const busyStamp = (id: string) => !!stamped[id] && !stamped[id].file && !stamped[id].failed;
   function openShare(a: GalleryAngle) {
     setShareFor(a);
-    // (someone else's video: its stamped file fetched now, ready for «تطبيقات تانية»)
-    if (a.mediaType === "VIDEO" && !a.isMine && branded?.id !== a.id) prepareBranded(a, true);
+    // (a video: its stamped file fetched now if it isn't here yet, ready for «📹 فيديو»)
+    if (a.mediaType === "VIDEO") prepareBranded(a, true);
   }
 
   async function shareAngle(a: GalleryAngle) {
     // A video goes out as the file with the Zawmo mark and who shot it (so TikTok and the rest take
     // it): yours, made in the background when it opened; someone else's, fetched when «شارك» opened
     // its sheet — while it is still on its way, a word to tap again; if it can't be had, the link.
-    if (a.mediaType === "VIDEO") {
-      const ready = branded?.id === a.id ? branded : null;
-      if (ready?.file) return shareBranded(ready.file);
-      if (a.isMine) {
-        if (!ready) prepareBranded(a);
-        return flash(labels.branded.working);
+    // Everyone's, members' and visitors' alike (2026-10-17: a visitor used to get the link). Not
+    // here yet: it is fetched now, its progress on the share arrow — and the share itself is the
+    // next tap (a phone refuses to share after a wait).
+    if (a.mediaType === "VIDEO" && "canShare" in navigator) {
+      const ready = stamped[a.id];
+      if (ready?.file) return shareBranded(a.id, ready.file);
+      if (!ready?.failed) {
+        prepareBranded(a);
+        return flash(ready?.pct ? labels.branded.progress.replace("{pct}", ready.pct) : labels.branded.working);
       }
-      if (ready) return flash(labels.branded.working);
     }
     fetch(`/api/angles/${a.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
     // A photo goes out as a picture with the Zawmo mark (ready since it opened) — for a story or
@@ -736,30 +739,53 @@ export function AngleGallery({
     flash(copied ? labels.copied : url);
   }
 
-  // ── «📤 شارك بختم زاومو» (the owner's video, with the Zawmo mark and closing card) ──
-  // Made on the server, then kept here as a file: the phone's share sheet needs a fresh tap
-  // (iPhone refuses a share after a wait), so a first tap prepares, a second one shares.
-  const [branded, setBranded] = useState<{ id: string; file: File | null } | null>(null);
+  // ── «📤 شارك بختم زاومو»: a video shot with the Zawmo mark and closing card ──
+  // Made on the server (once, then kept), then fetched here as a file, its progress shown: the
+  // phone's share sheet needs a fresh tap (iPhone refuses a share after a wait), so the file must be
+  // here before the tap. The last three are kept (2026-10-17: only one was, so going back to a video
+  // made it all again — the ring spinning anew; three, as each is 5–13 MB of the phone's memory).
+  // `pct`: null while the server stamps it, then how far the download has come.
+  const [stamped, setStamped] = useState<Record<string, { pct: string | null; file: File | null; failed?: boolean }>>({});
+  const keptOrder = useRef<string[]>([]);
+  const stamping = useRef(new Set<string>());
   async function prepareBranded(a: GalleryAngle, quiet = false) {
-    setBranded({ id: a.id, file: null });
+    const had = stamped[a.id];
+    if (stamping.current.has(a.id) || had?.file) return;
+    stamping.current.add(a.id);
+    setStamped((all) => ({ ...all, [a.id]: { pct: null, file: null } }));
     try {
       const res = await fetch(`/api/angles/${a.id}/branded`, { method: "POST" });
       if (!res.ok) throw new Error(String(res.status));
       const { url } = (await res.json()) as { url: string };
-      const blob = await (await fetch(url)).blob();
+      const blob = await download(url, (got, total) => setStamped((all) => ({ ...all, [a.id]: { pct: progressText(got, total), file: null } })));
       const code = share.url.split("/").pop() ?? "zawmo";
-      setBranded((b) => (b?.id === a.id ? { id: a.id, file: new File([blob], `zawmo-${code}.mp4`, { type: "video/mp4" }) } : b));
+      const file = new File([blob], `zawmo-${code}.mp4`, { type: "video/mp4" });
+      keptOrder.current = [...keptOrder.current.filter((id) => id !== a.id), a.id];
+      const drop = keptOrder.current.slice(0, -3);
+      keptOrder.current = keptOrder.current.slice(-3);
+      setStamped((all) => {
+        const next = { ...all, [a.id]: { pct: null, file } };
+        for (const id of drop) delete next[id];
+        return next;
+      });
     } catch {
-      setBranded(null);
+      setStamped((all) => ({ ...all, [a.id]: { pct: null, file: null, failed: true } }));
       if (!quiet) flash(labels.branded.failed);
+    } finally {
+      stamping.current.delete(a.id);
     }
   }
-  // Your own video on screen: get its stamped copy ready, so the share arrow sends it at once
-  // (a phone refuses to share after a wait — the file must be here before the tap).
+  // A video on screen gets its stamped copy ready, so the share arrow sends it at once: your own at
+  // once; a member on someone else's after two seconds on it (one only flicked past costs nothing).
   useEffect(() => {
     const a = angles[current];
-    if (!opened || !a?.isMine || a.mediaType !== "VIDEO" || branded?.id === a.id) return;
-    prepareBranded(a, true);
+    if (!opened || !a || a.mediaType !== "VIDEO" || !("canShare" in navigator) || !(a.isMine || viewerId)) return;
+    if (a.isMine) {
+      prepareBranded(a, true);
+      return;
+    }
+    const timer = setTimeout(() => prepareBranded(a, true), 2000);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per video on screen
   }, [current, opened]);
 
@@ -786,8 +812,8 @@ export function AngleGallery({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per photo on screen
   }, [current, opened]);
 
-  async function shareBranded(file: File) {
-    fetch(`/api/angles/${branded?.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
+  async function shareBranded(id: string, file: File) {
+    fetch(`/api/angles/${id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
     if (navigator.canShare?.({ files: [file] })) {
       await shareFile(file, tagged(share.url, "share-video"));
       return;
@@ -917,6 +943,17 @@ export function AngleGallery({
         <ShareSheet
           media={shareFor.mediaType === "VIDEO" ? "video" : "photo"}
           target={{ code: share.url.split("/").pop() ?? "", angleId: shareFor.id }}
+          status={
+            shareFor.mediaType !== "VIDEO" || !stamped[shareFor.id]
+              ? undefined
+              : stamped[shareFor.id].file
+                ? labels.branded.readySheet
+                : stamped[shareFor.id].failed
+                  ? labels.branded.failed
+                  : stamped[shareFor.id].pct
+                    ? labels.branded.progress.replace("{pct}", stamped[shareFor.id].pct!)
+                    : labels.branded.waitLabel
+          }
           onOther={() => shareAngle(shareFor)}
           onClose={() => setShareFor(null)}
         />
@@ -1223,8 +1260,8 @@ export function AngleGallery({
                   )}
 
                   {/* Your video's stamped copy still being made: the arrow turns into a spinning ring, with words under it. */}
-                  <button type="button" aria-label={labels.share} aria-busy={branded?.id === a.id && !branded.file} onClick={() => (viewerId ? openShare(a) : shareAngle(a))} className={railButton}>
-                    {branded?.id === a.id && !branded.file ? (
+                  <button type="button" aria-label={labels.share} aria-busy={busyStamp(a.id)} onClick={() => (viewerId ? openShare(a) : shareAngle(a))} className={railButton}>
+                    {busyStamp(a.id) ? (
                       <span aria-hidden="true" className="size-8 animate-spin rounded-full border-4 border-white/30 border-t-white" />
                     ) : (
                       <svg viewBox="0 0 24 24" className="size-8 fill-white">
@@ -1233,11 +1270,15 @@ export function AngleGallery({
                     )}
                   </button>
                   {/* …and says so in words: a ring alone means nothing to someone new. */}
-                  {branded?.id === a.id && !branded.file && (
+                  {busyStamp(a.id) ? (
                     <span role="status" className="-mt-1 w-20 text-center text-[11px] font-bold leading-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
-                      {labels.branded.waitLabel}
+                      {stamped[a.id]?.pct ? labels.branded.progress.replace("{pct}", stamped[a.id]!.pct!) : labels.branded.waitLabel}
                     </span>
-                  )}
+                  ) : stamped[a.id]?.file && !viewerId ? (
+                    <span role="status" className="-mt-1 w-20 text-center text-[11px] font-bold leading-tight text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.8)]">
+                      {labels.branded.ready}
+                    </span>
+                  ) : null}
                   {/* The sound disc, TikTok-style: spins, and opens the sound's page. */}
                   {soundByKey(soundOf(a.id)?.key) ? (
                     <Link

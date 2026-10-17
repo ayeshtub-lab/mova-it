@@ -18,7 +18,10 @@ import { buildBrandedShot } from "@/server/montage/render";
 // sound), kept next to the shot.
 
 // "mark-3" (2026-10-15): the name of who shot it on the mark — the file may go out from anyone now.
-const STYLE = "mark-3";
+// mark-4 (2026-10-17): the bitrate ceiling (montage/render.ts ENCODE) — copies made before it were
+// up to 50 MB for busy camera footage, too big for a phone to share; each is made again when next
+// asked for (and by the cron, a few at a time).
+const STYLE = "mark-4";
 
 export class BrandedError extends Error {
   constructor(public code: "not_found" | "not_video") {
@@ -70,11 +73,11 @@ export async function ensureBranded(angleId: string) {
 }
 
 // Asked for to share (usually ready already): by its owner — or, for a public shot that passed the
-// check, by anyone (the owner agreed 2026-10-15: it goes out with the Zawmo mark and the name of who
-// shot it, so TikTok and the rest take the video itself).
-export async function brandedShotUrl(user: User, angleId: string) {
+// check, by anyone, visitors too (the owner agreed 2026-10-15 and 10-17: it goes out with the Zawmo
+// mark and the name of who shot it, so TikTok, YouTube and Reels take the video itself).
+export async function brandedShotUrl(user: User | null, angleId: string) {
   const angle = await findShot(angleId);
-  const mayShare = angle && (angle.contributorId === user.id || (angle.moment.visibility === "PUBLIC" && angle.screening === "allowed"));
+  const mayShare = angle && ((user && angle.contributorId === user.id) || (angle.moment.visibility === "PUBLIC" && angle.screening === "allowed"));
   if (!angle || !mayShare || angle.status !== "READY" || !angle.mediaPath) throw new BrandedError("not_found");
   if (angle.mediaType !== "VIDEO") throw new BrandedError("not_video");
   const path = await ensureBranded(angleId);

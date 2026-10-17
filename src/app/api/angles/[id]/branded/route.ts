@@ -6,12 +6,12 @@ import { limited } from "@/server/rate-limit";
 // Making the video can take a little while (the whole clip is re-encoded once, then kept).
 export const maxDuration = 300;
 
-// «📤 شارك بختم زاومو»: the owner's video shot with the Zawmo mark and closing card.
-// Answers { url } (a short-lived link to the file) once it's ready.
+// «📤 شارك بختم زاومو»: a video shot with the Zawmo mark and closing card — its owner's, or a public
+// one for anyone (a visitor too: src/server/branded.ts). Answers { url } (a short-lived link to the
+// file) once it's ready.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const slow = await limited("branded", request, user.id);
+  const slow = await limited("branded", request, user?.id);
   if (slow) return slow;
   try {
     const url = await brandedShotUrl(user, (await params).id);
