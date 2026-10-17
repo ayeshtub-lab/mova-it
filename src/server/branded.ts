@@ -93,8 +93,10 @@ export async function brandAfterChange(angleId: string) {
   if (photo?.mediaType === "PHOTO" && photo.soundKey) await ensureMarked(angleId).catch((error) => console.error("marked ahead failed", angleId, error));
 }
 
-// The cron: older videos without their current stamped copy, a few per run.
-export async function brandPending(limit = 3) {
+// The cron: older videos without their current stamped copy, a few per run — the newest first, and
+// none started after `startBy` (a copy of busy footage takes ~3 minutes: the run's 5 were cut off
+// mid-copy, its work lost, 2026-10-17).
+export async function brandPending(limit = 3, startBy = Number.POSITIVE_INFINITY) {
   const videos = await db.angle.findMany({
     where: { mediaType: "VIDEO", status: "READY", mediaPath: { not: null } },
     orderBy: { uploadedAt: "desc" },
@@ -103,7 +105,7 @@ export async function brandPending(limit = 3) {
   });
   let made = 0;
   for (const v of videos) {
-    if (made >= limit) break;
+    if (made >= limit || Date.now() > startBy) break;
     if (await blobExists(brandedPath(v))) continue;
     await brandAfterChange(v.id);
     made++;

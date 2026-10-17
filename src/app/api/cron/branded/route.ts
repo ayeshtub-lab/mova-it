@@ -11,6 +11,7 @@ export const maxDuration = 300;
 // calls), then older videos get their stamped copy made ahead, a few per run, and photos with a
 // sound their shared video. A weather failure never stops the videos.
 export async function GET(request: Request) {
+  const started = Date.now();
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const weather = await stampWeather().catch((error) => {
@@ -27,7 +28,8 @@ export async function GET(request: Request) {
     console.error("describe pending failed", error);
     return 0;
   });
-  const made = await brandPending(3);
+  // A new copy is started only within the first 90 s of the run, so it ends within the 300 s.
+  const made = await brandPending(3, started + 90_000);
   const photos = await markPending(2);
   console.log("branded ahead", { made, photos, weather, rechecked, described });
   return NextResponse.json({ made, photos, weather, rechecked, described });
