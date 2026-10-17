@@ -27,12 +27,16 @@ function lines(title: string, max = 12) {
   return out;
 }
 
-const SLOTS = 4;
+// How many moments show at once (2026-10-17: «كل ما كان مليان أجمل»), and how their names fit:
+// the more slices, the narrower each — shorter lines, a smaller letter.
+const FIT: Record<number, { chars: number; size: number; small: number }> = { 4: { chars: 12, size: 14, small: 11 }, 6: { chars: 10, size: 12.5, small: 10 }, 8: { chars: 8, size: 11, small: 9 } };
 const EVERY_MS = 3200;
 const FACE_R = 17;
 const NAME_R = 80; // mid-slice, clear of the count on the ring
 
-export function LiveWheel({ shots, className, openLabel, exploreLabel }: { shots: WheelShot[]; className?: string; openLabel: string; exploreLabel: string }) {
+export function LiveWheel({ shots, className, openLabel, exploreLabel, slices = 6 }: { shots: WheelShot[]; className?: string; openLabel: string; exploreLabel: string; slices?: 4 | 6 | 8 }) {
+  const SLOTS = slices;
+  const fit = FIT[slices];
   // Which shot each slot shows, and what it showed before its last swap (kept underneath
   // while the new one fades in).
   const [{ slots, previous }, setWheel] = useState(() => {
@@ -62,7 +66,7 @@ export function LiveWheel({ shots, className, openLabel, exploreLabel }: { shots
       img.src = url;
     }, EVERY_MS);
     return () => window.clearInterval(timer);
-  }, [shots]);
+  }, [shots, SLOTS]);
 
   const step = (Math.PI * 2) / SLOTS;
   const start = (i: number) => i * step - step / 2; // slot 0 centred at the top
@@ -113,8 +117,8 @@ export function LiveWheel({ shots, className, openLabel, exploreLabel }: { shots
               </g>
               {/* The moment's name, and under it how many angles it has («١٥ زاوية»). */}
               <text x={nx} y={ny} textAnchor="middle" fontWeight="800" fill="#fff" stroke="rgb(0 0 0 / 0.6)" strokeWidth="3.5" paintOrder="stroke" strokeLinejoin="round">
-                {[...lines(s.title), s.anglesLabel ?? ""].filter(Boolean).map((line, k, all) => (
-                  <tspan key={k} x={nx} fontSize={s.anglesLabel && k === all.length - 1 ? 11 : 14} dy={k === 0 ? `${0.35 - (all.length - 1) * 0.6}em` : "1.25em"}>
+                {[...lines(s.title, fit.chars), s.anglesLabel ?? ""].filter(Boolean).map((line, k, all) => (
+                  <tspan key={k} x={nx} fontSize={s.anglesLabel && k === all.length - 1 ? fit.small : fit.size} dy={k === 0 ? `${0.35 - (all.length - 1) * 0.6}em` : "1.25em"}>
                     {line}
                   </tspan>
                 ))}

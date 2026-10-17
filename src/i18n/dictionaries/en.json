@@ -314,7 +314,7 @@
     "metaTitle": "Recent photos of {name} — real shots from people | Zawmo",
     "metaDescription": "Recent, real photos of {name}, taken by people there and shared on Zawmo. Moments from every angle, always up to date."
   },
-  "viewer": {
+  "viewer": { "addAngle": "＋ Add your angle", "addShort": "Add",
     "placeVerified": "Verified from the photo",
     "open": "Open this angle full screen",
     "close": "Close",

@@ -85,6 +85,8 @@ type Labels = {
   save: string;
   unsave: string;
   saved: string;
+  addAngle: string; // «＋ ضيف زاويتك» on the shot itself
+  addShort: string;
   share: string;
   copied: string;
   shareText: string;
@@ -687,6 +689,22 @@ export function AngleGallery({
       });
       flash(labels.actionFailed);
     }
+  }
+
+  // «＋ ضيف زاويتك»: the page's own add tool (src/app/AngleUploader.tsx) opens the phone's picker at
+  // once — within this same tap, as phones require — for this moment; with no such tool here (a
+  // visitor, another page, or a moment the viewer carried on to), that moment's «ضيف زاويتك» part.
+  function addAngle() {
+    const code = share.url.split("/").pop() ?? "";
+    const ask = new CustomEvent("zawmo:add-angle", { detail: { code, handled: false } });
+    if (!autoOpen) window.dispatchEvent(ask);
+    handingOver.current = true;
+    dialogRef.current?.close();
+    if (ask.detail.handled) return;
+    const join = !autoOpen ? document.getElementById("join") : null;
+    if (join) join.scrollIntoView({ behavior: "smooth", block: "start" });
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full load lands on #join, the way the chained viewer leaves too
+    else window.location.assign(`/m/${code}#join`);
   }
 
   // «شارك»: for a member, Zawmo's sheet first — their people (a card in «الدردشة»), then the phone's
@@ -1303,10 +1321,12 @@ export function AngleGallery({
                       </button>
                     )
                   )}
-                  {/* «📸 لقطات بتشبهها» (a photo: one tap on it does the same) */}
-                  <button type="button" onClick={() => findSimilar(a)} disabled={!!scanning} aria-label={labels.similar.find} className={`${railButton} mt-2 text-2xl`}>
-                    <span aria-hidden="true">🔍</span>
+                  {/* «＋ ضيف زاويتك» right on the shot (2026-10-17: in place of the lens 🔍 — people who
+                      liked what they saw didn't find how to add theirs: out of the viewer, down the page). */}
+                  <button type="button" onClick={addAngle} aria-label={labels.addAngle} className={`${railButton} mt-2`}>
+                    <span aria-hidden="true" className="flex size-10 items-center justify-center rounded-full bg-accent text-2xl font-extrabold leading-none text-white">＋</span>
                   </button>
+                  <span className={railCount}>{labels.addShort}</span>
                 </div>
               </figure>
             );
@@ -1343,6 +1363,12 @@ export function AngleGallery({
                 {compact(angles[current].views, locale) || "0"}
                 <span className="sr-only"> {labels.views}</span>
               </span>
+            )}
+            {/* «🔍 لقطات بتشبهها»: up here since «＋ ضيف زاويتك» took its place on the side (2026-10-17). */}
+            {angles[current] && (
+              <button type="button" onClick={() => findSimilar(angles[current])} disabled={!!scanning} aria-label={labels.similar.find} className="pointer-events-auto rounded-full bg-black/50 px-3 py-1 text-sm font-bold">
+                <span aria-hidden="true">🔍</span>
+              </button>
             )}
           </div>
           <div className="flex items-center gap-2">

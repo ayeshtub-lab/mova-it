@@ -109,6 +109,9 @@ async function takeSharedFiles() {
   return files;
 }
 
+// The time now, for an upload's timing (outside the component: it is read in event handlers only).
+const clock = () => Date.now();
+
 async function postJson(url: string, body?: unknown) {
   // keepalive: a request still on its way when the page is left (the check, after «نشر») finishes.
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}), keepalive: true });
@@ -147,6 +150,20 @@ export function AngleUploader({
 }) {
   const [uploaded, setUploaded] = useState(false);
   const inputId = useId();
+  // «＋ ضيف زاويتك» on a shot in the viewer above (src/app/m/[code]/AngleGallery.tsx): the picker
+  // opens straight away, within the person's tap.
+  useEffect(() => {
+    const onAsk = (event: Event) => {
+      const ask = (event as CustomEvent<{ code: string; handled: boolean }>).detail;
+      if (ask.code !== code) return;
+      const input = document.getElementById(inputId) as HTMLInputElement | null;
+      if (!input) return;
+      ask.handled = true;
+      input.click();
+    };
+    window.addEventListener("zawmo:add-angle", onAsk);
+    return () => window.removeEventListener("zawmo:add-angle", onAsk);
+  }, [code, inputId]);
   const router = useRouter();
   const [items, setItems] = useState<ItemState[]>(() => initialDrafts.map((d) => ({ name: "", status: "draft" as const, pct: 100, suggestion: null, ...d, preview: d.preview ?? undefined })));
   // The publish sheet (like WhatsApp's): the shots big, their tools above, one «نشر» below —
@@ -374,7 +391,9 @@ export function AngleUploader({
 
   async function send(input: File | PreparedAngle, index: number) {
     try {
+      const started = clock();
       const prepared = input instanceof File ? await prepareAngleFile(input) : input;
+      const preparedAt = clock();
       const { angleId, mediaPath, thumbPath } = await postJson("/api/angles", {
         code,
         mediaType: prepared.mediaType,
@@ -402,7 +421,10 @@ export function AngleUploader({
         onUploadProgress: ({ percentage }) => update(index, { pct: Math.round(percentage) }),
       });
       update(index, { status: "checking", pct: 100 });
-      const result = await postJson(`/api/angles/${angleId}/complete`, prepared.trim ? { trim: true } : undefined);
+      // How long this phone took to get the file ready and send it — logged with the check's own
+      // times (src/app/api/angles/[id]/complete), to see where an upload is slow (iPhone, 2026-10-17).
+      const timing = { prepareMs: preparedAt - started, sendMs: clock() - preparedAt, bytes: prepared.file.size };
+      const result = await postJson(`/api/angles/${angleId}/complete`, { ...(prepared.trim ? { trim: true } : {}), timing });
       // Hidden by the automatic content check: it never shows up.
       if (result.status === "HIDDEN") return update(index, { status: "error", error: "blocked" });
       // «نشر» was pressed while it was on its way: the server has just published it.

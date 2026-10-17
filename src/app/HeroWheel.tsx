@@ -16,5 +16,8 @@ export async function HeroWheel({ className, openLabel }: { className?: string; 
   const dict = await getDictionary(locale);
   // «١٥ زاوية» written here, on the server, so the page and the browser agree on it.
   const named = shots.map((s) => ({ ...s, anglesLabel: plural(locale, dict.plurals.angles, s.angles) }));
-  return <LiveWheel shots={named} className={className} openLabel={openLabel} exploreLabel={dict.nav.discover} />;
+  // Eight moments at once, swapping all the while from the pool (his call, 2026-10-17: fuller, always
+  // fresh) — six or four while Zawmo has fewer moments with a clear name.
+  const slices = named.length >= 8 ? 8 : named.length >= 6 ? 6 : 4;
+  return <LiveWheel shots={named} slices={slices} className={className} openLabel={openLabel} exploreLabel={dict.nav.discover} />;
 }

@@ -405,4 +405,4 @@ export async function trendingVideos(viewer: User | null, take = 10) {
 // needs no database at all — no wait while the database wakes after a quiet while (the home
 // page's occasional 4 seconds) — and the video links in it (good for 30 minutes) stay good.
 export const visitorShowcase = unstable_cache(() => publicShowcase(12), ["visitor-showcase-1"], { revalidate: 300 });
-export const visitorWheel = unstable_cache(() => wheelShots(12), ["visitor-wheel-2"], { revalidate: 300 });
+export const visitorWheel = unstable_cache(() => wheelShots(20), ["visitor-wheel-3"], { revalidate: 300 });
