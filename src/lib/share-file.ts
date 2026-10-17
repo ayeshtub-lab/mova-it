@@ -33,8 +33,12 @@ export function shareNote(text: string, ms = 3500) {
 // text otherwise. Both are started within the tap — phones refuse a share after a wait. Resolves
 // true when it went out; `failed` hears why it didn't (not when the person just closed the sheet).
 export function shareFile(file: File, link: string, copied = "📋 الرابط انسخ، الصقه بنص المنشور", failed?: (error: unknown) => void): Promise<boolean> {
+  // The phone said no (not the person closing the sheet): say so, and the way round it — Android's
+  // Chrome refuses big files with «Permission denied», and nothing at all showed (2026-10-17).
   const no = (error: unknown) => {
-    if (!(error instanceof DOMException && error.name === "AbortError")) failed?.(error);
+    if (error instanceof DOMException && error.name === "AbortError") return false;
+    failed?.(error);
+    shareNote("ما قبل الجوال يشارك الفيديو من هون — نزّله بـ«⬇️ حمّل» وشاركه من المعرض", 6000);
     return false;
   };
   const alone = mode === "video";

@@ -106,7 +106,11 @@ async function fetchSound(sound: Sound, siteHost: string, file: string) {
 // for photos and mute clips) so segments of any origin — iPhone HEVC, Android, webm —
 // join cleanly, with that angle's overlay burnt in.
 const COVER = `scale=${FRAME.width}:${FRAME.height}:force_original_aspect_ratio=increase,crop=${FRAME.width}:${FRAME.height},setsar=1,fps=${FPS},format=yuv420p`;
-const ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "44100", "-ac", "2"];
+// …with a ceiling on the rate (2026-10-17): busy camera footage (a tomato field's leaves) came out at
+// ~10 Mb/s — a 40 s part of 51 MB, which Android's Chrome refuses to share («Permission denied») and
+// no one wants to download on a phone. 2.5 Mb/s at 720p keeps it sharp (TikTok's own rate) and a
+// 40 s part within ~13 MB; quiet footage stays far below it, as before.
+const ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-maxrate", "2500k", "-bufsize", "5000k", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "44100", "-ac", "2"];
 // The pieces a film is cut from (each shot, the cards, a shot with its sound): encoded as fast as
 // possible — they are encoded again into the film itself — so a big film fits the server's time.
 const PIECE = ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "20", "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "44100", "-ac", "2"];

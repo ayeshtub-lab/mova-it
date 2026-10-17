@@ -22,8 +22,9 @@ function people() {
   return cached;
 }
 
-// «شارك», Zawmo's way (like Instagram's): your people in a row on top — a tap sends the shot or the
-// moment into your conversation with them, as a card (src/server/conversations.ts sendCard) — then
+// «شارك», Zawmo's way (like Instagram's): your people in a row on top — tap one or several (each gets
+// a ✓), then «ابعت» sends the shot or the moment to all of them at once, as a card in each
+// conversation (src/server/conversations.ts sendCard; 2026-10-17: a tap used to send and close) — then
 // the phone's own share sheet (WhatsApp, Messenger…). Only for members; a visitor's «شارك» opens
 // the phone's sheet straight away, as before. Drawn inside whatever is open on top (a viewer is a
 // modal <dialog>, above everything else — 2026-10-15 the sheet showed behind it, unseen).
@@ -32,8 +33,10 @@ function people() {
 // `status`: a line above the buttons while the file is being got ready («⏳ 60%» → «✅ جاهز»).
 export function ShareSheet({ target, onOther, onClose, media = false, status }: { target: ShareTarget; onOther: () => void; onClose: () => void; media?: false | "video" | "photo"; status?: string }) {
   const [list, setList] = useState<Friend[] | null>(null);
-  const [sent, setSent] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [sending, setSending] = useState(false);
+  // How it went: how many got it, and the conversation to open when it went to one person.
+  const [done, setDone] = useState<{ count: number; failed: number; open: string | null } | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -43,19 +46,29 @@ export function ShareSheet({ target, onOther, onClose, media = false, status }: 
     };
   }, []);
 
-  async function send(f: Friend) {
-    if (sent[f.id] || busy) return;
-    setBusy(f.id);
-    const res = await fetch("/api/conversations/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: f.id, code: target.code, angleId: target.angleId }) }).catch(() => null);
-    setBusy(null);
-    if (res?.ok) {
-      setSent((s) => ({ ...s, [f.id]: "" }));
-      navigator.vibrate?.(10);
-      const { id } = (await res.json()) as { id: string };
-      setSent((s) => ({ ...s, [f.id]: id }));
-      // Sent: «✓» for a moment, then the sheet closes by itself — back where you were.
-      setTimeout(onClose, 1100);
-    }
+  function toggle(f: Friend) {
+    if (sending || done) return;
+    navigator.vibrate?.(5);
+    setPicked((p) => (p.includes(f.id) ? p.filter((id) => id !== f.id) : [...p, f.id]));
+  }
+
+  async function send() {
+    if (!picked.length || sending) return;
+    setSending(true);
+    const results = await Promise.all(
+      picked.map((userId) =>
+        fetch("/api/conversations/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId, code: target.code, angleId: target.angleId }) })
+          .then(async (r) => (r.ok ? ((await r.json()) as { id: string }).id : null))
+          .catch(() => null),
+      ),
+    );
+    setSending(false);
+    const ok = results.filter((id): id is string => !!id);
+    navigator.vibrate?.(10);
+    setDone({ count: ok.length, failed: results.length - ok.length, open: ok.length === 1 ? ok[0] : null });
+    // All went: «✓» for a moment, then the sheet closes by itself — back where you were.
+    if (ok.length === results.length) setTimeout(onClose, 1600);
+    else setPicked((p) => p.filter((_, i) => !results[i]));
   }
 
   const host = document.querySelector("dialog[open]") ?? document.body;
@@ -78,11 +91,11 @@ export function ShareSheet({ target, onOther, onClose, media = false, status }: 
             <ul className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
               {list.map((f) => (
                 <li key={f.id} className="shrink-0">
-                  <button type="button" onClick={() => send(f)} disabled={busy === f.id} className="flex w-16 flex-col items-center gap-1">
-                    <span className="relative">
+                  <button type="button" onClick={() => toggle(f)} aria-pressed={picked.includes(f.id)} className="flex w-16 flex-col items-center gap-1">
+                    <span className={`relative rounded-full ring-offset-2 ring-offset-background ${picked.includes(f.id) ? "ring-[3px] ring-accent" : ""}`}>
                       <Avatar person={{ ...f, verified: !!f.verified }} size="size-14" />
-                      {f.id in sent && <span className="absolute -bottom-1 -end-1 flex size-6 items-center justify-center rounded-full border-2 border-background bg-green-600 text-xs font-bold text-white">✓</span>}
-                      {busy === f.id && <span className="absolute inset-0 animate-pulse rounded-full bg-background/60" />}
+                      {picked.includes(f.id) && <span className="absolute -bottom-1 -end-1 flex size-6 items-center justify-center rounded-full border-2 border-background bg-accent text-xs font-bold text-white">✓</span>}
+                      {sending && picked.includes(f.id) && <span className="absolute inset-0 animate-pulse rounded-full bg-background/60" />}
                     </span>
                     <span className="w-full truncate text-center text-xs font-bold">{f.displayName}</span>
                   </button>
@@ -90,10 +103,29 @@ export function ShareSheet({ target, onOther, onClose, media = false, status }: 
               ))}
             </ul>
           )}
-          {Object.values(sent).some(Boolean) && (
-            <Link href={`/messages/${Object.values(sent).filter(Boolean).at(-1)}`} className="self-start text-xs font-bold text-secondary underline-offset-4 hover:underline">
-              ✓ انبعتت — افتح المحادثة
-            </Link>
+          {done ? (
+            <p role="status" className="flex flex-wrap items-center gap-x-2 text-sm font-bold">
+              {done.count > 0 && <span className="text-green-700 dark:text-green-400">✓ انبعتت لـ{done.count.toLocaleString("ar-EG")} {done.count === 1 ? "شخص" : done.count === 2 ? "شخصين" : "أشخاص"}</span>}
+              {done.failed > 0 && <span className="text-accent">ما انبعتت لـ{done.failed.toLocaleString("ar-EG")} — جرّب كمان مرة</span>}
+              {done.open && (
+                <Link href={`/messages/${done.open}`} className="text-xs text-secondary underline-offset-4 hover:underline">
+                  افتح المحادثة
+                </Link>
+              )}
+            </p>
+          ) : null}
+          {picked.length > 0 && (!done || done.failed > 0) && (
+            <button
+              type="button"
+              onClick={() => {
+                setDone(null);
+                void send();
+              }}
+              disabled={sending}
+              className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-accent px-6 font-extrabold text-white disabled:opacity-70"
+            >
+              {sending ? "⏳ عم نبعت…" : `💬 ابعت${picked.length > 1 ? ` لـ${picked.length.toLocaleString("ar-EG")}` : ""}`}
+            </button>
           )}
         </section>
         {status && <p role="status" className="text-center text-sm font-bold">{status}</p>}
