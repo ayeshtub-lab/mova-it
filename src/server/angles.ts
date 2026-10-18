@@ -338,14 +338,17 @@ export async function completeAngle(user: User, angleId: string, options: { trim
 }
 
 // What the app knows for sure about a shot, for its SEO title and description: the moment's
-// name, the place (the shot's own, else the moment's) and the year it was taken.
-export async function shotContext(angle: { momentId: string; placeId: string | null; capturedAt: Date | null }): Promise<ShotContext> {
-  const moment = await db.moment.findUnique({ where: { id: angle.momentId }, select: { title: true, named: true, placeId: true, placeName: true } });
-  const placeId = angle.placeId ?? moment?.placeId ?? null;
+// name, the place and the year it was taken. The place is the shot's own — or the moment's only
+// when its creator took the shot (2026-10-17: someone from Hebron adding to «قهوة الصباح» got
+// «…في أرطاس», the moment's place, in his shot's title; 29 such titles). No place known: none said.
+export async function shotContext(angle: { momentId: string; placeId: string | null; capturedAt: Date | null; contributorId?: string }): Promise<ShotContext> {
+  const moment = await db.moment.findUnique({ where: { id: angle.momentId }, select: { title: true, named: true, placeId: true, placeName: true, creatorId: true } });
+  const creators = !!moment && angle.contributorId === moment.creatorId;
+  const placeId = angle.placeId ?? (creators ? moment.placeId : null);
   const place = placeId ? await db.place.findUnique({ where: { id: placeId }, select: { nameAr: true, kind: true } }) : null;
   return {
     moment: moment?.named ? moment.title : null,
-    place: place ? (place.kind === "GOVERNORATE" ? `محافظة ${place.nameAr}` : place.nameAr) : (moment?.placeName ?? null),
+    place: place ? (place.kind === "GOVERNORATE" ? `محافظة ${place.nameAr}` : place.nameAr) : creators && !angle.placeId ? (moment?.placeName ?? null) : null,
     year: angle.capturedAt?.getFullYear() ?? null,
     searches: await searchesForGemini().catch(() => []),
   };
