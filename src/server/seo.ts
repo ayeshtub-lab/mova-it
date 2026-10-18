@@ -65,7 +65,7 @@ export async function sitemapTags(now = new Date(), min = 3) {
       byTag.set(tag, { count: (was?.count ?? 0) + 1, at: was && was.at > m.lastActivityAt ? was.at : m.lastActivityAt });
     }
   }
-  return [...byTag].filter(([, t]) => t.count >= min).map(([tag, t]) => ({ tag, updatedAt: t.at }));
+  return [...byTag].filter(([, t]) => t.count >= min).map(([tag, t]) => ({ tag, count: t.count, updatedAt: t.at }));
 }
 
 // A public moment's film (its latest finished montage), for search engines: Google Video lists it
@@ -94,27 +94,30 @@ export async function sitemapEntries(now = new Date()) {
       orderBy: { lastActivityAt: "desc" },
       take: 5000,
     }),
-    db.angle.groupBy({ by: ["placeId"], where: { ...shownAngle(now), placeId: { not: null } }, _max: { uploadedAt: true } }),
+    db.angle.groupBy({ by: ["placeId"], where: { ...shownAngle(now), placeId: { not: null } }, _max: { uploadedAt: true }, _count: { _all: true } }),
   ]);
 
   // A place page lists the shots of the places inside it too, so its parents count as well.
+  // (and how many shots it holds, its places' included: the sitemap lists places of 3 or more)
   const latest = new Map<string, Date>();
-  const bump = (id: string, at: Date) => {
+  const shotsIn = new Map<string, number>();
+  const bump = (id: string, at: Date, n: number) => {
     const was = latest.get(id);
     if (!was || was < at) latest.set(id, at);
+    shotsIn.set(id, (shotsIn.get(id) ?? 0) + n);
   };
-  let frontier = angles.filter((a) => a.placeId && a._max.uploadedAt).map((a) => ({ id: a.placeId!, at: a._max.uploadedAt! }));
+  let frontier = angles.filter((a) => a.placeId && a._max.uploadedAt).map((a) => ({ id: a.placeId!, at: a._max.uploadedAt!, n: a._count._all }));
   for (let depth = 0; depth < 5 && frontier.length; depth++) {
-    frontier.forEach((p) => bump(p.id, p.at));
+    frontier.forEach((p) => bump(p.id, p.at, p.n));
     const rows = await db.place.findMany({ where: { id: { in: frontier.map((p) => p.id) } }, select: { id: true, parentId: true } });
     const parentOf = new Map(rows.map((r) => [r.id, r.parentId]));
-    frontier = frontier.flatMap((p) => (parentOf.get(p.id) ? [{ id: parentOf.get(p.id)!, at: p.at }] : []));
+    frontier = frontier.flatMap((p) => (parentOf.get(p.id) ? [{ id: parentOf.get(p.id)!, at: p.at, n: p.n }] : []));
   }
   const places = await db.place.findMany({ where: { id: { in: [...latest.keys()] } }, select: { id: true, slug: true } });
 
   return {
     moments: moments.map((m) => ({ code: m.code, title: m.title, updatedAt: m.lastActivityAt, film: m.montages[0] ? { durationSec: m.montages[0].durationSec, at: m.montages[0].finishedAt ?? m.montages[0].createdAt } : null })),
-    places: places.map((p) => ({ slug: p.slug, updatedAt: latest.get(p.id)! })),
+    places: places.map((p) => ({ slug: p.slug, updatedAt: latest.get(p.id)!, shots: shotsIn.get(p.id) ?? 0 })),
   };
 }
 
@@ -230,7 +233,8 @@ export async function sitemapShots(now = new Date(), take = 5000) {
 
 // The library sounds that public shots use: a sound's page lists those shots, so one nobody
 // used yet is an empty page — left out of the sitemap until someone does.
-export async function sitemapSoundKeys(now = new Date()) {
-  const used = await db.angle.groupBy({ by: ["soundKey"], where: { ...shownAngle(now), soundKey: { not: null } }, _max: { uploadedAt: true } });
-  return new Map(used.map((u) => [u.soundKey!, u._max.uploadedAt!]));
+// `min`: shots it is on at least (the sitemap asks 3 — a sound on one shot is a thin page).
+export async function sitemapSoundKeys(now = new Date(), min = 1) {
+  const used = await db.angle.groupBy({ by: ["soundKey"], where: { ...shownAngle(now), soundKey: { not: null } }, _max: { uploadedAt: true }, _count: { _all: true } });
+  return new Map(used.filter((u) => u._count._all >= min).map((u) => [u.soundKey!, u._max.uploadedAt!]));
 }

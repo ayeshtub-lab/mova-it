@@ -12,16 +12,33 @@ import { sitemapAuthors, sitemapEntries, sitemapShots, sitemapSoundKeys, sitemap
 // owner's call: found from the map, not only through its moment — lower priority than the
 // moment); the members who shot them (/u/ID, with a public shot); #hashtag pages with a few
 // moments, and the sound pages people used.
+// Focused (2026-10-18): Google gives a young site few visits a day, and spent them on thin pages —
+// 166 pages found but never fetched, while the strong ones waited. So the map lists tags of 5
+// moments or more (one spelling of each: «الارض» and «الأرض» are one), sounds on 3 shots or more,
+// places of 3 shots or more. The other pages stay open to people and links; just not pushed.
 // Rebuilt at most once an hour.
 export const revalidate = 3600;
+
+// One tag per spelling: «خيرات_الارض» and «خيرات_الأرض» (alef with or without hamza, ى/ي, ة/ه at
+// the end) are one page for a reader — the more used spelling stays.
+const fold = (tag: string) => tag.replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة(?=_|$)/g, "ه");
+function oneSpelling<T extends { tag: string; count: number }>(tags: T[]) {
+  const best = new Map<string, T>();
+  for (const t of tags) {
+    const key = fold(t.tag);
+    const was = best.get(key);
+    if (!was || t.count > was.count) best.set(key, t);
+  }
+  return [...best.values()];
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = `https://${CANONICAL_HOST}`;
   const [{ moments, places }, shots, tags, sounds, events, topics, authors, parts] = await Promise.all([
     sitemapEntries(),
     sitemapShots(),
-    sitemapTags(),
-    sitemapSoundKeys(),
+    sitemapTags(undefined, 5),
+    sitemapSoundKeys(undefined, 3),
     findEvents({ since: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }),
     topicIndex(),
     sitemapAuthors(),
@@ -40,7 +57,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/album`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${base}/guide/house`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${base}/guide/plant`, changeFrequency: "monthly", priority: 0.8 },
-    ...places.map((p) => ({ url: `${base}/p/${encodeURIComponent(p.slug)}`, lastModified: p.updatedAt, changeFrequency: "daily" as const, priority: 0.8 })),
+    ...places.filter((p) => p.shots >= 3).map((p) => ({ url: `${base}/p/${encodeURIComponent(p.slug)}`, lastModified: p.updatedAt, changeFrequency: "daily" as const, priority: 0.8 })),
     // «خيار في الخضر»: a place's topic pages (real ones only — src/server/topics.ts).
     ...topics.map((x) => ({ url: `${base}${topicPath(x.slug, x.topic)}`, lastModified: x.updatedAt, changeFrequency: "weekly" as const, priority: 0.7 })),
     // A moment: its pictures.
@@ -85,7 +102,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...authors.map((a) => ({ url: `${base}/u/${a.id}`, lastModified: a.updatedAt, changeFrequency: "weekly" as const, priority: 0.5 })),
     // A day's rain, snow, sunset… in one area (src/server/events.ts): 3 shots by 2 people at least.
     ...events.map((e) => ({ url: `${base}${eventPath(e)}`, lastModified: e.updatedAt, changeFrequency: "daily" as const, priority: 0.7 })),
-    ...tags.map((t) => ({ url: `${base}/tag/${encodeURIComponent(t.tag)}`, lastModified: t.updatedAt, changeFrequency: "daily" as const, priority: 0.6 })),
+    ...oneSpelling(tags).map((t) => ({ url: `${base}/tag/${encodeURIComponent(t.tag)}`, lastModified: t.updatedAt, changeFrequency: "daily" as const, priority: 0.6 })),
     ...SOUNDS.filter((s) => sounds.has(s.key)).map((s) => ({ url: `${base}/sound/${s.key}`, lastModified: sounds.get(s.key), changeFrequency: "weekly" as const, priority: 0.4 })),
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${base}/terms`, changeFrequency: "yearly", priority: 0.2 },
