@@ -96,9 +96,13 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
   if (mediaType === MediaType.VIDEO) {
     ext = VIDEO_TYPES[String(input.contentType)] ?? "";
     if (!ext) throw new AngleError("invalid_media");
-    if (typeof input.durationSec !== "number" || !(input.durationSec > 0)) throw new AngleError("invalid_media");
-    if (input.durationSec > MAX_VIDEO_SECONDS + VIDEO_SECONDS_TOLERANCE) throw new AngleError("too_long");
-    durationSec = Math.round(input.durationSec * 10) / 10;
+    // Its length as the phone read it — or none, when the phone couldn't (2026-10-19: some Android
+    // phones never load a video's details; the server measures it in completeAngle anyway).
+    if (input.durationSec != null) {
+      if (typeof input.durationSec !== "number" || !(input.durationSec > 0)) throw new AngleError("invalid_media");
+      if (input.durationSec > MAX_VIDEO_SECONDS + VIDEO_SECONDS_TOLERANCE) throw new AngleError("too_long");
+      durationSec = Math.round(input.durationSec * 10) / 10;
+    }
   }
 
   const existing = await db.angle.count({
@@ -265,14 +269,19 @@ export async function completeAngle(user: User, angleId: string, options: { trim
 
   const needed = [angle.mediaPath, angle.thumbPath].filter((p): p is string => !!p);
   const present = await Promise.all(needed.map(blobExists));
+  // A video whose phone couldn't make its cover: made here, from the video itself.
+  if (angle.mediaType === MediaType.VIDEO && angle.mediaPath && angle.thumbPath && present[0] && !present[1]) {
+    present[1] = await posterFromVideo(angle.mediaPath, angle.thumbPath).then(() => true, (error) => (console.error("server poster failed", angle.id, error), false));
+  }
   if (present.includes(false)) throw new AngleError("not_uploaded");
 
   // The phone said how long the video is; the server measures it itself (a tampered upload
   // can't slip a 10-minute video past the 40-second limit). Too long → gone, files and all.
   if (angle.mediaType === MediaType.VIDEO && angle.mediaPath) {
     let measured = await probeDuration((await viewUrl(angle.mediaPath))!);
-    // Its owner chose «its first 40 seconds»: kept here, then measured again.
-    if (options.trim && measured != null && measured > MAX_VIDEO_SECONDS + VIDEO_SECONDS_TOLERANCE) {
+    // Its owner chose «its first 40 seconds» — or the phone couldn't tell its length, so no one
+    // was asked: kept here, then measured again.
+    if ((options.trim || angle.durationSec == null) && measured != null && measured > MAX_VIDEO_SECONDS + VIDEO_SECONDS_TOLERANCE) {
       angle.mediaPath = await trimToLimit({ id: angle.id, momentId: angle.momentId, mediaPath: angle.mediaPath });
       measured = await probeDuration((await viewUrl(angle.mediaPath))!);
     }
@@ -335,6 +344,21 @@ export async function completeAngle(user: User, angleId: string, options: { trim
     return Object.assign(live, { titleSuggestion, captionIdeas, wentLive: true });
   }
   return Object.assign(saved, { titleSuggestion, captionIdeas, wentLive: false });
+}
+
+// A video's cover made on the server: a frame half a second in, 720 px on its long side.
+async function posterFromVideo(mediaPath: string, thumbPath: string) {
+  const dir = await mkdtemp(join(tmpdir(), "zawmo-poster-"));
+  try {
+    const out = join(dir, "poster.jpg");
+    const url = (await viewUrl(mediaPath))!;
+    await ffmpeg(["-ss", "0.5", "-i", url, "-frames:v", "1", "-vf", "scale='if(gt(iw,ih),720,-2)':'if(gt(iw,ih),-2,720)'", "-q:v", "4", out], 60_000).catch(() =>
+      ffmpeg(["-i", url, "-frames:v", "1", "-vf", "scale='if(gt(iw,ih),720,-2)':'if(gt(iw,ih),-2,720)'", "-q:v", "4", out], 60_000),
+    );
+    await put(thumbPath, await readFile(out), { access: "private", contentType: "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 }
 
 // What the app knows for sure about a shot, for its SEO title and description: the moment's
