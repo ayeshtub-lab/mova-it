@@ -52,7 +52,8 @@ async function main() {
       const { angleId } = await upload(44);
       await completeAngle(owner, angleId);
       const row = await db.angle.findUnique({ where: { id: angleId } });
-      assert.ok(row?.mediaPath) && files.push(row!.mediaPath!);
+      assert.ok(row?.mediaPath);
+      files.push(row!.mediaPath!);
       assert.ok(row?.durationSec && row.durationSec <= 40.6, `kept ${row?.durationSec}`);
     });
   } finally {
