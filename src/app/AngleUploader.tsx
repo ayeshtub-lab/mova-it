@@ -1,6 +1,7 @@
 "use client";
 
 import { CoverPicker, type CoverLabels } from "@/app/CoverPicker";
+import * as Sentry from "@sentry/nextjs";
 import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import { JoinCard, type JoinLabels, type JoinSuggestion } from "@/app/JoinCard";
@@ -111,6 +112,14 @@ async function takeSharedFiles() {
 
 // The time now, for an upload's timing (outside the component: it is read in event handlers only).
 const clock = () => Date.now();
+
+// A shot still being prepared on the phone after 20 seconds (its file read, its cover taken).
+function slowPrepare(file: File) {
+  const ua = navigator.userAgent;
+  const device = /iPhone|iPad/.test(ua) ? "iphone" : /Android/.test(ua) ? "android" : "other";
+  const kind = file.type.startsWith("video/") ? "VIDEO" : "PHOTO";
+  Sentry.captureMessage(`slow prepare (${device}, ${kind})`, { level: "warning", fingerprint: ["slow-prepare", device, kind], extra: { device, kind, type: file.type || "(none)", mb: Math.round((file.size / 1048576) * 10) / 10 } });
+}
 
 async function postJson(url: string, body?: unknown) {
   // keepalive: a request still on its way when the page is left (the check, after «نشر») finishes.
@@ -392,7 +401,11 @@ export function AngleUploader({
   async function send(input: File | PreparedAngle, index: number) {
     try {
       const started = clock();
-      const prepared = input instanceof File ? await prepareAngleFile(input) : input;
+      // «تجهيز» on the phone taking long: told at once, from the phone itself (2026-10-19 — an
+      // iPhone member's video hung there and no report ever reached the server, which only hears of
+      // uploads that arrive).
+      const slow = input instanceof File ? setTimeout(() => slowPrepare(input), 20_000) : null;
+      const prepared = input instanceof File ? await prepareAngleFile(input).finally(() => slow && clearTimeout(slow)) : input;
       const preparedAt = clock();
       const { angleId, mediaPath, thumbPath } = await postJson("/api/angles", {
         code,

@@ -16,8 +16,7 @@ import { sitemapAuthors, sitemapEntries, sitemapShots, sitemapSoundKeys, sitemap
 // 166 pages found but never fetched, while the strong ones waited. So the map lists tags of 5
 // moments or more (one spelling of each: «الارض» and «الأرض» are one), sounds on 3 shots or more,
 // places of 3 shots or more. The other pages stay open to people and links; just not pushed.
-// Rebuilt at most once an hour.
-export const revalidate = 3600;
+// Written out by src/app/sitemap.xml/route.ts (in the order Google's schema asks — 2026-10-19).
 
 // One tag per spelling: «خيرات_الارض» and «خيرات_الأرض» (alef with or without hamza, ى/ي, ة/ه at
 // the end) are one page for a reader — the more used spelling stays.
@@ -32,7 +31,7 @@ function oneSpelling<T extends { tag: string; count: number }>(tags: T[]) {
   return [...best.values()];
 }
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
   const base = `https://${CANONICAL_HOST}`;
   const [{ moments, places }, shots, tags, sounds, events, topics, authors, parts] = await Promise.all([
     sitemapEntries(),
@@ -86,7 +85,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       const image = `${base}/i/${s.id}.jpg`;
       return {
         url: `${base}${shotPath(s)}`,
-        lastModified: s.updatedAt,
+        lastModified: s.uploadedAt,
         changeFrequency: "monthly" as const,
         priority: 0.5,
         images: [image],
@@ -97,7 +96,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // through its moment.
     ...shots
       .filter((s) => s.mediaType === "PHOTO")
-      .map((s) => ({ url: `${base}${shotPath(s)}`, lastModified: s.updatedAt, changeFrequency: "monthly" as const, priority: 0.4, images: [`${base}/i/${s.id}.jpg`] })),
+      .map((s) => ({ url: `${base}${shotPath(s)}`, lastModified: s.uploadedAt, changeFrequency: "monthly" as const, priority: 0.4, images: [`${base}/i/${s.id}.jpg`] })),
     // Who shot them: a member's page with their public shots (E-E-A-T).
     ...authors.map((a) => ({ url: `${base}/u/${a.id}`, lastModified: a.updatedAt, changeFrequency: "weekly" as const, priority: 0.5 })),
     // A day's rain, snow, sunset… in one area (src/server/events.ts): 3 shots by 2 people at least.
