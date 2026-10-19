@@ -4,6 +4,8 @@
 // which switches back to the previous version when one fails) and every 15 minutes by
 // /api/cron/health (which tells the admins). Plain fetch only: runs anywhere.
 
+import { sitemapProblems, structuredProblems } from "@/lib/seo-spec";
+
 export type Check = { name: string; ok: boolean; detail: string; ms: number };
 
 const WHATSAPP = "WhatsApp/2.24.1.0 A";
@@ -130,7 +132,17 @@ export async function smokeChecks(base = "https://zawmo.com", expectBuild?: stri
     ["tag", pick(/<loc>(https?:\/\/[^<]+\/tag\/[^<]+)<\/loc>/)],
     ["topic", pick(/<loc>(https?:\/\/[^<]+\/p\/[^</]+\/[^<]+)<\/loc>/)],
     ["shot", pick(/<loc>(https?:\/\/[^<]+\/m\/[A-Z0-9]{6}\/a\/[a-z0-9]+)<\/loc>/)],
+    ["film", pick(/<loc>(https?:\/\/[^<]+\/m\/[A-Z0-9]{6}\/film\/\d+)<\/loc>/)],
   ] as const;
+  // …and against Google's own rules (src/lib/seo-spec.ts, 2026-10-19): the sitemap as its schemas
+  // ask, and each page's structured data with what Google requires (a film part's page must carry
+  // its VideoObject).
+  await run("sitemap spec", async () => {
+    // (its addresses are always zawmo.com's, whichever deployment is being checked)
+    const problems = sitemapProblems(sitemap);
+    must(!problems.length, problems.slice(0, 3).join("; "));
+    return `${(sitemap.match(/<url>/g) ?? []).length} urls, ${(sitemap.match(/<video:video>/g) ?? []).length} videos — to spec`;
+  });
   await run("seo guard", async () => {
     const bad: string[] = [];
     for (const [kind, url] of seoPages) {
@@ -145,6 +157,7 @@ export async function smokeChecks(base = "https://zawmo.com", expectBuild?: stri
       if (!robots.includes("max-image-preview:large")) bad.push(`${kind}: no max-image-preview:large`);
       const expiring = [...html.matchAll(/vercel-storage\.com\/([^"?\s]+)/g)].map((m) => m[1]).filter((path) => !path.startsWith("c/"));
       if (expiring.length) bad.push(`${kind}: ${expiring.length} expiring storage links`);
+      for (const problem of structuredProblems(html, kind === "film" ? ["VideoObject"] : [])) bad.push(`${kind}: ${problem}`);
     }
     must(!bad.length, bad.join("; "));
     return `${seoPages.filter(([, u]) => u).length} kinds of page fine`;

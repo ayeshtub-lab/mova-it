@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/nextjs";
 import { createSign } from "node:crypto";
 import { cache } from "react";
 import { db } from "@/lib/db";
@@ -98,3 +99,49 @@ export const searchesForGemini = cache(async (take = 30) => {
   }
   return [...score.entries()].sort((a, b) => b[1] - a[1]).slice(0, take).map(([q]) => q);
 });
+
+// ── The weekly SEO check (2026-10-19) ──────────────────────────────────────────────────────────
+// Mondays, with the searches above: what Search Console itself says, so a problem is seen by us and
+// not found by chance (the sitemap's 873 schema errors were):
+//  • the sitemap Google read: when, its errors and warnings, what it found in it;
+//  • a sample of pages — the home page, the newest moments, film parts and shots — inspected one
+//    by one (URL Inspection): indexed or not, and when Google last fetched each.
+// Sent to error monitoring as «SEO weekly» — a warning when something is wrong (errors in the
+// sitemap, or fewer than half of the sample indexed), so the error watch picks it up.
+type SitemapStatus = { path: string; lastDownloaded?: string; isPending?: boolean; errors?: string; warnings?: string; contents?: { type: string; submitted?: string }[] };
+type Inspection = { url: string; verdict: string; coverage: string; lastCrawl: string | null };
+
+async function inspect(token: string, url: string): Promise<Inspection> {
+  const res = await fetch("https://searchconsole.googleapis.com/v1/urlInspection/index:inspect", {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ inspectionUrl: url, siteUrl: PROPERTY, languageCode: "en" }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!res.ok) return { url, verdict: `error ${res.status}`, coverage: "", lastCrawl: null };
+  const r = ((await res.json()) as { inspectionResult?: { indexStatusResult?: { verdict?: string; coverageState?: string; lastCrawlTime?: string } } }).inspectionResult?.indexStatusResult;
+  return { url, verdict: r?.verdict ?? "?", coverage: r?.coverageState ?? "", lastCrawl: r?.lastCrawlTime ?? null };
+}
+
+export async function seoWeekly(sample: string[]) {
+  if (!searchConsoleEnabled()) return null;
+  const token = await accessToken();
+  const res = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(PROPERTY)}/sitemaps`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(30_000) });
+  const sitemaps = res.ok ? (((await res.json()) as { sitemap?: SitemapStatus[] }).sitemap ?? []) : [];
+  const inspected: Inspection[] = [];
+  for (const url of sample) inspected.push(await inspect(token, url)); // one at a time: the API's quota is per minute
+  const indexed = inspected.filter((i) => i.verdict === "PASS").length;
+  const report = {
+    sitemaps: res.ok
+      ? sitemaps.map((s) => ({ path: s.path, read: s.lastDownloaded ?? null, pending: !!s.isPending, errors: Number(s.errors ?? 0), warnings: Number(s.warnings ?? 0), found: (s.contents ?? []).map((c) => `${c.type}:${c.submitted ?? "?"}`).join(" ") }))
+      : `sitemaps ${res.status}`,
+    sample: `${indexed}/${inspected.length} indexed`,
+    pages: inspected.map((i) => `${i.verdict === "PASS" ? "✓" : "✗"} ${i.url.replace("https://zawmo.com", "") || "/"} — ${i.coverage || i.verdict}${i.lastCrawl ? ` (fetched ${i.lastCrawl.slice(0, 10)})` : ""}`),
+  };
+  const sitemapTrouble = !res.ok || sitemaps.some((s) => Number(s.errors ?? 0) > 0 || Number(s.warnings ?? 0) > 0);
+  const inspectTrouble = inspected.some((i) => i.verdict.startsWith("error"));
+  const level = sitemapTrouble || inspectTrouble || indexed * 2 < inspected.length ? "warning" : "info";
+  console.log("seo weekly", JSON.stringify(report));
+  Sentry.captureMessage(`SEO weekly: ${report.sample}${sitemapTrouble ? ", sitemap has errors" : ""}`, { level, fingerprint: ["seo-weekly", level], extra: report });
+  return report;
+}
