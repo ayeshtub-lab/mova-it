@@ -49,7 +49,7 @@ export function toJpeg(source: CanvasImageSource, width: number, height: number,
 
 // The capture time must be read before re-encoding: drawing to a canvas drops all
 // metadata, which is also what strips the GPS position from shared photos.
-async function readCaptureTime(file: File) {
+async function readCaptureTime(file: Blob, lastModified: number) {
   try {
     const tags = await exifr.parse(file, { pick: ["DateTimeOriginal", "CreateDate"] });
     const date: unknown = tags?.DateTimeOriginal ?? tags?.CreateDate;
@@ -57,12 +57,12 @@ async function readCaptureTime(file: File) {
   } catch {
     // No readable metadata: fall back to the file date below.
   }
-  return file.lastModified ? new Date(file.lastModified).toISOString() : null;
+  return lastModified ? new Date(lastModified).toISOString() : null;
 }
 
 // The photo's GPS position, if it has one, becomes a place id right here; the numbers
 // themselves are dropped (and the re-encoded JPEG carries no metadata at all).
-async function readPlace(file: File) {
+async function readPlace(file: Blob) {
   try {
     const gps = await exifr.gps(file);
     return gps ? await placeAt(gps.latitude, gps.longitude) : null;
@@ -71,24 +71,66 @@ async function readPlace(file: File) {
   }
 }
 
-async function preparePhoto(file: File): Promise<PreparedAngle> {
-  const [capturedAt, placeId] = await Promise.all([readCaptureTime(file), readPlace(file)]);
-  const url = URL.createObjectURL(file);
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// The picked file, read once into memory (2026-10-20: «غير مدعومة» on the first try, fine on the
+// second — a photo from the gallery's cloud (Google Photos) isn't all on the phone yet when picked,
+// and three reads of it at once — date, place, picture — failed). Tried three times, a little later
+// each time; everything after works on these bytes.
+async function readBytes(file: File) {
+  let last: unknown;
+  for (const wait of [0, 400, 1200]) {
+    if (wait) await pause(wait);
+    try {
+      const bytes = await file.arrayBuffer();
+      if (bytes.byteLength > 0) return new Blob([bytes], { type: file.type || "image/jpeg" });
+      last = new Error("empty file");
+    } catch (error) {
+      last = error;
+    }
+  }
+  throw Object.assign(new PrepareError("unsupported"), { cause: last, stage: "read" });
+}
+
+// The picture itself, drawable: an <img> first (browsers apply the EXIF rotation when drawing, so
+// portraits stay upright) — `load`, not img.decode(): decode() stalls while the page is in the
+// background; then createImageBitmap, which some phones decode when <img> won't.
+async function decode(blob: Blob): Promise<{ source: CanvasImageSource; width: number; height: number; close?: () => void }> {
+  const url = URL.createObjectURL(blob);
   try {
     const img = new Image();
-    // `load`, not img.decode(): decode() stalls while the page is in the background
-    // (e.g. the user switched to WhatsApp mid-upload). Browsers apply the EXIF
-    // rotation when drawing, so portraits stay upright.
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new PrepareError("unsupported"));
+    const ok = await within<true>(15_000, (done, fail) => {
+      img.onload = () => done(true);
+      img.onerror = () => fail();
       img.src = url;
     });
-    const { width, height } = fitWithin(img.naturalWidth, img.naturalHeight, PHOTO_MAX_EDGE);
-    const jpeg = await toJpeg(img, width, height, 0.85);
+    if (ok && img.naturalWidth > 0) return { source: img, width: img.naturalWidth, height: img.naturalHeight, close: () => URL.revokeObjectURL(url) };
+  } catch {
+    // on to the next way
+  }
+  URL.revokeObjectURL(url);
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+      return { source: bitmap, width: bitmap.width, height: bitmap.height, close: () => bitmap.close() };
+    } catch {
+      // nothing more to try
+    }
+  }
+  throw Object.assign(new PrepareError("unsupported"), { stage: "decode" });
+}
+
+async function preparePhoto(file: File): Promise<PreparedAngle> {
+  const blob = await readBytes(file);
+  const [capturedAt, placeId] = await Promise.all([readCaptureTime(blob, file.lastModified), readPlace(blob)]);
+  // A picture the phone couldn't open at once: once more, a moment later.
+  const picture = await decode(blob).catch(() => pause(700).then(() => decode(blob)));
+  try {
+    const { width, height } = fitWithin(picture.width, picture.height, PHOTO_MAX_EDGE);
+    const jpeg = await toJpeg(picture.source, width, height, 0.85).catch(() => pause(500).then(() => toJpeg(picture.source, width, height, 0.8)));
     return { mediaType: "PHOTO", file: jpeg, contentType: "image/jpeg", capturedAt, placeId, width, height };
   } finally {
-    URL.revokeObjectURL(url);
+    picture.close?.();
   }
 }
 
@@ -168,6 +210,7 @@ async function prepareVideo(file: File, long = false): Promise<PreparedAngle> {
 export function prepareAngleFile(file: File, long = false) {
   // (some Android galleries hand a video over with no type at all: its name says what it is)
   if (file.type.startsWith("video/") || (!file.type && /\.(mp4|mov|webm|m4v)$/i.test(file.name))) return prepareVideo(file, long);
-  if (file.type.startsWith("image/") || /\.(heic|heif)$/i.test(file.name)) return preparePhoto(file);
+  // (a photo with no type at all — some apps hand one over so — goes by its name)
+  if (file.type.startsWith("image/") || /\.(heic|heif|jpe?g|png|webp|gif|avif)$/i.test(file.name)) return preparePhoto(file);
   return Promise.reject(new PrepareError("unsupported"));
 }

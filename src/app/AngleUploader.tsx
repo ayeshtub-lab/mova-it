@@ -475,6 +475,17 @@ export function AngleUploader({
         longFiles.current.set(index, input);
         return update(index, { status: "long" });
       }
+      // «غير مدعومة»: told to error monitoring with what the file was and where it failed, so the
+      // cause is known and not guessed (2026-10-20).
+      if (error instanceof PrepareError && error.code === "unsupported" && input instanceof File) {
+        const ua = navigator.userAgent;
+        const cause = (error as { cause?: unknown }).cause;
+        Sentry.captureMessage(`unsupported file (${/iPhone|iPad/.test(ua) ? "iphone" : /Android/.test(ua) ? "android" : "other"})`, {
+          level: "warning",
+          fingerprint: ["unsupported-file", (error as { stage?: string }).stage ?? "?"],
+          extra: { stage: (error as { stage?: string }).stage ?? "type", type: input.type || "(none)", ext: /\.([a-z0-9]{1,5})$/i.exec(input.name)?.[1] ?? "(none)", mb: Math.round((input.size / 1048576) * 10) / 10, cause: cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause ?? "") },
+        });
+      }
       const serverCode = (error as { code?: string }).code;
       const reason =
         error instanceof PrepareError
