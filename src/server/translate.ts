@@ -24,8 +24,9 @@ For a MOMENT: "title" — 2 to 7 words, the moment's name as an English searcher
 
 Answer only with JSON: {"shots":{"<id>":{"title":"…","text":"…"}},"moments":{"<code>":{"title":"…"}}}`;
 
-const SHOTS_PER_CALL = 12;
-const MOMENTS_PER_CALL = 10;
+// (2026-10-21: 22 at once took Gemini past 25 s — the first live run timed out; 10, with a minute.)
+const SHOTS_PER_CALL = 6;
+const MOMENTS_PER_CALL = 4;
 
 const shown = { visibility: "PUBLIC" as const, status: "ACTIVE" as const, demo: false };
 
@@ -52,6 +53,7 @@ export async function translatePending(preview?: { write: (line: string) => void
   ];
   const res = await callGemini({
     purpose: "translate",
+    timeoutMs: 60_000,
     body: JSON.stringify({
       contents: [{ role: "user", parts: [{ text: `${PROMPT}\n\nITEMS:\n${JSON.stringify(lines)}` }] }],
       generationConfig: { temperature: 0.2, responseMimeType: "application/json" },

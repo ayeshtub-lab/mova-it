@@ -42,7 +42,8 @@ export async function GET(request: Request) {
     const n = await translatePending(preview).catch((error) => (console.error("translate failed", error), 0));
     if (TRANSLATE_PREVIEW) break;
     translated += n;
-    if (!n) break;
+    // (a second only while it leaves the branded copies their time)
+    if (!n || Date.now() > started + 30_000) break;
   }
   // A new copy is started only within the first 90 s of the run, so it ends within the 300 s.
   const made = await brandPending(3, started + 90_000);
