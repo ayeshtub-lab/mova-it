@@ -5,8 +5,9 @@ import { describePending, recheckUnscreened } from "@/server/angles";
 import { stampWeather } from "@/server/weather";
 import { translatePending } from "@/server/translate";
 
-// Until the English has been read and found good (2026-10-21): show, don't keep.
-const TRANSLATE_PREVIEW = true;
+// Until the English has been read and found good: show, don't keep. (Read 2026-10-21 — faithful to the
+// Arabic, the place as the city, natural search words: kept from then on.)
+const TRANSLATE_PREVIEW = false;
 
 // Each render takes a while (the whole clip is re-encoded once).
 export const maxDuration = 300;
