@@ -42,6 +42,10 @@ function entry(e: Entry) {
   if (lastmod) parts.push(`<lastmod>${lastmod}</lastmod>`);
   if (e.changeFrequency) parts.push(`<changefreq>${e.changeFrequency}</changefreq>`);
   if (e.priority != null) parts.push(`<priority>${e.priority}</priority>`);
+  // Its other languages (hreflang — src/server/sitemap-list.ts, once the English pages are open).
+  for (const [lang, href] of Object.entries(e.alternates?.languages ?? {})) {
+    if (href) parts.push(`<xhtml:link rel="alternate" hreflang="${esc(lang)}" href="${esc(String(href))}"/>`);
+  }
   for (const image of e.images ?? []) parts.push(`<image:image><image:loc>${esc(image)}</image:loc></image:image>`);
   for (const v of e.videos ?? []) parts.push(video(v));
   return `<url>${parts.join("")}</url>`;
@@ -51,7 +55,7 @@ export async function GET() {
   const list = await sitemapList();
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1" xmlns:xhtml="http://www.w3.org/1999/xhtml">',
     ...list.map(entry),
     "</urlset>",
   ].join("\n");

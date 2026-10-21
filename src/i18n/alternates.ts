@@ -1,4 +1,4 @@
-import { EN_INDEXED, inLocale } from "./config";
+import { enIndexable, inLocale } from "./config";
 import { getLocale } from "./server";
 
 // A page's addresses for search engines (2026-10-21): its canonical one in the language it is shown
@@ -8,6 +8,6 @@ export async function alternatesFor(path: string) {
   const locale = await getLocale();
   return {
     canonical: inLocale(path, locale),
-    ...(EN_INDEXED ? { languages: { ar: path, en: inLocale(path, "en"), "x-default": path } } : {}),
+    ...(enIndexable(path) ? { languages: { ar: path, en: inLocale(path, "en"), "x-default": path } } : {}),
   };
 }

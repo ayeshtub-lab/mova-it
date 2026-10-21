@@ -116,6 +116,21 @@ async function shotTitles(ids: string[]) {
   return new Map(rows.flatMap((r) => (r.aiTitle ? [[r.id, r.aiTitle] as const] : [])));
 }
 
+// …and their English titles (the /en pages, 2026-10-21).
+async function shotTitlesEn(ids: string[]) {
+  const rows = ids.length ? await db.angle.findMany({ where: { id: { in: ids }, aiTitleEn: { not: null } }, select: { id: true, aiTitleEn: true } }) : [];
+  return new Map(rows.flatMap((r) => (r.aiTitleEn ? [[r.id, r.aiTitleEn] as const] : [])));
+}
+
+// A part's name in English — «Morning Coffee — Part 3: Arabic coffee among olive trees in Bethlehem,
+// Palestine» — once its moment has an English name; null until then (the page shows the Arabic).
+async function partTitleEn(momentTitleEn: string | null, part: number, shotIds: string[], known?: Map<string, string>) {
+  if (!momentTitleEn) return null;
+  const titled = known ?? (await shotTitlesEn(shotIds));
+  const about = shotIds.map((id) => titled.get(id)).find((t): t is string => !!t) ?? "";
+  return `${momentTitleEn} — Part ${part}${about ? `: ${about}` : ""}`.slice(0, 160);
+}
+
 // A part's name: the moment's, the part's number, and what its shots show (their SEO titles —
 // src/server/screening.ts) — close to its sisters, never the same.
 // `known`: the shots' titles already fetched (one query for all of a moment's parts).
@@ -236,9 +251,10 @@ export async function filmParts(momentId: string, code: string, lasting: boolean
   const made = await db.montage.findMany({ where: { momentId, part: { not: null }, status: "READY", videoUrl: { not: null } }, orderBy: { createdAt: "desc" } });
   const latest = new Map<number, Montage>();
   for (const m of made) if (!latest.has(m.part!)) latest.set(m.part!, m);
-  const [moment, titles] = await Promise.all([
-    db.moment.findUnique({ where: { id: momentId }, select: { title: true } }),
+  const [moment, titles, titlesEn] = await Promise.all([
+    db.moment.findUnique({ where: { id: momentId }, select: { title: true, titleEn: true } }),
     shotTitles([...latest.values()].flatMap((m) => m.angleIds)),
+    shotTitlesEn([...latest.values()].flatMap((m) => m.angleIds)),
   ]);
   return Promise.all(
     [...latest.values()]
@@ -246,6 +262,7 @@ export async function filmParts(momentId: string, code: string, lasting: boolean
       .map(async (m) => ({
         part: m.part!,
         title: moment ? await partTitle(moment.title, m.part!, m.angleIds, titles) : (m.title ?? ""),
+        titleEn: moment ? await partTitleEn(moment.titleEn, m.part!, m.angleIds, titlesEn) : null,
         durationSec: m.durationSec,
         at: m.finishedAt ?? m.createdAt,
         poster: m.angleIds[0] ?? null,
@@ -260,10 +277,10 @@ export async function publicPart(code: string, part: number) {
   const m = await db.montage.findFirst({
     where: { part, status: "READY", videoUrl: { not: null }, moment: { code, visibility: "PUBLIC", status: "ACTIVE", kind: { in: ["EVERYDAY", "BIG"] }, demo: false } },
     orderBy: { createdAt: "desc" },
-    include: { moment: { select: { title: true } } },
+    include: { moment: { select: { title: true, titleEn: true } } },
   });
   if (!m) return null;
-  return { path: m.videoUrl!, part, title: await partTitle(m.moment.title, part, m.angleIds), durationSec: m.durationSec, at: m.finishedAt ?? m.createdAt, poster: m.angleIds[0] ?? null };
+  return { path: m.videoUrl!, part, title: await partTitle(m.moment.title, part, m.angleIds), titleEn: await partTitleEn(m.moment.titleEn, part, m.angleIds), durationSec: m.durationSec, at: m.finishedAt ?? m.createdAt, poster: m.angleIds[0] ?? null };
 }
 
 // A public moment's finished part numbers, in order (the film page's «◀ الجزء ٢ · الجزء ٤ ▶»).
@@ -281,7 +298,7 @@ export async function sitemapParts() {
   const made = await db.montage.findMany({
     where: { part: { not: null }, status: "READY", videoUrl: { not: null }, moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { in: ["EVERYDAY", "BIG"] }, demo: false } },
     orderBy: { createdAt: "desc" },
-    select: { part: true, angleIds: true, durationSec: true, finishedAt: true, createdAt: true, moment: { select: { code: true, title: true } } },
+    select: { part: true, angleIds: true, durationSec: true, finishedAt: true, createdAt: true, moment: { select: { code: true, title: true, titleEn: true } } },
   });
   const seen = new Set<string>();
   const out = [];
@@ -289,7 +306,7 @@ export async function sitemapParts() {
     const key = `${m.moment.code}-${m.part}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ code: m.moment.code, part: m.part!, title: await partTitle(m.moment.title, m.part!, m.angleIds), durationSec: m.durationSec, at: m.finishedAt ?? m.createdAt, poster: m.angleIds[0] ?? null });
+    out.push({ code: m.moment.code, part: m.part!, title: await partTitle(m.moment.title, m.part!, m.angleIds), titleEn: await partTitleEn(m.moment.titleEn, m.part!, m.angleIds), durationSec: m.durationSec, at: m.finishedAt ?? m.createdAt, poster: m.angleIds[0] ?? null });
   }
   return out;
 }

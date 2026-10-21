@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { NextRequest } from "next/server";
 import { proxy } from "../src/proxy";
-import { EN_INDEXED, inLocale, LOCALE_HEADER, PATH_HEADER } from "../src/i18n/config";
+import { enIndexable, enPhase1, inLocale, LOCALE_HEADER, PATH_HEADER } from "../src/i18n/config";
 
 let n = 0;
 const check = (name: string, fn: () => void) => {
@@ -32,7 +32,7 @@ check("/en/m/X: the plain page, told «en», kept out of Google, the visitor kep
   assert.equal(res.headers.get("x-middleware-rewrite"), "https://zawmo.com/m/ABC234?src=x");
   assert.equal(told(res, LOCALE_HEADER), "en");
   assert.equal(told(res, PATH_HEADER), "/en/m/ABC234?src=x");
-  if (!EN_INDEXED) assert.equal(res.headers.get("x-robots-tag"), "noindex, follow");
+  if (!enIndexable("/m/ABC234")) assert.equal(res.headers.get("x-robots-tag"), "noindex, follow");
   assert.match(res.headers.get("set-cookie") ?? "", /lang=en/);
 });
 
@@ -78,6 +78,11 @@ check("a form posted from a plain page is not redirected", () => {
 check("a visitor can't set the language header themselves", () => {
   const r = new NextRequest("https://zawmo.com/m/ABC234", { headers: { host: "zawmo.com", [LOCALE_HEADER]: "en" } });
   assert.equal(told(proxy(r), LOCALE_HEADER), "ar");
+});
+
+check("phase 1's English pages: home, moments, film parts, shots — nothing else", () => {
+  for (const yes of ["/", "/m/ABC234", "/m/ABC234/film/3", "/m/ABC234/a/cmuqpie73000004jp831z7qis", "/m/ABC234?src=x"]) assert.ok(enPhase1(yes), yes);
+  for (const no of ["/discover", "/u/abc", "/tag/x", "/p/x", "/m/ABC234/film", "/m/abc234", "/inbox", "/en/m/ABC234"]) assert.ok(!enPhase1(no), no);
 });
 
 console.log(`${n} checks`);

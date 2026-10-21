@@ -1,3 +1,4 @@
+import { localizeShot } from "@/server/localize";
 import { alternatesFor } from "@/i18n/alternates";
 import { SendToFriend } from "@/app/SendToFriend";
 import { StaffShotEdit } from "@/app/StaffEdit";
@@ -21,7 +22,11 @@ import { publicShot, shotLabel, shotOrdinal, shotPath, shotTitle, siblingShots, 
 // One public shot on its own page: what Google Images and Google Video list (a moment's page
 // holds many shots; a search result needs one). Friends-only shots have no such page.
 
-const loadShot = cache((id: string) => publicShot(id));
+// In the page's language (src/server/localize.ts): on /en its English words where written.
+const loadShot = cache(async (id: string) => {
+  const shot = await publicShot(id);
+  return shot ? localizeShot(shot, await getLocale()) : null;
+});
 
 const fill = (template: string, values: Record<string, string>) => template.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
 const placeName = (p: { nameAr: string; kind: string }) => (p.kind === "GOVERNORATE" ? `محافظة ${p.nameAr}` : p.nameAr);
@@ -30,7 +35,7 @@ function describe(shot: PublicShot, dict: Dictionary, locale: string) {
   const t = dict.shotPage;
   // The line written for the shot first (Arabic), then where it is from — as plain words.
   // (Its library sound's words too — «مع تلاوة …»: what it is heard with, for search.)
-  const heard = soundSearch(shot.soundKey);
+  const heard = locale === "ar" ? soundSearch(shot.soundKey) : null;
   if (shot.aiText) return plain(`${shot.aiText}${heard ? ` — ${heard.phrase}` : ""} — ${fill(t.from, { title: shot.moment.title })}`);
   return plain(fill(t.description, {
     label: shotLabel(shot, locale),
@@ -224,7 +229,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
           {t.open}
         </Link>
         {/* Zawmo's own accounts fix the title and line search engines show (src/lib/staff.ts). */}
-        {viewer?.isAdmin && <StaffShotEdit id={shot.id} title={shot.aiTitle || label} text={shot.aiText} />}
+        {viewer?.isAdmin && <StaffShotEdit id={shot.id} title={shot.arabic.title || label} text={shot.arabic.text} />}
         {/* «الدردشة»: this shot to a friend, as a card. */}
         {viewer && !viewer.isGuest && <SendToFriend code={shot.moment.code} angleId={shot.id} label="💬 ابعت اللقطة لصاحب" />}
       </main>

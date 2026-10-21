@@ -87,6 +87,7 @@ export async function sitemapEntries(now = new Date()) {
       select: {
         code: true,
         title: true,
+        titleEn: true,
         lastActivityAt: true,
         // its film, when there is one (listed as the page's video)
         montages: { where: { part: null, status: "READY", videoUrl: { not: null } }, orderBy: { createdAt: "desc" }, take: 1, select: { durationSec: true, finishedAt: true, createdAt: true } },
@@ -116,7 +117,7 @@ export async function sitemapEntries(now = new Date()) {
   const places = await db.place.findMany({ where: { id: { in: [...latest.keys()] } }, select: { id: true, slug: true } });
 
   return {
-    moments: moments.map((m) => ({ code: m.code, title: m.title, updatedAt: m.lastActivityAt, film: m.montages[0] ? { durationSec: m.montages[0].durationSec, at: m.montages[0].finishedAt ?? m.montages[0].createdAt } : null })),
+    moments: moments.map((m) => ({ code: m.code, title: m.title, titleEn: m.titleEn, updatedAt: m.lastActivityAt, film: m.montages[0] ? { durationSec: m.montages[0].durationSec, at: m.montages[0].finishedAt ?? m.montages[0].createdAt } : null })),
     places: places.map((p) => ({ slug: p.slug, updatedAt: latest.get(p.id)!, shots: shotsIn.get(p.id) ?? 0 })),
   };
 }
@@ -145,13 +146,15 @@ const shotSelect = {
   scene: true,
   aiText: true,
   aiTitle: true,
+  aiTextEn: true,
+  aiTitleEn: true,
   updatedAt: true,
   capturedAt: true,
   uploadedAt: true,
   contributorId: true,
-  moment: { select: { id: true, code: true, title: true } },
+  moment: { select: { id: true, code: true, title: true, titleEn: true } },
   contributor: { select: { displayName: true, isGuest: true } },
-  place: { select: { slug: true, nameAr: true, kind: true } },
+  place: { select: { slug: true, nameAr: true, nameEn: true, kind: true } },
 } as const;
 
 // A shot anyone may open without signing in: ready, passed the check, in a public moment.
@@ -193,6 +196,8 @@ export async function siblingShots(shot: { id: string; moment: { id: string; cod
 // have several: «غيوم وسماء جميلة — طبيعة — عزالدين (٢)». Every shot page gets its own.
 type Ordinal = { n: number; of: number };
 export function shotTitle(shot: PublicShot, locale: string, ordinal?: Ordinal) {
+  // On an English page: its English title as written (the place already in it — «… in Bethlehem, Palestine»).
+  if (locale === "en" && shot.aiTitleEn) return shot.aiTitleEn;
   // Its own SEO title (what is seen, in searched words — src/server/screening.ts): unique to
   // the shot, so no number is needed; the place added when the title doesn't say it.
   if (shot.aiTitle) {

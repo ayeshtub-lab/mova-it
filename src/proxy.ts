@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 import { CANONICAL_HOST, OLD_HOSTS } from "@/lib/hosts";
 import { NEW_VISIT_HEADER, SOURCE_COOKIE, SOURCE_DAYS, sourceOf, tagged } from "@/lib/source";
-import { EN_INDEXED, EN_PREFIX, inLocale, LOCALE_HEADER, localeCookie, PATH_HEADER } from "@/i18n/config";
+import { EN_PREFIX, enIndexable, inLocale, LOCALE_HEADER, localeCookie, PATH_HEADER } from "@/i18n/config";
 
 // Moment codes (src/server/moments.ts): no 0/O, 1/I/L. Upper case only, so no page
 // (all lower case) can be mistaken for one.
@@ -70,7 +70,7 @@ export function proxy(request: NextRequest) {
     : NextResponse.next({ request: { headers: forward } });
   // The English pages stay out of Google until their words are English too (src/i18n/config.ts
   // EN_INDEXED).
-  if (english && !EN_INDEXED) response.headers.set("X-Robots-Tag", "noindex, follow");
+  if (english && !enIndexable(inLocale(pathname, "ar"))) response.headers.set("X-Robots-Tag", "noindex, follow");
   // Arriving on an English page (from Google, or «View in English») keeps the visitor in English as
   // they follow the site's links (plain links are then sent to their /en address, above).
   if (english && page && request.method === "GET" && request.cookies.get(localeCookie)?.value !== "en") {

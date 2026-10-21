@@ -12,6 +12,7 @@ import { StoryDemo } from "@/app/start/StoryDemo";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { publicShowcase } from "@/server/discover";
+import { inEnglish } from "@/server/localize";
 
 // «اجمع صور مناسبتك من كل الضيوف برابط واحد»: the page for people searching how to collect
 // a wedding's, a graduation's or a party's photos from everyone who was there. Every
@@ -173,7 +174,7 @@ export default async function AlbumPage() {
   const arrival = (await headers()).get(NEW_VISIT_HEADER);
   if (arrival) after(() => recordLanding(arrival.slice(0, 40)).catch((error) => console.error("landing count failed", error)));
   const locale = await getLocale();
-  const [dict, shots] = await Promise.all([getDictionary(locale), publicShowcase(12)]);
+  const [dict, shots] = await Promise.all([getDictionary(locale), publicShowcase(12).then((l) => inEnglish(l, locale))]);
   const c = CONTENT[locale];
   const structured = {
     "@context": "https://schema.org",

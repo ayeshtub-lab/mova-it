@@ -1,3 +1,4 @@
+import { localizeMoment } from "@/server/localize";
 import { alternatesFor } from "@/i18n/alternates";
 import { SendToFriend } from "@/app/SendToFriend";
 import { StaffMomentEdit } from "@/app/StaffEdit";
@@ -50,7 +51,11 @@ import { VoteBox } from "./VoteBox";
 import { WEATHER_CREDIT, weatherLine } from "@/lib/weather";
 
 // Shared by generateMetadata and the page within one request.
-const loadMoment = cache(async (code: string) => getMomentView(code, await getCurrentUser()));
+// In the page's language (src/server/localize.ts): on /en/m/X its English words where written.
+const loadMoment = cache(async (code: string) => {
+  const view = await getMomentView(code, await getCurrentUser());
+  return view ? localizeMoment(view, await getLocale()) : null;
+});
 
 const fill = (template: string, values: Record<string, string | number>) =>
   template.replace(/\{(\w+)\}/g, (_, key) => String(values[key] ?? ""));
@@ -104,7 +109,7 @@ function momentDescription(view: NonNullable<Awaited<ReturnType<typeof loadMomen
   const name = plain(view.title);
   const head = where && !name.includes(where) ? `${name} ${dict.moment.metaIn} ${where}` : name;
   // What it's heard with, when a shot has a library sound («مع تلاوة سورة الشرح»): words people search.
-  const heard = view.angles.map((a) => soundSearch(a.soundKey)).find((s) => !!s);
+  const heard = locale === "ar" ? view.angles.map((a) => soundSearch(a.soundKey)).find((s) => !!s) : undefined;
   const text = [head, view.visibility === "PUBLIC" && view.description ? view.description.slice(0, 120) : null, heard?.phrase].filter(Boolean).join(". ");
   return clip(`${text} — ${counts}`);
 }
@@ -227,7 +232,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   // for those who may see the video at all.
   const [ballot, parts] = await Promise.all([
     daily?.isToday ? tomorrowVote(user) : null,
-    montage && !story ? filmParts(view.id, view.code, momentIndexable(view)) : [],
+    montage && !story ? filmParts(view.id, view.code, momentIndexable(view)).then((all) => (locale === "en" ? all.map((p) => ({ ...p, title: p.titleEn ?? p.title })) : all)) : [],
   ]);
   // «لحظة «روااااق» في بيت لحم، صوّرها عزالدين وNareman Ayesh.»
   const people = [...new Set(view.angles.map((a) => a.contributorName))];
@@ -311,7 +316,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               invitations every moment shares). */}
           {!daily && summary && <p className="text-sm leading-relaxed text-muted">{summary}</p>}
           {/* Zawmo's own accounts fix someone else's public moment (its owner edits inside «تعديل»). */}
-          {view.viewer.manage && !view.viewer.isCreator && !daily && <StaffMomentEdit code={view.code} title={view.title} description={view.description} labels={dict.momentDetails} />}
+          {view.viewer.manage && !view.viewer.isCreator && !daily && <StaffMomentEdit code={view.code} title={view.arabic.title} description={view.arabic.description} labels={dict.momentDetails} />}
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full px-3 py-1 text-xs font-bold ${view.visibility === "PUBLIC" ? "bg-secondary-soft text-secondary" : "bg-surface text-muted"}`}>
               {dict.visibility[view.visibility as "PUBLIC" | "FRIENDS" | "LINK"] ?? dict.visibility.FRIENDS}
@@ -397,7 +402,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               share={{ url: shareUrl, title: view.title }}
               story={story}
               altBase={[plain(view.title), view.place?.name ?? view.placeName].filter(Boolean).join(" — ")}
-              momentEdit={view.viewer.manage && view.kind !== "DAILY" ? { code: view.code, title: view.title, description: view.description, labels: dict.momentDetails } : undefined}
+              momentEdit={view.viewer.manage && view.kind !== "DAILY" ? { code: view.code, title: view.arabic.title, description: view.arabic.description, labels: dict.momentDetails } : undefined}
               continueTo={next.length ? { code: view.code, next, labels: dict.viewerContinue } : undefined}
             />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (
@@ -502,7 +507,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 editLabels={dict.editShot}
                 captionLabels={dict.caption}
                 placeLabels={{ ...dict.upload.place, placeholder: dict.create.placePlaceholder, here: dict.create.placeHere, guess: dict.create.placeGuess }}
-                placeGuess={view.place ? null : await guessPlace(view.title)}
+                placeGuess={view.place ? null : await guessPlace(view.arabic.title)}
                 code={view.code}
                 labels={dict.upload}
                 needsName={view.viewer.isCreator && !view.named}

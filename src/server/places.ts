@@ -11,7 +11,7 @@ import { publicCover } from "@/server/media";
 // PEOPLE_SHOWN_FROM people shows no counts.
 export const PEOPLE_SHOWN_FROM = 20;
 
-export type PlaceView = { id: string; slug: string; name: string; context: string | null; kind: string };
+export type PlaceView = { id: string; slug: string; name: string; nameEn?: string | null; context: string | null; kind: string };
 
 const nameOf = (p: { nameAr: string; kind: string }) => (p.kind === "GOVERNORATE" ? `محافظة ${p.nameAr}` : p.nameAr);
 
@@ -91,9 +91,9 @@ export async function validPlaceId(id: unknown) {
 export async function placeViews(ids: (string | null | undefined)[]) {
   const wanted = [...new Set(ids.filter((x): x is string => !!x))];
   if (!wanted.length) return new Map<string, PlaceView>();
-  const rows = await db.place.findMany({ where: { id: { in: wanted } }, select: { id: true, slug: true, nameAr: true, kind: true, parentId: true } });
+  const rows = await db.place.findMany({ where: { id: { in: wanted } }, select: { id: true, slug: true, nameAr: true, nameEn: true, kind: true, parentId: true } });
   const ctx = await contextOf(rows.map((r) => r.parentId));
-  return new Map(rows.map((r) => [r.id, { id: r.id, slug: r.slug, name: nameOf(r), kind: r.kind, context: ctx(r.parentId) }]));
+  return new Map(rows.map((r) => [r.id, { id: r.id, slug: r.slug, name: nameOf(r), nameEn: r.nameEn, kind: r.kind, context: ctx(r.parentId) }]));
 }
 
 // A place and everything inside it (a governorate's villages, a city's neighbourhoods).

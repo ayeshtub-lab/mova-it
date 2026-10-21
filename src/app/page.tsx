@@ -2,6 +2,7 @@ import { alternatesFor } from "@/i18n/alternates";
 import { signOut } from "@/app/actions/session";
 import { Showcase } from "@/app/Showcase";
 import { publicShowcase, visitorShowcase } from "@/server/discover";
+import { inEnglish } from "@/server/localize";
 import { homeNews } from "@/server/home";
 import { blockedIdsFor } from "@/server/moderation";
 import { plural } from "@/i18n/plural";
@@ -54,7 +55,7 @@ function HomeNews({ news, locale, dict }: { news: Awaited<ReturnType<typeof home
 // Signed in: what others added first, then their own moments.
 async function SignedInHome({ user, locale, dict, google }: { user: User; locale: Locale; dict: Dictionary; google: boolean }) {
   const [news, blocked] = await Promise.all([homeNews(user), blockedIdsFor(user.id)]);
-  const shots = await publicShowcase(12, [user.id, ...blocked]);
+  const shots = inEnglish(await publicShowcase(12, [user.id, ...blocked]), locale);
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 pb-12">
       <div className="flex items-center justify-between gap-3">
@@ -125,7 +126,7 @@ const POINT_ICONS = [
 // Visitors: the idea at a glance (a wheel of real public shots, each with its owner's
 // photo and first name), real shots, three ways to start, then sign in or try as a guest.
 async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; google: boolean; inAppHint: string | null }) {
-  const shots = await visitorShowcase();
+  const shots = inEnglish(await visitorShowcase(), await getLocale());
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 py-4 sm:py-10">
       <section className="flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-8 sm:text-start">

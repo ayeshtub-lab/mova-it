@@ -161,6 +161,7 @@ export async function getMomentView(code: string, viewer: User | null) {
     id: moment.id,
     code: moment.code,
     title: moment.title,
+    titleEn: moment.titleEn,
     named: moment.named,
     description: moment.description,
     kind: moment.kind,
@@ -198,6 +199,8 @@ export async function getMomentView(code: string, viewer: User | null) {
         aiText: a.aiText,
         // Its own name («فنجان قهوة بين الأشجار»), shown on it in the viewer (2026-10-17).
         aiTitle: a.aiTitle || null,
+        aiTitleEn: a.aiTitleEn || null,
+        aiTextEn: a.aiTextEn || null,
         contributorVerified: a.contributor.verified,
         contributorAvatar: a.contributor.avatarUrl,
         // Official accounts have a profile page; guests don't.

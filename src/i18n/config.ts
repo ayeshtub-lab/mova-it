@@ -20,8 +20,14 @@ export const PATH_HEADER = "x-zawmo-path";
 export const EN_PREFIX = "/en";
 
 // Whether Google may index the /en pages: off until their own words (titles, descriptions) are in
-// English and have been read — until then each answers «noindex, follow» (src/proxy.ts).
+// English and have been read — until then each answers «noindex, follow» (src/proxy.ts). Then only
+// phase 1's kinds of page (his plan, 2026-10-21): the home page, moments, their film parts and
+// their shots — the rest (discover, profiles, tags…) stays Arabic-only for Google for now.
 export const EN_INDEXED = false;
+const EN_PHASE_1 = [/^\/$/, /^\/m\/[A-Z0-9]{6}$/, /^\/m\/[A-Z0-9]{6}\/film\/\d+$/, /^\/m\/[A-Z0-9]{6}\/a\/[a-z0-9]+$/];
+// `path`: the plain address (no /en, no query).
+export const enPhase1 = (path: string) => EN_PHASE_1.some((re) => re.test(path.split("?")[0]));
+export const enIndexable = (path: string) => EN_INDEXED && enPhase1(path);
 
 // An address in the other language: /m/X ↔ /en/m/X.
 export const inLocale = (path: string, locale: Locale) => {

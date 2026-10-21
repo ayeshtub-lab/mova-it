@@ -11,7 +11,11 @@
 
 // The children of <url>, in the order the schema allows (loc, lastmod, changefreq, priority, then
 // the extensions), and of <video:video> (the schema's sequence; we use the first part of it).
-const URL_ORDER = ["loc", "lastmod", "changefreq", "priority", "image:image", "video:video"];
+// hreflang (https://developers.google.com/search/docs/specialty/international/localized-versions#sitemap):
+// <xhtml:link rel="alternate" hreflang="…" href="…"/>, each address listing every language, itself
+// included, and each of them listing it back.
+const URL_ORDER = ["loc", "lastmod", "changefreq", "priority", "xhtml:link", "image:image", "video:video"];
+const HREFLANG = /^([a-z]{2,3}(-[A-Za-z]{2,4})?|x-default)$/;
 const VIDEO_ORDER = ["video:thumbnail_loc", "video:title", "video:description", "video:content_loc", "video:player_loc", "video:duration", "video:expiration_date", "video:rating", "video:content_segment_loc", "video:view_count", "video:publication_date"];
 const FREQ = new Set(["always", "hourly", "daily", "weekly", "monthly", "yearly", "never"]);
 const W3C_DATE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2}))?$/;
@@ -19,10 +23,14 @@ const W3C_DATE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\
 const unescape = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
 
 // The direct children of an element's inner XML: their names in order, and their text.
+// (Self-closing ones too — <xhtml:link …/> — with their attributes.)
 function children(inner: string) {
-  const out: { name: string; body: string }[] = [];
-  const re = /<([a-z]+(?::[a-z_]+)?)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/g;
-  for (let m = re.exec(inner); m; m = re.exec(inner)) out.push({ name: m[1], body: m[2] });
+  const out: { name: string; body: string; attrs: Record<string, string> }[] = [];
+  const re = /<([a-z]+(?::[a-z_]+)?)(\s[^>]*?)?(?:\/>|>([\s\S]*?)<\/\1>)/g;
+  for (let m = re.exec(inner); m; m = re.exec(inner)) {
+    const attrs = Object.fromEntries([...(m[2] ?? "").matchAll(/([a-z_:-]+)="([^"]*)"/gi)].map((a) => [a[1], unescape(a[2])]));
+    out.push({ name: m[1], body: m[3] ?? "", attrs });
+  }
   return out;
 }
 
@@ -49,11 +57,13 @@ export function sitemapProblems(xml: string, host = "https://zawmo.com"): string
   if (!/<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9"/.test(xml)) note("urlset namespace", "start");
   if (xml.includes("<video:") && !xml.includes('xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"')) note("video namespace missing", "start");
   if (xml.includes("<image:") && !xml.includes('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"')) note("image namespace missing", "start");
+  if (xml.includes("<xhtml:") && !xml.includes('xmlns:xhtml="http://www.w3.org/1999/xhtml"')) note("xhtml namespace missing", "start");
   if (Buffer.byteLength(xml) > 50 * 1024 * 1024) note("larger than 50 MB", "file");
 
   const urls = [...xml.matchAll(/<url>([\s\S]*?)<\/url>/g)].map((m) => m[1]);
   if (!urls.length) note("no <url>", "file");
   if (urls.length > 50_000) note("more than 50,000 urls", "file");
+  const languages = new Map<string, Set<string>>();
   for (const inner of urls) {
     const parts = children(inner);
     const loc = unescape(parts.find((p) => p.name === "loc")?.body ?? "");
@@ -63,6 +73,18 @@ export function sitemapProblems(xml: string, host = "https://zawmo.com"): string
     else if (loc.length > 2048) note("loc longer than 2048", where);
     const order = inOrder(parts.map((p) => p.name), URL_ORDER);
     if (order) note(`url: ${order}`, where);
+    const links = parts.filter((p) => p.name === "xhtml:link");
+    if (links.length) {
+      for (const l of links) {
+        if (l.attrs.rel !== "alternate") note("hreflang link without rel=alternate", where);
+        if (!HREFLANG.test(l.attrs.hreflang ?? "")) note("hreflang not a language code", where);
+        if (!(l.attrs.href ?? "").startsWith(host)) note("hreflang href on another host", where);
+      }
+      const codes = links.map((l) => l.attrs.hreflang);
+      if (new Set(codes).size !== codes.length) note("hreflang code listed twice", where);
+      if (!links.some((l) => l.attrs.href === loc)) note("hreflang links don't include the page itself", where);
+      languages.set(loc, new Set(links.map((l) => l.attrs.href)));
+    }
     for (const p of parts) {
       if (p.name === "lastmod" && !W3C_DATE.test(p.body)) note("lastmod not a W3C date", where);
       if (p.name === "changefreq" && !FREQ.has(p.body)) note("changefreq not allowed", where);
@@ -83,6 +105,9 @@ export function sitemapProblems(xml: string, host = "https://zawmo.com"): string
       const published = text("video:publication_date");
       if (published && !W3C_DATE.test(published)) note("video publication_date not a W3C date", where);
     }
+  }
+  for (const [loc, hrefs] of languages) {
+    for (const href of hrefs) if (href !== loc && languages.has(href) && !languages.get(href)!.has(loc)) note("hreflang not returned (the other language doesn't link back)", loc);
   }
   return [...found].map(([what, { count, first }]) => `${what} ×${count} (e.g. ${first})`);
 }

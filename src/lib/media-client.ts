@@ -18,6 +18,7 @@ export type PreparedAngle = {
   width: number;
   height: number;
   trim?: boolean; // longer than 40 s: the server keeps its first 40 seconds
+  phoneCut?: boolean; // …already cut here, before it went up (src/lib/phone-cut.ts) — false: it couldn't be
 };
 
 export class PrepareError extends Error {
@@ -152,12 +153,13 @@ function within<T>(ms: number, start: (done: (value: T) => void, fail: () => voi
   });
 }
 
-// `long`: a video past 40 s whose owner chose «its first 40 seconds»: it goes up whole and the
-// server keeps those seconds (src/server/angles.ts trimToLimit) — nothing re-recorded on the phone.
+// `long`: a video past 40 s whose owner chose «its first 40 seconds»: cut to them here first, by
+// copy (src/lib/phone-cut.ts, 2026-10-21 — a 148 MB video went up whole); what can't be cut so goes
+// up whole and the server keeps those seconds (src/server/angles.ts trimToLimit). Nothing re-recorded.
 // Every wait here has an end (2026-10-19: members' videos spun on «تجهيز» for ever — the phone's
 // «loaded» or «seeked» never came). What the phone can't read, the server works out itself: the
 // length (it measures every video anyway) and the cover (made from the video when none came).
-async function prepareVideo(file: File, long = false): Promise<PreparedAngle> {
+async function prepareVideo(file: File, long = false, onCut?: (share: number) => void): Promise<PreparedAngle> {
   const type = file.type || (/\.mov$/i.test(file.name) ? "video/quicktime" : /\.webm$/i.test(file.name) ? "video/webm" : "video/mp4");
   if (!VIDEO_TYPES.includes(type)) throw new PrepareError("unsupported");
   const capturedAt = file.lastModified ? new Date(file.lastModified).toISOString() : null;
@@ -191,14 +193,18 @@ async function prepareVideo(file: File, long = false): Promise<PreparedAngle> {
       }
     }
 
+    const tooLong = (known && durationSec > MAX_VIDEO_SECONDS + 0.5) || (!known && long);
+    const cut = long && tooLong ? await import("@/lib/phone-cut").then((m) => m.cutFirstSeconds(file, onCut)).catch(() => null) : null;
+
     return {
       mediaType: "VIDEO",
-      file,
-      contentType: type,
+      file: cut ?? file,
+      contentType: cut ? "video/mp4" : type,
       poster,
       capturedAt,
       ...(known ? { durationSec: Math.min(durationSec, MAX_VIDEO_SECONDS) } : {}),
-      ...((known && durationSec > MAX_VIDEO_SECONDS + 0.5) || (!known && long) ? { trim: true } : {}),
+      // (still marked: the server measures it, and cuts only what is still too long)
+      ...(tooLong ? { trim: true, phoneCut: !!cut } : {}),
       width: video.videoWidth || 720,
       height: video.videoHeight || 1280,
     };
@@ -207,9 +213,9 @@ async function prepareVideo(file: File, long = false): Promise<PreparedAngle> {
   }
 }
 
-export function prepareAngleFile(file: File, long = false) {
+export function prepareAngleFile(file: File, long = false, onCut?: (share: number) => void) {
   // (some Android galleries hand a video over with no type at all: its name says what it is)
-  if (file.type.startsWith("video/") || (!file.type && /\.(mp4|mov|webm|m4v)$/i.test(file.name))) return prepareVideo(file, long);
+  if (file.type.startsWith("video/") || (!file.type && /\.(mp4|mov|webm|m4v)$/i.test(file.name))) return prepareVideo(file, long, onCut);
   // (a photo with no type at all — some apps hand one over so — goes by its name)
   if (file.type.startsWith("image/") || /\.(heic|heif|jpe?g|png|webp|gif|avif)$/i.test(file.name)) return preparePhoto(file);
   return Promise.reject(new PrepareError("unsupported"));

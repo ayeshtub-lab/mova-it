@@ -7,6 +7,7 @@ import { plural } from "@/i18n/plural";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { engagementFor, listDiscover, trendingVideos } from "@/server/discover";
+import { inEnglish } from "@/server/localize";
 import { googleEnabled } from "@/server/google";
 import { sceneCards } from "@/server/places";
 import { SCENES, type Scene } from "@/lib/scenes";
@@ -63,7 +64,7 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
   const t = dict.discover;
   const official = !!user && !user.isGuest;
 
-  const [moments, trending, scenes] = await Promise.all([listDiscover(user), trendingVideos(user), sceneCards(user?.id ?? null)]);
+  const [moments, trending, scenes] = await Promise.all([listDiscover(user).then((l) => inEnglish(l, locale)), trendingVideos(user).then((l) => inEnglish(l, locale)), sceneCards(user?.id ?? null)]);
   const stats = await engagementFor(
     trending.map((v) => v.id),
     user,

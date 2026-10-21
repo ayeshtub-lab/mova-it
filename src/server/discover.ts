@@ -129,7 +129,9 @@ export async function listDiscover(viewer: User | null) {
         daily: m.kind === "DAILY",
         lockedCount: m.angles.length - angles.length,
         title: plain(m.title),
+        titleEn: m.titleEn ? plain(m.titleEn) : null,
         placeName: (m.placeId && places.get(m.placeId)?.name) || m.placeName,
+        placeNameEn: (m.placeId && places.get(m.placeId)?.nameEn) || null,
         creatorName: m.creator.displayName,
         people: m._count.participants,
         lastActivityAt: m.lastActivityAt,
@@ -139,6 +141,7 @@ export async function listDiscover(viewer: User | null) {
             mediaType: a.mediaType,
             // (the first ANGLES_PER_MOMENT in the moment's own order: this is its i+1th shot)
             shotTitle: a.aiTitle || null,
+            shotTitleEn: a.aiTitleEn || null,
             number: i + 1,
             of: m._count.angles,
             filter: a.filter,
@@ -209,6 +212,7 @@ export async function listTag(viewer: User | null, rawTag: string) {
         return {
           code: m.code,
           title: plain(m.title),
+          titleEn: m.titleEn ? plain(m.titleEn) : null,
           angleCount: m._count.angles,
           coverUrl: a ? await (m.kind === "DAILY" ? coverOf(a) : publicCover(a)) : null,
         };
@@ -232,7 +236,7 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
     },
     orderBy: { uploadedAt: "desc" },
     take: Math.max(150, take * 5),
-    include: { moment: { select: { code: true, title: true } }, contributor: { select: { displayName: true } } },
+    include: { moment: { select: { code: true, title: true, titleEn: true } }, contributor: { select: { displayName: true } } },
   });
   // «⭐ اختيار زاومو» first (newest pick first), then the newest; a few videos lead the grid.
   angles.sort((x, y) => (y.pickedAt?.getTime() ?? 0) - (x.pickedAt?.getTime() ?? 0));
@@ -259,6 +263,7 @@ export async function publicShowcase(take = 12, exclude: string[] = []) {
       imageUrl: await publicCover(a),
       momentCode: a.moment.code,
       title: plain(a.moment.title),
+      titleEn: a.moment.titleEn ? plain(a.moment.titleEn) : null,
       name: a.contributor.displayName,
       picked: !!a.pickedAt,
     })),
@@ -287,7 +292,7 @@ export async function wheelShots(take = 12) {
     take: 300,
     select: {
       id: true, shares: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, contributorId: true, pickedAt: true,
-      moment: { select: { code: true, title: true, _count: { select: { angles: { where: { status: "READY", screening: "allowed" } } } } } },
+      moment: { select: { code: true, title: true, titleEn: true, _count: { select: { angles: { where: { status: "READY", screening: "allowed" } } } } } },
       contributor: { select: { displayName: true, avatarUrl: true } },
     },
   });
@@ -324,6 +329,7 @@ export async function wheelShots(take = 12) {
       id: s.id,
       momentCode: s.moment.code,
       title: plain(s.moment.title),
+      titleEn: s.moment.titleEn ? plain(s.moment.titleEn) : null,
       angles: s.moment._count.angles,
       name: firstName(s.contributor.displayName),
       avatarUrl: s.contributor.avatarUrl,
@@ -349,8 +355,8 @@ export async function trendingVideos(viewer: User | null, take = 10) {
       moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false },
     },
     select: {
-      id: true, shares: true, uploadedAt: true, mediaPath: true, thumbPath: true, filter: true, caption: true, soundKey: true, muteOriginal: true, lyrics: true, streamUid: true, streamReady: true, aiTitle: true,
-      moment: { select: { code: true, title: true, placeId: true, placeName: true } },
+      id: true, shares: true, uploadedAt: true, mediaPath: true, thumbPath: true, filter: true, caption: true, soundKey: true, muteOriginal: true, lyrics: true, streamUid: true, streamReady: true, aiTitle: true, aiTitleEn: true,
+      moment: { select: { code: true, title: true, titleEn: true, placeId: true, placeName: true } },
       contributor: { select: { id: true, displayName: true, avatarUrl: true, isGuest: true } },
     },
     take: 200,
@@ -381,8 +387,11 @@ export async function trendingVideos(viewer: User | null, take = 10) {
       id: a.id,
       momentCode: a.moment.code,
       title: plain(a.moment.title),
+      titleEn: a.moment.titleEn ? plain(a.moment.titleEn) : null,
       shotTitle: a.aiTitle || null,
+      shotTitleEn: a.aiTitleEn || null,
       placeName: (a.moment.placeId && places.get(a.moment.placeId)?.name) || a.moment.placeName,
+      placeNameEn: (a.moment.placeId && places.get(a.moment.placeId)?.nameEn) || null,
       name: a.contributor.displayName,
       avatarUrl: a.contributor.avatarUrl,
       profileId: a.contributor.isGuest ? null : a.contributor.id,

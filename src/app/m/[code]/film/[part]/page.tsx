@@ -1,3 +1,4 @@
+import { localizeMoment } from "@/server/localize";
 import { alternatesFor } from "@/i18n/alternates";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -20,9 +21,14 @@ import { PartShare } from "../../PartShare";
 const load = cache(async (code: string, raw: string) => {
   const part = /^\d{1,3}$/.test(raw) ? Number(raw) : 0;
   if (!part) return null;
-  const view = await getMomentView(code, null);
-  if (!view || !momentIndexable(view)) return null;
-  const film = await publicPart(view.code, part);
+  const raw0 = await getMomentView(code, null);
+  if (!raw0 || !momentIndexable(raw0)) return null;
+  const locale = await getLocale();
+  // In the page's language (src/server/localize.ts): the moment's name and place, and the part's own
+  // English name once written.
+  const view = localizeMoment(raw0, locale);
+  const part0 = await publicPart(view.code, part);
+  const film = part0 && locale === "en" && part0.titleEn ? { ...part0, title: part0.titleEn } : part0;
   return film ? { view, film } : null;
 });
 

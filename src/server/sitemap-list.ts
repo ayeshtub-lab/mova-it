@@ -1,6 +1,7 @@
 import { sitemapParts } from "@/server/montage/parts";
 import type { MetadataRoute } from "next";
 import { CANONICAL_HOST } from "@/lib/hosts";
+import { EN_INDEXED, enIndexable, inLocale } from "@/i18n/config";
 import { SOUNDS } from "@/lib/sounds";
 import { eventPath, findEvents } from "@/server/events";
 import { topicIndex, topicPath } from "@/server/topics";
@@ -51,7 +52,7 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
     if (list.length < 100) list.push(`${base}/i/${s.id}.jpg`);
     pictures.set(s.moment.code, list);
   }
-  return [
+  const list: MetadataRoute.Sitemap = [
     { url: base, changeFrequency: "daily", priority: 1 },
     { url: `${base}/album`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${base}/guide/house`, changeFrequency: "monthly", priority: 0.8 },
@@ -107,4 +108,28 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/terms`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${base}/child-safety`, changeFrequency: "yearly", priority: 0.2 },
   ];
+  // Zawmo in English (2026-10-21): once the English pages are open to Google (EN_INDEXED), each of
+  // phase 1's pages that has its English words gets its /en address too, both tied together
+  // (hreflang), its videos under their English names.
+  if (!EN_INDEXED) return list;
+  const englishTitle = new Map<string, string | null>([
+    [base, "Zawmo"],
+    ...moments.map((m) => [`${base}/m/${m.code}`, m.titleEn] as const),
+    ...parts.map((p) => [`${base}/m/${p.code}/film/${p.part}`, p.titleEn] as const),
+    ...shots.map((s) => [`${base}${shotPath(s)}`, s.aiTitleEn] as const),
+  ]);
+  const english: MetadataRoute.Sitemap = [];
+  for (const entry of list) {
+    const path = entry.url.slice(base.length) || "/";
+    const title = englishTitle.get(entry.url);
+    if (!enIndexable(path) || !title) continue;
+    const enUrl = `${base}${inLocale(path, "en")}`;
+    entry.alternates = { languages: { ar: entry.url, en: enUrl, "x-default": entry.url } };
+    english.push({
+      ...entry,
+      url: enUrl,
+      videos: entry.videos?.map((v) => ({ ...v, title, description: `${title} — a real video from people on Zawmo` })),
+    });
+  }
+  return [...list, ...english];
 }

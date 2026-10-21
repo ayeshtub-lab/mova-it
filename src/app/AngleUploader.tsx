@@ -502,10 +502,17 @@ export function AngleUploader({
     if (!file) return;
     update(index, { status: "trimming", pct: 0 });
     try {
-      // The whole video goes up as it is and the server keeps its first 40 seconds (a few
-      // seconds, no quality lost). (Re-recording it on the phone in real time stalled on some
-      // phones — stuck at 25 of 40 — and needed the screen on all along.)
-      const prepared = await prepareAngleFile(file, true);
+      // Cut to its first 40 seconds here, by copy — no quality lost, a second or two — so only
+      // those go up; what the phone can't cut so goes up whole for the server to cut, as before
+      // (src/lib/phone-cut.ts). (Re-recording it on the phone in real time stalled on some phones —
+      // stuck at 25 of 40 — and needed the screen on all along.)
+      const prepared = await prepareAngleFile(file, true, (share) => update(index, { pct: Math.round(share * MAX_VIDEO_SECONDS) }));
+      // Told when a phone couldn't: how often, and on which phones, the whole video still goes up.
+      if (prepared.phoneCut === false && !/webm/i.test(prepared.contentType)) {
+        const ua = navigator.userAgent;
+        const device = /iPhone|iPad/.test(ua) ? "iphone" : /Android/.test(ua) ? "android" : "other";
+        Sentry.captureMessage(`phone cut skipped (${device})`, { level: "info", fingerprint: ["phone-cut-skipped", device], extra: { device, type: file.type || "(none)", mb: Math.round((file.size / 1048576) * 10) / 10 } });
+      }
       longFiles.current.delete(index);
       update(index, { status: "preparing" });
       await send(prepared, index);

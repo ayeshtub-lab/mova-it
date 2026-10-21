@@ -9,6 +9,7 @@ import { plural } from "@/i18n/plural";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { listTag } from "@/server/discover";
+import { inEnglish } from "@/server/localize";
 
 // What a visitor sees (and a search engine): the same list for everyone not signed in.
 const visitorList = cache((tag: string) => listTag(null, tag));
@@ -37,7 +38,7 @@ export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Pro
 export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
   const tag = decodeURIComponent((await params).tag);
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
-  const [dict, moments] = await Promise.all([getDictionary(locale), user ? listTag(user, tag) : visitorList(tag)]);
+  const [dict, moments] = await Promise.all([getDictionary(locale), (user ? listTag(user, tag) : visitorList(tag)).then((l) => inEnglish(l, locale))]);
   const t = dict.tag;
 
   return (

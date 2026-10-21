@@ -32,6 +32,20 @@ check("bad dates, durations, hosts and namespaces are caught", () => {
   has(sitemapProblems(map(good.replace("https://zawmo.com/m/", "https://evil.example/m/"))), "another host");
   has(sitemapProblems(map(good).replace(' xmlns:video="http://www.google.com/schemas/sitemap-video/1.1"', "")), "video namespace missing");
 });
+check("hreflang links: both languages, each back to the other, pass; one-sided or wrong ones are caught", () => {
+  const xh = (s: string) => s.replace('/sitemap-video/1.1">', '/sitemap-video/1.1" xmlns:xhtml="http://www.w3.org/1999/xhtml">');
+  const links = '<xhtml:link rel="alternate" hreflang="ar" href="https://zawmo.com/m/K7M2Q4"/><xhtml:link rel="alternate" hreflang="en" href="https://zawmo.com/en/m/K7M2Q4"/>';
+  const ar = `<url><loc>https://zawmo.com/m/K7M2Q4</loc><priority>0.8</priority>${links}</url>`;
+  const en = `<url><loc>https://zawmo.com/en/m/K7M2Q4</loc><priority>0.8</priority>${links}</url>`;
+  assert.deepEqual(sitemapProblems(xh(map(ar, en))), []);
+  has(sitemapProblems(map(ar, en)), "xhtml namespace missing");
+  const arLink = '<xhtml:link rel="alternate" hreflang="ar" href="https://zawmo.com/m/K7M2Q4"/>';
+  const enLink = '<xhtml:link rel="alternate" hreflang="en" href="https://zawmo.com/en/m/K7M2Q4"/>';
+  has(sitemapProblems(xh(map(ar, en.replace(arLink, "")))), "not returned");
+  has(sitemapProblems(xh(map(en.replace(enLink, "")))), "include the page itself");
+  has(sitemapProblems(xh(map(ar.replace('hreflang="en"', 'hreflang="English"')))), "not a language code");
+  has(sitemapProblems(xh(map(ar.replace("<priority>0.8</priority>", "").replace("</url>", "<priority>0.8</priority></url>")))), "url: <priority> out of order");
+});
 
 const page = (ld: object) => `<html><head><script type="application/ld+json">${JSON.stringify(ld)}</script></head></html>`;
 const video = { "@type": "VideoObject", name: "قهوة", thumbnailUrl: ["https://zawmo.com/i/x.jpg"], uploadDate: "2026-10-18T20:02:51.261Z", contentUrl: "https://zawmo.com/v/x.mp4", duration: "PT40S" };
