@@ -11,17 +11,20 @@ import { callGemini, screeningEnabled } from "@/server/screening";
 // A name counts only where it stands as a place — «في الخضر», «بالخضر», «محافظة بيت لحم» — never
 // on its own: «صور الخضر» is people looking for vegetables (16 searches), not the town.
 
-const PROMPT = `You rewrite the Arabic titles of real photos and videos on Zawmo for search engines. Each title below names a place (a village, town, city, governorate or country). Rewrite it WITHOUT the place: the same subject, general and wide, in the words people search with across the whole Arab world (for example «صور قهوة حقيقية», «صور حلويات حقيقية», «صور خضار»). 4 to 9 words, the main subject first. Keep every word true to the original title and description; never add anything not in them. Natural Arabic, no emoji, no hashtags, no quotation marks, no year.
+const PROMPT = `You edit the Arabic titles of real photos and videos on Zawmo. Each title below ends with or contains a place (a village, town, city, governorate or country). Take ONLY the place out — the place name and the little word tying it (في، ب، من، قرب، محافظة، بلدة، قرية) — and keep EVERY other word exactly as it is, in the same order: these titles are already found on Google by those words («صور حلويات حقيقية», «صور ازهار جميلة», «صور مزرعة حقيقية», «قهوة الصباح»). Change nothing else. Only if what is left reads broken or has fewer than 4 words, add one or two plain words taken from the description (never invented). No emoji, no hashtags, no quotation marks, no year.
 
 Answer only with JSON: {"<id>":"<the new title>"}`;
 
 const PER_CALL = 25;
+const EVERYDAY = new Set(["صور", "صورة", "عين", "بيت", "الطور", "الجبل", "السهل", "الوادي", "البحر", "النهر", "المزرعة", "الحديقة"]);
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 let names: Promise<RegExp[]> | null = null;
 export function placePatterns() {
-  names ??= db.place.findMany({ where: { kind: { not: "NEIGHBOURHOOD" } }, select: { nameAr: true } }).then((rows) => {
-    const unique = [...new Set(rows.map((r) => r.nameAr.trim()).filter((n) => [...n].length >= 3))].sort((a, b) => b.length - a.length);
+  // Palestine's places only (the shots' own) — and never a name that is an everyday word: «في صور
+  // مزرعة حقيقية» is pictures, not Tyre (2026-10-21, the first preview).
+  names ??= db.place.findMany({ where: { kind: { not: "NEIGHBOURHOOD" }, OR: [{ countryCode: "PS" }, { kind: "COUNTRY" }] }, select: { nameAr: true } }).then((rows) => {
+    const unique = [...new Set(rows.map((r) => r.nameAr.trim()).filter((n) => [...n].length >= 3 && !EVERYDAY.has(n)))].sort((a, b) => b.length - a.length);
     return unique.map((n) => {
       const name = escape(n);
       return new RegExp(`(?:\\s|^)(?:(?:(?:في|من|قرب|عند)\\s+|ب)?(?:محافظة|قرية|بلدة|مدينة|مخيم)\\s+${name}|(?:(?:في|من|قرب|عند)\\s+|ب)${name})(?=$|[\\s،,.])`, "u");
