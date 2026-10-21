@@ -12,7 +12,7 @@ import { ffmpeg, probeDuration } from "@/server/ffmpeg";
 import { screenAngle, screeningEnabled, screenText, type ShotContext } from "@/server/screening";
 import { deleteFromStream } from "@/server/stream";
 import { searchesForGemini } from "@/server/search-console";
-import { englishPlace } from "@/server/english-place";
+import { regionOf } from "@/server/english-place";
 
 export const MAX_VIDEO_SECONDS = 40;
 // A little slack: containers round durations, and a 40.3 s clip is still "40 seconds".
@@ -372,12 +372,14 @@ export async function shotContext(angle: { momentId: string; placeId: string | n
   const moment = await db.moment.findUnique({ where: { id: angle.momentId }, select: { title: true, named: true, placeId: true, placeName: true, creatorId: true } });
   const creators = !!moment && angle.contributorId === moment.creatorId;
   const placeId = angle.placeId ?? (creators ? moment.placeId : null);
-  const place = placeId ? await db.place.findUnique({ where: { id: placeId }, select: { nameAr: true, kind: true } }) : null;
+  // The city or governorate, never the village (his call, 2026-10-21: «أرطاس» in a hundred titles
+  // brought not one search) — Gemini isn't even told the village, so it can't write it.
+  const region = await regionOf(placeId);
   return {
     moment: moment?.named ? moment.title : null,
-    place: place ? (place.kind === "GOVERNORATE" ? `محافظة ${place.nameAr}` : place.nameAr) : creators && !angle.placeId ? (moment?.placeName ?? null) : null,
-    // (in English, the city or governorate people search for: «Bethlehem, Palestine» for Artas)
-    placeEn: await englishPlace(placeId),
+    place: region ? region.ar : creators && !angle.placeId ? (moment?.placeName ?? null) : null,
+    // (in English: «Bethlehem, Palestine» for Artas)
+    placeEn: region?.en ?? null,
     year: angle.capturedAt?.getFullYear() ?? null,
     searches: await searchesForGemini().catch(() => []),
   };

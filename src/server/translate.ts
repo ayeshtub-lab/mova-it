@@ -16,7 +16,7 @@ const PROMPT = `You write the English for Zawmo, a site of real photos and video
 
 For each item below you get its Arabic words and, when known, its place in English. Write English for people searching Google and Google Images outside the Arab world — as an English SEO lead would, NOT a word-for-word translation:
 - Use the phrasing with real search demand: the common words people actually type (for example «homemade hummus», «olive harvest», «sunset over the sea», «Palestinian food», «real photo»), over literal or rare wording. Never stuff keywords; every word stays true to the Arabic.
-- The place exactly as given in English (a city or governorate), never a village name; no place when none is given. Never invent one.
+- Titles carry NO place name — general and wide (his rule, 2026-10-21: no search ever came with a place in it), unless the place is a famous landmark that is itself the subject. The text names the place once, exactly as given in English (a city or governorate), never a village; no place when none is given. Never invent one.
 - No emoji, hashtags, quotation marks or app name. Title case for titles.
 
 For a SHOT: "title" — 4 to 10 words, the subject first, then the setting; "text" — one or two factual sentences, 18 to 35 words, saying it is a real photo or a real video.
