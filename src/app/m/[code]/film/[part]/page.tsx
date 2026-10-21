@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]/film/[pa
   return {
     title: `${title} · ${dict.meta.brand}`,
     description,
-    alternates: { canonical: `/m/${found.view.code}/film/${found.film.part}` },
+    alternates: await alternatesFor(`/m/${found.view.code}/film/${found.film.part}`),
     openGraph: { title, description, type: "video.other", siteName: dict.meta.brand, videos: [{ url: `/v/${found.view.code}-${found.film.part}.mp4`, type: "video/mp4" }], ...(found.film.poster ? { images: [`/i/${found.film.poster}.jpg`] } : {}) },
   };
 }

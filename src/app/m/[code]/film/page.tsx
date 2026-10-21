@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
@@ -37,7 +38,7 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]/film">):
   return {
     title: `${title} · ${dict.meta.brand}`,
     description,
-    alternates: { canonical: `/m/${found.view.code}/film` },
+    alternates: await alternatesFor(`/m/${found.view.code}/film`),
     openGraph: { title, description, type: "video.other", siteName: dict.meta.brand, videos: [{ url: `/v/${found.view.code}.mp4`, type: "video/mp4" }] },
   };
 }

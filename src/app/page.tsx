@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import { signOut } from "@/app/actions/session";
 import { Showcase } from "@/app/Showcase";
 import { publicShowcase, visitorShowcase } from "@/server/discover";
@@ -189,7 +190,9 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
   );
 }
 
-export const metadata = { alternates: { canonical: "/" } };
+export async function generateMetadata() {
+  return { alternates: await alternatesFor("/") };
+}
 
 // Who Zawmo is, for search engines: the site and the organization behind it.
 const site = `https://${CANONICAL_HOST}`;

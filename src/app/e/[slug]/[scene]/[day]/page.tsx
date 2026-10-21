@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import { placeBySlug } from "@/server/topics";
 import { GRID_SIZES, gridSrcSet } from "@/lib/indexable";
 import type { Metadata } from "next";
@@ -39,7 +40,7 @@ export async function generateMetadata({ params }: PageProps<"/e/[slug]/[scene]/
   return {
     title,
     description,
-    alternates: { canonical: eventPath({ slug: data.area.slug, scene: data.scene, day: data.day }) },
+    alternates: await alternatesFor(eventPath({ slug: data.area.slug, scene: data.scene, day: data.day })),
     openGraph: { title, description, images: [image], type: "article" },
   };
 }

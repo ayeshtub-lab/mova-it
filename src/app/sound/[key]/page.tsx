@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import { plain } from "@/lib/clip";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: PageProps<"/sound/[key]">): P
   // Its link shared anywhere shows a shot made with it (the newest public one).
   const [shot] = await soundShots(null, sound.key, 1);
   const images = shot ? [`/i/${shot.id}.jpg`] : undefined;
-  return { title, description, alternates: { canonical: `/sound/${sound.key}` }, openGraph: { title, description, type: "website", images } };
+  return { title, description, alternates: await alternatesFor(`/sound/${sound.key}`), openGraph: { title, description, type: "website", images } };
 }
 
 // A sound's page (the spinning disc in the viewer leads here): listen, who made it and

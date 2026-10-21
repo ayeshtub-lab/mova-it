@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import { CONTACT_EMAIL } from "@/lib/site";
 import type { Metadata } from "next";
 import { VerifiedBadge } from "@/app/VerifiedBadge";
@@ -39,7 +40,7 @@ export async function generateMetadata({ params }: PageProps<"/u/[id]">): Promis
   const author = await publicAuthor(id);
   if (!author.shots) return { title, robots: { index: false } };
   const description = authorLine(profile.displayName, author, locale);
-  return { title, description, alternates: { canonical: `/u/${id}` }, openGraph: { title, description, type: "profile", siteName: dict.meta.brand } };
+  return { title, description, alternates: await alternatesFor(`/u/${id}`), openGraph: { title, description, type: "profile", siteName: dict.meta.brand } };
 }
 
 async function rename(_prev: RenameState, formData: FormData): Promise<RenameState> {

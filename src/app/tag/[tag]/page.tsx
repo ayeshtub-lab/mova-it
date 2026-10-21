@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import { GRID_SIZES, gridSrcSet, INDEXABLE } from "@/lib/indexable";
 import { clip, plain } from "@/lib/clip";
 import type { Metadata } from "next";
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Pro
   return {
     title,
     description,
-    alternates: { canonical: `/tag/${encodeURIComponent(tag)}` },
+    alternates: await alternatesFor(`/tag/${encodeURIComponent(tag)}`),
     robots: moments.length >= INDEX_FROM ? INDEXABLE : { index: false, follow: true },
     // Its link shared anywhere shows the newest moment's picture (full size).
     openGraph: { title, description, type: "website", images: moments.find((m) => m.coverUrl?.startsWith("/i/"))?.coverUrl?.replace("-small.jpg", ".jpg") },

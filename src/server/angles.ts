@@ -12,6 +12,7 @@ import { ffmpeg, probeDuration } from "@/server/ffmpeg";
 import { screenAngle, screeningEnabled, screenText, type ShotContext } from "@/server/screening";
 import { deleteFromStream } from "@/server/stream";
 import { searchesForGemini } from "@/server/search-console";
+import { englishPlace } from "@/server/english-place";
 
 export const MAX_VIDEO_SECONDS = 40;
 // A little slack: containers round durations, and a 40.3 s clip is still "40 seconds".
@@ -327,6 +328,8 @@ export async function completeAngle(user: User, angleId: string, options: { trim
         seenText: verdict?.result === "allowed" ? (verdict.seen ?? null) : null,
         aiText: verdict?.result === "allowed" ? (verdict.text ?? null) : null,
         aiTitle: verdict?.result === "allowed" ? (verdict.seoTitle ?? null) : null,
+        aiTitleEn: verdict?.result === "allowed" ? (verdict.seoTitleEn ?? null) : null,
+        aiTextEn: verdict?.result === "allowed" ? (verdict.textEn ?? null) : null,
         screenedAt: verdict ? now : null,
       },
     });
@@ -373,6 +376,8 @@ export async function shotContext(angle: { momentId: string; placeId: string | n
   return {
     moment: moment?.named ? moment.title : null,
     place: place ? (place.kind === "GOVERNORATE" ? `محافظة ${place.nameAr}` : place.nameAr) : creators && !angle.placeId ? (moment?.placeName ?? null) : null,
+    // (in English, the city or governorate people search for: «Bethlehem, Palestine» for Artas)
+    placeEn: await englishPlace(placeId),
     year: angle.capturedAt?.getFullYear() ?? null,
     searches: await searchesForGemini().catch(() => []),
   };
@@ -410,7 +415,7 @@ export async function recheckUnscreened(take = 4) {
     const now = new Date();
     if (verdict.result === "allowed") {
       const repost = verdict.repost && !angle.contributor.verified ? verdict.repost : null;
-      await db.angle.update({ where: { id: angle.id }, data: { screening: repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null, aiTitle: verdict.seoTitle ?? null } });
+      await db.angle.update({ where: { id: angle.id }, data: { screening: repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null, aiTitle: verdict.seoTitle ?? null, aiTitleEn: verdict.seoTitleEn ?? null, aiTextEn: verdict.textEn ?? null } });
       if (repost) await db.report.create({ data: { momentId: angle.momentId, angleId: angle.id, reason: "REPOST", note: repost.slice(0, 500) } });
       done++;
     } else if (verdict.result === "blocked") {
@@ -451,7 +456,7 @@ export async function describePending(take = 8) {
     if (verdict.result === "blocked") console.error("describe: second look would block", shot.id, verdict.category);
     await db.angle.update({
       where: { id: shot.id },
-      data: verdict.result === "allowed" ? { aiTitle: verdict.seoTitle ?? "", ...(verdict.text ? { aiText: verdict.text } : {}) } : { aiTitle: "" },
+      data: verdict.result === "allowed" ? { aiTitle: verdict.seoTitle ?? "", ...(verdict.text ? { aiText: verdict.text } : {}), ...(verdict.seoTitleEn ? { aiTitleEn: verdict.seoTitleEn } : {}), ...(verdict.textEn ? { aiTextEn: verdict.textEn } : {}) } : { aiTitle: "" },
     });
     done++;
   }
@@ -472,7 +477,7 @@ export async function screenForPublic(momentId: string) {
     const now = new Date();
     if (verdict?.result === "allowed") {
       const repost = verdict.repost && !angle.contributor.verified; // (an official account's: never)
-      await db.angle.update({ where: { id: angle.id }, data: { screening: repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null, aiTitle: verdict.seoTitle ?? null } });
+      await db.angle.update({ where: { id: angle.id }, data: { screening: repost ? "repost" : "allowed", screenedAt: now, scene: verdict.scene ?? null, seenText: verdict.seen ?? null, aiText: verdict.text ?? null, aiTitle: verdict.seoTitle ?? null, aiTitleEn: verdict.seoTitleEn ?? null, aiTextEn: verdict.textEn ?? null } });
       if (verdict.repost && repost && !(await db.report.count({ where: { angleId: angle.id, reason: "REPOST", resolvedAt: null } }))) {
         await db.report.create({ data: { momentId, angleId: angle.id, reason: "REPOST", note: verdict.repost.slice(0, 500) } });
       }
@@ -506,7 +511,7 @@ export async function publishAngle(user: User, angleId: string, title?: unknown)
   if (angle.status === "PROCESSING") {
     await db.$transaction([
       db.angle.update({ where: { id: angle.id }, data: { autoPublish: true } }),
-      ...(naming ? [db.moment.update({ where: { id: angle.momentId }, data: { title: name, named: true } })] : []),
+      ...(naming ? [db.moment.update({ where: { id: angle.momentId }, data: { title: name, named: true, titleEn: null } })] : []),
     ]);
     return Object.assign(angle, { autoPublish: true });
   }
@@ -589,5 +594,5 @@ export async function updateShotSeo(user: User, angleId: string, input: { title?
   const title = tidy(input.title, 90);
   const text = tidy(input.text, 400);
   if (!title) throw new AngleError("needs_title");
-  return db.angle.update({ where: { id: angle.id }, data: { aiTitle: title, aiText: text || null }, select: { aiTitle: true, aiText: true } });
+  return db.angle.update({ where: { id: angle.id }, data: { aiTitle: title, aiText: text || null, aiTitleEn: null, aiTextEn: null }, select: { aiTitle: true, aiText: true } }); // (its English written again from the new words — src/server/translate.ts)
 }

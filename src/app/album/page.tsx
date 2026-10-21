@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { after } from "next/server";
@@ -158,7 +159,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: c.metaTitle,
     description: c.metaDescription,
-    alternates: { canonical: "/album" },
+    alternates: await alternatesFor("/album"),
     openGraph: { title: c.h1, description: c.metaDescription, type: "website", images: [{ url: "/album/demo.jpg", width: 540, height: 960, alt: c.h1 }] },
     twitter: { card: "summary_large_image", title: c.h1, description: c.metaDescription, images: ["/album/demo.jpg"] },
   };

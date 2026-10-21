@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { after } from "next/server";
@@ -246,7 +247,7 @@ export async function generateMetadata({ params }: PageProps<"/guide/[topic]">):
   return {
     title: g.metaTitle,
     description: g.metaDescription,
-    alternates: { canonical: `/guide/${topic}` },
+    alternates: await alternatesFor(`/guide/${topic}`),
     openGraph: { title: g.h1, description: g.metaDescription, type: "article", images: [{ url: `/start/ad-${g.demo}.jpg` }] },
   };
 }

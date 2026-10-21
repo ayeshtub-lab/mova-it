@@ -362,5 +362,5 @@ export async function updateMomentDetails(user: User, code: string, input: { tit
     throw new MomentError("description_blocked");
   }
   // Cleared by its creator: kept empty (""), so a new shot's line does not fill it again.
-  return db.moment.update({ where: { id: moment.id }, data: { title, named: true, description: description ?? (moment.description !== null ? "" : null) } });
+  return db.moment.update({ where: { id: moment.id }, data: { title, named: true, titleEn: null, description: description ?? (moment.description !== null ? "" : null) } });
 }

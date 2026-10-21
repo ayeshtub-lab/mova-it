@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import { GRID_SIZES, gridSrcSet, INDEXABLE } from "@/lib/indexable";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]">): Prom
     // An empty place page says nothing: keep it out of search results until it has shots.
     robots: data.shots.length ? INDEXABLE : { index: false },
     // «?scene=sunset» views are slices of the same page.
-    alternates: { canonical: `/p/${encodeURIComponent(data.place.slug)}` },
+    alternates: await alternatesFor(`/p/${encodeURIComponent(data.place.slug)}`),
   };
 }
 

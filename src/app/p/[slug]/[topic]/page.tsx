@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import { GRID_SIZES, gridSrcSet } from "@/lib/indexable";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -36,7 +37,7 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]/[topic]"
   return {
     title,
     description,
-    alternates: { canonical },
+    alternates: await alternatesFor(canonical),
     openGraph: { title: fill(t.title, words), description, type: "website", ...(image ? { images: [image] } : {}) },
   };
 }

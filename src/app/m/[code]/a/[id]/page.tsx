@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import { SendToFriend } from "@/app/SendToFriend";
 import { StaffShotEdit } from "@/app/StaffEdit";
 import { getCurrentUser } from "@/lib/session";
@@ -50,7 +51,7 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]/a/[id]">
   return {
     title: title.endsWith(dict.meta.brand) ? title : `${title} · ${dict.meta.brand}`,
     description,
-    alternates: { canonical: shotPath(shot) },
+    alternates: await alternatesFor(shotPath(shot)),
     openGraph: { title, description, type: "website", siteName: dict.meta.brand, images: [{ url: image, alt: title }] },
     twitter: { card: "summary_large_image", title, description, images: [image] },
   };

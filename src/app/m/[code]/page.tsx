@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import { SendToFriend } from "@/app/SendToFriend";
 import { StaffMomentEdit } from "@/app/StaffEdit";
 import { guessPlace } from "@/server/place-guess";
@@ -88,7 +89,7 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
   return {
     title,
     description,
-    alternates: { canonical: `/m/${view.code}` },
+    alternates: await alternatesFor(`/m/${view.code}`),
     // Friends-only moments are for the people holding the link, never for search results.
     robots: momentIndexable(view) ? INDEXABLE : { index: false, follow: false },
     openGraph: { title: name, description, type: "website", siteName: dict.meta.brand },

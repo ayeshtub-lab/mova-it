@@ -1,3 +1,4 @@
+import { alternatesFor } from "@/i18n/alternates";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -200,7 +201,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  return { title: `${CONTENT[locale].title} · ${locale === "ar" ? "زاومو" : "Zawmo"}`, description: CONTENT[locale].intro.slice(0, 160), alternates: { canonical: "/terms" } };
+  return { title: `${CONTENT[locale].title} · ${locale === "ar" ? "زاومو" : "Zawmo"}`, description: CONTENT[locale].intro.slice(0, 160), alternates: await alternatesFor("/terms") };
 }
 
 export default async function TermsPage() {

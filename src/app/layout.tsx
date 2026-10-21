@@ -13,6 +13,7 @@ import { BottomNav } from "./BottomNav";
 import { FreshVersion } from "@/app/FreshVersion";
 import { AppShell } from "@/app/AppShell";
 import { InstallPrompt } from "@/app/InstallPrompt";
+import { EnglishBar } from "@/app/EnglishBar";
 import { GoogleAnalytics } from "@/app/GoogleAnalytics";
 import "./globals.css";
 
@@ -60,6 +61,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <script
           dangerouslySetInnerHTML={{ __html: "addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__zawmoInstall=e})" }}
         />
+        {locale === "ar" && <EnglishBar />}
         <FreshVersion />
         <AppShell />
         {children}

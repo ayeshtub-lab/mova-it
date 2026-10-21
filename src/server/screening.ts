@@ -55,7 +55,7 @@ function reportGemini(where: "screening" | "text" | "lens", detail: string) {
 
 export type Verdict =
   // repost: clearly not shot by the person uploading it (why, in a few words) — see DESCRIBE.
-  | { result: "allowed"; scene?: Scene; seen?: string; title?: string; seoTitle?: string; text?: string; captions?: string[]; repost?: string }
+  | { result: "allowed"; scene?: Scene; seen?: string; title?: string; seoTitle?: string; text?: string; seoTitleEn?: string; textEn?: string; captions?: string[]; repost?: string }
   | { result: "blocked"; category: string; reason: string }
   | { result: "error"; reason: string };
 
@@ -95,7 +95,11 @@ Now write for search engines (Google Images and Google Video), as a senior SEO l
 
 Also suggest 3 different short lines the person could write ON the shot itself, like TikTok text: 2 to 6 words each, in simple Arabic understood across the Arab world, warm or playful or proud, about what is seen (for example «أحلى صبحية ☕», «ريحة البلاد 🌿», «لمّة ما بتنتسى ❤️»). Each may end with one fitting emoji. Never name or guess who the people are, no hashtags, no quotation marks.
 
-Add them to the same JSON: "seo_title":"<the title>","description":"<the sentences>","hashtags":["<tag>","<tag>"],"captions":["<line>","<line>","<line>"]
+And the same for English searchers (Zawmo's English pages, 2026-10-21) — written as an English SEO lead would for people outside the Arab world, NOT a word-for-word translation of the Arabic. Choose the phrasing with real search demand in English: the common words people actually type into Google and Google Images for such a picture (for example «homemade hummus», «olive harvest», «sunset over the sea», «Palestinian food», «real photo of …»), over literal or rare wording; never stuff keywords, every word still true of what is seen:
+"seo_title_en": English, 4 to 10 words, the subject first, in the words people type in Google Images («real photo», «homemade», «traditional», «authentic» only when true), then the setting; the place exactly as given below «in English» — the city or governorate people search for (Bethlehem, Jerusalem, Hebron, Nablus, Ramallah, Jaffa, Haifa), never a village name — only when given. For example «Arabic coffee among olive trees in Bethlehem, Palestine», «Ripe red tomatoes in a field near Bethlehem, Palestine». Title case, no emoji, no quotation marks, no app name.
+"description_en": English, one or two factual sentences, 18 to 35 words, with the same rules as the Arabic description (what is seen, «real photo» / «real video», the place and year only when given).
+
+Add them to the same JSON: "seo_title":"<the title>","description":"<the sentences>","hashtags":["<tag>","<tag>"],"captions":["<line>","<line>","<line>"],"seo_title_en":"<English title>","description_en":"<English sentences>"
 
 Also judge where it comes from: was it clearly NOT shot by the person uploading it? Say so only on clear signs — a watermark or logo of another app with an account name (TikTok, Instagram, Snapchat, YouTube, Likee, a CapCut template), a TV channel logo or broadcast graphics, a scene from a film, series, music video, cartoon or advertisement, or a screen captured or filmed (a phone status bar, another app's buttons and comments, a TV or monitor filmed as the subject). NOT a repost: an ordinary phone photo or video, one with the person's own text, stickers or filters, a photo of an old printed family photo, people in front of a TV where the screen is not the subject. When unsure, it is not a repost.
 
@@ -107,6 +111,11 @@ export function captionIdeasOf(raw: unknown) {
     .map((l) => (typeof l === "string" ? l.replace(/[#"«»\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim() : ""))
     .filter((l) => [...l].length >= 2 && [...l].length <= 40);
   return [...new Set(lines)].slice(0, 3);
+}
+
+// An English title or line from Gemini: plain text, one line, within `max` (English pages, 2026-10-21).
+export function englishLine(value: unknown, max: number) {
+  return typeof value === "string" ? value.replace(/["«»#\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, max) : "";
 }
 
 // The description and its hashtags as one line (≤ 360).
@@ -148,9 +157,9 @@ async function videoFrames(url: string, durationSec: number | null) {
 }
 
 // What the app knows for sure about the shot, given to Gemini for its title and description.
-export type ShotContext = { moment?: string | null; place?: string | null; year?: number | null; searches?: string[] };
+export type ShotContext = { moment?: string | null; place?: string | null; placeEn?: string | null; year?: number | null; searches?: string[] };
 const contextLine = (c?: ShotContext) => {
-  const known = [c?.moment && `the moment's name: «${c.moment}»`, c?.place && `the place: ${c.place}`, c?.year && `taken in ${c.year}`].filter(Boolean);
+  const known = [c?.moment && `the moment's name: «${c.moment}»`, c?.place && `the place: ${c.place}${c.placeEn ? ` (in English: ${c.placeEn})` : ""}`, c?.year && `taken in ${c.year}`].filter(Boolean);
   const facts = known.length ? `\n\nKnown for sure about this shot (use them): ${known.join("; ")}.` : "";
   // Real Google searches that already bring people to Zawmo (Search Console): one is used only
   // when it truly describes what is seen — never forced onto an unrelated picture.
@@ -188,7 +197,7 @@ export async function askGemini(imagesBase64: string[], context?: ShotContext): 
 
   const text = candidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   try {
-    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string; seo_title?: unknown; description?: unknown; hashtags?: unknown; captions?: unknown; repost?: unknown };
+    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string; seo_title?: unknown; description?: unknown; hashtags?: unknown; captions?: unknown; repost?: unknown; seo_title_en?: unknown; description_en?: unknown };
     if (parsed.verdict === "block") {
       return { result: "blocked", category: String(parsed.category ?? "other").slice(0, 40), reason: String(parsed.reason ?? "").slice(0, 300) };
     }
@@ -199,9 +208,11 @@ export async function askGemini(imagesBase64: string[], context?: ShotContext): 
       const title = typeof parsed.title === "string" ? parsed.title.replace(/["«»#]/g, "").replace(/\s+/g, " ").trim().slice(0, 40) : "";
       const described = aiTextOf(parsed.description, parsed.hashtags);
       const seoTitle = typeof parsed.seo_title === "string" ? parsed.seo_title.replace(/["«»#\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, 90) : "";
+      const seoTitleEn = englishLine(parsed.seo_title_en, 100);
+      const textEn = englishLine(parsed.description_en, 300);
       const captions = captionIdeasOf(parsed.captions);
       const repost = typeof parsed.repost === "string" ? parsed.repost.trim().slice(0, 160) : "";
-      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}), ...(seoTitle ? { seoTitle } : {}), ...(described ? { text: described } : {}), ...(captions.length ? { captions } : {}), ...(repost ? { repost } : {}) };
+      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}), ...(seoTitle ? { seoTitle } : {}), ...(described ? { text: described } : {}), ...(seoTitleEn ? { seoTitleEn } : {}), ...(textEn ? { textEn } : {}), ...(captions.length ? { captions } : {}), ...(repost ? { repost } : {}) };
     }
   } catch {}
   return { result: "error", reason: `unreadable answer: ${text.slice(0, 200)}` };

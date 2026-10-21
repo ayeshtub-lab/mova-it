@@ -134,6 +134,8 @@ model Moment {
   id             String           @id @default(cuid())
   code           String           @unique // short share code: /m/K7M2Q4
   title          String
+  // Its name in English for the /en pages (2026-10-21): written from the title, never shown in Arabic.
+  titleEn        String?
   // false: started without a name (a placeholder title); its creator names it at «نشر».
   named          Boolean          @default(true)
   // A short line under the title; may carry #hashtags (public ones link to /tag/…).
@@ -238,6 +240,9 @@ model Angle {
   // Its own title for search engines (src/server/screening.ts, the SEO rules): what is seen,
   // in the words people search with — «زفة العريس على الأكتاف في عرس فلسطيني».
   aiTitle       String?
+  // …and in English (2026-10-21, the /en pages): an SEO title in the words people search with in
+  // English («Morning coffee among olive trees in Palestine»), not a word-for-word translation.
+  aiTitleEn     String?
   // Last change to the shot (its words, look, sound…): «dateModified» and the sitemap's
   // lastmod, so Google comes back for what is new.
   updatedAt     DateTime  @default(now()) @updatedAt
@@ -286,6 +291,8 @@ model Angle {
   // A warm line about the shot with a few #hashtags, written by the content check (Arabic):
   // the shot page's description, image alts, and a moment's description when it has none.
   aiText         String?
+  // …and in English (the /en pages' description and image alts).
+  aiTextEn       String?
   // The town the uploader's network is in (Vercel's guess from the connection, often coarse):
   // used ONLY to match «صوّر معك», never shown anywhere. The address itself is not kept.
   networkPlaceId String?

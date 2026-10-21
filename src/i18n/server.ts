@@ -1,5 +1,5 @@
 import { cookies, headers } from "next/headers";
-import { defaultLocale, isLocale, localeCookie, type Locale } from "./config";
+import { defaultLocale, isLocale, LOCALE_HEADER, localeCookie, PATH_HEADER, type Locale } from "./config";
 import type ar from "./dictionaries/ar.json";
 import type { PluralForms } from "./plural";
 
@@ -14,15 +14,22 @@ const dictionaries: Record<Locale, () => Promise<Dictionary>> = {
 
 export const getDictionary = (locale: Locale): Promise<Dictionary> => dictionaries[locale]();
 
-// Cookie first (an explicit choice), then the browser's Accept-Language, then Arabic.
+// The address says (src/proxy.ts sets the header: /en/… is English, everything else Arabic). For
+// calls that aren't pages (/api/…), the visitor's explicit choice (the cookie). Never the
+// browser's language alone: the same address must always be the same language for Google
+// (2026-10-21 — until then Google only ever saw the Arabic).
 export async function getLocale(): Promise<Locale> {
+  const h = await headers();
+  const fromAddress = h.get(LOCALE_HEADER) ?? undefined;
+  if (isLocale(fromAddress)) return fromAddress;
   const fromCookie = (await cookies()).get(localeCookie)?.value;
-  if (isLocale(fromCookie)) return fromCookie;
-
-  const accept = (await headers()).get("accept-language") ?? "";
-  for (const part of accept.split(",")) {
-    const base = part.split(";")[0].trim().slice(0, 2).toLowerCase();
-    if (isLocale(base)) return base;
-  }
+  if (isLocale(fromCookie) && !h.get(PATH_HEADER)) return fromCookie;
   return defaultLocale;
+}
+
+// The visitor's browser prefers English and they haven't chosen a language: the «View in English» bar.
+export async function prefersEnglish() {
+  if ((await cookies()).get(localeCookie)) return false;
+  const first = ((await headers()).get("accept-language") ?? "").split(",")[0]?.trim().slice(0, 2).toLowerCase();
+  return first === "en";
 }
