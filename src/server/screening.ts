@@ -175,12 +175,8 @@ const mediaLine = (video?: boolean) =>
   video === undefined
     ? ""
     : video
-      ? "
-
-THE MEDIA: a VIDEO — the images are frames taken from it (the first is its cover). Call it a real video («فيديو حقيقي», «real video»), never a photo."
-      : "
-
-THE MEDIA: a PHOTO. Call it a real photo («صورة حقيقية», «real photo»).";
+      ? "\n\nTHE MEDIA: a VIDEO — the images are frames taken from it (the first is its cover). Call it a real video («فيديو حقيقي», «real video»), never a photo."
+      : "\n\nTHE MEDIA: a PHOTO. Call it a real photo («صورة حقيقية», «real photo»).";
 
 export async function askGemini(imagesBase64: string[], context?: ShotContext, video?: boolean): Promise<Verdict> {
   const res = await callGemini({
