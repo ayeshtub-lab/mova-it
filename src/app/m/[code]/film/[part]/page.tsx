@@ -1,4 +1,4 @@
-import { localizeMoment } from "@/server/localize";
+import { inEnglish, localizeMoment } from "@/server/localize";
 import { alternatesFor } from "@/i18n/alternates";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -65,7 +65,7 @@ export default async function FilmPartPage({ params }: PageProps<"/m/[code]/film
   const at = numbers.indexOf(film.part);
   const before = at > 0 ? numbers[at - 1] : null;
   const after = at >= 0 && at < numbers.length - 1 ? numbers[at + 1] : null;
-  const another = next.find((m) => m.firstPart !== null) ?? null;
+  const another = inEnglish(next, locale).find((m) => m.firstPart !== null) ?? null;
   const n = (k: number) => k.toLocaleString(locale === "ar" ? "ar-EG" : "en");
   const description = fill(dict.filmPart.description, { title, where: where ? ` ${dict.moment.metaIn} ${where}` : "" });
   const site = `https://${CANONICAL_HOST}`;

@@ -112,8 +112,18 @@ function automatic(key: string): SoundSearch | null {
   }
 }
 
-export function soundSearch(key: string | null | undefined): (SoundSearch & { words: string | null }) | null {
+// On an English page: the sound's English name («Nightingale», «Ad-Duha 11»), and no Arabic search
+// words or verse text — those are for the Arabic pages (2026-10-22: «🎵 على تغريد العندليب» showed in English).
+const EN_KIND: Partial<Record<string, string>> = { quran: "Quran recitation", nasheed: "Nasheed", spiritual: "Dhikr", wisdom: "Words of wisdom" };
+
+export function soundSearch(key: string | null | undefined, locale: string = "ar"): (SoundSearch & { words: string | null }) | null {
   if (!key) return null;
+  if (locale !== "ar") {
+    const sound = (PICKED[key] ?? automatic(key)) && soundByKey(key);
+    if (!sound) return null;
+    const kind = EN_KIND[sound.cat];
+    return { phrase: kind ? `${kind}: ${sound.en}` : sound.en, tags: [], words: null };
+  }
   const found = PICKED[key] ?? automatic(key);
   if (!found) return null;
   // The words heard, in order (a verse's own text; a duaa's, a nasheed's) — for a video's transcript.

@@ -78,7 +78,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   const at = shot.capturedAt ?? shot.uploadedAt;
   // The weather it was taken in («🌧️ مطر · 12°»), when known (src/server/weather.ts).
   const weather = weatherLine(shot.weather, shot.weatherTemp, locale);
-  const sound = soundSearch(shot.soundKey);
+  const sound = soundSearch(shot.soundKey, locale);
   // A video's page is its watch page: the video the one thing on it (Google, «Is on a watch page?
   // No — the video is supplementary content», 2026-10-22, after 16/10 put 12 covers under it). So
   // under a video, a few plain links; under a photo, the covers as before.

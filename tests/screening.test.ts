@@ -36,6 +36,17 @@ async function main() {
     assert.deepEqual(await askGemini(["a"]), { result: "allowed" }, "an empty name is left out");
   });
 
+  await check("Gemini is told a video is a video (its frames looked like photos — «صورة حقيقية» under videos)", async () => {
+    const prompt = () => (lastRequest!.body.contents[0].parts[0] as { text: string }).text;
+    reply(200, answer('{"verdict":"allow","category":"none","reason":"x"}'));
+    await askGemini(["a", "b"], undefined, true);
+    assert.match(prompt(), /THE MEDIA: a VIDEO/);
+    await askGemini(["a"], undefined, false);
+    assert.match(prompt(), /THE MEDIA: a PHOTO/);
+    await askGemini(["a"]);
+    assert.doesNotMatch(prompt(), /THE MEDIA/, "a profile picture: nothing said");
+  });
+
   await check("block with category and reason", async () => {
     reply(200, answer('{"verdict":"block","category":"violence","reason":"graphic injury"}'));
     assert.deepEqual(await askGemini(["a", "b", "c"]), { result: "blocked", category: "violence", reason: "graphic injury" });

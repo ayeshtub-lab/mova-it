@@ -1,4 +1,4 @@
-import { localizeMoment } from "@/server/localize";
+import { inEnglish, localizeMoment } from "@/server/localize";
 import { alternatesFor } from "@/i18n/alternates";
 import { SendToFriend } from "@/app/SendToFriend";
 import { StaffMomentEdit } from "@/app/StaffEdit";
@@ -226,7 +226,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
     view.angleCount > 0 ? latestMontageFor(user, view.code) : null,
     myDrafts(user, view.id),
     momentIndexable(view) ? momentTopics(view.angles.map((a) => a.id)) : [],
-    view.kind === "DAILY" ? [] : nextMoments(view.id).catch(() => []),
+    view.kind === "DAILY" ? [] : nextMoments(view.id).then((n) => inEnglish(n, locale)).catch(() => []),
   ]);
   // Then what depends on those: the vote, and «أجزاء» — the film in parts of up to 40 seconds,
   // for those who may see the video at all.
@@ -457,7 +457,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                     <Link href={`/m/${view.code}/a/${a.id}`} className="hover:underline">
                       {a.aiText!.replace(/#\S+/g, "").trim()}
                     </Link>
-                    {soundSearch(a.soundKey) ? ` · ${soundSearch(a.soundKey)!.phrase}` : ""}{" "}
+                    {soundSearch(a.soundKey, locale) ? ` · ${soundSearch(a.soundKey, locale)!.phrase}` : ""}{" "}
                     {weatherLine(a.weather, a.weatherTemp, locale) ? ` · ${weatherLine(a.weather, a.weatherTemp, locale)}` : ""} — {a.contributorName}
                   </li>
                 ))}

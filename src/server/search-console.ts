@@ -109,7 +109,7 @@ export const searchesForGemini = cache(async (take = 30) => {
 // Sent to error monitoring as «SEO weekly» — a warning when something is wrong (errors in the
 // sitemap, or fewer than half of the sample indexed), so the error watch picks it up.
 type SitemapStatus = { path: string; lastDownloaded?: string; isPending?: boolean; errors?: string; warnings?: string; contents?: { type: string; submitted?: string }[] };
-type Inspection = { url: string; verdict: string; coverage: string; lastCrawl: string | null };
+type Inspection = { url: string; verdict: string; coverage: string; lastCrawl: string | null; canonical: string | null };
 
 async function inspect(token: string, url: string): Promise<Inspection> {
   const res = await fetch("https://searchconsole.googleapis.com/v1/urlInspection/index:inspect", {
@@ -118,9 +118,34 @@ async function inspect(token: string, url: string): Promise<Inspection> {
     body: JSON.stringify({ inspectionUrl: url, siteUrl: PROPERTY, languageCode: "en" }),
     signal: AbortSignal.timeout(30_000),
   });
-  if (!res.ok) return { url, verdict: `error ${res.status}`, coverage: "", lastCrawl: null };
-  const r = ((await res.json()) as { inspectionResult?: { indexStatusResult?: { verdict?: string; coverageState?: string; lastCrawlTime?: string } } }).inspectionResult?.indexStatusResult;
-  return { url, verdict: r?.verdict ?? "?", coverage: r?.coverageState ?? "", lastCrawl: r?.lastCrawlTime ?? null };
+  if (!res.ok) return { url, verdict: `error ${res.status}`, coverage: "", lastCrawl: null, canonical: null };
+  const r = ((await res.json()) as { inspectionResult?: { indexStatusResult?: { verdict?: string; coverageState?: string; lastCrawlTime?: string; googleCanonical?: string } } }).inspectionResult?.indexStatusResult;
+  return { url, verdict: r?.verdict ?? "?", coverage: r?.coverageState ?? "", lastCrawl: r?.lastCrawlTime ?? null, canonical: r?.googleCanonical ?? null };
+}
+
+// Arabic and English apart (2026-10-22): the last 7 settled days by page, web and images, summed by
+// whether the page is an /en one — so English is seen growing, or not, on its own.
+type Side = { clicks: number; impressions: number };
+const english = (url: string) => /^https:\/\/[^/]+\/en(\/|$)/.test(url);
+async function byLanguage(token: string) {
+  const end = new Date(Date.now() - 2 * 86400e3);
+  const start = new Date(end.getTime() - 6 * 86400e3);
+  const out: Record<SearchType, { ar: Side; en: Side }> = { web: { ar: { clicks: 0, impressions: 0 }, en: { clicks: 0, impressions: 0 } }, image: { ar: { clicks: 0, impressions: 0 }, en: { clicks: 0, impressions: 0 } } };
+  for (const type of TYPES) {
+    const res = await fetch(`https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(PROPERTY)}/searchAnalytics/query`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ startDate: isoDay(start), endDate: isoDay(end), dimensions: ["page"], type, rowLimit: 5000 }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) throw new Error(`search analytics pages ${type} ${res.status}`);
+    for (const r of ((await res.json()) as { rows?: { keys: string[]; clicks: number; impressions: number }[] }).rows ?? []) {
+      const side = out[type][english(r.keys[0]) ? "en" : "ar"];
+      side.clicks += Math.round(r.clicks);
+      side.impressions += Math.round(r.impressions);
+    }
+  }
+  return out;
 }
 
 export async function seoWeekly(sample: string[]) {
@@ -131,17 +156,22 @@ export async function seoWeekly(sample: string[]) {
   const inspected: Inspection[] = [];
   for (const url of sample) inspected.push(await inspect(token, url)); // one at a time: the API's quota is per minute
   const indexed = inspected.filter((i) => i.verdict === "PASS").length;
+  const languages = await byLanguage(token).catch((error) => String((error as Error)?.message ?? error));
+  const side = (s: Side) => `${s.impressions} impressions, ${s.clicks} clicks`;
   const report = {
+    languages: typeof languages === "string" ? languages : Object.fromEntries(TYPES.map((t) => [t, { ar: side(languages[t].ar), en: side(languages[t].en) }])),
     sitemaps: res.ok
       ? sitemaps.map((s) => ({ path: s.path, read: s.lastDownloaded ?? null, pending: !!s.isPending, errors: Number(s.errors ?? 0), warnings: Number(s.warnings ?? 0), found: (s.contents ?? []).map((c) => `${c.type}:${c.submitted ?? "?"}`).join(" ") }))
       : `sitemaps ${res.status}`,
     sample: `${indexed}/${inspected.length} indexed`,
-    pages: inspected.map((i) => `${i.verdict === "PASS" ? "✓" : "✗"} ${i.url.replace("https://zawmo.com", "") || "/"} — ${i.coverage || i.verdict}${i.lastCrawl ? ` (fetched ${i.lastCrawl.slice(0, 10)})` : ""}`),
+    // (and when Google took another page as this one's canonical — an /en page folded into the Arabic)
+    pages: inspected.map((i) => `${i.verdict === "PASS" ? "✓" : "✗"} ${i.url.replace("https://zawmo.com", "") || "/"} — ${i.coverage || i.verdict}${i.lastCrawl ? ` (fetched ${i.lastCrawl.slice(0, 10)})` : ""}${i.canonical && i.canonical !== i.url ? ` ⚠ Google's canonical: ${i.canonical}` : ""}`),
   };
   const sitemapTrouble = !res.ok || sitemaps.some((s) => Number(s.errors ?? 0) > 0 || Number(s.warnings ?? 0) > 0);
-  const inspectTrouble = inspected.some((i) => i.verdict.startsWith("error"));
+  const inspectTrouble = inspected.some((i) => i.verdict.startsWith("error") || (english(i.url) && i.canonical && i.canonical !== i.url));
   const level = sitemapTrouble || inspectTrouble || indexed * 2 < inspected.length ? "warning" : "info";
   console.log("seo weekly", JSON.stringify(report));
-  Sentry.captureMessage(`SEO weekly: ${report.sample}${sitemapTrouble ? ", sitemap has errors" : ""}`, { level, fingerprint: ["seo-weekly", level], extra: report });
+  const en = typeof languages === "string" ? "" : `, English ${languages.web.en.impressions + languages.image.en.impressions} impressions / ${languages.web.en.clicks + languages.image.en.clicks} clicks`;
+  Sentry.captureMessage(`SEO weekly: ${report.sample}${en}${sitemapTrouble ? ", sitemap has errors" : ""}`, { level, fingerprint: ["seo-weekly", level], extra: report });
   return report;
 }

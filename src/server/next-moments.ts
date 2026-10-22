@@ -10,7 +10,8 @@ import { publicCover } from "@/server/media";
 // moment, so the moment page costs no more than one small query now and then.
 
 // firstPart: its first film part (src/server/montage/parts.ts), for «🎬 فيديو لحظة تانية»; null when none.
-export type NextMoment = { code: string; title: string; firstAngleId: string; cover: string; firstPart: number | null };
+// (`titleEn`: its English name — inEnglish() puts it in `title` on an English page.)
+export type NextMoment = { code: string; title: string; titleEn: string | null; firstAngleId: string; cover: string; firstPart: number | null };
 
 // A shot anyone may see: ready, checked, not expired.
 const shownAt = (now: Date) => ({ status: "READY" as const, screening: "allowed", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] });
@@ -37,6 +38,7 @@ async function compute(momentId: string, take: number): Promise<NextMoment[]> {
     select: {
       code: true,
       title: true,
+      titleEn: true,
       placeId: true,
       angles: {
         where: shownAt(now),
@@ -58,7 +60,7 @@ async function compute(momentId: string, take: number): Promise<NextMoment[]> {
     .sort((a, b) => b.score - a.score || a.rank - b.rank)
     .slice(0, take);
   return Promise.all(
-    scored.map(async ({ m }) => ({ code: m.code, title: plain(m.title), firstAngleId: m.angles[0].id, cover: await publicCover(m.angles[0]), firstPart: m.montages[0]?.part ?? null })),
+    scored.map(async ({ m }) => ({ code: m.code, title: plain(m.title), titleEn: m.titleEn ? plain(m.titleEn) : null, firstAngleId: m.angles[0].id, cover: await publicCover(m.angles[0]), firstPart: m.montages[0]?.part ?? null })),
   );
 }
 
@@ -66,4 +68,4 @@ async function compute(momentId: string, take: number): Promise<NextMoment[]> {
 export const nextMomentsNow = compute;
 
 export const nextMoments = (momentId: string, take = 8) =>
-  unstable_cache(() => compute(momentId, take), ["next-moments-2", momentId, String(take)], { revalidate: 600 })();
+  unstable_cache(() => compute(momentId, take), ["next-moments-3", momentId, String(take)], { revalidate: 600 })();

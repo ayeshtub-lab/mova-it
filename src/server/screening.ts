@@ -169,11 +169,24 @@ const contextLine = (c?: ShotContext) => {
   return facts + searches;
 };
 
-export async function askGemini(imagesBase64: string[], context?: ShotContext): Promise<Verdict> {
+// What the pictures are: a video is sent as frames, which Gemini alone takes for photos — «صورة
+// حقيقية» / «a real photo» was written under videos until 2026-10-22.
+const mediaLine = (video?: boolean) =>
+  video === undefined
+    ? ""
+    : video
+      ? "
+
+THE MEDIA: a VIDEO — the images are frames taken from it (the first is its cover). Call it a real video («فيديو حقيقي», «real video»), never a photo."
+      : "
+
+THE MEDIA: a PHOTO. Call it a real photo («صورة حقيقية», «real photo»).";
+
+export async function askGemini(imagesBase64: string[], context?: ShotContext, video?: boolean): Promise<Verdict> {
   const res = await callGemini({
     purpose: "screening",
     body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: PROMPT + DESCRIBE + contextLine(context) }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
+      contents: [{ role: "user", parts: [{ text: PROMPT + DESCRIBE + contextLine(context) + mediaLine(video) }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
       generationConfig: { temperature: 0, responseMimeType: "application/json" },
     }),
   });
@@ -236,7 +249,7 @@ export async function screenAngle(angle: {
       if (videoUrl) images.push(...(await videoFrames(videoUrl, angle.durationSec).catch(() => [])));
       if (!images.length) return { result: "error", reason: "no frames" };
     }
-    return await askGemini(images, context);
+    return await askGemini(images, context, angle.mediaType !== "PHOTO");
   } catch (error) {
     return { result: "error", reason: String((error as Error)?.message ?? error).slice(0, 300) };
   }

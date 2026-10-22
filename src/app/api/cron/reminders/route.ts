@@ -37,12 +37,17 @@ async function seoSample() {
   const list = (await sitemapList())
     .filter((e) => !e.lastModified || new Date(e.lastModified).getTime() < weekAgo)
     .sort((a, b) => new Date(b.lastModified ?? 0).getTime() - new Date(a.lastModified ?? 0).getTime());
-  const newest = (re: RegExp, n: number) => list.filter((e) => re.test(e.url)).slice(0, n).map((e) => e.url);
+  // The Arabic pages, and since English opened (2026-10-22) two English ones: is Google taking
+  // each /en page as its own (its chosen canonical the page itself, not the Arabic)?
+  const english = (url: string) => /^https:\/\/[^/]+\/en(\/|$)/.test(url);
+  const newest = (re: RegExp, n: number, en = false) => list.filter((e) => english(e.url) === en && re.test(e.url)).slice(0, n).map((e) => e.url);
   return [
     ...newest(/^https:\/\/[^/]+\/?$/, 1),
     ...newest(/\/m\/[A-Z0-9]{6}$/, 3),
     ...newest(/\/film\/\d+$/, 2),
     ...newest(/\/m\/[A-Z0-9]{6}\/a\//, 2),
     ...newest(/\/tag\//, 1),
+    ...newest(/\/m\/[A-Z0-9]{6}$/, 1, true),
+    ...newest(/\/m\/[A-Z0-9]{6}\/a\//, 1, true),
   ];
 }

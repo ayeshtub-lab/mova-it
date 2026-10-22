@@ -34,3 +34,15 @@ test("a funny line, a person's own sound and no sound get nothing", () => {
   assert.equal(soundSearch("u123abc"), null);
   assert.equal(soundSearch(null), null);
 });
+
+test("on an English page: the sound's English name, no Arabic words or verse text", () => {
+  const birds = soundSearch("n03", "en")!;
+  assert.equal(birds.phrase, "Nightingale");
+  assert.deepEqual(birds.tags, []);
+  assert.equal(birds.words, null);
+  const verse = soundSearch("q02", "en")!;
+  assert.equal(verse.phrase, "Quran recitation: Ash-Sharh 5–6");
+  assert.ok(!/[؀-ۿ]/.test(verse.phrase));
+  assert.equal(soundSearch("u123abc", "en"), null, "a person's own sound: nothing, in English too");
+  for (const s of SOUNDS.filter((x) => x.cat === "funny")) assert.equal(soundSearch(s.key, "en"), null, s.key);
+});
