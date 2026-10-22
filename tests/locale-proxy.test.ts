@@ -32,8 +32,12 @@ check("/en/m/X: the plain page, told «en», kept out of Google, the visitor kep
   assert.equal(res.headers.get("x-middleware-rewrite"), "https://zawmo.com/m/ABC234?src=x");
   assert.equal(told(res, LOCALE_HEADER), "en");
   assert.equal(told(res, PATH_HEADER), "/en/m/ABC234?src=x");
-  if (!enIndexable("/m/ABC234")) assert.equal(res.headers.get("x-robots-tag"), "noindex, follow");
+  assert.equal(res.headers.get("x-robots-tag"), enIndexable("/m/ABC234") ? null : "noindex, follow");
   assert.match(res.headers.get("set-cookie") ?? "", /lang=en/);
+});
+
+check("/en/discover: not in phase 1 — kept out of Google even with English open", () => {
+  assert.equal(proxy(req("/en/discover")).headers.get("x-robots-tag"), "noindex, follow");
 });
 
 check("/en alone: the English home page", () => {

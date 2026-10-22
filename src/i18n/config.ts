@@ -23,7 +23,8 @@ export const EN_PREFIX = "/en";
 // English and have been read — until then each answers «noindex, follow» (src/proxy.ts). Then only
 // phase 1's kinds of page (his plan, 2026-10-21): the home page, moments, their film parts and
 // their shots — the rest (discover, profiles, tags…) stays Arabic-only for Google for now.
-export const EN_INDEXED = false;
+// Opened 2026-10-22 (his OK): all 653 shots and 162 moments in English, none with a place in its title.
+export const EN_INDEXED = true;
 const EN_PHASE_1 = [/^\/$/, /^\/m\/[A-Z0-9]{6}$/, /^\/m\/[A-Z0-9]{6}\/film\/\d+$/, /^\/m\/[A-Z0-9]{6}\/a\/[a-z0-9]+$/];
 // `path`: the plain address (no /en, no query).
 export const enPhase1 = (path: string) => EN_PHASE_1.some((re) => re.test(path.split("?")[0]));
