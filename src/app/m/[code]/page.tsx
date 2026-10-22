@@ -82,12 +82,12 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
         ? ` — ${new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Riyadh" }).format(view.createdAt)}`
         : "";
   // A name that doesn't say what's in it («من انتاج مزرعتي») gets what the shots show: «…: طماطم
-  // وخيار في الخضر». Kept short (search results cut a title at about 60 characters): one word, or none.
-  const shown = shotWords(view.angles.map((a) => a.aiText), name, where);
-  const head = (words: string[]) => {
-    const what = words.length ? `${name}: ${words.join(locale === "ar" ? " و" : " & ")}` : name;
-    return `${where && !name.includes(where) ? `${what} ${dict.moment.metaIn} ${where}` : what}${whose}`;
-  };
+  // وخيار». Kept short (search results cut a title at about 60 characters): one word, or none.
+  // Never the place (his call, 2026-10-22, as for the shots: searched by the subject across the
+  // Arab world — the place is said in the description). The shots' words are Arabic: on an
+  // English page, none («Blue Sky and White Clouds: سماء زرقاء & غيوم» until 2026-10-22).
+  const shown = locale === "ar" ? shotWords(view.angles.map((a) => a.aiText), name, where) : [];
+  const head = (words: string[]) => `${words.length ? `${name}: ${words.join(" و")}` : name}${whose}`;
   const fits = [shown, shown.slice(0, 1), []].map(head).find((h) => [...h].length <= 60) ?? head([]);
   const title = `${fits} · ${dict.meta.brand}`;
   const description = momentDescription(view, dict, locale);
@@ -110,7 +110,7 @@ function momentDescription(view: NonNullable<Awaited<ReturnType<typeof loadMomen
   const head = where && !name.includes(where) ? `${name} ${dict.moment.metaIn} ${where}` : name;
   // What it's heard with, when a shot has a library sound («مع تلاوة سورة الشرح»): words people search.
   const heard = locale === "ar" ? view.angles.map((a) => soundSearch(a.soundKey)).find((s) => !!s) : undefined;
-  const text = [head, view.visibility === "PUBLIC" && view.description ? view.description.slice(0, 120) : null, heard?.phrase].filter(Boolean).join(". ");
+  const text = [head, view.visibility === "PUBLIC" && view.description ? clip(view.description, 120) : null, heard?.phrase].filter(Boolean).join(". ");
   return clip(`${text} — ${counts}`);
 }
 
