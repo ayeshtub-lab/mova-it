@@ -68,7 +68,7 @@ export async function retitlePending(preview?: { write: (line: string) => void }
   for (const s of batch) {
     const got = typeof answer[s.id] === "string" ? (answer[s.id] as string).replace(/["«»#\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim().slice(0, 90) : "";
     // (Gemini's when it left no place in it; else the old title with the place taken out.)
-    const title = got && [...got.split(" ")].length >= 3 && !named(got, patterns) ? got : withoutPlace(s.aiTitle!, patterns);
+    const title = (got && [...got.split(" ")].length >= 3 && !named(got, patterns) ? got : withoutPlace(s.aiTitle!, patterns)).replace(/في طبيعة$/u, "في الطبيعة");
     if (preview) {
       preview.write(`${s.aiTitle}  →  ${title}${title === got ? "" : "  (cut here)"}`);
       continue;

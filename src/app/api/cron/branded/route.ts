@@ -9,11 +9,10 @@ import { retitlePending } from "@/server/retitle";
 // Until the English has been read and found good: show, don't keep. (Read 2026-10-21 — faithful to the
 // Arabic, the place as the city, natural search words: kept from then on.)
 const TRANSLATE_PREVIEW = false;
-// Paused (his call, 2026-10-21) while the old titles lose their place (RETITLE): their English is
-// written once, from the new titles, after.
-const TRANSLATE_ON = false;
-// The old titles rewritten without the place (src/server/retitle.ts) — shown first, kept once read.
-const RETITLE_PREVIEW = true;
+// The old titles rewritten without the place (src/server/retitle.ts) — shown first, kept once read
+// (his «احفظ», 2026-10-22). The English waits until none is left (his call, 2026-10-21): it is
+// written once, from the new titles.
+const RETITLE_PREVIEW = false;
 
 // Each render takes a while (the whole clip is re-encoded once).
 export const maxDuration = 300;
@@ -45,15 +44,18 @@ export async function GET(request: Request) {
   // preview»), so the English is read before any of it is kept.
   // Titles without the place first (25 a call, a second batch while there's time).
   let retitled = 0;
+  let titlesLeft = true;
   for (let batch = 0; batch < 3; batch++) {
     const preview = RETITLE_PREVIEW ? { write: (line: string) => console.log("retitle preview", line) } : undefined;
-    const n = await retitlePending(preview).catch((error) => (console.error("retitle failed", error), 0));
-    if (RETITLE_PREVIEW) break;
+    const n = await retitlePending(preview).catch((error) => (console.error("retitle failed", error), -1));
+    if (RETITLE_PREVIEW || n < 0) break;
+    // (an answered call with nothing to do: none left)
+    if (n === 0) titlesLeft = false;
     retitled += n;
     if (!n || Date.now() > started + 45_000) break;
   }
   let translated = 0;
-  for (let batch = 0; TRANSLATE_ON && batch < 2; batch++) {
+  for (let batch = 0; !titlesLeft && batch < 2; batch++) {
     const preview = TRANSLATE_PREVIEW ? { write: (line: string) => console.log("translate preview", line) } : undefined;
     const n = await translatePending(preview).catch((error) => (console.error("translate failed", error), 0));
     if (TRANSLATE_PREVIEW) break;
