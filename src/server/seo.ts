@@ -165,17 +165,12 @@ export async function publicShot(id: string, now = new Date()) {
 
 export type PublicShot = NonNullable<Awaited<ReturnType<typeof publicShot>>>;
 
-const placeName = (p: { nameAr: string; kind: string }) => (p.kind === "GOVERNORATE" ? `محافظة ${p.nameAr}` : p.nameAr);
-
-// Words that say what the shot is, for its title and the picture's alt text:
-// «غيوم وسماء جميلة — سما وقمر في بيت لحم».
+// Words that say what the shot is, for a shot without its own SEO title: «غيوم وسماء جميلة —
+// طبيعة». No place (his call, 2026-10-21): the place is said once, in the description.
 export function shotLabel(shot: PublicShot, locale: string) {
-  const ar = locale === "ar";
   const text = plain(parseCaption(shot.caption)?.text?.replace(/\s+/g, " ").trim() || shot.moment.title);
-  const scene = isScene(shot.scene) && shot.scene !== "other" ? SCENES[shot.scene][ar ? "ar" : "en"] : null;
-  const where = shot.place ? placeName(shot.place) : null;
-  const tail = [scene, where && `${ar ? "في" : "in"} ${where}`].filter(Boolean).join(" ");
-  return tail && !text.includes(tail) ? `${text} — ${tail}` : text;
+  const scene = isScene(shot.scene) && shot.scene !== "other" ? SCENES[shot.scene][locale === "ar" ? "ar" : "en"] : null;
+  return scene && !text.includes(scene) ? `${text} — ${scene}` : text;
 }
 
 export const shotPath = (shot: { id: string; moment: { code: string } }) => `/m/${shot.moment.code}/a/${shot.id}`;
@@ -196,14 +191,12 @@ export async function siblingShots(shot: { id: string; moment: { id: string; cod
 // have several: «غيوم وسماء جميلة — طبيعة — عزالدين (٢)». Every shot page gets its own.
 type Ordinal = { n: number; of: number };
 export function shotTitle(shot: PublicShot, locale: string, ordinal?: Ordinal) {
-  // On an English page: its English title as written (the place already in it — «… in Bethlehem, Palestine»).
+  // On an English page: its English title as written.
   if (locale === "en" && shot.aiTitleEn) return shot.aiTitleEn;
   // Its own SEO title (what is seen, in searched words — src/server/screening.ts): unique to
-  // the shot, so no number is needed; the place added when the title doesn't say it.
-  if (shot.aiTitle) {
-    const where = shot.place ? placeName(shot.place) : null;
-    return where && !shot.aiTitle.includes(shot.place!.nameAr) ? `${shot.aiTitle} — ${where}` : shot.aiTitle;
-  }
+  // the shot, so no number is needed. Never a place added to it (his call, 2026-10-21: searched
+  // across the Arab world by the subject, not the village — the page added «— الخضر» until 2026-10-22).
+  if (shot.aiTitle) return shot.aiTitle;
   const base = `${shotLabel(shot, locale)} — ${shot.contributor.displayName}`;
   return ordinal && ordinal.of > 1 ? `${base} (${ordinal.n.toLocaleString(locale === "ar" ? "ar-EG" : "en")})` : base;
 }

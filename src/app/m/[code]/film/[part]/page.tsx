@@ -140,15 +140,11 @@ export default async function FilmPartPage({ params }: PageProps<"/m/[code]/film
         <Link href={`/m/${view.code}#video`} className="flex min-h-12 items-center justify-center rounded-full bg-accent px-6 font-extrabold text-white shadow-sm">
           {dict.filmPart.open}
         </Link>
+        {/* A plain link, no cover: this page is the part's watch page, its video the one thing on it
+            (Google, «the video is supplementary content», 2026-10-22). */}
         {another && (
-          <Link href={`/m/${another.code}/film/${another.firstPart}`} className="flex items-center gap-3 rounded-2xl bg-surface p-2 pe-4">
-            {/* eslint-disable-next-line @next/next/no-img-element -- a small fixed cover */}
-            <img src={another.cover} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
-            <span className="flex min-w-0 flex-col">
-              <span className="text-xs font-bold text-muted">{dict.filmPart.another}</span>
-              <span className="truncate font-extrabold">{another.title}</span>
-            </span>
-            <span aria-hidden="true" className="ms-auto">⬇️</span>
+          <Link href={`/m/${another.code}/film/${another.firstPart}`} className="self-center text-sm text-secondary underline-offset-4 hover:underline">
+            {dict.filmPart.another}: {another.title}
           </Link>
         )}
       </main>

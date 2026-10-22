@@ -70,14 +70,19 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   const [locale, viewer] = await Promise.all([getLocale(), getCurrentUser()]);
   const dict = await getDictionary(locale);
   const t = dict.shotPage;
-  const label = shotLabel(shot, locale);
+  // Its own title, the same in the page's heading, the video's name and the tab — what the video
+  // shows, never a place (his call, 2026-10-21).
+  const title = shotTitle(shot, locale, await shotOrdinal(shot));
   const isVideo = shot.mediaType === "VIDEO";
   const where = shot.place ? placeName(shot.place) : null;
   const at = shot.capturedAt ?? shot.uploadedAt;
   // The weather it was taken in («🌧️ مطر · 12°»), when known (src/server/weather.ts).
   const weather = weatherLine(shot.weather, shot.weatherTemp, locale);
   const sound = soundSearch(shot.soundKey);
-  const siblings = await siblingShots(shot);
+  // A video's page is its watch page: the video the one thing on it (Google, «Is on a watch page?
+  // No — the video is supplementary content», 2026-10-22, after 16/10 put 12 covers under it). So
+  // under a video, a few plain links; under a photo, the covers as before.
+  const siblings = await siblingShots(shot, isVideo ? 4 : 12);
   const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Riyadh" }).format(at);
 
   const site = `https://${CANONICAL_HOST}`;
@@ -87,7 +92,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   const common = {
     "@id": `${url}#media`,
     url,
-    name: shotTitle(shot, locale, await shotOrdinal(shot)),
+    name: title,
     description: describe(shot, dict, locale),
     inLanguage: locale,
     ...(shot.aiText || sound ? { keywords: [...new Set([...hashtagsIn(shot.aiText), ...(sound?.tags ?? [])])].map((k) => k.replace(/_/g, " ")).join(", ") } : {}),
@@ -115,7 +120,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         "@type": "ImageObject",
         ...common,
         contentUrl: image,
-        caption: plain(shot.aiText ?? label),
+        caption: plain(shot.aiText ?? title),
         ...imageRights(shot.contributor.displayName, site),
         datePublished: shot.uploadedAt.toISOString(),
         dateModified: shot.uploadedAt.toISOString(),
@@ -125,7 +130,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
     { name: dict.meta.brand, item: site },
     ...(shot.place ? [{ name: placeName(shot.place), item: `${site}/p/${encodeURIComponent(shot.place.slug)}` }] : []),
     { name: plain(shot.moment.title), item: momentUrl },
-    { name: label, item: url },
+    { name: title, item: url },
   ];
   const structured = {
     "@context": "https://schema.org",
@@ -147,7 +152,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
               controls
               playsInline
               preload="metadata"
-              aria-label={label}
+              aria-label={title}
               className="max-h-[75vh] w-full"
               style={{ filter: filterCss(shot.filter) }}
             />
@@ -155,7 +160,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
             // eslint-disable-next-line @next/next/no-img-element -- the fixed address is what search engines index
             <img
               src={`/i/${shot.id}.jpg`}
-              alt={shot.aiText ? `${label} — ${shot.aiText.replace(/#\S+/g, "").trim()}` : label}
+              alt={shot.aiText ? `${title} — ${shot.aiText.replace(/#\S+/g, "").trim()}` : title}
               width={shot.width ?? undefined}
               height={shot.height ?? undefined}
               fetchPriority="high"
@@ -165,7 +170,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
           )}
         </div>
         <header className="flex flex-col gap-1">
-          <h1 className="text-2xl font-extrabold leading-snug">{label}</h1>
+          <h1 className="text-2xl font-extrabold leading-snug">{title}</h1>
           <p className="text-sm text-muted">
             {fill(t.by, { name: shot.contributor.displayName })}
             {where && shot.place && (
@@ -205,7 +210,22 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         >
           {t.watchAll}
         </Link>
-        {siblings.length > 0 && (
+        {siblings.length > 0 && isVideo && (
+          <nav aria-label={t.more} className="flex flex-col gap-1 text-sm">
+            <h2 className="font-bold text-muted">{t.more}</h2>
+            <ul className="flex flex-col gap-1">
+              {siblings.map((s) => (
+                <li key={s.id}>
+                  <Link href={s.href} className="text-secondary underline-offset-4 hover:underline">
+                    {s.video ? "▶ " : ""}
+                    {s.title ?? plain(shot.moment.title)}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
+        {siblings.length > 0 && !isVideo && (
           <section aria-label={t.more} className="flex flex-col gap-2">
             <h2 className="text-base font-extrabold">{t.more}</h2>
             <ul className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
@@ -229,7 +249,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
           {t.open}
         </Link>
         {/* Zawmo's own accounts fix the title and line search engines show (src/lib/staff.ts). */}
-        {viewer?.isAdmin && <StaffShotEdit id={shot.id} title={shot.arabic.title || label} text={shot.arabic.text} />}
+        {viewer?.isAdmin && <StaffShotEdit id={shot.id} title={shot.arabic.title || title} text={shot.arabic.text} />}
         {/* «الدردشة»: this shot to a friend, as a card. */}
         {viewer && !viewer.isGuest && <SendToFriend code={shot.moment.code} angleId={shot.id} label="💬 ابعت اللقطة لصاحب" />}
       </main>
