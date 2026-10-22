@@ -153,7 +153,10 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
               playsInline
               preload="metadata"
               aria-label={title}
-              className="max-h-[75vh] w-full"
+              // Its size from the start, so the page doesn't jump when the video's first frame arrives (CLS).
+              width={shot.width ?? undefined}
+              height={shot.height ?? undefined}
+              className="h-auto max-h-[75vh] w-full"
               style={{ filter: filterCss(shot.filter) }}
             />
           ) : (
