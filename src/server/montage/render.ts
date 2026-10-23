@@ -171,6 +171,18 @@ async function cardSegment(card: string, out: string, seconds: number) {
 }
 
 // One frame of a video, for the opening card's background.
+// The value seen most often (a part's scene, from its shots'), null when none.
+function mostCommon(values: (string | null)[]) {
+  const counts = new Map<string, number>();
+  for (const v of values) if (v) counts.set(v, (counts.get(v) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+}
+
+// A part's own cover (2026-10-23): a frame from the middle of the part — past the opening card —
+// not its first shot's picture, which is also that shot's own video cover (two videos, one face).
+// Kept beside the video (…/montage-ID.jpg); zawmo.com/i/CODE-N.jpg serves it.
+export const partCoverPath = (videoPath: string) => videoPath.replace(/\.mp4$/, ".jpg");
+
 async function stillOf(video: string, out: string) {
   await ffmpeg(["-ss", "0.3", "-i", video, "-frames:v", "1", "-q:v", "3", out]);
   return out;
@@ -376,9 +388,17 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   // Which pieces carry a sound of their own (a library sound laid on the shot): the bed under a
   // part goes quiet there, so a duaa or a verse is heard alone.
   const ownSound: boolean[] = [];
-  let lastFill: string | null = null;
-  // (A part: the sounds for its silent photos, chosen for what each one shows — ./fill-sounds.ts.)
-  const pickFill = fill ? await fillPicker(SOLEMN_WORDS.test(moment.title)) : null;
+  // (A part: ONE sound under the whole part, chosen for what its pictures show together —
+  // ./fill-sounds.ts; the shots with a sound of their own keep it, the bed going quiet there.)
+  const silentPhotos = ordered.filter((a) => a.mediaType !== "VIDEO" && !a.soundKey);
+  const partSound =
+    fill && !soundKey && !story
+      ? await (await fillPicker(SOLEMN_WORDS.test(moment.title)))(
+          { id: moment.id, scene: mostCommon(ordered.map((a) => a.scene)), aiText: (silentPhotos.length ? silentPhotos : ordered).map((a) => a.aiText ?? "").join(" ") },
+          moment.title,
+          null,
+        )
+      : null;
   const times = shotTimes(ordered.filter((a) => a.mediaType !== "VIDEO").length, ordered.filter((a) => a.mediaType === "VIDEO").length, story, filmLimit(soundKey));
   const pieces: string[] = [];
   let made = 0;
@@ -404,10 +424,6 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
     };
     // A story moves too fast for each shot's own sound: only the video's sound plays.
     let shotSound = soundKey || story ? null : await resolveSound(angle.soundKey);
-    // (A part: a silent photo takes a sound of its own, never the one just before it.)
-    const filled = !shotSound && fill && angle.mediaType !== "VIDEO";
-    if (filled && pickFill) shotSound = await pickFill(angle, moment.title, lastFill);
-    if (shotSound) lastFill = shotSound.key;
     if (shotSound) shotSounds = true;
     const writing = parseCaption(angle.caption);
     const kept = piecePath(moment.id, [angle.id, angle.mediaPath, angle.mediaType, angle.filter, writing?.path ?? null, frame, plan ? plan[i] : times, story, i, shotSound?.key ?? null, angle.muteOriginal, angle.lyrics]);
@@ -483,8 +499,10 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   // own sound stays, softer — or goes, under remembrance. With no sound chosen and none on
   // the shots, a calm one of Zawmo's (quieter, under the clips' own sound).
   const chosen = await resolveSound(soundKey);
-  const auto = !chosen && (!shotSounds || !!bedAll);
-  const sound = chosen ?? (auto ? soundByKey(SOLEMN_WORDS.test(moment.title) ? AUTO_SOUND_SOLEMN : AUTO_SOUND) : null);
+  // (A part's one sound runs as the bed: under everything, quiet under the shots with their own.)
+  const underAll = !!bedAll || !!partSound;
+  const auto = !chosen && (!shotSounds || underAll);
+  const sound = chosen ?? partSound ?? (auto ? soundByKey(SOLEMN_WORDS.test(moment.title) ? AUTO_SOUND_SOLEMN : AUTO_SOUND) : null);
   const quranHold = sound && isQuran(sound);
   const joined = joinGraph(film.durations, t, film.kinds, quranHold ? "vc" : "v");
   let total = joined.total;
@@ -507,13 +525,13 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
       // into them to the cut out, transitions included.)
       const starts = durations.map((_, k) => durations.slice(0, k).reduce((a, b) => a + b, 0) - k * t);
       const first = cards ? 1 : 0; // (the shots start after the opening card)
-      const quiet = bedAll
+      const quiet = underAll
         ? ownSound
             .map((own, i) => (own ? `between(t,${Math.max(0, starts[i + first] - t).toFixed(2)},${(starts[i + first] + durations[i + first]).toFixed(2)})` : null))
             .filter(Boolean)
             .join("+")
         : "";
-      const bed = `[${film.segments.length}:a]aresample=44100,atrim=0:${total.toFixed(2)},${fade}${auto ? (bedAll ? ",volume=0.8" : ",volume=0.55") : ""}${quiet ? `,volume=0:enable='${quiet}'` : ""}[bed]`;
+      const bed = `[${film.segments.length}:a]aresample=44100,atrim=0:${total.toFixed(2)},${fade}${auto ? (underAll ? ",volume=0.8" : ",volume=0.55") : ""}${quiet ? `,volume=0:enable='${quiet}'` : ""}[bed]`;
       mix = isSolemn(sound)
         ? `${bed};[orig]anullsink;[bed]anull[a]`
         : `${bed};[orig]volume=${auto ? "0.9" : "0.35"}[soft];[soft][bed]amix=inputs=2:duration=first:normalize=0[a]`;
@@ -561,6 +579,11 @@ export async function renderMontage(montageId: string, siteHost: string, parts: 
 
     const path = `m/${montage.moment.id}/montage-${montage.id}.mp4`;
     await put(path, await readFile(output), { access: "private", contentType: "video/mp4", addRandomSuffix: false, allowOverwrite: true });
+    if (montage.part) {
+      const cover = join(dir, "cover.jpg");
+      const made = await ffmpeg(["-ss", (total * 0.5).toFixed(2), "-i", output, "-frames:v", "1", "-q:v", "3", cover]).then(() => true, () => false);
+      if (made) await put(partCoverPath(path), await readFile(cover), { access: "private", contentType: "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
+    }
     await db.montage.update({
       where: { id: montage.id },
       data: { status: "READY", videoUrl: path, durationSec: Math.round(total * 10) / 10, finishedAt: new Date() },

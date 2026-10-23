@@ -321,6 +321,7 @@
     "prev": "Previous angle",
     "next": "Next angle",
     "counter": "{i} of {n}",
+    "swipeHint": "⬅️ Swipe left and right for the other angles ➡️",
     "label": "Angles of this moment",
     "reactions": {
       "like": "Like",

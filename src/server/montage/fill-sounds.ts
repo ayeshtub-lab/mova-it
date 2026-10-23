@@ -2,8 +2,9 @@ import { db } from "@/lib/db";
 import { soundByKey, SOUNDS, type Sound } from "@/lib/sounds";
 import { resolveSound } from "@/server/sound-resolve";
 
-// «أجزاء»: the sound a silent photo gets (src/server/montage/render.ts), chosen for what is in
-// the picture — its scene and the line written for it (src/server/screening.ts): the sea gets
+// «أجزاء»: the ONE sound under a part's silent photos (src/server/montage/render.ts, his call
+// 2026-10-23: a sound per photo made a choppy medley, and once the fitting ones were used the
+// rest fell to any nature sound — frogs under sweets), chosen for what is in the pictures — its scene and the line written for it (src/server/screening.ts): the sea gets
 // gulls and waves, a fire the crackle of wood, a wedding the daf, coffee in the morning a cozy
 // tune… — never thunder or rain unless it is raining in it. The pool is the library's calm music,
 // daf and nature, plus every member's sound a curator put in those lists: whatever is added
@@ -66,8 +67,9 @@ export async function fillPicker(solemn: boolean) {
     const best = Math.max(0, ...choices.map((c) => c.n));
     if (best > 0) choices = choices.filter((c) => c.n === best);
     else {
-      // Nothing in the picture to go by: calm music and nature — with the daf for a celebration.
-      const general = choices.filter((c) => c.s.cat !== "daf" || EVENT.test(text));
+      // Nothing in the pictures to go by: calm music only — never an animal or a pond by chance —
+      // with the daf for a celebration.
+      const general = choices.filter((c) => c.s.cat === "calm" || (c.s.cat === "daf" && EVENT.test(text)));
       if (general.length) choices = general;
     }
     if (!choices.length) return null;

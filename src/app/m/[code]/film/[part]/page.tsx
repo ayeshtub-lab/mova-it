@@ -2,14 +2,15 @@ import { inEnglish, localizeMoment } from "@/server/localize";
 import { alternatesFor } from "@/i18n/alternates";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { JsonLd } from "@/app/JsonLd";
 import { SiteHeader } from "@/app/SiteHeader";
+import { inLocale } from "@/i18n/config";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { plain } from "@/lib/clip";
 import { CANONICAL_HOST } from "@/lib/hosts";
-import { partNumbers, publicPart } from "@/server/montage/parts";
+import { partNumbers, publicPart, retiredPart } from "@/server/montage/parts";
 import { nextMoments } from "@/server/next-moments";
 import { getMomentView } from "@/server/moments";
 import { momentIndexable } from "@/server/seo";
@@ -46,14 +47,19 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]/film/[pa
     title: `${title} · ${dict.meta.brand}`,
     description,
     alternates: await alternatesFor(`/m/${found.view.code}/film/${found.film.part}`),
-    openGraph: { title, description, type: "video.other", siteName: dict.meta.brand, videos: [{ url: `/v/${found.view.code}-${found.film.part}.mp4`, type: "video/mp4" }], ...(found.film.poster ? { images: [`/i/${found.film.poster}.jpg`] } : {}) },
+    openGraph: { title, description, type: "video.other", siteName: dict.meta.brand, videos: [{ url: `/v/${found.view.code}-${found.film.part}.mp4`, type: "video/mp4" }], images: [`/i/${found.view.code}-${found.film.part}.jpg`] },
   };
 }
 
 export default async function FilmPartPage({ params }: PageProps<"/m/[code]/film/[part]">) {
   const { code, part } = await params;
   const found = await load(code, part);
-  if (!found) notFound();
+  if (!found) {
+    // A part retired (2026-10-23) leads on — a lasting address keeps its worth for search engines.
+    const retired = /^\d{1,3}$/.test(part) ? await retiredPart(code, Number(part)) : null;
+    if (retired) permanentRedirect(inLocale(retired.to, await getLocale()));
+    notFound();
+  }
   const { view, film } = found;
   const locale = await getLocale();
   const dict = await getDictionary(locale);
@@ -71,7 +77,8 @@ export default async function FilmPartPage({ params }: PageProps<"/m/[code]/film
   const site = `https://${CANONICAL_HOST}`;
   const momentUrl = `${site}/m/${view.code}`;
   const url = `${momentUrl}/film/${film.part}`;
-  const poster = film.poster ? `${site}/i/${film.poster}.jpg` : `${momentUrl}/opengraph-image`;
+  // Its own cover (a frame from its middle — src/app/i/[file]/route.ts), not its first shot's.
+  const poster = `${site}/i/${view.code}-${film.part}.jpg`;
   const structured = {
     "@context": "https://schema.org",
     "@graph": [
@@ -107,7 +114,7 @@ export default async function FilmPartPage({ params }: PageProps<"/m/[code]/film
       <main className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-16">
         <div className="overflow-hidden rounded-3xl bg-black">
           {/* The part at its fixed address (as in the sitemap and the structured data): the page's main content. */}
-          <video src={`/v/${view.code}-${film.part}.mp4`} poster={film.poster ? `/i/${film.poster}.jpg` : undefined} controls playsInline preload="metadata" aria-label={title} className="max-h-[75vh] w-full" />
+          <video src={`/v/${view.code}-${film.part}.mp4`} poster={`/i/${view.code}-${film.part}.jpg`} controls playsInline preload="metadata" aria-label={title} className="max-h-[75vh] w-full" />
         </div>
         <header className="flex flex-col gap-1">
           <h1 className="text-2xl font-extrabold leading-snug">{title}</h1>

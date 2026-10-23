@@ -17,7 +17,7 @@ export function FilmParts({ code, parts, labels, lasting, member = false, anothe
         {parts.map((p) => (
           <li key={p.part} className="flex w-60 shrink-0 snap-start flex-col gap-2">
             <div className="overflow-hidden rounded-2xl bg-black">
-              <video src={p.url ?? undefined} poster={p.poster ? `/i/${p.poster}.jpg` : undefined} controls playsInline preload="none" aria-label={p.title} className="aspect-[9/16] w-full object-cover" />
+              <video src={p.url ?? undefined} poster={`/i/${code}-${p.part}.jpg`} controls playsInline preload="none" aria-label={p.title} className="aspect-[9/16] w-full object-cover" />
             </div>
             <p className="line-clamp-2 text-sm font-bold leading-snug">{p.title}</p>
             <div className="grid grid-cols-2 gap-1.5 text-sm font-bold">

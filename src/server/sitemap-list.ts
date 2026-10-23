@@ -68,7 +68,7 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
       lastModified: p.at,
       changeFrequency: "monthly" as const,
       priority: 0.6,
-      videos: [{ title: p.title, description: `${p.title} — فيديو حقيقي من لقطات الناس على زاومو`, thumbnail_loc: p.poster ? `${base}/i/${p.poster}.jpg` : `${base}/m/${p.code}/opengraph-image`, content_loc: `${base}/v/${p.code}-${p.part}.mp4`, publication_date: p.at.toISOString(), ...(p.durationSec ? { duration: Math.max(1, Math.round(p.durationSec)) } : {}) }],
+      videos: [{ title: p.title, description: `${p.title} — فيديو حقيقي من لقطات الناس على زاومو`, thumbnail_loc: `${base}/i/${p.code}-${p.part}.jpg`, content_loc: `${base}/v/${p.code}-${p.part}.mp4`, publication_date: p.at.toISOString(), ...(p.durationSec ? { duration: Math.max(1, Math.round(p.durationSec)) } : {}) }],
     })),
     // Its film (every angle in one video), on its own watch page.
     // (Not once the moment has parts — they replace it — nor an old film past 40 seconds.)

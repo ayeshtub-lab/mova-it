@@ -77,6 +77,7 @@ type Labels = {
   prev: string;
   next: string;
   counter: string;
+  swipeHint: string;
   label: string;
   seenBy: string;
   thereTag: string;
@@ -281,6 +282,33 @@ export function AngleGallery({
   // «⬇️ اللحظة الجاية» (his idea, 2026-10-16): sideways = this moment's angles; down = the next
   // public moment, opened on its first shot — so nobody reaches the end and has to go back.
   // Moments already passed in this visit are skipped. A first-time hint says how it works.
+  // First, the first time a moment with several angles opens (his idea, 2026-10-23): «⬅️ اسحب يمين
+  // ويسار ➡️» — sideways before down — until the first swipe, or a few seconds; the down hint after.
+  const [sideHint, setSideHint] = useState(false);
+  const sideFirst = useRef(false);
+  useEffect(() => {
+    if (!opened || angles.length < 2) return;
+    try {
+      sideFirst.current = !localStorage.getItem("zawmo:hint-side");
+      if (sideFirst.current) localStorage.setItem("zawmo:hint-side", "1");
+    } catch {}
+    if (!sideFirst.current) return;
+    const on = setTimeout(() => setSideHint(true), 0);
+    const off = setTimeout(() => setSideHint(false), 4500);
+    return () => {
+      clearTimeout(on);
+      clearTimeout(off);
+    };
+  }, [opened, angles.length]);
+  const firstAngle = useRef<number | null>(null);
+  useEffect(() => {
+    if (!sideHint) return;
+    if (firstAngle.current === null) firstAngle.current = current;
+    else if (current !== firstAngle.current) {
+      const t = setTimeout(() => setSideHint(false), 0);
+      return () => clearTimeout(t);
+    }
+  }, [current, sideHint]);
   const [upcoming, setUpcoming] = useState<NextMoment | null>(null);
   const [hint, setHint] = useState(false);
   const touch = useRef<{ x: number; y: number } | null>(null);
@@ -297,13 +325,14 @@ export function AngleGallery({
       first = !localStorage.getItem("zawmo:hint-down");
       if (first) localStorage.setItem("zawmo:hint-down", "1");
     } catch {}
-    const t = setTimeout(() => {
-      setUpcoming(pick);
-      if (first) setHint(true);
-    }, 0);
-    const off = first ? setTimeout(() => setHint(false), 3500) : undefined;
+    // (after the sideways hint, when that one shows first)
+    const wait = sideFirst.current ? 4500 : 0;
+    const t = setTimeout(() => setUpcoming(pick), 0);
+    const on = first ? setTimeout(() => setHint(true), wait) : undefined;
+    const off = first ? setTimeout(() => setHint(false), wait + 3500) : undefined;
     return () => {
       clearTimeout(t);
+      if (on) clearTimeout(on);
       if (off) clearTimeout(off);
     };
   }, [opened, continueTo]);
@@ -1505,7 +1534,12 @@ export function AngleGallery({
             <span aria-hidden="true" className="animate-[nudge_1.6s_ease-in-out_infinite]">⬇️</span>
           </button>
         )}
-        {hint && (
+        {sideHint && (
+          <p role="status" className="pointer-events-none absolute inset-x-0 top-1/3 mx-auto w-fit max-w-[90vw] animate-pulse rounded-2xl bg-black/75 px-5 py-3 text-center text-sm font-bold leading-relaxed">
+            {labels.swipeHint}
+          </p>
+        )}
+        {hint && !sideHint && (
           <p role="status" className="pointer-events-none absolute inset-x-0 top-1/3 mx-auto w-fit max-w-[90vw] rounded-2xl bg-black/75 px-5 py-3 text-center text-sm font-bold leading-relaxed">
             {continueTo?.labels.hint}
           </p>

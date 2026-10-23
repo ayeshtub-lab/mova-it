@@ -41,7 +41,13 @@ const FULL_FROM = 38;
 const STALE_MS = 15 * 60 * 1000;
 // How parts are made: a part made another way is made again (quietly, one per run, nobody told).
 // "fill-1": each silent photo with a sound of its own (2026-10-15), not one sound under them all.
-const PART_STYLE = "fill-1";
+// "one-sound-1": back to ONE sound under the whole part, chosen for its pictures (and calm music
+// when they say nothing — never frogs under sweets), and the part's own cover (2026-10-23).
+const PART_STYLE = "one-sound-1";
+// A part is two shots at least (his call, 2026-10-23): one shot alone made the same video twice —
+// its own page and «الجزء ٣» — 23 of 83 parts were so. A shot too long to share a part stays
+// on its own page only.
+const MIN_PART_SHOTS = 2;
 
 type Shot = { id: string; contributorId: string; mediaType: string; capturedAt: Date | null; uploadedAt: Date; pickedAt: Date | null; durationSec: number | null; soundKey: string | null };
 
@@ -66,18 +72,20 @@ export async function shotSeconds(shot: Pick<Shot, "mediaType" | "durationSec" |
 // The shots that go into the next part: the next ones in time order, as many as fit in 40
 // seconds. `full` when it reached FULL_FROM and the next shot doesn't fit. A shot that doesn't fit
 // a part not yet full is left for a later part (the shots after it fill this one). A shot that
-// fills a part by itself (a 39-second video) makes a part of its own, without the cards.
+// can't share a part with even one photo (a 39-second video) goes in none.
 export async function nextPart(pending: Shot[]) {
   const shots: Shot[] = [];
   const seconds: number[] = [];
   for (const shot of pending) {
     const s = await shotSeconds(shot);
+    if (partLength([s, PHOTO]) > LIMIT) continue;
     if (shots.length && partLength([...seconds, s]) > LIMIT) {
       if (partLength(seconds) >= FULL_FROM) return { shots, seconds, full: true };
       continue;
     }
     shots.push(shot);
     seconds.push(s);
+    if (shots.length < MIN_PART_SHOTS) continue;
     if (partLength(seconds) >= FULL_FROM && !withCards(seconds)) return { shots, seconds, full: true };
     if (partLength(seconds) >= LIMIT - 0.5) return { shots, seconds, full: true };
   }
@@ -154,10 +162,17 @@ export async function duePart(momentId: string, now = new Date()) {
   const live = new Set(shots.map((s) => s.id));
 
   // A part that lost a shot: made again without it (the others stay where they are) — and one made
-  // in an older style, again with the same shots.
+  // in an older style, again with the same shots. Retired instead (its page then leads on —
+  // src/app/m/[code]/film/[part]/page.tsx): a part of one shot, and every part of a moment with
+  // fewer than MIN_ANGLES shots (2026-10-23).
   for (const [part, made] of [...latest].sort((a, b) => a[0] - b[0])) {
-    if (made.angleIds.every((id) => live.has(id)) && made.signature?.startsWith(`${PART_STYLE}:`)) continue;
     const kept = shots.filter((s) => made.angleIds.includes(s.id));
+    const retire = kept.length && (kept.length < MIN_PART_SHOTS ? "single" : shots.length < MIN_ANGLES ? "too-few" : null);
+    if (retire) {
+      await db.montage.updateMany({ where: { momentId, part, status: "READY" }, data: { status: "FAILED", error: retire } });
+      continue;
+    }
+    if (made.angleIds.every((id) => live.has(id)) && made.signature?.startsWith(`${PART_STYLE}:`)) continue;
     // Every shot of it gone: the part goes (its number is not reused while others follow it).
     if (!kept.length) {
       await db.montage.updateMany({ where: { momentId, part, status: "READY" }, data: { status: "FAILED", error: "emptied" } });
@@ -172,15 +187,9 @@ export async function duePart(momentId: string, now = new Date()) {
   const pending = shots.filter((s) => !used.has(s.id));
   if (!pending.length) return null;
   const next = await nextPart(pending);
-  if (!next.shots.length) return null;
+  if (next.shots.length < MIN_PART_SHOTS) return null;
   const part = (Math.max(0, ...latest.keys()) || 0) + 1;
   if (!next.full) {
-    // A shot that fills a part by itself (left out above because it didn't fit beside the
-    // others): its own part now — it never waits behind shorter ones.
-    for (const shot of pending) {
-      const s = await shotSeconds(shot);
-      if (partLength([s]) >= FULL_FROM) return { part, shots: [shot], seconds: [s], title: await partTitle(moment.title, part, [shot.id]), remake: false };
-    }
     // Room left: wait for more — unless nothing came for a while.
     const newest = Math.max(...pending.map((s) => s.uploadedAt.getTime()));
     if (now.getTime() - newest < QUIET_MS) return null;
@@ -273,6 +282,18 @@ export async function filmParts(momentId: string, code: string, lasting: boolean
 export type FilmPart = Awaited<ReturnType<typeof filmParts>>[number];
 
 // A public moment's part, for its own page and lasting address.
+// A part retired by the rules of 2026-10-23 (one shot; a moment under MIN_ANGLES shots), for its
+// old page to lead on: to its one shot's page, or to the moment. Null: never such a part.
+export async function retiredPart(code: string, part: number) {
+  const m = await db.montage.findFirst({
+    where: { part, status: "FAILED", error: { in: ["single", "too-few"] }, moment: { code, visibility: "PUBLIC", status: "ACTIVE" } },
+    orderBy: { createdAt: "desc" },
+    select: { error: true, angleIds: true },
+  });
+  if (!m) return null;
+  return { to: m.error === "single" && m.angleIds[0] ? `/m/${code}/a/${m.angleIds[0]}` : `/m/${code}` };
+}
+
 export async function publicPart(code: string, part: number) {
   const m = await db.montage.findFirst({
     where: { part, status: "READY", videoUrl: { not: null }, moment: { code, visibility: "PUBLIC", status: "ACTIVE", kind: { in: ["EVERYDAY", "BIG"] }, demo: false } },

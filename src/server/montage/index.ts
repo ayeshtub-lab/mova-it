@@ -26,8 +26,9 @@ const DUPLICATE_MS = 20_000;
 const BATCH_SHOTS = 3;
 const QUIET_MS = 30 * 60 * 1000;
 // A moment's video needs this many angles; made by hand the first time, by the owner of
-// the moment's first angle, then kept up to date by itself.
-export const MIN_ANGLES = 5;
+// the moment's first angle, then kept up to date by itself. 6, not 5 (his call, 2026-10-23: a
+// moment's film is for a moment seen from many sides).
+export const MIN_ANGLES = 6;
 // «مع الوقت»: a story's video is its shots in date order, quickly, like time passing — from
 // three shots, and at most STORY_MAX of them, spread evenly from the first to the latest.
 export const STORY_MIN = 3;
