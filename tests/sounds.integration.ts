@@ -58,9 +58,9 @@ async function main() {
       assert.ok(listed.includes(photo.id) && listed.includes(video.id));
     });
 
-    await check("montage: from 5 angles, made by the owner of the first angle", async () => {
+    await check("montage: from 6 angles, made by the owner of the first angle", async () => {
       await assert.rejects(requestMontage(owner, m.code, null), (e) => e instanceof MontageError && e.code === "too_few");
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 4; i++) {
         await db.angle.create({ data: { momentId: m.id, contributorId: other.id, mediaType: "PHOTO", status: "READY", screening: "allowed", mediaPath: "x", uploadedAt: new Date(Date.now() + (i + 1) * 1000) } });
       }
       await assert.rejects(requestMontage(other, m.code, null), (e) => e instanceof MontageError && e.code === "not_maker");

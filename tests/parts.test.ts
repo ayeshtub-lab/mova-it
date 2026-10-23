@@ -4,7 +4,7 @@
 // Run: npx tsx tests/parts.test.ts
 import assert from "node:assert/strict";
 import { fillPicker } from "../src/server/montage/fill-sounds";
-import { nextPart, partLength, shotSeconds, stretch, withCards } from "../src/server/montage/parts";
+import { nextPart, partLength, shotSeconds, stretch } from "../src/server/montage/parts";
 
 const out: string[] = [];
 const check = async (name: string, fn: () => Promise<void> | void) => {
@@ -27,15 +27,15 @@ async function main() {
     assert.equal(p.full, true);
     assert.ok(partLength(p.seconds) <= 40);
   });
-  await check("a shot longer than a part makes a part of its own", async () => {
+  await check("a shot too long to share a part goes in none (2026-10-23: one shot alone was the same video twice)", async () => {
     const p = await nextPart([shot(1, "VIDEO", 39.9), shot(2, "PHOTO")]);
-    assert.deepEqual(p.shots.map((s) => s.id), ["s1"]);
+    assert.deepEqual(p.shots.map((s) => s.id), ["s2"]);
+    assert.equal(p.full, false);
   });
-  await check("a 39.9-second video makes a part of its own: no cards, never over 40", async () => {
+  await check("a 39.9-second video alone: no part at all", async () => {
     const p = await nextPart([shot(1, "VIDEO", 39.9)]);
-    assert.equal(withCards(p.seconds), false);
-    assert.ok(partLength(p.seconds) <= 40);
-    assert.equal(p.full, true);
+    assert.deepEqual(p.shots, []);
+    assert.equal(p.full, false);
   });
   await check("a photo is never closed into a part of its own by the long video after it", async () => {
     const p = await nextPart([shot(1, "PHOTO"), shot(2, "VIDEO", 39.9), shot(3, "PHOTO")]);
