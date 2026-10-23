@@ -431,7 +431,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         )}
 
         {/* «🏷️ طماطم في الخضر»: the topic pages its shots are in (src/server/topics.ts) — public moments only. */}
-        {topics.length > 0 && (
+        {/* (Arabic search pages: not on an English page.) */}
+        {topics.length > 0 && locale === "ar" && (
           <section aria-label={dict.topic.inMoment} className="flex flex-col gap-2">
             <h2 className="text-sm font-bold">{dict.topic.inMoment}</h2>
             <ul className="flex flex-wrap gap-2">

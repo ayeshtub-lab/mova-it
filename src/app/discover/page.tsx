@@ -64,7 +64,7 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
   const t = dict.discover;
   const official = !!user && !user.isGuest;
 
-  const [moments, trending, scenes, totals] = await Promise.all([listDiscover(user).then((l) => inEnglish(l, locale)), trendingVideos(user).then((l) => inEnglish(l, locale)), sceneCards(user?.id ?? null), discoverTotals()]);
+  const [moments, trending, scenes, totals] = await Promise.all([listDiscover(user).then((l) => inEnglish(l, locale)), trendingVideos(user).then((l) => inEnglish(l, locale)), sceneCards(user?.id ?? null).then((l) => inEnglish(l, locale)), discoverTotals()]);
   const stats = await engagementFor(
     trending.map((v) => v.id),
     user,

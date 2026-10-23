@@ -236,6 +236,7 @@ export async function sceneCards(viewerId: string | null, take = 8) {
       scene: g.scene,
       slug: places.get(g.areaId)?.slug ?? "",
       placeName: places.get(g.areaId)?.name ?? "",
+      placeNameEn: places.get(g.areaId)?.nameEn ?? null,
       count: g.angles.length,
       coverUrl: await publicCover(g.angles[0]),
     })),

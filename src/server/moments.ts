@@ -274,8 +274,11 @@ export async function listMyMoments(user: User, limit = 20) {
       return {
         code: m.code,
         title: m.title,
+        // Its English name, once written (public moments — src/server/translate.ts): on an English page.
+        titleEn: m.titleEn,
         // The standard place's name when there is one («بيت لحم»), else what was typed.
         placeName: (m.placeId && places.get(m.placeId)?.name) || m.placeName,
+        placeNameEn: (m.placeId && places.get(m.placeId)?.nameEn) || null,
         lastActivityAt: m.lastActivityAt,
         isCreator: m.creatorId === user.id,
         angleCount: m.angles.length,

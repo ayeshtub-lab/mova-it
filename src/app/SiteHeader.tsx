@@ -17,7 +17,7 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
       <Link href="/" aria-label={locale === "ar" ? "زاومو — الرئيسية" : "Zawmo — home"}>
         <Logo locale={locale} />
       </Link>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
         {/* Search moments by name, from every page («اكتشف ← لحظات»). */}
         <Link
           href="/discover?tab=moments&focus=1"
@@ -89,9 +89,12 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
           <button
             type="submit"
             aria-label={dict.lang.switchLabel}
-            className="min-h-11 rounded-full bg-accent-soft px-4 text-sm font-bold text-accent-ink"
+            title={dict.lang.switchTo}
+            className="flex size-11 items-center justify-center rounded-full bg-accent-soft text-sm font-extrabold text-accent-ink sm:w-auto sm:px-4"
           >
-            {dict.lang.switchTo}
+            {/* Short on a phone (2026-10-23: with 💌 in the header, the word pushed it off the screen). */}
+            <span className="sm:hidden">{locale === "ar" ? "EN" : "ع"}</span>
+            <span className="hidden sm:inline">{dict.lang.switchTo}</span>
           </button>
         </form>
       </div>

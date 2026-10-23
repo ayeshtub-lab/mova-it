@@ -139,7 +139,7 @@ export async function similarShots(viewer: User | null, angleId: string, take = 
     LIMIT 60`;
   const close = rows.filter((r) => Number(r.similarity) >= MIN_SIMILARITY[kind]);
   if (!close.length) return [];
-  const angles = await db.angle.findMany({ where: { id: { in: close.map((r) => r.angleId) } }, include: { moment: { select: { code: true, title: true } } } });
+  const angles = await db.angle.findMany({ where: { id: { in: close.map((r) => r.angleId) } }, include: { moment: { select: { code: true, title: true, titleEn: true } } } });
   const byId = new Map(angles.map((a) => [a.id, a]));
   const perMoment = new Map<string, number>();
   const picked = [];
@@ -152,5 +152,5 @@ export async function similarShots(viewer: User | null, angleId: string, take = 
     picked.push(a);
     if (picked.length >= take) break;
   }
-  return Promise.all(picked.map(async (a) => ({ id: a.id, momentCode: a.moment.code, title: plain(a.moment.title), video: a.mediaType === "VIDEO", coverUrl: await coverOf(a) })));
+  return Promise.all(picked.map(async (a) => ({ id: a.id, momentCode: a.moment.code, title: plain(a.moment.title), titleEn: a.moment.titleEn ? plain(a.moment.titleEn) : null, video: a.mediaType === "VIDEO", coverUrl: await coverOf(a) })));
 }

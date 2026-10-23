@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { inEnglish } from "@/server/localize";
 import type { User } from "@/generated/prisma/client";
 import type { Locale } from "@/i18n/config";
 import { plural } from "@/i18n/plural";
@@ -9,7 +10,8 @@ import { listMyMoments } from "@/server/moments";
 // "My moments" as a swipeable row of tall cards (cover photo, title, counts),
 // opening with a card to start a new one.
 export async function MyMoments({ user, locale, dict }: { user: User; locale: Locale; dict: Dictionary }) {
-  const moments = await listMyMoments(user);
+  // (On an English page: each one's English name where it has one — the others are as their maker wrote them.)
+  const moments = inEnglish(await listMyMoments(user), locale);
 
   return (
     <section id="mine" className="flex scroll-mt-6 flex-col gap-3">
