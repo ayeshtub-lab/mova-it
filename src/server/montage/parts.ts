@@ -44,10 +44,13 @@ const STALE_MS = 15 * 60 * 1000;
 // "one-sound-1": back to ONE sound under the whole part, chosen for its pictures (and calm music
 // when they say nothing — never frogs under sweets), and the part's own cover (2026-10-23).
 const PART_STYLE = "one-sound-1";
-// A part is two shots at least (his call, 2026-10-23): one shot alone made the same video twice —
-// its own page and «الجزء ٣» — 23 of 83 parts were so. A shot too long to share a part stays
-// on its own page only.
-const MIN_PART_SHOTS = 2;
+// A part is six shots at least (his call, 2026-10-23 — first «never one shot alone», the same video
+// twice; then «never under six»): a moment's film is the moment from many sides. So a video goes
+// into a part as a short clip — VIDEO_CLIP seconds, up to VIDEO_CLIP_MAX when the part needs filling
+// — and plays whole on its own page. Parts made before keep their timing when made again.
+const MIN_PART_SHOTS = 6;
+const VIDEO_CLIP = 6.2; // (six clips make a full part: 38.5 seconds with the cards)
+const VIDEO_CLIP_MAX = 10;
 
 type Shot = { id: string; contributorId: string; mediaType: string; capturedAt: Date | null; uploadedAt: Date; pickedAt: Date | null; durationSec: number | null; soundKey: string | null };
 
@@ -57,12 +60,13 @@ export const withCards = (seconds: number[]) => !(seconds.length === 1 && INTRO 
 export const partLength = (seconds: number[]) =>
   withCards(seconds) ? INTRO + OUTRO + seconds.reduce((a, b) => a + b, 0) - T * (seconds.length + 1) : seconds.reduce((a, b) => a + b, 0);
 
-// How long each shot stays in a part, whole.
-export async function shotSeconds(shot: Pick<Shot, "mediaType" | "durationSec" | "soundKey">) {
+// How long each shot stays in a part: a video as a short clip (`whole`: its full length, as parts
+// made before 2026-10-23 had it).
+export async function shotSeconds(shot: Pick<Shot, "mediaType" | "durationSec" | "soundKey">, whole = false) {
   const sound = await resolveSound(shot.soundKey);
-  // A video plays whole — and stays on its last frame while a verse laid on it is still heard
-  // (render.ts withShotSound): counted at the verse's length then, so the part never runs over.
-  if (shot.mediaType === "VIDEO") return Math.max(1, Math.min(LIMIT, shot.durationSec ?? 6), isQuran(sound) ? sound!.seconds + 0.8 : 0);
+  // A video stays on its last frame while a verse laid on it is still heard (render.ts
+  // withShotSound): counted at the verse's length then, so the part never runs over.
+  if (shot.mediaType === "VIDEO") return Math.max(1, Math.min(whole ? LIMIT : VIDEO_CLIP, shot.durationSec ?? 6), isQuran(sound) ? sound!.seconds + 0.8 : 0);
   if (!sound) return PHOTO;
   // A verse is heard once and whole, however long (as everywhere on Zawmo).
   if (isQuran(sound)) return sound.seconds + 0.8;
@@ -94,14 +98,24 @@ export async function nextPart(pending: Shot[]) {
 
 // A part made before it is full (things went quiet): its silent photos stay a little longer, so it
 // comes as close to 40 seconds as it can.
-export function stretch(shots: Pick<Shot, "mediaType" | "soundKey">[], seconds: number[]) {
+export function stretch(shots: Pick<Shot, "mediaType" | "soundKey" | "durationSec">[], seconds: number[]) {
   const out = [...seconds];
-  const silent = shots.map((s, i) => (s.mediaType !== "VIDEO" && !s.soundKey ? i : -1)).filter((i) => i >= 0);
-  if (!silent.length) return out;
-  const room = LIMIT - partLength(out);
-  if (room <= 0) return out;
-  const each = Math.min(PHOTO_MAX - PHOTO, room / silent.length);
-  for (const i of silent) out[i] = Math.round((out[i] + each) * 100) / 100;
+  // (Silent photos up to PHOTO_MAX; a video's clip up to VIDEO_CLIP_MAX, never past its own end.)
+  const cap = (s: (typeof shots)[number], i: number) =>
+    s.mediaType === "VIDEO" ? (s.soundKey ? out[i] : Math.max(out[i], Math.min(VIDEO_CLIP_MAX, s.durationSec ?? 0))) : s.soundKey ? out[i] : PHOTO_MAX;
+  const open = shots.map((s, i) => (cap(s, i) > out[i] ? i : -1)).filter((i) => i >= 0);
+  let room = LIMIT - partLength(out);
+  for (let left = open.length; left > 0 && room > 0.01; ) {
+    const each = room / left;
+    left = 0;
+    for (const i of open) {
+      const add = Math.min(each, cap(shots[i], i) - out[i]);
+      if (add <= 0) continue;
+      out[i] = Math.round((out[i] + add) * 100) / 100;
+      room -= add;
+      if (cap(shots[i], i) > out[i]) left++;
+    }
+  }
   return out;
 }
 
@@ -167,7 +181,8 @@ export async function duePart(momentId: string, now = new Date()) {
   // fewer than MIN_ANGLES shots (2026-10-23).
   for (const [part, made] of [...latest].sort((a, b) => a[0] - b[0])) {
     const kept = shots.filter((s) => made.angleIds.includes(s.id));
-    const retire = kept.length && (kept.length < MIN_PART_SHOTS ? "single" : shots.length < MIN_ANGLES ? "too-few" : null);
+    // (A part made before keeps its shots: only one shot alone is retired — six is for new parts.)
+    const retire = kept.length && (kept.length < 2 ? "single" : shots.length < MIN_ANGLES ? "too-few" : null);
     if (retire) {
       await db.montage.updateMany({ where: { momentId, part, status: "READY" }, data: { status: "FAILED", error: retire } });
       continue;
@@ -178,7 +193,7 @@ export async function duePart(momentId: string, now = new Date()) {
       await db.montage.updateMany({ where: { momentId, part, status: "READY" }, data: { status: "FAILED", error: "emptied" } });
       continue;
     }
-    return { part, shots: kept, seconds: stretch(kept, await Promise.all(kept.map(shotSeconds))), title: made.title ?? (await partTitle(moment.title, part, kept.map((s) => s.id))), remake: true };
+    return { part, shots: kept, seconds: stretch(kept, await Promise.all(kept.map((s) => shotSeconds(s, true)))), title: made.title ?? (await partTitle(moment.title, part, kept.map((s) => s.id))), remake: true };
   }
 
   // A moment's first part waits for MIN_ANGLES shots (as its one film always did).
