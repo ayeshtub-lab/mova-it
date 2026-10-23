@@ -1,4 +1,6 @@
 import { sitemapParts } from "@/server/montage/parts";
+import { CARDS_PUBLIC } from "@/lib/card-styles";
+import { sitemapCards } from "@/server/cards";
 import type { MetadataRoute } from "next";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { EN_INDEXED, enIndexable, inLocale } from "@/i18n/config";
@@ -34,7 +36,7 @@ function oneSpelling<T extends { tag: string; count: number }>(tags: T[]) {
 
 export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
   const base = `https://${CANONICAL_HOST}`;
-  const [{ moments, places }, shots, tags, sounds, events, topics, authors, parts] = await Promise.all([
+  const [{ moments, places }, shots, tags, sounds, events, topics, authors, parts, cards] = await Promise.all([
     sitemapEntries(),
     sitemapShots(),
     sitemapTags(undefined, 5),
@@ -43,6 +45,7 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
     topicIndex(),
     sitemapAuthors(),
     sitemapParts(),
+    CARDS_PUBLIC ? sitemapCards() : [],
   ]);
   const ordinals = shotOrdinals(shots);
   // A moment lists its shots' pictures too (newest first; Google reads up to 1000 a page).
@@ -104,6 +107,9 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
     ...events.map((e) => ({ url: `${base}${eventPath(e)}`, lastModified: e.updatedAt, changeFrequency: "daily" as const, priority: 0.7 })),
     ...oneSpelling(tags).map((t) => ({ url: `${base}/tag/${encodeURIComponent(t.tag)}`, lastModified: t.updatedAt, changeFrequency: "daily" as const, priority: 0.6 })),
     ...SOUNDS.filter((s) => sounds.has(s.key)).map((s) => ({ url: `${base}/sound/${s.key}`, lastModified: sounds.get(s.key), changeFrequency: "weekly" as const, priority: 0.4 })),
+    // «💌 بطاقات» (src/server/cards.ts sitemapCards): the page and the cards sent on, from 12 cards.
+    ...(cards.length ? [{ url: `${base}/cards`, changeFrequency: "daily" as const, priority: 0.6 }] : []),
+    ...cards.map((c) => ({ url: `${base}/c/${c.id}`, lastModified: c.createdAt, changeFrequency: "monthly" as const, priority: 0.4, images: [`${base}/i/card-${c.id}.jpg`] })),
     { url: `${base}/privacy`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${base}/terms`, changeFrequency: "yearly", priority: 0.2 },
     { url: `${base}/child-safety`, changeFrequency: "yearly", priority: 0.2 },

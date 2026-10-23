@@ -102,6 +102,10 @@ export async function publishCard(user: User, input: { angleId: unknown; text: u
   const text = typeof input.text === "string" ? cleanCardText(input.text) : "";
   if ([...text].length < 2 || !isCardKind(input.kind) || !isCardStyle(input.style)) throw new CardError("bad_text");
   if (!JPEG(input.image) || input.image.length > IMAGE_MAX) throw new CardError("bad_image");
+  // The same words on the same picture are one card (2026-10-23): two pages of one image are a
+  // duplicate to search engines — the one already there is opened to send instead.
+  const same = await db.card.findFirst({ where: { angleId: shot.id, text, ...shownCard() }, orderBy: { createdAt: "asc" } });
+  if (same) return same;
   // The words go public only once checked (as a public comment's are); unsure → not published.
   const verdict = await screenText(text);
   if (verdict.result !== "allowed") throw new CardError("words");
@@ -122,13 +126,22 @@ export async function publicCard(id: string) {
   });
 }
 
-export async function listCards(kind: CardKind | null, take = 60) {
+export async function listCards(kind: CardKind | null, take = 60, exclude?: string) {
   return db.card.findMany({
-    where: { ...shownCard(), ...(kind ? { kind } : {}) },
+    where: { ...shownCard(), ...(kind ? { kind } : {}), ...(exclude ? { id: { not: exclude } } : {}) },
     orderBy: [{ shares: "desc" }, { createdAt: "desc" }],
     take,
     select: { id: true, text: true, kind: true },
   });
+}
+
+// For the sitemap (2026-10-23): once there are enough cards for /cards to be worth a visit (12), the
+// page and the cards that were sent on at least once — the strongest first, so a young site's
+// crawl goes to them, not to every card.
+export const CARDS_IN_SITEMAP_FROM = 12;
+export async function sitemapCards() {
+  if ((await countCards()) < CARDS_IN_SITEMAP_FROM) return [];
+  return db.card.findMany({ where: { ...shownCard(), shares: { gt: 0 } }, orderBy: { shares: "desc" }, take: 500, select: { id: true, createdAt: true } });
 }
 
 export async function countCards() {

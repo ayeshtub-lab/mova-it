@@ -76,6 +76,8 @@ async function main() {
       await assert.rejects(publishCard(owner, { ...ok, kind: "rude" }), isCard("bad_text"));
       await assert.rejects(publishCard(owner, { ...ok, style: "nope" }), isCard("bad_text"));
       await assert.rejects(publishCard(owner, { ...ok, image: Buffer.from("not a picture") }), isCard("bad_image"));
+      // The same words on the same picture are the card already there — no second page of one image.
+      assert.equal((await publishCard(owner, { ...ok, text: shown.text })).id, shown.id);
       // (With good input, unchecked words — no Gemini here — are never published.)
       await assert.rejects(publishCard(owner, ok), isCard("words"));
       assert.equal(await db.card.count({ where: { creatorId: owner.id, text: "صباح الخير" } }), 0);
