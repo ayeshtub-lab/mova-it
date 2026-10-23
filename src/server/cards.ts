@@ -79,7 +79,7 @@ async function askIdeas(angleId: string): Promise<CardIdea[]> {
       generationConfig: { temperature: 0.9, responseMimeType: "application/json" },
     }),
   });
-  if (!res.ok) throw new Error(`card ideas ${res.status}`);
+  if (!res.ok) throw new Error(`card ideas ${res.status}: ${((await res.json().catch(() => null)) as { error?: { message?: string } } | null)?.error?.message ?? ""}`.slice(0, 300));
   const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
   const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "{}";
   return cardIdeasOf(JSON.parse(text));
