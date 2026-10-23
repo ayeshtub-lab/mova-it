@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { CARD_KINDS, CARD_STYLES, CARD_TEXT_MAX, cardStyle, type CardKind } from "@/lib/card-styles";
+import { CARD_COLORS, CARD_FONTS, CARD_KINDS, CARD_PLACES, CARD_TEXT_MAX, DEFAULT_CARD_STYLE, cardStyle, styleKey, type CardFont, type CardKind } from "@/lib/card-styles";
 import type { Dictionary } from "@/i18n/server";
 
 type Labels = Dictionary["card"];
 type Idea = { kind: CardKind; text: string };
 
 // The card is drawn here, on the phone: the picture (cropped to at most 3:4 tall, 1:1 wide), the
-// words over it in the chosen look, and a small «zawmo.com · الصورة: …» at the foot. Shared
+// words over it in the chosen look, and a small «📷 … · zawmo.com» in the corner. Shared
 // privately it goes straight from the phone; published, the finished JPEG is sent to be kept.
 const W = 1080;
 
@@ -37,7 +37,7 @@ export function CardEditor({
   labels,
 }: {
   shot: { id: string; image: string; by: string };
-  fonts: Record<"cairo" | "amiri" | "kufi", string>;
+  fonts: Record<CardFont, string>;
   canPublish: boolean;
   signIn: ReactNode;
   labels: Labels;
@@ -50,7 +50,8 @@ export function CardEditor({
   const [tab, setTab] = useState<CardKind | null>(null);
   const [text, setText] = useState("");
   const [kind, setKind] = useState<CardKind>("other");
-  const [style, setStyle] = useState(CARD_STYLES[0].key);
+  const [style, setStyle] = useState(DEFAULT_CARD_STYLE);
+  const look = cardStyle(style);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -75,6 +76,7 @@ export function CardEditor({
     let cancelled = false;
     const look = cardStyle(style);
     const family = fonts[look.font];
+    const dark = look.color === "black";
     (async () => {
       await document.fonts.load(`${look.weight} 64px ${family}`).catch(() => null);
       if (cancelled) return;
@@ -88,12 +90,6 @@ export function CardEditor({
       const dw = img.naturalWidth * scale;
       const dh = img.naturalHeight * scale;
       ctx.drawImage(img, (W - dw) / 2, (H - dh) / 2, dw, dh);
-      // A soft shade at the foot, for the mark.
-      const foot = ctx.createLinearGradient(0, H - 160, 0, H);
-      foot.addColorStop(0, "rgba(0,0,0,0)");
-      foot.addColorStop(1, "rgba(0,0,0,0.55)");
-      ctx.fillStyle = foot;
-      ctx.fillRect(0, H - 160, W, 160);
 
       const words = text.trim();
       if (words) {
@@ -110,27 +106,28 @@ export function CardEditor({
         const lineH = size * 1.45;
         const block = lines.length * lineH;
         const top = look.place === "top" ? H * 0.1 : look.place === "center" ? (H - block) / 2 : H * 0.84 - block;
-        if (look.band) {
-          const widest = Math.max(...lines.map((l) => ctx.measureText(l).width));
-          const bw = Math.min(W * 0.94, widest + 96);
-          ctx.fillStyle = "rgba(0,0,0,0.45)";
-          ctx.beginPath();
-          ctx.roundRect((W - bw) / 2, top - 28, bw, block + 56, 36);
-          ctx.fill();
-        }
-        ctx.fillStyle = look.color;
-        ctx.shadowColor = "rgba(0,0,0,0.65)";
-        ctx.shadowBlur = look.band ? 6 : 18;
-        lines.forEach((l, i) => ctx.fillText(l, W / 2, top + lineH * (i + 0.5)));
+        // No band behind the words (his call): a soft shadow and a thin outline keep them readable
+        // over any picture — dark around light words, light around black ones.
+        ctx.lineJoin = "round";
+        ctx.lineWidth = Math.max(2, size / 22);
+        ctx.strokeStyle = dark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.35)";
+        ctx.shadowColor = dark ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.7)";
+        ctx.shadowBlur = 18;
+        lines.forEach((l, i) => ctx.strokeText(l, W / 2, top + lineH * (i + 0.5)));
         ctx.shadowBlur = 0;
+        ctx.fillStyle = look.hex;
+        lines.forEach((l, i) => ctx.fillText(l, W / 2, top + lineH * (i + 0.5)));
       }
-      // The mark: Zawmo, and whose picture it is.
+      // The mark, small in the corner: whose picture it is, and Zawmo.
       ctx.direction = "rtl";
-      ctx.textAlign = "center";
+      ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
-      ctx.font = `700 30px ${fonts.cairo}`;
-      ctx.fillStyle = "rgba(255,255,255,0.9)";
-      ctx.fillText(`zawmo.com · ${labels.photoBy.replace("{name}", shot.by)}`, W / 2, H - 36);
+      ctx.font = `700 24px ${fonts.cairo}`;
+      ctx.shadowColor = "rgba(0,0,0,0.75)";
+      ctx.shadowBlur = 8;
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText(`📷 ${labels.photoBy.replace("{name}", shot.by)} · zawmo.com`, 26, H - 24);
+      ctx.shadowBlur = 0;
     })();
     return () => {
       cancelled = true;
@@ -228,17 +225,41 @@ export function CardEditor({
 
       <section className="flex flex-col gap-2">
         <h2 className="text-base font-extrabold">{labels.style}</h2>
-        <div className="flex flex-wrap gap-2">
-          {CARD_STYLES.map((s) => (
+        {/* The font: each chip written in its own font. */}
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+          {CARD_FONTS.map((f) => (
             <button
-              key={s.key}
+              key={f.key}
               type="button"
-              onClick={() => setStyle(s.key)}
-              style={{ fontFamily: fonts[s.font], color: s.color === "#ffffff" ? undefined : s.color }}
-              className={`rounded-xl px-4 py-2 text-lg font-bold ${style === s.key ? "bg-black text-white ring-2 ring-accent" : "bg-surface"}`}
+              onClick={() => setStyle(styleKey({ ...look, font: f.key }))}
+              style={{ fontFamily: fonts[f.key], fontWeight: f.weight }}
+              className={`shrink-0 rounded-xl px-4 py-2 text-lg ${look.font === f.key ? "bg-black text-white ring-2 ring-accent" : "bg-surface"}`}
             >
               صباح الخير
             </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {CARD_PLACES.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setStyle(styleKey({ ...look, place: p }))}
+              className={`rounded-full px-3 py-1.5 text-sm font-bold ${look.place === p ? "bg-accent text-white" : "bg-surface"}`}
+            >
+              {labels.places[p]}
+            </button>
+          ))}
+          <span className="mx-1 h-6 w-px bg-muted/30" aria-hidden="true" />
+          {(Object.keys(CARD_COLORS) as (keyof typeof CARD_COLORS)[]).map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setStyle(styleKey({ ...look, color: c }))}
+              aria-label={labels.colors[c]}
+              style={{ background: CARD_COLORS[c] }}
+              className={`size-8 rounded-full border border-black/20 ${look.color === c ? "ring-2 ring-accent ring-offset-2" : ""}`}
+            />
           ))}
         </div>
       </section>

@@ -30,7 +30,7 @@ async function main() {
     const shot = (momentId: string) => db.angle.create({ data: { momentId, contributorId: owner.id, mediaType: "PHOTO", status: "READY", screening: "allowed", mediaPath: "x" } });
     const [open, hidden] = await Promise.all([shot(pub.id), shot(priv.id)]);
     const card = (angleId: string, data: Partial<{ public: boolean; screening: string | null; kind: string; imagePath: string | null }> = {}) =>
-      db.card.create({ data: { angleId, creatorId: owner.id, text: `${TAG} صباح الخير`, kind: "morning", style: "classic", public: true, screening: "allowed", imagePath: "cards/x.jpg", ...data } });
+      db.card.create({ data: { angleId, creatorId: owner.id, text: `${TAG} صباح الخير`, kind: "morning", style: "cairo.bottom.white", public: true, screening: "allowed", imagePath: "cards/x.jpg", ...data } });
 
     await check("Gemini's lines: cleaned, known kinds only, no repeats", async () => {
       const ideas = cardIdeasOf({ ideas: [{ kind: "morning", text: " «صباح  الخير يا قمر» #صباح " }, { kind: "morning", text: "صباح الخير يا قمر" }, { kind: "rude", text: "شي تاني" }, { kind: "love", text: "ا" }, { kind: "evening", text: "مسا الورد على عيونك" }] });
@@ -69,7 +69,7 @@ async function main() {
     });
 
     await check("publishing: members only, a public shot, real words, a JPEG", async () => {
-      const ok = { angleId: open.id, text: "صباح الخير", kind: "morning", style: "classic", image: JPEG };
+      const ok = { angleId: open.id, text: "صباح الخير", kind: "morning", style: "cairo.bottom.white", image: JPEG };
       await assert.rejects(publishCard(guest, ok), isCard("members_only"));
       await assert.rejects(publishCard(owner, { ...ok, angleId: hidden.id }), isCard("not_found"));
       await assert.rejects(publishCard(owner, { ...ok, text: " " }), isCard("bad_text"));

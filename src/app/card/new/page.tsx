@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Amiri, Cairo, Reem_Kufi } from "next/font/google";
+import { Amiri, Aref_Ruqaa, Cairo, El_Messiri, Katibeh, Lalezar, Lemonada, Marhey, Rakkas, Reem_Kufi } from "next/font/google";
 import { notFound } from "next/navigation";
 import { GoogleButton } from "@/app/GoogleButton";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -10,10 +10,20 @@ import { publicShot } from "@/server/seo";
 import { CardEditor } from "./CardEditor";
 
 // «💌 اعملها بطاقة» (his idea, 2026-10-23): a public shot's picture with words on it, drawn on the
-// phone. Three fonts for the looks (src/lib/card-styles.ts), loaded here so the canvas can use them.
+// phone. Its fonts (src/lib/card-styles.ts CARD_FONTS — made for writing on pictures), loaded here
+// so the canvas can use them.
+// (next/font wants each font as a constant of its own.)
 const cairo = Cairo({ subsets: ["arabic", "latin"], weight: ["700", "800"] });
+const ruqaa = Aref_Ruqaa({ subsets: ["arabic", "latin"], weight: ["700"] });
 const amiri = Amiri({ subsets: ["arabic", "latin"], weight: ["700"] });
+const messiri = El_Messiri({ subsets: ["arabic", "latin"], weight: ["700"] });
+const lalezar = Lalezar({ subsets: ["arabic", "latin"], weight: ["400"] });
 const kufi = Reem_Kufi({ subsets: ["arabic", "latin"], weight: ["700"] });
+const rakkas = Rakkas({ subsets: ["arabic", "latin"], weight: ["400"] });
+const marhey = Marhey({ subsets: ["arabic", "latin"], weight: ["600"] });
+const lemonada = Lemonada({ subsets: ["arabic", "latin"], weight: ["600"] });
+const katibeh = Katibeh({ subsets: ["arabic", "latin"], weight: ["400"] });
+const fonts = { cairo, ruqaa, amiri, messiri, lalezar, kufi, rakkas, marhey, lemonada, katibeh };
 
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary(await getLocale());
@@ -37,15 +47,17 @@ export default async function NewCardPage({ searchParams }: PageProps<"/card/new
           <h1 className="text-2xl font-extrabold">{t.title}</h1>
           <p className="text-sm text-muted">{t.intro}</p>
         </header>
-        {/* The three fonts, so the browser has them before the canvas draws. */}
+        {/* The fonts, so the browser has them before the canvas draws. */}
         <span aria-hidden="true" className="sr-only">
-          <span className={cairo.className}>ا</span>
-          <span className={amiri.className}>ا</span>
-          <span className={kufi.className}>ا</span>
+          {Object.entries(fonts).map(([key, f]) => (
+            <span key={key} className={f.className}>
+              ا
+            </span>
+          ))}
         </span>
         <CardEditor
           shot={{ id: shot.id, image: `/i/${shot.id}.jpg`, by: shot.contributor.displayName }}
-          fonts={{ cairo: cairo.style.fontFamily, amiri: amiri.style.fontFamily, kufi: kufi.style.fontFamily }}
+          fonts={Object.fromEntries(Object.entries(fonts).map(([key, f]) => [key, f.style.fontFamily])) as Record<keyof typeof fonts, string>}
           canPublish={member}
           signIn={!member && googleEnabled() ? <GoogleButton label={t.signIn} returnTo={`/card/new?shot=${shot.id}`} /> : null}
           labels={t}
