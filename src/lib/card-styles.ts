@@ -1,6 +1,10 @@
 // «💌 بطاقة»: what a card can say and how it looks — shared by the editor (drawn on the phone,
 // src/app/card/new/CardEditor.tsx) and the server (src/server/cards.ts checks what comes back).
 
+// Out in the open: the «💌 اعملها بطاقة» button on shot pages, and card pages open to search. Off
+// while he tries it on the live site by its link (2026-10-23, «انشرها مخفية»).
+export const CARDS_PUBLIC = false;
+
 export const CARD_KINDS = ["morning", "evening", "love", "wisdom", "friday", "other"] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
 export const isCardKind = (v: unknown): v is CardKind => typeof v === "string" && (CARD_KINDS as readonly string[]).includes(v);

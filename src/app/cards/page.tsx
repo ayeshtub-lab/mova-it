@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
-import { CARD_KINDS, isCardKind } from "@/lib/card-styles";
+import { CARD_KINDS, CARDS_PUBLIC, isCardKind } from "@/lib/card-styles";
 import { INDEXABLE } from "@/lib/indexable";
 import { countCards, listCards } from "@/server/cards";
 
@@ -20,7 +20,7 @@ export async function generateMetadata({ searchParams }: PageProps<"/cards">): P
     title: `${title} · ${dict.meta.brand}`,
     description: dict.card.galleryMeta,
     alternates: { canonical: kind ? `/cards?kind=${kind}` : "/cards" },
-    robots: (await countCards()) >= INDEX_FROM ? INDEXABLE : { index: false, follow: true },
+    robots: CARDS_PUBLIC && (await countCards()) >= INDEX_FROM ? INDEXABLE : { index: false, follow: CARDS_PUBLIC },
   };
 }
 

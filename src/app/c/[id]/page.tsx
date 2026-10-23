@@ -6,6 +6,7 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { clip } from "@/lib/clip";
 import { CANONICAL_HOST } from "@/lib/hosts";
+import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { INDEXABLE } from "@/lib/indexable";
 import { publicCard } from "@/server/cards";
 import { CardShare } from "./CardShare";
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: PageProps<"/c/[id]">): Promis
     title: `${title} · ${dict.meta.brand}`,
     description: clip(`${card.text}. ${dict.card.galleryMeta}`),
     alternates: { canonical: `/c/${card.id}` },
-    robots: INDEXABLE,
+    robots: CARDS_PUBLIC ? INDEXABLE : { index: false, follow: false },
     openGraph: { title, type: "website", siteName: dict.meta.brand, images: [{ url: image, alt: card.text }] },
     twitter: { card: "summary_large_image", title, images: [image] },
   };
