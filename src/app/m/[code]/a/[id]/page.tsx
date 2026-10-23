@@ -213,6 +213,14 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         >
           {t.watchAll}
         </Link>
+        {/* «💌 اعملها بطاقة» (2026-10-23): words on this picture, to send. Under a video only a small
+            link — its page stays a page for the video. */}
+        <Link
+          href={`/card/new?shot=${shot.id}`}
+          className={isVideo ? "self-center text-sm font-bold text-secondary underline-offset-4 hover:underline" : "flex min-h-12 items-center justify-center rounded-full bg-surface px-6 font-extrabold"}
+        >
+          {dict.card.button}
+        </Link>
         {siblings.length > 0 && isVideo && (
           <nav aria-label={t.more} className="flex flex-col gap-1 text-sm">
             <h2 className="font-bold text-muted">{t.more}</h2>

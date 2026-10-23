@@ -1,3 +1,4 @@
+import { publicCard } from "@/server/cards";
 import { viewUrl } from "@/server/media";
 import { publicPart } from "@/server/montage/parts";
 import { partCoverPath } from "@/server/montage/render";
@@ -11,6 +12,14 @@ import { publicShot } from "@/server/seo";
 // part is made again with one, its first shot's picture.
 export async function GET(_request: Request, { params }: { params: Promise<{ file: string }> }): Promise<Response> {
   const name = (await params).file;
+  // zawmo.com/i/card-ID.jpg: a public «💌 بطاقة» (src/server/cards.ts).
+  const cardOf = /^card-([a-z0-9]{20,40})\.jpg$/.exec(name);
+  if (cardOf) {
+    const card = await publicCard(cardOf[1]);
+    const url = card?.imagePath ? await viewUrl(card.imagePath) : null;
+    const file = url ? await fetch(url).catch(() => null) : null;
+    return file?.ok && file.body ? image(file) : new Response("Not found", { status: 404 });
+  }
   const partOf = /^([2-9A-HJKMNP-Z]{6})-(\d{1,3})\.jpg$/.exec(name);
   if (partOf) {
     const part = await publicPart(partOf[1], Number(partOf[2]));

@@ -12,7 +12,7 @@ export const momentIndexable = (m: { visibility: string; kind: string; angleCoun
   m.visibility === "PUBLIC" && m.kind !== "DAILY" && m.angleCount > 0 && !m.demo;
 
 // A public shot as place pages show it (src/server/places.ts placePage).
-const shownAngle = (now: Date) => ({
+export const shownAngle = (now: Date) => ({
   status: "READY" as const,
   screening: "allowed",
   OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
