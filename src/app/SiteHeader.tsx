@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { InboxLink } from "@/app/InboxLink";
 import { Logo } from "@/app/Logo";
 import { setLocale } from "@/i18n/actions";
@@ -28,6 +29,17 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
             <path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4" />
           </svg>
         </Link>
+        {/* «💌 بطاقات» (2026-10-23): the ready cards, on every page, phones too. */}
+        {CARDS_PUBLIC && (
+          <Link
+            href="/cards"
+            aria-label={dict.card.galleryTitle}
+            title={dict.card.galleryTitle}
+            className="flex size-11 items-center justify-center rounded-full bg-surface text-lg transition-transform hover:scale-105"
+          >
+            <span aria-hidden="true">💌</span>
+          </Link>
+        )}
         {/* On phones these live in the bottom bar. */}
         {user && !user.isGuest && (
           <Link

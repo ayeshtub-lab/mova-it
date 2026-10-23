@@ -63,6 +63,7 @@ export type DiscoverLabels = {
   like: string;
   comments: string;
   share: string;
+  card: string; // «💌 اعملها بطاقة»
   views: string;
   copied: string;
   addTitle: string;

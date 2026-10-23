@@ -167,6 +167,7 @@ export function AngleGallery({
   altBase = "",
   story = false,
   continueTo,
+  cardLabel,
   autoOpen = false,
   onLeave,
   onBack,
@@ -184,6 +185,8 @@ export function AngleGallery({
   altBase?: string; // «روااااق — بيت لحم»: each grid picture's alt is this and whose shot it is
   // «⬇️ اللحظة الجاية»: the public moments the viewer carries on to (src/server/next-moments.ts).
   continueTo?: { code: string; next: NextMoment[]; labels: { next: string; done: string; hint: string; back: string } };
+  // «💌 اعملها بطاقة» on the rail (2026-10-23): given for a public moment only (a card is of a public shot).
+  cardLabel?: string;
   // The next moment carried on to inside the viewer: it opens at once on its first angle, and
   // closing it leaves for that moment's page.
   autoOpen?: boolean;
@@ -1334,6 +1337,11 @@ export function AngleGallery({
                       {labels.branded.ready}
                     </span>
                   ) : null}
+                  {cardLabel && a.mediaType === "PHOTO" && (
+                    <Link href={`/card/new?shot=${a.id}`} aria-label={cardLabel} className={`${railButton} text-3xl`}>
+                      <span aria-hidden="true">💌</span>
+                    </Link>
+                  )}
                   {/* The sound disc, TikTok-style: spins, and opens the sound's page. */}
                   {soundByKey(soundOf(a.id)?.key) ? (
                     <Link
@@ -1768,6 +1776,7 @@ export function AngleGallery({
             share={{ url: chain.url, title: chain.title }}
             altBase={chain.title}
             continueTo={continueTo ? { code: chain.code, next: chain.next, labels: continueTo.labels } : undefined}
+            cardLabel={cardLabel}
             autoOpen
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             onLeave={() => window.location.assign(`/m/${chain.code}`)}

@@ -189,6 +189,7 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
             like: t.like,
             comments: dict.viewer.comments.open,
             share: t.share,
+            card: dict.card.button,
             views: t.views,
             copied: t.copied,
             addTitle: t.addTitle,

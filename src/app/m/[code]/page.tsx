@@ -1,4 +1,5 @@
 import { inEnglish, localizeMoment } from "@/server/localize";
+import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { alternatesFor } from "@/i18n/alternates";
 import { SendToFriend } from "@/app/SendToFriend";
 import { StaffMomentEdit } from "@/app/StaffEdit";
@@ -404,6 +405,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               altBase={[plain(view.title), view.place?.name ?? view.placeName].filter(Boolean).join(" — ")}
               momentEdit={view.viewer.manage && view.kind !== "DAILY" ? { code: view.code, title: view.arabic.title, description: view.arabic.description, labels: dict.momentDetails } : undefined}
               continueTo={next.length ? { code: view.code, next, labels: dict.viewerContinue } : undefined}
+              cardLabel={CARDS_PUBLIC && view.visibility === "PUBLIC" && view.kind !== "DAILY" ? dict.card.button : undefined}
             />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (
               <div

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CARDS_PUBLIC } from "@/lib/card-styles";
 import type { DiscoverLabels, FeedItem, Likes } from "./feed-types";
 
 const HEART = "M12 20.5s-7.6-4.6-9.5-9.3C1.2 7.8 3.3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.4 0 5.5 3.3 4.2 6.7-1.9 4.7-9.5 9.3-9.5 9.3z";
@@ -21,7 +22,7 @@ export function Rail({
   onShare,
   className,
 }: {
-  item: Pick<FeedItem, "name" | "avatarUrl" | "profileId" | "momentCode" | "views">;
+  item: Pick<FeedItem, "id" | "mediaType" | "name" | "avatarUrl" | "profileId" | "momentCode" | "views">;
   like: Likes;
   comments: number;
   shares: number;
@@ -64,6 +65,12 @@ export function Rail({
         </svg>
       </button>
       <span className={count}>{compact(shares, locale)}</span>
+      {/* «💌 اعملها بطاقة» (2026-10-23): words on this picture, to send — photos only (Discover is all public). */}
+      {CARDS_PUBLIC && item.mediaType === "PHOTO" && (
+        <Link href={`/card/new?shot=${item.id}`} aria-label={labels.card} className={`${button} text-3xl`}>
+          <span aria-hidden="true">💌</span>
+        </Link>
+      )}
       <span className={`${button} pointer-events-none`} aria-label={labels.views}>
         <svg viewBox="0 0 24 24" className="size-7 fill-white" aria-hidden="true">
           <path d="M12 5c5 0 9 4.3 10 7-1 2.7-5 7-10 7S3 14.7 2 12c1-2.7 5-7 10-7zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6z" />

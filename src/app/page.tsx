@@ -1,4 +1,5 @@
 import { alternatesFor } from "@/i18n/alternates";
+import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { signOut } from "@/app/actions/session";
 import { Showcase } from "@/app/Showcase";
 import { publicShowcase, visitorShowcase } from "@/server/discover";
@@ -100,6 +101,17 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
         </div>
         <p className="text-center text-sm font-bold text-muted">{dict.home.doorsLine}</p>
       </section>
+
+      {/* «💌 بطاقات» (2026-10-23): a good morning on a real picture, ready to send. */}
+      {CARDS_PUBLIC && (
+        <Link href="/cards" className="flex items-center gap-3 rounded-3xl bg-gradient-to-l from-moment/25 to-brand-red/15 p-4 transition-transform active:scale-[0.98]">
+          <span aria-hidden="true" className="text-3xl">💌</span>
+          <span className="flex flex-col">
+            <span className="font-extrabold leading-tight">{dict.card.homeTitle}</span>
+            <span className="text-xs text-muted">{dict.card.homeHint}</span>
+          </span>
+        </Link>
+      )}
 
       <HomeNews news={news} locale={locale} dict={dict} />
 
