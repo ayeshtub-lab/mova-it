@@ -45,6 +45,7 @@ export function CardEditor({
   const router = useRouter();
   const canvas = useRef<HTMLCanvasElement>(null);
   const picture = useRef<HTMLImageElement | null>(null);
+  const card = useRef<Blob | null>(null);
   const [ready, setReady] = useState(false);
   const [ideas, setIdeas] = useState<Idea[] | null>(null);
   const [tab, setTab] = useState<CardKind | null>(null);
@@ -128,21 +129,47 @@ export function CardEditor({
       ctx.fillStyle = "rgba(255,255,255,0.92)";
       ctx.fillText(`📷 ${labels.photoBy.replace("{name}", shot.by)} · zawmo.com`, 26, H - 24);
       ctx.shadowBlur = 0;
+      // The finished card as a JPEG, ready before any tap: a phone opens its share sheet only
+      // straight from the tap (iPhone refuses it after waiting for the picture).
+      card.current = null;
+      try {
+        el.toBlob((b) => {
+          if (!cancelled) card.current = b;
+        }, "image/jpeg", 0.9);
+      } catch {
+        // (a picture the canvas may not export — the buttons then say so)
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, [ready, text, style, fonts, labels.photoBy, shot.by]);
 
-  const jpeg = () => new Promise<Blob | null>((done) => canvas.current?.toBlob(done, "image/jpeg", 0.9) ?? done(null));
+  // The card as it is now (made after each drawing above). Until 2026-10-23 this asked the canvas at
+  // the tap, and wrongly took «no picture» at once — both buttons did nothing.
+  const jpeg = () =>
+    card.current
+      ? Promise.resolve(card.current)
+      : new Promise<Blob | null>((done) => {
+          const el = canvas.current;
+          if (!el) return done(null);
+          try {
+            el.toBlob(done, "image/jpeg", 0.9);
+          } catch {
+            done(null);
+          }
+        });
 
-  async function sharePrivately() {
+  function sharePrivately() {
     setError("");
-    const blob = await jpeg();
-    if (!blob) return;
+    const blob = card.current;
+    if (!blob) {
+      setError(labels.errors.generic);
+      return;
+    }
     const file = new File([blob], "zawmo-card.jpg", { type: "image/jpeg" });
     if (navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ files: [file] }).catch(() => {});
+      navigator.share({ files: [file] }).catch(() => {});
       return;
     }
     const a = document.createElement("a");
@@ -155,7 +182,11 @@ export function CardEditor({
   async function publish() {
     setError("");
     const blob = await jpeg();
-    if (!blob || !text.trim()) return;
+    if (!text.trim()) return;
+    if (!blob) {
+      setError(labels.errors.generic);
+      return;
+    }
     setBusy(true);
     const form = new FormData();
     form.set("shot", shot.id);
