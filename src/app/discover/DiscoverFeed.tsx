@@ -311,7 +311,7 @@ function TrendingRow({ items, title, locale, onOpen }: { items: TrendingItem[]; 
               <span className="absolute inset-x-0 bottom-0 z-[2] flex flex-col bg-gradient-to-t from-black/85 to-transparent p-2 pt-8 text-white">
                 <span className="truncate text-xs font-bold">{v.title}</span>
                 <span className="text-[11px] text-white/85">
-                  👁 {compact(v.weekViews, locale)} · ❤️ {compact(v.weekLikes, locale)}
+                  👁 {compact(v.views, locale)} · ❤️ {compact(v.likes.count, locale)}
                 </span>
               </span>
             </button>

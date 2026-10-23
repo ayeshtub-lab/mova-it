@@ -35,7 +35,8 @@ export type FeedAngle = {
 // A shot with the moment it belongs to (the trending row and the full-screen viewer).
 export type FeedItem = FeedAngle & { momentCode: string; title: string; placeName?: string | null };
 
-// A trending video also carries its week: the row shows the week's views and hearts.
+// A trending video also carries its week (what put it in the row); the row shows all its views and
+// hearts, most viewed first (2026-10-23).
 export type TrendingItem = FeedItem & { weekViews: number; weekLikes: number };
 
 export type FeedMoment = {

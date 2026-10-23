@@ -338,8 +338,10 @@ export async function wheelShots(take = 12) {
   );
 }
 
-// «🔥 الأكثر رواجًا هذا الأسبوع»: public videos (checked, from the last 30 days) ranked by
-// what happened to them in the last 7 days — views, likes, comments and shares, weighted.
+// «🔥 الأكثر رواجًا هذا الأسبوع»: public videos (checked, from the last 30 days) that something
+// happened to in the last 7 days (views, likes, comments, shares), shown most viewed first — by
+// all their views, the number on each card (his call, 2026-10-23: the cards showed the week's
+// views only, so some showed none, and the order didn't follow the number).
 // The home page «تحت الأضواء» spotlight will build on this later.
 export async function trendingVideos(viewer: User | null, take = 10) {
   const now = Date.now();
@@ -364,20 +366,21 @@ export async function trendingVideos(viewer: User | null, take = 10) {
   if (!videos.length) return [];
   const ids = videos.map((v) => v.id);
   const recent = { angleId: { in: ids }, createdAt: { gte: week } };
-  const [views, likes, comments] = await Promise.all([
+  const [views, likes, comments, allViews] = await Promise.all([
     db.angleView.groupBy({ by: ["angleId"], where: recent, _count: { _all: true } }),
     db.reaction.groupBy({ by: ["angleId"], where: recent, _count: { _all: true } }),
     db.comment.groupBy({ by: ["angleId"], where: recent, _count: { _all: true } }),
+    db.angleView.groupBy({ by: ["angleId"], where: { angleId: { in: ids } }, _count: { _all: true } }),
   ]);
   const count = (rows: { angleId: string; _count: { _all: number } }[]) => new Map(rows.map((r) => [r.angleId, r._count._all]));
-  const [v, l, c] = [count(views), count(likes), count(comments)];
+  const [v, l, c, total] = [count(views), count(likes), count(comments), count(allViews)];
   const ranked = videos
     .map((a) => {
       const stats = { views: v.get(a.id) ?? 0, likes: l.get(a.id) ?? 0, comments: c.get(a.id) ?? 0, shares: a.shares };
-      return { a, stats, score: stats.views + 3 * stats.likes + 4 * stats.comments + 5 * stats.shares };
+      return { a, stats, score: stats.views + 3 * stats.likes + 4 * stats.comments + 5 * stats.shares, seen: total.get(a.id) ?? 0 };
     })
     .filter((x) => x.score > 0)
-    .sort((x, y) => y.score - x.score || y.a.uploadedAt.getTime() - x.a.uploadedAt.getTime())
+    .sort((x, y) => y.seen - x.seen || y.score - x.score || y.a.uploadedAt.getTime() - x.a.uploadedAt.getTime())
     // One video per moment: its best one (the same moment twice in the top ten read as a repeat).
     .filter((x, i, all) => all.findIndex((y) => y.a.moment.code === x.a.moment.code) === i)
     .slice(0, take);
@@ -409,6 +412,25 @@ export async function trendingVideos(viewer: User | null, take = 10) {
     })),
   );
 }
+
+// «اكتشف»'s numbers (N لحظة · N زاوية · N شخص): all of Zawmo's public moments, their shots and the
+// people in them — counted, not read off the feed, which holds one page of moments and 8 shots
+// each (the numbers stood still while Zawmo grew, 2026-10-23). Kept 5 minutes, for everyone.
+export const discoverTotals = unstable_cache(
+  async () => {
+    const now = new Date();
+    const shown = { status: "READY" as const, screening: "allowed", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] };
+    const publicMoment = { visibility: "PUBLIC" as const, status: "ACTIVE" as const, demo: false };
+    const [moments, angles, people] = await Promise.all([
+      db.moment.count({ where: { ...publicMoment, angles: { some: shown } } }),
+      db.angle.count({ where: { ...shown, moment: publicMoment } }),
+      db.angle.groupBy({ by: ["contributorId"], where: { ...shown, moment: publicMoment } }).then((rows) => rows.length),
+    ]);
+    return { moments, angles, people };
+  },
+  ["discover-totals-1"],
+  { revalidate: 300 },
+);
 
 // The visitor home's shots and wheel, kept 5 minutes for everyone: a visitor's home page then
 // needs no database at all — no wait while the database wakes after a quiet while (the home

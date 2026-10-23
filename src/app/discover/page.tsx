@@ -6,7 +6,7 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { plural } from "@/i18n/plural";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
-import { engagementFor, listDiscover, trendingVideos } from "@/server/discover";
+import { discoverTotals, engagementFor, listDiscover, trendingVideos } from "@/server/discover";
 import { inEnglish } from "@/server/localize";
 import { googleEnabled } from "@/server/google";
 import { sceneCards } from "@/server/places";
@@ -64,13 +64,11 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
   const t = dict.discover;
   const official = !!user && !user.isGuest;
 
-  const [moments, trending, scenes] = await Promise.all([listDiscover(user).then((l) => inEnglish(l, locale)), trendingVideos(user).then((l) => inEnglish(l, locale)), sceneCards(user?.id ?? null)]);
+  const [moments, trending, scenes, totals] = await Promise.all([listDiscover(user).then((l) => inEnglish(l, locale)), trendingVideos(user).then((l) => inEnglish(l, locale)), sceneCards(user?.id ?? null), discoverTotals()]);
   const stats = await engagementFor(
     trending.map((v) => v.id),
     user,
   );
-  const angleTotal = moments.reduce((sum, m) => sum + m.angles.length + m.lockedCount, 0);
-  const peopleTotal = moments.reduce((sum, m) => sum + m.people, 0);
 
   const intro = (
     <div className="flex flex-col gap-4 px-4 pb-5">
@@ -81,7 +79,7 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
         <p className="relative mt-1 text-sm font-semibold opacity-90">{t.heroText}</p>
         {moments.length > 0 && (
           <ul className="relative mt-4 flex flex-wrap gap-2 text-sm font-bold">
-            {[plural(locale, dict.plurals.moments, moments.length), plural(locale, dict.plurals.angles, angleTotal), plural(locale, dict.plurals.people, peopleTotal)].map((s) => (
+            {[plural(locale, dict.plurals.moments, totals.moments), plural(locale, dict.plurals.angles, totals.angles), plural(locale, dict.plurals.people, totals.people)].map((s) => (
               <li key={s} className="rounded-full bg-white/20 px-3 py-1 backdrop-blur-sm">
                 {s}
               </li>
