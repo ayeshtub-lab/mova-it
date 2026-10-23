@@ -423,7 +423,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
       stamp: angle.stamp ? stampText(angle.uploadedAt, locale, "Asia/Riyadh") : undefined,
     };
     // A story moves too fast for each shot's own sound: only the video's sound plays.
-    let shotSound = soundKey || story ? null : await resolveSound(angle.soundKey);
+    const shotSound = soundKey || story ? null : await resolveSound(angle.soundKey);
     if (shotSound) shotSounds = true;
     const writing = parseCaption(angle.caption);
     const kept = piecePath(moment.id, [angle.id, angle.mediaPath, angle.mediaType, angle.filter, writing?.path ?? null, frame, plan ? plan[i] : times, story, i, shotSound?.key ?? null, angle.muteOriginal, angle.lyrics]);
@@ -462,7 +462,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
     const shotSoundFile = shotSound ? await soundAt(shotSound) : null;
     if (shotSound && shotSoundFile) {
       segment = join(dir, `seg-${i}-sound.mp4`);
-      seconds = await withShotSound(out, shotSoundFile, shotSound, angle.muteOriginal, seconds, segment, filled ? false : angle.lyrics);
+      seconds = await withShotSound(out, shotSoundFile, shotSound, angle.muteOriginal, seconds, segment, angle.lyrics);
     }
     durations.push(seconds);
     segments.push(segment);
