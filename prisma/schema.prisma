@@ -82,6 +82,7 @@ model User {
   conversationsAsUser1 Conversation[] @relation("ConversationUser1")
   conversationsAsUser2 Conversation[] @relation("ConversationUser2")
   sentMessages    Message[]
+  cards           Card[]
 }
 
 // Opaque random token in an httpOnly cookie (web) or a bearer header (app later);
@@ -313,6 +314,7 @@ model Angle {
   saves           SavedAngle[]
   reports         Report[]
   removalRequests RemovalRequest[]
+  cards           Card[]
 
   @@index([momentId, capturedAt])
   @@index([contributorId])
@@ -841,6 +843,30 @@ model SourceVisit {
 // that look alike sit close. kind "image" — from the picture itself, only for scenes without
 // people (nature, sky, sea, food, pets); kind "text" — from its written line, for every shot.
 // Faces are never compared: a shot of people is only ever matched by its words.
+// «💌 بطاقة» (2026-10-23, his idea): words written on a public shot — «صباح الخير», a line of love
+// poetry, a wisdom — as a greeting card to send. The card is drawn on the phone; a card shared
+// privately is never kept, a card made public («انشرها عامة») is kept here once its words pass
+// the text check, for others to find ready-made (/cards) and share in turn.
+model Card {
+  id        String   @id @default(cuid())
+  angleId   String // the picture it is written on (a public shot)
+  creatorId String
+  text      String // the words on it (up to 140 characters)
+  kind      String // morning | evening | love | wisdom | friday | other
+  style     String // the look: font and layout (src/lib/card-styles.ts)
+  imagePath String? // the finished card (JPEG) in Blob
+  public    Boolean  @default(false)
+  screening String? // the words' check: allowed | blocked
+  shares    Int      @default(0)
+  createdAt DateTime @default(now())
+
+  angle   Angle @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  creator User  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([public, kind, createdAt])
+  @@index([creatorId])
+}
+
 model AngleVector {
   angleId   String
   angle     Angle    @relation(fields: [angleId], references: [id], onDelete: Cascade)
