@@ -2,8 +2,8 @@ import Link from "next/link";
 import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { InboxLink } from "@/app/InboxLink";
 import { Logo } from "@/app/Logo";
-import { setLocale } from "@/i18n/actions";
-import type { Locale } from "@/i18n/config";
+import { headers } from "next/headers";
+import { PATH_HEADER, type Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { currentUnread } from "@/server/inbox";
@@ -11,6 +11,8 @@ import { currentUnread } from "@/server/inbox";
 export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dictionary }) {
   const user = await getCurrentUser();
   const unread = await currentUnread();
+  // The page as it was asked for (src/proxy.ts), for the language link to bring back here.
+  const here = (await headers()).get(PATH_HEADER) ?? "/";
 
   return (
     <header className="mx-auto flex w-full max-w-3xl items-center justify-between py-5">
@@ -84,19 +86,18 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
             )}
           </Link>
         )}
-        <form action={setLocale}>
-          <input type="hidden" name="locale" value={locale === "ar" ? "en" : "ar"} />
-          <button
-            type="submit"
-            aria-label={dict.lang.switchLabel}
-            title={dict.lang.switchTo}
-            className="flex h-11 min-w-11 items-center justify-center rounded-full bg-accent-soft px-2.5 text-sm font-extrabold text-accent-ink sm:px-4"
-          >
-            {/* Short on a phone (2026-10-23: with 💌 in the header, the word pushed it off the screen). */}
-            <span className="sm:hidden">{locale === "ar" ? "EN" : "عربي"}</span>
-            <span className="hidden sm:inline">{dict.lang.switchTo}</span>
-          </button>
-        </form>
+        {/* A plain link, a full load (src/app/api/lang/route.ts) — works from a page left open across a deploy. */}
+        <a
+          href={`/api/lang?to=${locale === "ar" ? "en" : "ar"}&next=${encodeURIComponent(here)}`}
+          rel="nofollow"
+          aria-label={dict.lang.switchLabel}
+          title={dict.lang.switchTo}
+          className="flex h-11 min-w-11 items-center justify-center rounded-full bg-accent-soft px-2.5 text-sm font-extrabold text-accent-ink sm:px-4"
+        >
+          {/* Short on a phone (2026-10-23: with 💌 in the header, the word pushed it off the screen). */}
+          <span className="sm:hidden">{locale === "ar" ? "EN" : "عربي"}</span>
+          <span className="hidden sm:inline">{dict.lang.switchTo}</span>
+        </a>
       </div>
     </header>
   );
