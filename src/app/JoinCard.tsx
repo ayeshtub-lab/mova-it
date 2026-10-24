@@ -22,6 +22,7 @@ export type JoinLabels = {
   keep: string;
   publicNote: string;
   failed: string;
+  looking: string; // «🔎 عم ندوّر…» while it is still being asked (after the check)
 };
 
 // «صوّر معك», right after an upload: someone nearby shot the same moment just now — add this

@@ -83,6 +83,7 @@ type ItemState = {
   caption?: CaptionView | null;
   ideas?: string[]; // lines to write on it, from the lens («✍️»)
   suggestion?: JoinSuggestion | null; // «صوّر معك», offered once right after upload
+  looking?: boolean; // «صوّر معك» still being asked (after the check, never waited for)
   queued?: boolean; // «نشر» pressed while it was still on its way: the server publishes it when checked
   placed?: boolean; // it has a place (from the photo itself or the moment)
 };
@@ -466,6 +467,16 @@ export function AngleUploader({
         placed: !!result.placeId,
         ideas: Array.isArray(result.captionIdeas) ? result.captionIdeas.filter((l: unknown) => typeof l === "string") : [],
       });
+      // «صوّر معك» (2026-10-24): asked now, while the person names the shot — never waited for (it
+      // added 7–15 s to «عم نفحص»). Its card shows if it comes while the shot is still a draft.
+      if (!result.suggestion) {
+        update(index, { looking: true });
+        postJson(`/api/angles/${angleId}/join-suggestion`)
+          .then((r: { suggestion?: JoinSuggestion | null }) =>
+            setItems((all) => all.map((it, k) => (k === index && it.angleId === angleId ? { ...it, looking: false, ...(it.status === "draft" && r.suggestion ? { suggestion: r.suggestion } : {}) } : it))),
+          )
+          .catch(() => update(index, { looking: false }));
+      }
       // A sound chosen beforehand (on a sound's page) goes on now. Otherwise nothing opens by
       // itself: the person picks a sound only if they want, from the shot's «🎵» button.
       if (pending && (await saveSound(index, angleId, pending, false))) clearPending();
@@ -711,7 +722,12 @@ export function AngleUploader({
             {(() => {
               // One suggestion at a time, for the first shot that has one.
               const i = items.findIndex((it) => it.status === "draft" && it.angleId && it.suggestion);
-              if (i < 0) return null;
+              if (i < 0)
+                return items.some((it) => it.status === "draft" && it.looking) ? (
+                  <p role="status" className="animate-pulse text-center text-xs font-bold text-muted">
+                    {labels.join.looking}
+                  </p>
+                ) : null;
               const it = items[i];
               return (
                 <JoinCard

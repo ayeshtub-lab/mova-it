@@ -11,7 +11,8 @@ import { db } from "@/lib/db";
 export const LIMITS = {
   upload: [60, 3600], // new shots (reserve + files), per hour
   uploadToken: [240, 3600],
-  complete: [80, 3600], // each one runs the Gemini check (and «صوّر معك»)
+  complete: [80, 3600], // each one runs the Gemini check
+  lens: [80, 3600], // «صوّر معك», asked by the phone right after each check
   comment: [40, 600],
   message: [60, 600],
   react: [300, 600], // hearts, saves, comment likes, montage likes

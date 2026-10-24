@@ -2,7 +2,6 @@ import * as Sentry from "@sentry/nextjs";
 import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { AngleError, completeAngle } from "@/server/angles";
-import { findJoinSuggestion } from "@/server/join";
 import { makeSmall } from "@/server/small";
 import { sendToStream } from "@/server/stream";
 import { embedAngle } from "@/server/similar";
@@ -11,7 +10,8 @@ import { afterWentLive } from "@/server/went-live";
 import { brandAfterChange } from "@/server/branded";
 
 // The automatic content check runs inside this request (a few seconds). A fine shot becomes
-// a draft; «صوّر معك» looks for a matching moment; the owner then publishes (./publish).
+// a draft and the answer goes back at once; «صوّر معك» is asked by the phone right after
+// (../join-suggestion — 2026-10-24: it added 7–15 s here); the owner then publishes (./publish).
 export const maxDuration = 300;
 
 // Step 3: the device says the upload finished; the server checks the files exist.
@@ -29,10 +29,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = (await request.json().catch(() => null)) as { trim?: unknown; timing?: { prepareMs?: unknown; sendMs?: unknown; bytes?: unknown } } | null;
     const angle = await completeAngle(user, id, { trim: body?.trim === true });
     const checkedAt = Date.now();
-    // Where an upload's time goes — the phone's preparing and sending, the check, «صوّر معك» —
+    // Where an upload's time goes — the phone's preparing and sending, the check («صوّر معك»
+    // is timed on its own now) —
     // in the logs for every upload, and to error monitoring when it took long (an iPhone owner found
     // «عم نفحص» slow, 2026-10-17).
-    const report = (lensMs: number) => {
+    const report = () => {
       const num = (x: unknown) => (typeof x === "number" && Number.isFinite(x) ? Math.round(x) : null);
       const ua = request.headers.get("user-agent") ?? "";
       const timing = {
@@ -42,10 +43,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         prepareMs: num(body?.timing?.prepareMs),
         sendMs: num(body?.timing?.sendMs),
         checkMs: checkedAt - started,
-        lensMs,
       };
       console.log("upload timing", JSON.stringify(timing));
-      const total = (timing.prepareMs ?? 0) + (timing.sendMs ?? 0) + timing.checkMs + lensMs;
+      const total = (timing.prepareMs ?? 0) + (timing.sendMs ?? 0) + timing.checkMs;
       if (total > 20_000) Sentry.captureMessage(`slow upload (${timing.device}, ${timing.kind})`, { level: "warning", extra: timing, fingerprint: ["slow-upload", timing.device, timing.kind] });
     };
     // The small copy for grids (photos), after the response; until then grids use the photo.
@@ -59,15 +59,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (angle.wentLive) {
       const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;
       after(() => afterWentLive(angle.id, host, { userId: user.id }));
-      report(0);
+      report();
       return NextResponse.json({ id: angle.id, status: angle.status, suggestion: null, titleSuggestion: null, captionIdeas: [] });
     }
     // A video's stamped copy for sharing, made while its owner is still choosing: ready for «شارك».
     if (angle.status === "DRAFT" && angle.mediaType === "VIDEO") after(() => brandAfterChange(angle.id));
-    // «صوّر معك»: someone nearby shot the same moment just now? Offer to add this shot to it.
-    const suggestion = angle.status === "DRAFT" ? await findJoinSuggestion(user.id, angle.id) : null;
-    report(Date.now() - checkedAt);
-    return NextResponse.json({ id: angle.id, status: angle.status, suggestion, titleSuggestion: angle.titleSuggestion, captionIdeas: angle.captionIdeas });
+    report();
+    // (`suggestion`: always null now — the phone asks ../join-suggestion; kept for pages still open.)
+    return NextResponse.json({ id: angle.id, status: angle.status, suggestion: null, titleSuggestion: angle.titleSuggestion, captionIdeas: angle.captionIdeas });
   } catch (error) {
     if (error instanceof AngleError) {
       return NextResponse.json({ error: error.code }, { status: error.code === "not_found" ? 404 : 409 });
