@@ -72,8 +72,10 @@ export function proxy(request: NextRequest) {
   // EN_INDEXED).
   if (english && !enIndexable(inLocale(pathname, "ar"))) response.headers.set("X-Robots-Tag", "noindex, follow");
   // Arriving on an English page (from Google, or «View in English») keeps the visitor in English as
-  // they follow the site's links (plain links are then sent to their /en address, above).
-  if (english && page && request.method === "GET" && request.cookies.get(localeCookie)?.value !== "en") {
+  // they follow the site's links (plain links are then sent to their /en address, above) — only
+  // someone who never chose: one who pressed «عربي» stays Arabic (until 2026-10-24 any /en page —
+  // the back button, an old link — turned them back to English, and the whole site with them).
+  if (english && page && request.method === "GET" && !request.cookies.has(localeCookie)) {
     response.cookies.set(localeCookie, "en", { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   }
   if (source) {

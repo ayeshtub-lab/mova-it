@@ -90,10 +90,10 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
             type="submit"
             aria-label={dict.lang.switchLabel}
             title={dict.lang.switchTo}
-            className="flex size-11 items-center justify-center rounded-full bg-accent-soft text-sm font-extrabold text-accent-ink sm:w-auto sm:px-4"
+            className="flex h-11 min-w-11 items-center justify-center rounded-full bg-accent-soft px-2.5 text-sm font-extrabold text-accent-ink sm:px-4"
           >
             {/* Short on a phone (2026-10-23: with 💌 in the header, the word pushed it off the screen). */}
-            <span className="sm:hidden">{locale === "ar" ? "EN" : "ع"}</span>
+            <span className="sm:hidden">{locale === "ar" ? "EN" : "عربي"}</span>
             <span className="hidden sm:inline">{dict.lang.switchTo}</span>
           </button>
         </form>

@@ -40,6 +40,12 @@ check("/en/discover: not in phase 1 — kept out of Google even with English ope
   assert.equal(proxy(req("/en/discover")).headers.get("x-robots-tag"), "noindex, follow");
 });
 
+check("/en/m/X with «عربي» chosen: shown in English, the choice kept (no lang=en cookie)", () => {
+  const res = proxy(req("/en/m/ABC234", { cookie: "lang=ar" }));
+  assert.equal(told(res, LOCALE_HEADER), "en");
+  assert.doesNotMatch(res.headers.get("set-cookie") ?? "", /lang=en/);
+});
+
 check("/en alone: the English home page", () => {
   const res = proxy(req("/en"));
   assert.equal(res.headers.get("x-middleware-rewrite"), "https://zawmo.com/");
