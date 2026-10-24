@@ -6,6 +6,7 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { getStats, TARGET_RETURN } from "@/server/stats";
+import { cardFunnelStats } from "@/server/card-funnel";
 import { installStats } from "@/server/install";
 import { LiveVisitors } from "./LiveVisitors";
 
@@ -46,7 +47,7 @@ export default async function StatsPage() {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const s = await getStats(user);
-  const installs = await installStats(14);
+  const [installs, cardRows] = await Promise.all([installStats(14), cardFunnelStats(14)]);
   const days = s.series.map((d) => d.day);
   const tiles = [
     ["👥", "النشطين اليوم", s.totals.active],
@@ -183,6 +184,36 @@ export default async function StatsPage() {
             <p className="text-sm text-muted">ما انضم أحد بعد.</p>
           )}
           <p className="text-xs text-muted">رابط كل إعلان: zawmo.com/start?src=اسم-الحملة · «وصلوا» = زوار جدد لصفحة الإعلان أو الألبوم أو صفحتي الدليل (قارنها بكبسات الإعلان: الفرق الكبير = كبسات وهمية) · «بلّشوا» = كبسوا الكاميرا أو كتبوا اسم · «كمّلوا» = نزّلوا أول لقطة أو كبسوا ابدأ · «رجعوا» = فتحوا زاومو بيوم بعد يوم انضمامهم. التسجيل بدأ ١ أكتوبر ٢٠٢٦.</p>
+        </section>
+
+        {/* «💌 بطاقات» per source (src/server/card-funnel.ts): the cards ad's funnel after «وصلوا». */}
+        <section className="flex flex-col gap-2 rounded-3xl bg-surface p-4">
+          <h2 className="font-extrabold">💌 البطاقات حسب المصدر (آخر ١٤ يوم)</h2>
+          {cardRows.length ? (
+            <table className="w-full text-sm">
+              <thead className="text-xs text-muted">
+                <tr>
+                  <th className="py-1 text-start font-bold">المصدر</th>
+                  <th className="py-1 font-bold">فتحوا المحرّر</th>
+                  <th className="py-1 font-bold">بعتوا بطاقة</th>
+                  <th className="py-1 font-bold">نشروا</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cardRows.map((r) => (
+                  <tr key={r.source} className="border-t border-line">
+                    <td className="py-2 font-bold" dir="ltr">{r.source === "direct" ? "مباشر" : r.source}</td>
+                    <td className="py-2 text-center tabular-nums">{num(r.opened)}</td>
+                    <td className="py-2 text-center tabular-nums">{num(r.shared)}</td>
+                    <td className="py-2 text-center tabular-nums">{num(r.published)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-sm text-muted">لسا ما في أرقام.</p>
+          )}
+          <p className="text-xs text-muted">رابط الإعلان: zawmo.com/cards?src=اسم-الحملة · «وصلوا» و«انضموا» و«نشروا لقطة» لنفس المصدر بجدول المصادر فوق · كل خطوة مرة وحدة لكل زائر بالجلسة · بدأ العد ٢٥ أكتوبر ٢٠٢٦.</p>
         </section>
 
         {/* «📲 ثبّت زاومو» (src/app/InstallPrompt.tsx): how many saw the card, pressed, installed. */}

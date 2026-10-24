@@ -67,7 +67,7 @@ export default async function CardPage({ params }: PageProps<"/c/[id]">) {
           {t.kinds[card.kind as keyof typeof t.kinds]} · {t.photoBy.replace("{name}", card.angle.contributor.displayName)}
           {!card.creator.isGuest && ` · ${t.by.replace("{name}", card.creator.displayName)}`}
         </p>
-        <CardShare id={card.id} text={card.text} label={t.share} />
+        <CardShare id={card.id} text={card.text} label={t.share} by={card.angle.contributor.displayName} labels={t} />
         <Link href={`/card/new?shot=${card.angle.id}`} className="flex min-h-12 items-center justify-center rounded-full bg-surface px-6 font-extrabold">
           {t.makeOwn}
         </Link>

@@ -61,8 +61,13 @@ export async function sourceStats(since: Date) {
   const shot = new Set(shooters.map((s) => s.contributorId));
   const joinedDay = new Map(people.map((p) => [p.id, activityDay(p.createdAt)]));
   const cameBack = new Set(days.filter((d) => d.day > joinedDay.get(d.userId)!).map((d) => d.userId));
-  // («install:…» rows are the «📲 ثبّت زاومو» counts — src/server/install.ts — not sources.)
-  const landed = await db.sourceVisit.groupBy({ by: ["source"], where: { day: { gte: activityDay(since) }, NOT: { source: { startsWith: "install:" } } }, _sum: { visits: true, typed: true, tried: true } });
+  // («install:…» rows are the «📲 ثبّت زاومو» counts — src/server/install.ts — and «card:…» the
+  // cards' — src/server/card-funnel.ts — not sources.)
+  const landed = await db.sourceVisit.groupBy({
+    by: ["source"],
+    where: { day: { gte: activityDay(since) }, NOT: [{ source: { startsWith: "install:" } }, { source: { startsWith: "card:" } }] },
+    _sum: { visits: true, typed: true, tried: true },
+  });
   const rows = new Map<string, { source: string; landed: number; typed: number; tried: number; joined: number; shot: number; returned: number }>();
   for (const l of landed)
     rows.set(l.source, { source: l.source, landed: l._sum.visits ?? 0, typed: l._sum.typed ?? 0, tried: l._sum.tried ?? 0, joined: 0, shot: 0, returned: 0 });

@@ -4,6 +4,7 @@
 import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
+import { cardFunnelStats, recordCardStep } from "../src/server/card-funnel";
 import { activityDay, recordFunnel, recordLanding, sourceStats } from "../src/server/stats";
 
 const TAG = "[srctest]";
@@ -24,6 +25,11 @@ async function main() {
     await recordFunnel("srctest-house", "typed");
     await recordFunnel("srctest-house", "typed");
     await recordFunnel("srctest-house", "tried");
+    // The cards' steps (src/server/card-funnel.ts): their own rows, not mixed into the landing's.
+    await recordCardStep("srctest-house", "opened");
+    await recordCardStep("srctest-house", "opened");
+    await recordCardStep("srctest-house", "shared");
+    await recordCardStep("srctest-house", "published");
     const rows = await sourceStats(since);
     const house = rows.find((r) => r.source === "srctest-house")!;
     const plant = rows.find((r) => r.source === "srctest-plant")!;
@@ -33,9 +39,13 @@ async function main() {
     assert.deepEqual([lonely.landed, lonely.joined], [1, 0], "arrivals who never joined still show");
     assert.deepEqual([plant.joined, plant.shot, plant.returned], [1, 0, 0]);
     console.log("PASS per-source landed / joined / shot / came back");
+    assert.ok(!rows.some((r) => r.source.startsWith("card:")), "the cards' rows are not sources");
+    const cards = (await cardFunnelStats(1)).find((r) => r.source === "srctest-house");
+    assert.deepEqual(cards, { source: "srctest-house", opened: 2, shared: 1, published: 1 });
+    console.log("PASS the cards' funnel per source: opened / sent / published");
   } finally {
     await db.activeDay.deleteMany({ where: { userId: { in: ids } } });
-    await db.sourceVisit.deleteMany({ where: { source: { startsWith: "srctest-" } } });
+    await db.sourceVisit.deleteMany({ where: { OR: [{ source: { startsWith: "srctest-" } }, { source: { startsWith: "card:srctest-" } }] } });
     await db.angle.deleteMany({ where: { contributorId: { in: ids } } });
     await db.moment.deleteMany({ where: { creatorId: { in: ids } } });
     await db.user.deleteMany({ where: { id: { in: ids } } });

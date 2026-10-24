@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CARD_COLORS, CARD_FONTS, CARD_KINDS, CARD_PLACES, CARD_TEXT_MAX, DEFAULT_CARD_STYLE, cardStyle, styleKey, type CardFont, type CardKind } from "@/lib/card-styles";
 import type { Dictionary } from "@/i18n/server";
+import { CardBridge } from "@/app/cards/CardBridge";
+import { cardStep } from "@/lib/funnel";
 
 type Labels = Dictionary["card"];
 type Idea = { kind: CardKind; text: string };
@@ -55,9 +57,11 @@ export function CardEditor({
   const look = cardStyle(style);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [sent, setSent] = useState(false);
 
   // The picture (same address as the page, so the canvas may be saved), then Gemini's lines.
   useEffect(() => {
+    cardStep("opened");
     const img = new Image();
     img.onload = () => {
       picture.current = img;
@@ -168,8 +172,12 @@ export function CardEditor({
       return;
     }
     const file = new File([blob], "zawmo-card.jpg", { type: "image/jpeg" });
+    const shared = () => {
+      cardStep("shared");
+      setSent(true);
+    };
     if (navigator.canShare?.({ files: [file] })) {
-      navigator.share({ files: [file] }).catch(() => {});
+      navigator.share({ files: [file] }).then(shared).catch(() => {});
       return;
     }
     const a = document.createElement("a");
@@ -177,6 +185,7 @@ export function CardEditor({
     a.download = "zawmo-card.jpg";
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    shared();
   }
 
   async function publish() {
@@ -197,6 +206,7 @@ export function CardEditor({
     const res = await fetch("/api/cards", { method: "POST", body: form }).catch(() => null);
     const body = (await res?.json().catch(() => null)) as { id?: string; error?: string } | null;
     if (res?.ok && body?.id) {
+      cardStep("published");
       router.push(`/c/${body.id}`);
       return;
     }
@@ -300,6 +310,7 @@ export function CardEditor({
           {labels.sharePrivate}
         </button>
         <p className="text-center text-xs text-muted">{labels.sharePrivateHint}</p>
+        {sent && <CardBridge by={shot.by} labels={labels} />}
         {canPublish ? (
           <>
             <button type="button" onClick={publish} disabled={!ready || busy || !text.trim()} className="min-h-12 rounded-full bg-surface px-6 font-extrabold disabled:opacity-50">

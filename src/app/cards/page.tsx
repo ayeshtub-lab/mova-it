@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
+import { after } from "next/server";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { CARD_KINDS, CARDS_PUBLIC, isCardKind } from "@/lib/card-styles";
 import { INDEXABLE } from "@/lib/indexable";
+import { NEW_VISIT_HEADER } from "@/lib/source";
 import { countCards, listCards } from "@/server/cards";
+import { recordLanding } from "@/server/stats";
 
 // «💌 بطاقات»: the public cards (src/server/cards.ts), the most sent first — ready to send on. One
 // page per kind (?kind=morning…). Open to search once there are enough cards to be worth a visit.
+// Also where the cards ad lands (zawmo.com/cards?src=tiktok-cards, 2026-10-24): a new arrival is
+// counted, and «✍️ اعمل بطاقتك» on top opens the maker on the most sent card's picture.
 const INDEX_FROM = 12;
 
 export async function generateMetadata({ searchParams }: PageProps<"/cards">): Promise<Metadata> {
@@ -30,6 +36,8 @@ export default async function CardsPage({ searchParams }: PageProps<"/cards">) {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const t = dict.card;
+  const arrival = (await headers()).get(NEW_VISIT_HEADER);
+  if (arrival) after(() => recordLanding(arrival.slice(0, 40)).catch((error) => console.error("landing count failed", error)));
   const cards = await listCards(kind);
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
@@ -39,6 +47,14 @@ export default async function CardsPage({ searchParams }: PageProps<"/cards">) {
           <h1 className="text-2xl font-extrabold">{kind ? t.kinds[kind] : t.galleryTitle}</h1>
           <p className="text-sm text-muted">{t.galleryIntro}</p>
         </header>
+        {cards[0] && (
+          <Link
+            href={`/card/new?shot=${cards[0].angleId}`}
+            className="flex min-h-14 items-center justify-center rounded-full bg-accent px-6 text-lg font-extrabold text-white shadow-md transition-transform active:scale-95"
+          >
+            {t.makeNow}
+          </Link>
+        )}
         <nav className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
           <Link href="/cards" className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${kind ? "bg-surface" : "bg-accent text-white"}`}>
             {t.all}

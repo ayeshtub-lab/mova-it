@@ -10,3 +10,15 @@ export function funnel(step: "typed" | "tried") {
   const url = `/api/funnel?step=${step}`;
   if (!navigator.sendBeacon?.(url)) fetch(url, { method: "POST", keepalive: true }).catch(() => {});
 }
+
+// The cards' steps (src/app/api/cards/funnel): opened the maker, sent a card, published one. Once
+// per browser session and step, like the above.
+export function cardStep(step: "opened" | "shared" | "published") {
+  try {
+    const key = `zw_card_${step}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+  } catch {}
+  const url = `/api/cards/funnel?step=${step}`;
+  if (!navigator.sendBeacon?.(url)) fetch(url, { method: "POST", keepalive: true }).catch(() => {});
+}

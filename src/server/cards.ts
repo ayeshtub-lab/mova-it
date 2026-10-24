@@ -131,7 +131,7 @@ export async function listCards(kind: CardKind | null, take = 60, exclude?: stri
     where: { ...shownCard(), ...(kind ? { kind } : {}), ...(exclude ? { id: { not: exclude } } : {}) },
     orderBy: [{ shares: "desc" }, { createdAt: "desc" }],
     take,
-    select: { id: true, text: true, kind: true },
+    select: { id: true, text: true, kind: true, angleId: true },
   });
 }
 
