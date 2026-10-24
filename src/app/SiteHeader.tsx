@@ -17,9 +17,10 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
   return (
     <header className="mx-auto flex w-full max-w-3xl items-center justify-between py-5">
       <Link href="/" aria-label={locale === "ar" ? "زاومو — الرئيسية" : "Zawmo — home"}>
-        <Logo locale={locale} />
+        <Logo locale={locale} compact />
       </Link>
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      {/* (never squeezed: the language button must stay on screen whatever is beside it) */}
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         {/* Search moments by name, from every page («اكتشف ← لحظات»). */}
         <Link
           href="/discover?tab=moments&focus=1"
