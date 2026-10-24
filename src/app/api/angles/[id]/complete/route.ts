@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
-import { AngleError, completeAngle } from "@/server/angles";
+import { AngleError, completeAngle, repairBlackCover } from "@/server/angles";
 import { makeSmall } from "@/server/small";
 import { sendToStream } from "@/server/stream";
 import { embedAngle } from "@/server/similar";
@@ -50,6 +50,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     };
     // The small copy for grids (photos), after the response; until then grids use the photo.
     after(() => makeSmall(angle.id).catch((error) => console.error("small copy failed", angle.id, error)));
+    // Videos: a cover the phone drew black (before the frame was decoded) made again from the video.
+    if (angle.mediaType === "VIDEO") after(() => repairBlackCover(angle.id).catch((error) => console.error("black cover repair failed", angle.id, error)));
     // Videos: a copy to Cloudflare Stream (every phone, adaptive quality), after the response.
     if (angle.mediaType === "VIDEO" && angle.status !== "HIDDEN") after(() => sendToStream(angle.id).catch((error) => console.error("stream copy failed", angle.id, error)));
     // «📸 لقطات بتشبهها»: its vectors, after the response (from its words; from its picture only

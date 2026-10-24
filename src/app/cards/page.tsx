@@ -4,7 +4,7 @@ import Link from "next/link";
 import { after } from "next/server";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
-import { CARDS_PUBLIC, cardKindsNow, isCardKind } from "@/lib/card-styles";
+import { CARDS_PUBLIC, cardKindsNow, isCardKind, isOccasion } from "@/lib/card-styles";
 import { INDEXABLE } from "@/lib/indexable";
 import { NEW_VISIT_HEADER } from "@/lib/source";
 import { countCards, listCards } from "@/server/cards";
@@ -44,6 +44,12 @@ export default async function CardsPage({ searchParams }: PageProps<"/cards">) {
   const arrival = (await headers()).get(NEW_VISIT_HEADER);
   if (arrival) after(() => recordLanding(arrival.slice(0, 40)).catch((error) => console.error("landing count failed", error)));
   const cards = await listCards(kind);
+  const kinds = cardKindsNow();
+  const lead = kinds.findIndex((k) => !isOccasion(k));
+  const season = kinds.slice(0, Math.max(0, lead));
+  const everyday = kinds.filter((k) => !isOccasion(k));
+  const offSeason = kinds.filter((k) => isOccasion(k) && !season.includes(k));
+  const chip = (on: boolean) => `shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${on ? "bg-accent text-white" : "bg-surface"}`;
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
       <SiteHeader locale={locale} dict={dict} />
@@ -60,16 +66,33 @@ export default async function CardsPage({ searchParams }: PageProps<"/cards">) {
             {t.makeNow}
           </Link>
         )}
+        {/* The kinds: an occasion in its days first, the everyday ones, then «🎉 مناسبات» — the
+            others together (his ask, 2026-10-24): it opens the first of them, with all of them in a
+            row underneath. */}
         <nav className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-          <Link href="/cards" className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${kind ? "bg-surface" : "bg-accent text-white"}`}>
+          <Link href="/cards" className={chip(!kind)}>
             {t.all}
           </Link>
-          {cardKindsNow().map((k) => (
-            <Link key={k} href={`/cards?kind=${k}`} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${kind === k ? "bg-accent text-white" : "bg-surface"}`}>
+          {[...season, ...everyday].map((k) => (
+            <Link key={k} href={`/cards?kind=${k}`} className={chip(kind === k)}>
               {t.kinds[k]}
             </Link>
           ))}
+          {offSeason.length > 0 && (
+            <Link href={`/cards?kind=${offSeason.includes(kind as never) ? kind : offSeason[0]}`} className={chip(offSeason.includes(kind as never))}>
+              {t.occasions}
+            </Link>
+          )}
         </nav>
+        {offSeason.includes(kind as never) && (
+          <nav className="-mx-4 -mt-2 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+            {offSeason.map((k) => (
+              <Link key={k} href={`/cards?kind=${k}`} className={chip(kind === k)}>
+                {t.kinds[k]}
+              </Link>
+            ))}
+          </nav>
+        )}
         {cards.length ? (
           <ul className="grid grid-cols-2 gap-2">
             {cards.map((c) => (

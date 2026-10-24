@@ -11,8 +11,8 @@ import {
   CARD_TEXT_MAX,
   CARD_TILT,
   DEFAULT_CARD_STYLE,
-  OCCASIONS,
   cardStyle,
+  isOccasion,
   lightColor,
   styleKey,
   type CardColor,
@@ -36,6 +36,8 @@ export type CardPicture = { image: string; by: string | null; shotId: string | n
 // «📷 … · zawmo.com» in the corner. Shared privately it goes straight from the phone; published,
 // the finished JPEG is sent to be kept.
 const W = 1080;
+const VISITOR_CARDS = 5;
+const SENT_KEY = "zw_cards_sent";
 
 function wrap(ctx: CanvasRenderingContext2D, text: string, width: number) {
   const lines: string[] = [];
@@ -76,6 +78,80 @@ function autoLook(img: HTMLImageElement, y: number): Pick<CardStyle, "color" | "
   }
 }
 
+// The logo's colours (src/app/globals.css: --brand-red, --brand-blue, --moment).
+const RED = "#e63946";
+const BLUE = "#2f6fed";
+const YELLOW = "#ffbf1f";
+
+// Zawmo's mark, bottom left: the Z (two strokes and the dot, as in src/app/Logo.tsx) with a light
+// halo so it shows on any picture, «zawmo» in the logo's red to blue, «.com» in white; the
+// photographer's credit small above.
+function drawMark(ctx: CanvasRenderingContext2D, H: number, family: string, credit: string | null) {
+  const s = 0.46; // the logo's 100-unit box → 46 px
+  const x0 = 24;
+  const y0 = H - 24 - 100 * s;
+  const strokes: [string, string][] = [
+    ["M16 18h56L36 54", RED],
+    ["M64 46L28 82h56", BLUE],
+  ];
+  ctx.save();
+  ctx.translate(x0, y0);
+  ctx.scale(s, s);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = 10;
+  for (const [d] of strokes) {
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.lineWidth = 22;
+    ctx.stroke(new Path2D(d));
+  }
+  ctx.shadowColor = "transparent";
+  for (const [d, color] of strokes) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 13;
+    ctx.stroke(new Path2D(d));
+  }
+  ctx.fillStyle = YELLOW;
+  ctx.beginPath();
+  ctx.arc(50, 50, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.direction = "ltr";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  const tx = x0 + 100 * s + 10;
+  const base = H - 34;
+  ctx.font = `800 34px ${family}`;
+  const word = ctx.measureText("zawmo").width;
+  const gradient = ctx.createLinearGradient(tx, 0, tx + word, 0);
+  gradient.addColorStop(0, RED);
+  gradient.addColorStop(1, BLUE);
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "rgba(255,255,255,0.9)";
+  ctx.shadowColor = "rgba(0,0,0,0.35)";
+  ctx.shadowBlur = 8;
+  ctx.strokeText("zawmo", tx, base);
+  ctx.shadowColor = "transparent";
+  ctx.fillStyle = gradient;
+  ctx.fillText("zawmo", tx, base);
+  ctx.font = `700 24px ${family}`;
+  ctx.shadowColor = "rgba(0,0,0,0.75)";
+  ctx.shadowBlur = 8;
+  ctx.fillStyle = "rgba(255,255,255,0.95)";
+  ctx.fillText(".com", tx + word + 2, base);
+  if (credit) {
+    ctx.direction = "rtl";
+    ctx.textAlign = "left";
+    ctx.font = `700 22px ${family}`;
+    ctx.fillText(credit, x0, y0 - 10);
+  }
+  ctx.restore();
+}
+
 // A point on the screen → on the card; and whether it is on the words (with a finger's margin).
 type Box = { cx: number; cy: number; w: number; h: number; tilt: number };
 function toCanvas(el: HTMLCanvasElement, clientX: number, clientY: number) {
@@ -95,7 +171,7 @@ export function CardEditor({
   picture,
   fonts,
   kinds,
-  canPublish,
+  member,
   signIn,
   labels,
   onOtherPicture,
@@ -103,7 +179,7 @@ export function CardEditor({
   picture: CardPicture;
   fonts: Record<CardFont, string>;
   kinds: Tab[];
-  canPublish: boolean;
+  member: boolean;
   signIn: ReactNode;
   labels: Labels;
   onOtherPicture?: () => void;
@@ -127,6 +203,15 @@ export function CardEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [editing, setEditing] = useState(true); // the lines open (until one is picked)
+  const [tool, setTool] = useState<"font" | "color" | "size" | "frame">("font");
+  const [occasions, setOccasions] = useState(false);
+  const [gate, setGate] = useState(false);
+  // The kinds: an occasion in its days first, the everyday ones, the others under «🎉 مناسبات».
+  const lead = kinds.findIndex((k) => !isOccasion(k));
+  const season = kinds.slice(0, Math.max(0, lead));
+  const everyday = kinds.filter((k) => !isOccasion(k));
+  const offSeason = kinds.filter((k) => isOccasion(k) && !season.includes(k));
 
   // The picture (same address as the page, or the phone's own, so the canvas may be saved), then
   // Gemini's lines for a public shot.
@@ -234,16 +319,9 @@ export function CardEditor({
         lines.forEach((l, i) => ctx.fillText(l, 0, at(i)));
         ctx.restore();
       }
-      // The mark, small in the corner: whose picture it is (a Zawmo shot), and Zawmo.
-      ctx.direction = "rtl";
-      ctx.textAlign = "left";
-      ctx.textBaseline = "alphabetic";
-      ctx.font = `700 24px ${fonts.cairo}`;
-      ctx.shadowColor = "rgba(0,0,0,0.75)";
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = "rgba(255,255,255,0.92)";
-      ctx.fillText(picture.by ? `📷 ${labels.photoBy.replace("{name}", picture.by)} · zawmo.com` : "zawmo.com", 26, H - 24);
-      ctx.shadowBlur = 0;
+      // The mark in the corner (his ask, 2026-10-24: clear, in the logo's colours, not in the way):
+      // the Z of the logo and «zawmo.com», and above them, small, whose picture it is.
+      drawMark(ctx, H, fonts.cairo, picture.by ? `📷 ${labels.photoBy.replace("{name}", picture.by)}` : null);
       // The finished card as a JPEG, ready before any tap: a phone opens its share sheet only
       // straight from the tap (iPhone refuses it after waiting for the picture). Made once the
       // card stops changing (not on every step of a drag).
@@ -293,8 +371,22 @@ export function CardEditor({
           }
         });
 
+  // A visitor sends five cards; the sixth asks them to sign in (his ask, 2026-10-24) — counted on
+  // the phone.
+  const sentSoFar = () => {
+    try {
+      return Number(localStorage.getItem(SENT_KEY)) || 0;
+    } catch {
+      return 0;
+    }
+  };
+
   function sharePrivately() {
     setError("");
+    if (!member && sentSoFar() >= VISITOR_CARDS) {
+      setGate(true);
+      return;
+    }
     const blob = card.current;
     if (!blob) {
       setError(labels.errors.generic);
@@ -304,6 +396,9 @@ export function CardEditor({
     const shared = () => {
       cardStep("shared");
       setSent(true);
+      try {
+        localStorage.setItem(SENT_KEY, String(sentSoFar() + 1));
+      } catch {}
     };
     if (navigator.canShare?.({ files: [file] })) {
       navigator.share({ files: [file] }).then(shared).catch(() => {});
@@ -343,19 +438,17 @@ export function CardEditor({
     setError(body?.error === "words" ? labels.errors.words : labels.errors.generic);
   }
 
-  // Lines: Gemini's for the picture, and the ready ones — for an occasion, or for one's own photo.
-  const ready_ = (k: CardKind) => (labels.ready[k] ?? []).map((t) => ({ kind: k, text: t }));
-  const occasion = tab && (OCCASIONS as readonly string[]).includes(tab);
-  const shown: Idea[] =
-    ideas === null && !occasion
-      ? []
-      : tab
-        ? occasion || !picture.shotId
-          ? ready_(tab)
-          : (ideas ?? []).filter((i) => i.kind === tab)
-        : picture.shotId
-          ? (ideas ?? [])
-          : kinds.slice(0, 5).flatMap((k) => ready_(k).slice(0, 2));
+  // Lines: Gemini's for the picture, then the ready ones of the kind (all of them for an occasion,
+  // or for one's own photo).
+  const readyOf = (k: CardKind) => (labels.ready[k] ?? []).map((t) => ({ kind: k, text: t }));
+  const geminiOf = (k: CardKind) => (ideas ?? []).filter((i) => i.kind === k);
+  const shown: Idea[] = tab
+    ? [...geminiOf(tab), ...readyOf(tab).filter((r) => !geminiOf(tab).some((g) => g.text === r.text))]
+    : picture.shotId
+      ? (ideas ?? [])
+      : everyday.slice(0, 5).flatMap((k) => readyOf(k).slice(0, 2));
+  const loading = ideas === null && (!tab || !isOccasion(tab));
+  const chip = (on: boolean) => `shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${on ? "bg-accent text-white" : "bg-surface"}`;
   const swatch = (c: CardColor, on: boolean, pick: () => void, name: string) => (
     <button
       key={c}
@@ -367,6 +460,193 @@ export function CardEditor({
       className={`size-8 shrink-0 rounded-full border border-black/20 ${on ? "ring-2 ring-accent ring-offset-2" : ""}`}
     />
   );
+  const scroller = "-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]";
+
+  // The words: the lines to pick from, or — once picked — folded to one line, so the tools sit right
+  // under the picture and every change shows on it (his ask, 2026-10-24).
+  const words = editing ? (
+    <section className="flex flex-col gap-2">
+      <h2 className="text-base font-extrabold">{picture.shotId ? labels.ideas : labels.readyLines}</h2>
+      <div className={scroller}>
+        <button type="button" onClick={() => setTab(null)} className={chip(!tab)}>
+          ✨
+        </button>
+        {[...season, ...everyday].map((k) => (
+          <button key={k} type="button" onClick={() => setTab(k)} className={chip(tab === k)}>
+            {labels.kinds[k]}
+          </button>
+        ))}
+        {offSeason.length > 0 && (
+          <button type="button" onClick={() => setOccasions((o) => !o)} aria-expanded={occasions} className={chip(occasions || (!!tab && offSeason.includes(tab)))}>
+            {labels.occasions} {occasions ? "▴" : "▾"}
+          </button>
+        )}
+      </div>
+      {occasions && (
+        <div className={scroller}>
+          {offSeason.map((k) => (
+            <button key={k} type="button" onClick={() => setTab(k)} className={chip(tab === k)}>
+              {labels.kinds[k]}
+            </button>
+          ))}
+        </div>
+      )}
+      {loading ? (
+        <p className="animate-pulse text-sm text-muted">{labels.loading}</p>
+      ) : shown.length ? (
+        <ul className="flex flex-col gap-2">
+          {shown.map((i) => (
+            <li key={i.text}>
+              <button
+                type="button"
+                onClick={() => {
+                  setText(i.text);
+                  setKind(i.kind);
+                  setEditing(false);
+                }}
+                className={`w-full rounded-2xl px-4 py-3 text-start text-base leading-relaxed ${text === i.text ? "bg-accent/15 ring-2 ring-accent" : "bg-surface"}`}
+              >
+                {i.text}
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">{labels.noIdeas}</p>
+      )}
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value.slice(0, CARD_TEXT_MAX))}
+        placeholder={labels.write}
+        rows={2}
+        dir="auto"
+        className="w-full rounded-2xl bg-surface px-4 py-3 text-base"
+      />
+      {text.trim() && (
+        <button type="button" onClick={() => setEditing(false)} className="min-h-11 self-center rounded-full bg-secondary px-6 text-sm font-bold text-white dark:text-background">
+          {labels.doneText}
+        </button>
+      )}
+    </section>
+  ) : (
+    <button type="button" onClick={() => setEditing(true)} className="flex items-center justify-between gap-3 rounded-2xl bg-surface px-4 py-3 text-start">
+      <span className="line-clamp-2 leading-relaxed">{text}</span>
+      <span className="shrink-0 text-sm font-bold text-secondary">{labels.changeText}</span>
+    </button>
+  );
+
+  // The look, one tool at a time, right under the picture.
+  const tools = (
+    <section className="flex flex-col gap-3 rounded-3xl bg-surface/60 p-3">
+      <div className="grid grid-cols-4 gap-1">
+        {(["font", "color", "size", "frame"] as const).map((t) => (
+          <button key={t} type="button" onClick={() => setTool(t)} className={`min-h-10 rounded-xl px-1 text-xs font-bold ${tool === t ? "bg-accent text-white" : "bg-background"}`}>
+            {labels.tools[t]}
+          </button>
+        ))}
+      </div>
+      {tool === "font" && (
+        <div className={scroller}>
+          {CARD_FONTS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => set({ font: f.key })}
+              style={{ fontFamily: fonts[f.key], fontWeight: f.weight }}
+              className={`shrink-0 rounded-xl px-4 py-2 text-lg ${look.font === f.key ? "bg-black text-white ring-2 ring-accent" : "bg-background"}`}
+            >
+              صباح الخير
+            </button>
+          ))}
+        </div>
+      )}
+      {tool === "color" && (
+        <div className="flex flex-wrap gap-2">
+          {(Object.keys(CARD_COLORS) as CardColor[]).map((c) =>
+            swatch(
+              c,
+              look.color === c,
+              () => {
+                chosen.current = true;
+                set({ color: c, frameColor: lightColor(c) === lightColor(look.frameColor) ? (lightColor(c) ? "black" : "white") : look.frameColor });
+              },
+              labels.colors[c],
+            ),
+          )}
+        </div>
+      )}
+      {tool === "size" && (
+        <div className="flex flex-col gap-3">
+          <label className="flex items-center gap-3 text-sm font-bold">
+            <span className="w-24 shrink-0">{labels.size}</span>
+            <input type="range" min={CARD_SIZE.min} max={CARD_SIZE.max} step={5} value={look.size} onChange={(e) => set({ size: Number(e.target.value) })} className="w-full accent-accent" />
+          </label>
+          <div className="flex items-center gap-3 text-sm font-bold">
+            <label htmlFor="card-tilt" className="w-24 shrink-0">
+              {labels.tilt}
+            </label>
+            <input
+              id="card-tilt"
+              type="range"
+              min={-CARD_TILT}
+              max={CARD_TILT}
+              step={1}
+              value={look.tilt}
+              // (dir ltr: dragging right tilts the words up to the right, like turning a stamp)
+              dir="ltr"
+              onChange={(e) => {
+                const t = Number(e.target.value);
+                set({ tilt: Math.abs(t) <= 2 ? 0 : t });
+              }}
+              className="w-full accent-accent"
+            />
+            <button type="button" onClick={() => set({ tilt: 0 })} disabled={look.tilt === 0} className="shrink-0 rounded-full bg-background px-3 py-1 text-xs disabled:opacity-40">
+              {labels.straight}
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-bold">{labels.place}</span>
+            {(Object.keys(CARD_PLACES) as (keyof typeof CARD_PLACES)[]).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => set({ x: 50, y: CARD_PLACES[p] })}
+                className={`rounded-full px-3 py-1.5 text-sm font-bold ${look.x === 50 && look.y === CARD_PLACES[p] ? "bg-accent text-white" : "bg-background"}`}
+              >
+                {labels.places[p]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {tool === "frame" && (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            {CARD_FRAMES.map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => {
+                  chosen.current = true;
+                  set({ frame: f });
+                }}
+                className={`rounded-full px-3 py-1.5 text-sm font-bold ${look.frame === f ? "bg-accent text-white" : "bg-background"}`}
+              >
+                {labels.frames[f]}
+              </button>
+            ))}
+          </div>
+          {look.frame !== "none" && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted">{labels.frameColor}</span>
+              {(Object.keys(CARD_COLORS) as CardColor[]).map((c) => swatch(c, look.frameColor === c, () => set({ frameColor: c }), labels.colors[c]))}
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
@@ -405,156 +685,33 @@ export function CardEditor({
         )}
       </div>
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-base font-extrabold">{picture.shotId ? labels.ideas : labels.readyLines}</h2>
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-          <button type="button" onClick={() => setTab(null)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${tab ? "bg-surface" : "bg-accent text-white"}`}>
-            ✨
-          </button>
-          {kinds.map((k) => (
-            <button key={k} type="button" onClick={() => setTab(k)} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-bold ${tab === k ? "bg-accent text-white" : "bg-surface"}`}>
-              {labels.kinds[k]}
-            </button>
-          ))}
-        </div>
-        {ideas === null && !occasion ? (
-          <p className="animate-pulse text-sm text-muted">{labels.loading}</p>
-        ) : shown.length ? (
-          <ul className="flex flex-col gap-2">
-            {shown.map((i) => (
-              <li key={i.text}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setText(i.text);
-                    setKind(i.kind);
-                  }}
-                  className={`w-full rounded-2xl px-4 py-3 text-start text-base leading-relaxed ${text === i.text ? "bg-accent/15 ring-2 ring-accent" : "bg-surface"}`}
-                >
-                  {i.text}
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted">{labels.noIdeas}</p>
-        )}
-      </section>
-
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value.slice(0, CARD_TEXT_MAX))}
-        placeholder={labels.write}
-        rows={2}
-        dir="auto"
-        className="w-full rounded-2xl bg-surface px-4 py-3 text-base"
-      />
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-base font-extrabold">{labels.style}</h2>
-        {/* The font: each chip written in its own font. */}
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-          {CARD_FONTS.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              onClick={() => set({ font: f.key })}
-              style={{ fontFamily: fonts[f.key], fontWeight: f.weight }}
-              className={`shrink-0 rounded-xl px-4 py-2 text-lg ${look.font === f.key ? "bg-black text-white ring-2 ring-accent" : "bg-surface"}`}
-            >
-              صباح الخير
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(CARD_PLACES) as (keyof typeof CARD_PLACES)[]).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => set({ x: 50, y: CARD_PLACES[p] })}
-              className={`rounded-full px-3 py-1.5 text-sm font-bold ${look.x === 50 && look.y === CARD_PLACES[p] ? "bg-accent text-white" : "bg-surface"}`}
-            >
-              {labels.places[p]}
-            </button>
-          ))}
-        </div>
-        <label className="flex items-center gap-3 text-sm font-bold">
-          <span className="w-20 shrink-0">{labels.size}</span>
-          <input type="range" min={CARD_SIZE.min} max={CARD_SIZE.max} step={5} value={look.size} onChange={(e) => set({ size: Number(e.target.value) })} className="w-full accent-accent" />
-        </label>
-        <div className="flex items-center gap-3 text-sm font-bold">
-          <label htmlFor="card-tilt" className="w-20 shrink-0">
-            {labels.tilt}
-          </label>
-          <input
-            id="card-tilt"
-            type="range"
-            min={-CARD_TILT}
-            max={CARD_TILT}
-            step={1}
-            value={look.tilt}
-            // (dir ltr: dragging right tilts the words up to the right, like turning a stamp)
-            dir="ltr"
-            onChange={(e) => {
-              const t = Number(e.target.value);
-              set({ tilt: Math.abs(t) <= 2 ? 0 : t });
-            }}
-            className="w-full accent-accent"
-          />
-          <button type="button" onClick={() => set({ tilt: 0 })} disabled={look.tilt === 0} className="shrink-0 rounded-full bg-surface px-3 py-1 text-xs disabled:opacity-40">
-            {labels.straight}
-          </button>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-bold">{labels.colorTitle}</span>
-          <div className="flex flex-wrap gap-2">
-            {(Object.keys(CARD_COLORS) as CardColor[]).map((c) =>
-              swatch(
-                c,
-                look.color === c,
-                () => {
-                  chosen.current = true;
-                  set({ color: c, frameColor: lightColor(c) === lightColor(look.frameColor) ? (lightColor(c) ? "black" : "white") : look.frameColor });
-                },
-                labels.colors[c],
-              ),
-            )}
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-bold">{labels.frame}</span>
-          <div className="flex flex-wrap gap-2">
-            {CARD_FRAMES.map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => {
-                  chosen.current = true;
-                  set({ frame: f });
-                }}
-                className={`rounded-full px-3 py-1.5 text-sm font-bold ${look.frame === f ? "bg-accent text-white" : "bg-surface"}`}
-              >
-                {labels.frames[f]}
-              </button>
-            ))}
-          </div>
-          {look.frame !== "none" && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <span className="text-xs text-muted">{labels.frameColor}</span>
-              {(Object.keys(CARD_COLORS) as CardColor[]).map((c) => swatch(c, look.frameColor === c, () => set({ frameColor: c }), labels.colors[c]))}
-            </div>
-          )}
-        </div>
-      </section>
+      {text.trim() && !editing ? (
+        <>
+          {tools}
+          {words}
+        </>
+      ) : (
+        words
+      )}
 
       <div className="flex flex-col gap-2">
-        <button type="button" onClick={sharePrivately} disabled={!ready} className="min-h-12 rounded-full bg-accent px-6 font-extrabold text-white shadow-sm disabled:opacity-50">
-          {labels.sharePrivate}
-        </button>
-        <p className="text-center text-xs text-muted">{picture.shotId ? labels.sharePrivateHint : labels.ownNote}</p>
+        {gate ? (
+          <section className="flex flex-col gap-2 rounded-3xl border-2 border-accent/40 bg-accent/5 p-4 text-center">
+            <p className="font-extrabold">{labels.limitTitle}</p>
+            <p className="text-sm text-muted">{labels.limitText}</p>
+            {signIn}
+          </section>
+        ) : (
+          <>
+            <button type="button" onClick={sharePrivately} disabled={!ready} className="min-h-12 rounded-full bg-accent px-6 font-extrabold text-white shadow-sm disabled:opacity-50">
+              {labels.sharePrivate}
+            </button>
+            <p className="text-center text-xs text-muted">{picture.shotId ? labels.sharePrivateHint : labels.ownNote}</p>
+          </>
+        )}
         {sent && (picture.shotId ? <CardBridge text={labels.bridge.replace("{name}", picture.by ?? "")} button={labels.bridgeButton} /> : <CardBridge text={labels.bridgeOwn} button={labels.bridgeButton} />)}
         {picture.shotId &&
-          (canPublish ? (
+          (member ? (
             <>
               <button type="button" onClick={publish} disabled={!ready || busy || !text.trim()} className="min-h-12 rounded-full bg-surface px-6 font-extrabold disabled:opacity-50">
                 {busy ? labels.publishing : labels.publish}
@@ -562,7 +719,7 @@ export function CardEditor({
               <p className="text-center text-xs text-muted">{labels.publishHint}</p>
             </>
           ) : (
-            signIn
+            !gate && signIn
           ))}
         {error && (
           <p role="alert" className="text-center text-sm font-bold text-accent">

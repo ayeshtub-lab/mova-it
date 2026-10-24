@@ -6,7 +6,8 @@ type Shot = { id: string; picked?: boolean; video: boolean; mediaUrl: string | n
 
 // Real public shots on the visitor's home page. Videos take a double-height tile and play
 // silently while on screen; everything opens the moment it belongs to. With `card` (his idea,
-// 2026-10-24): the newest public «💌 بطاقة» among them, third, marked — it opens the cards.
+// 2026-10-24): the newest public «💌 بطاقة», marked, in the place of one of the photos under the
+// videos (never among the videos — their double tiles keep their layout) — it opens the cards.
 export function Showcase({
   shots,
   labels,
@@ -17,6 +18,11 @@ export function Showcase({
   card?: { id: string; text: string; label: string } | null;
 }) {
   if (!shots.length) return null;
+  const firstPhoto = shots.findIndex((s) => !s.video);
+  const withCard = !!card && firstPhoto >= 0 && shots.length - firstPhoto >= 2;
+  // (one photo fewer, so the grid ends as even as before)
+  const list = withCard ? shots.slice(0, -1) : shots;
+  const cardAt = Math.min(firstPhoto + 2, list.length);
   const cardTile = card && (
     <li key="card">
       <Link href="/cards" className="group relative block size-full overflow-hidden rounded-2xl bg-surface">
@@ -30,8 +36,8 @@ export function Showcase({
     <section className="flex flex-col gap-3">
       <h2 className="text-xl font-extrabold">{labels.title}</h2>
       <ul className="grid auto-rows-[9.5rem] grid-flow-dense grid-cols-3 gap-1.5 sm:auto-rows-[12rem]">
-        {shots.map((s, i) => [
-          i === 2 && cardTile,
+        {list.map((s, i) => [
+          withCard && i === cardAt && cardTile,
           <li key={s.id} className={s.video ? "row-span-2" : ""}>
             <Link href={`/m/${s.momentCode}#angle-${s.id}`} className="group relative block size-full overflow-hidden rounded-2xl bg-surface">
               {s.video && s.mediaUrl ? (
@@ -53,6 +59,7 @@ export function Showcase({
             </Link>
           </li>,
         ])}
+        {withCard && cardAt === list.length && cardTile}
       </ul>
       <Link href="/discover" className="min-h-11 self-center rounded-full bg-secondary px-6 py-2.5 text-sm font-bold text-white dark:text-background">
         {labels.more}

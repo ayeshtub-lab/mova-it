@@ -6,6 +6,7 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { googleEnabled } from "@/server/google";
 import { cardKindsNow } from "@/lib/card-styles";
+import { SCENES } from "@/lib/scenes";
 import { cardPictures } from "@/server/cards";
 import { publicShot } from "@/server/seo";
 import { CardEditor } from "./CardEditor";
@@ -64,12 +65,20 @@ export default async function NewCardPage({ searchParams }: PageProps<"/card/new
             picture={{ image: `/i/${shot.id}.jpg`, by: shot.contributor.displayName, shotId: shot.id }}
             fonts={fontFamilies}
             kinds={kinds}
-            canPublish={member}
+            member={member}
             signIn={!member && googleEnabled() ? <GoogleButton label={t.signIn} returnTo={`/card/new?shot=${shot.id}`} /> : null}
             labels={t}
           />
         ) : (
-          <CardStart shots={await cardPictures()} fonts={fontFamilies} kinds={kinds} labels={t} />
+          <CardStart
+            shots={await cardPictures()}
+            fonts={fontFamilies}
+            kinds={kinds}
+            member={member}
+            signIn={!member && googleEnabled() ? <GoogleButton label={t.signIn} returnTo="/card/new" /> : null}
+            labels={t}
+            sceneLabels={Object.fromEntries(Object.entries(SCENES).map(([k, v]) => [k, locale === "ar" ? v.ar : v.en])) as Record<keyof typeof SCENES, string>}
+          />
         )}
       </main>
     </div>

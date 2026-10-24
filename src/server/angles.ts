@@ -2,6 +2,7 @@ import { staffOver } from "@/lib/staff";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import sharp from "sharp";
 import { del, list, put } from "@vercel/blob";
 import { MediaType, PlaceSource, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
@@ -349,19 +350,47 @@ export async function completeAngle(user: User, angleId: string, options: { trim
   return Object.assign(saved, { titleSuggestion, captionIdeas, wentLive: false });
 }
 
-// A video's cover made on the server: a frame half a second in, 720 px on its long side.
+// A video's cover made on the server: a frame half a second in, 720 px on its long side — or, when
+// that frame is black (a video that fades in), the first of 1.5 s and 3 s that isn't.
 async function posterFromVideo(mediaPath: string, thumbPath: string) {
   const dir = await mkdtemp(join(tmpdir(), "zawmo-poster-"));
   try {
     const out = join(dir, "poster.jpg");
     const url = (await viewUrl(mediaPath))!;
-    await ffmpeg(["-ss", "0.5", "-i", url, "-frames:v", "1", "-vf", "scale='if(gt(iw,ih),720,-2)':'if(gt(iw,ih),-2,720)'", "-q:v", "4", out], 60_000).catch(() =>
-      ffmpeg(["-i", url, "-frames:v", "1", "-vf", "scale='if(gt(iw,ih),720,-2)':'if(gt(iw,ih),-2,720)'", "-q:v", "4", out], 60_000),
-    );
+    const scale = "scale='if(gt(iw,ih),720,-2)':'if(gt(iw,ih),-2,720)'";
+    const frame = (at: string) => ffmpeg(["-y", "-ss", at, "-i", url, "-frames:v", "1", "-vf", scale, "-q:v", "4", out], 60_000);
+    await frame("0.5").catch(() => ffmpeg(["-y", "-i", url, "-frames:v", "1", "-vf", scale, "-q:v", "4", out], 60_000));
+    for (const at of ["1.5", "3"]) {
+      if (!(await blackFrame(await readFile(out)))) break;
+      await frame(at).catch(() => {});
+    }
     await put(thumbPath, await readFile(out), { access: "private", contentType: "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+// A cover that is one flat black (2026-10-24: 5 of 119 public videos showed a black square on the
+// home page — a phone that drew the frame before it was decoded): no light and nothing in it. A
+// truly dark video (night) still has some.
+export async function blackFrame(jpeg: Buffer) {
+  const { channels } = await sharp(jpeg).stats();
+  return channels.slice(0, 3).every((c) => c.mean < 6 && c.stdev < 5);
+}
+
+// A video's black cover made again from the video, under a new name (so no cached copy lingers).
+// Returns whether it was black.
+export async function repairBlackCover(angleId: string) {
+  const angle = await db.angle.findUnique({ where: { id: angleId }, select: { id: true, momentId: true, mediaType: true, mediaPath: true, thumbPath: true } });
+  if (!angle || angle.mediaType !== MediaType.VIDEO || !angle.mediaPath || !angle.thumbPath) return false;
+  const url = await viewUrl(angle.thumbPath);
+  const cover = url ? await fetch(url, { signal: AbortSignal.timeout(15_000) }).catch(() => null) : null;
+  if (!cover?.ok || !(await blackFrame(Buffer.from(await cover.arrayBuffer())))) return false;
+  const path = `m/${angle.momentId}/${angle.id}-cover-${Date.now().toString(36)}.jpg`;
+  await posterFromVideo(angle.mediaPath, path);
+  await db.angle.update({ where: { id: angle.id }, data: { thumbPath: path } });
+  await del(angle.thumbPath).catch(() => {});
+  return true;
 }
 
 // What the app knows for sure about a shot, for its SEO title and description: the moment's
@@ -597,4 +626,20 @@ export async function updateShotSeo(user: User, angleId: string, input: { title?
   const text = tidy(input.text, 400);
   if (!title) throw new AngleError("needs_title");
   return db.angle.update({ where: { id: angle.id }, data: { aiTitle: title, aiText: text || null, aiTitleEn: null, aiTextEn: null }, select: { aiTitle: true, aiText: true } }); // (its English written again from the new words — src/server/translate.ts)
+}
+
+// The hourly safety net (src/app/api/cron/cleanup): the videos of the last two days whose cover may
+// be black (a repair after upload that failed); until 2026-10-27 every public video, once — the five
+// black covers found on 2026-10-24.
+const BLACK_SWEEP_UNTIL = Date.parse("2026-10-27T00:00:00Z");
+export async function repairBlackCovers(now = new Date()) {
+  const since = now.getTime() < BLACK_SWEEP_UNTIL ? new Date(0) : new Date(now.getTime() - 2 * 24 * 3600 * 1000);
+  const videos = await db.angle.findMany({
+    where: { mediaType: MediaType.VIDEO, status: "READY", uploadedAt: { gte: since }, NOT: { thumbPath: { contains: "-cover-" } } },
+    select: { id: true },
+    take: 400,
+  });
+  let repaired = 0;
+  for (const v of videos) if (await repairBlackCover(v.id).catch((error) => (console.error("black cover repair failed", v.id, error), false))) repaired++;
+  return { checked: videos.length, repaired };
 }

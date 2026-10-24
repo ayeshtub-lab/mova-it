@@ -5,13 +5,14 @@
 // (his OK after trying it, 2026-10-23: «اجعلها للكل»).
 export const CARDS_PUBLIC = true;
 
-export const CARD_KINDS = ["morning", "evening", "love", "wisdom", "friday", "ramadan", "fitr", "adha", "mawlid", "other"] as const;
+export const CARD_KINDS = ["morning", "evening", "love", "wisdom", "friday", "coffee", "ramadan", "fitr", "adha", "mawlid", "other"] as const;
 export type CardKind = (typeof CARD_KINDS)[number];
 export const isCardKind = (v: unknown): v is CardKind => typeof v === "string" && (CARD_KINDS as readonly string[]).includes(v);
 
 // The occasions (his list, 2026-10-24): their lines are ready-made (the dictionary's card.ready),
 // and each comes first on /cards and in the editor around its days — by the Hijri calendar.
 export const OCCASIONS = ["ramadan", "fitr", "adha", "mawlid"] as const;
+export const isOccasion = (k: string) => (OCCASIONS as readonly string[]).includes(k);
 type Occasion = (typeof OCCASIONS)[number];
 const HIJRI = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", { month: "numeric", day: "numeric", timeZone: "Asia/Hebron" });
 // [from month, from day, to month, to day]: Ramadan from Shaban; Eid al-Fitr from mid-Ramadan; Eid
@@ -32,7 +33,8 @@ export function occasionsNow(now = new Date()): Occasion[] {
     return at >= fm * 100 + fd && at <= tm * 100 + td;
   });
 }
-// The kinds as tabs (without «other»): an occasion in its days first, then the everyday ones.
+// The kinds as tabs (without «other»): an occasion in its days first, then the everyday ones (the
+// occasions out of season are kept together under «🎉 مناسبات», his ask 2026-10-24).
 export function cardKindsNow(now = new Date()): Exclude<CardKind, "other">[] {
   const season = occasionsNow(now);
   const rest = CARD_KINDS.filter((k): k is Exclude<CardKind, "other"> => k !== "other" && !(season as string[]).includes(k));

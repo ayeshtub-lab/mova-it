@@ -2,6 +2,7 @@ import { put } from "@vercel/blob";
 import { unstable_cache } from "next/cache";
 import { CARD_TEXT_MAX, isCardKind, isCardStyle, type CardKind } from "@/lib/card-styles";
 import { db } from "@/lib/db";
+import { isScene, type Scene } from "@/lib/scenes";
 import type { User } from "@/generated/prisma/client";
 import { viewUrl } from "@/server/media";
 import { callGemini, screenText, screeningEnabled } from "@/server/screening";
@@ -27,12 +28,13 @@ const IDEAS_PROMPT = `You write the words for greeting cards on Zawmo, a site of
 
 Look at the picture first. Every line must fit what is actually in it (the moon, coffee, flowers, the sea, rain, bread, a sunset…) — say that thing or its feeling, so the words and the picture belong together. For example a moon at night → «وإني أرى جمالكِ كجمال القمر».
 
-Write 10 lines in Arabic, warm and natural — Modern Standard Arabic or gentle Levantine, as people really send them:
+Write 11 lines in Arabic, warm and natural — Modern Standard Arabic or gentle Levantine, as people really send them:
 - 3 of kind "morning" (صباح الخير, صباحكم…),
 - 3 of kind "evening" (مساء الخير, مسا الورد, تصبحون على خير…),
 - 2 of kind "love": gentle ghazal, romantic but clean — nothing sexual, nothing vulgar,
 - 1 of kind "wisdom": a short wise saying fitting the picture,
-- 1 of kind "friday": a Friday greeting (جمعة مباركة) fitting the picture.
+- 1 of kind "friday": a Friday greeting (جمعة مباركة) fitting the picture,
+- 1 of kind "coffee": a line about coffee (قهوة، فنجان، هيل، قهوة الصبح) in the picture's mood — the kind people share with a morning coffee.
 Each line at most 90 characters, at most one emoji, no hashtags, no quotation marks. Write your own lines: never quote a famous poet's verse or a verse of the Quran or a hadith.
 
 Answer only with JSON: {"ideas":[{"kind":"morning","text":"…"}]}`;
@@ -89,7 +91,7 @@ async function askIdeas(angleId: string): Promise<CardIdea[]> {
 export const cardIdeasNow = askIdeas;
 
 // Asked once per picture, kept a week (a fraction of a cent each time it is asked).
-export const cardIdeas = (angleId: string) => unstable_cache(() => askIdeas(angleId), ["card-ideas-1", angleId], { revalidate: 7 * 24 * 3600 })();
+export const cardIdeas = (angleId: string) => unstable_cache(() => askIdeas(angleId), ["card-ideas-2", angleId], { revalidate: 7 * 24 * 3600 })();
 
 // ── A public card ───────────────────────────────────────────────────────────────────────────────
 const JPEG = (b: Buffer) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
@@ -144,19 +146,30 @@ export async function sitemapCards() {
   return db.card.findMany({ where: { ...shownCard(), shares: { gt: 0 } }, orderBy: { shares: "desc" }, take: 500, select: { id: true, createdAt: true } });
 }
 
-// «💌 اعمل بطاقة» without a picture yet (2026-10-24): public photos to pick from, Zawmo's picks
-// first, then the newest — kept 10 minutes.
+// «💌 اعمل بطاقة» without a picture yet (2026-10-24): public photos to pick from — 60, varied (one
+// per moment, at most four of one person's), Zawmo's picks first, then the newest — with what they
+// show, for the scene chips. Kept 10 minutes.
 export const cardPictures = unstable_cache(
   async () => {
     const shots = await db.angle.findMany({
       where: { ...shownAngle(new Date()), mediaType: "PHOTO" },
       orderBy: [{ pickedAt: { sort: "desc", nulls: "last" } }, { uploadedAt: "desc" }],
-      take: 30,
-      select: { id: true },
+      take: 600,
+      select: { id: true, scene: true, momentId: true, contributorId: true },
     });
-    return shots.map((s) => s.id);
+    const moments = new Set<string>();
+    const people = new Map<string, number>();
+    const out: { id: string; scene: Scene | null }[] = [];
+    for (const s of shots) {
+      if (out.length >= 60) break;
+      if (moments.has(s.momentId) || (people.get(s.contributorId) ?? 0) >= 4) continue;
+      moments.add(s.momentId);
+      people.set(s.contributorId, (people.get(s.contributorId) ?? 0) + 1);
+      out.push({ id: s.id, scene: isScene(s.scene) ? s.scene : null });
+    }
+    return out;
   },
-  ["card-pictures-1"],
+  ["card-pictures-2"],
   { revalidate: 600 },
 );
 
