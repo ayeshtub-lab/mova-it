@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { restNow } from "@/lib/night-rest";
 import { brandPending } from "@/server/branded";
 import { markPending } from "@/server/marked";
 import { describePending, recheckUnscreened } from "@/server/angles";
@@ -17,13 +18,15 @@ const RETITLE_PREVIEW = false;
 // Each render takes a while (the whole clip is re-encoded once).
 export const maxDuration = 300;
 
-// Every 10 minutes (vercel.json): fresh shots get the weather they were taken in (quick, a few
+// Every 15 minutes (vercel.json; once an hour at night — src/lib/night-rest.ts): fresh shots get the weather they were taken in (quick, a few
 // calls), then older videos get their stamped copy made ahead, a few per run, and photos with a
 // sound their shared video. A weather failure never stops the videos.
 export async function GET(request: Request) {
   const started = Date.now();
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // The night rest (src/lib/night-rest.ts): one run an hour from 01:00 to 07:00, the database asleep between.
+  if (restNow()) return NextResponse.json({ resting: true });
   const weather = await stampWeather().catch((error) => {
     console.error("weather failed", error);
     return 0;

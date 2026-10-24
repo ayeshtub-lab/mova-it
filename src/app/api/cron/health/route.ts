@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { restNow } from "@/lib/night-rest";
 import { db } from "@/lib/db";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { pushNote } from "@/server/push";
@@ -15,6 +16,8 @@ export const maxDuration = 120;
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // The night rest (src/lib/night-rest.ts): one run an hour from 01:00 to 07:00, the database asleep between.
+  if (restNow()) return NextResponse.json({ resting: true });
 
   const checks: Check[] = await smokeChecks(`https://${CANONICAL_HOST}`).catch((error) => [{ name: "smoke", ok: false, detail: String(error), ms: 0 }]);
   const t0 = Date.now();
