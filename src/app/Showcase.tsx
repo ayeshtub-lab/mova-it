@@ -5,14 +5,33 @@ import { filterCss } from "@/lib/filters";
 type Shot = { id: string; picked?: boolean; video: boolean; mediaUrl: string | null; backupUrl?: string | null; hlsUrl?: string | null; imageUrl: string | null; momentCode: string; title: string; name: string; filter: string | null };
 
 // Real public shots on the visitor's home page. Videos take a double-height tile and play
-// silently while on screen; everything opens the moment it belongs to.
-export function Showcase({ shots, labels }: { shots: Shot[]; labels: { title: string; more: string } }) {
+// silently while on screen; everything opens the moment it belongs to. With `card` (his idea,
+// 2026-10-24): the newest public «💌 بطاقة» among them, third, marked — it opens the cards.
+export function Showcase({
+  shots,
+  labels,
+  card,
+}: {
+  shots: Shot[];
+  labels: { title: string; more: string };
+  card?: { id: string; text: string; label: string } | null;
+}) {
   if (!shots.length) return null;
+  const cardTile = card && (
+    <li key="card">
+      <Link href="/cards" className="group relative block size-full overflow-hidden rounded-2xl bg-surface">
+        {/* eslint-disable-next-line @next/next/no-img-element -- the card's fixed address */}
+        <img src={`/i/card-${card.id}.jpg`} alt={card.text} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
+        <span className="absolute start-1.5 top-1.5 rounded-full bg-white/90 px-1.5 text-xs font-extrabold text-black shadow">{card.label}</span>
+      </Link>
+    </li>
+  );
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-xl font-extrabold">{labels.title}</h2>
       <ul className="grid auto-rows-[9.5rem] grid-flow-dense grid-cols-3 gap-1.5 sm:auto-rows-[12rem]">
-        {shots.map((s, i) => (
+        {shots.map((s, i) => [
+          i === 2 && cardTile,
           <li key={s.id} className={s.video ? "row-span-2" : ""}>
             <Link href={`/m/${s.momentCode}#angle-${s.id}`} className="group relative block size-full overflow-hidden rounded-2xl bg-surface">
               {s.video && s.mediaUrl ? (
@@ -32,8 +51,8 @@ export function Showcase({ shots, labels }: { shots: Shot[]; labels: { title: st
                 <span className="block truncate">{s.title}</span>
               </span>
             </Link>
-          </li>
-        ))}
+          </li>,
+        ])}
       </ul>
       <Link href="/discover" className="min-h-11 self-center rounded-full bg-secondary px-6 py-2.5 text-sm font-bold text-white dark:text-background">
         {labels.more}

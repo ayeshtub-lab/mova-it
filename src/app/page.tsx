@@ -2,6 +2,7 @@ import { alternatesFor } from "@/i18n/alternates";
 import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { signOut } from "@/app/actions/session";
 import { Showcase } from "@/app/Showcase";
+import { homeCard } from "@/server/cards";
 import { publicShowcase, visitorShowcase } from "@/server/discover";
 import { inEnglish } from "@/server/localize";
 import { homeNews } from "@/server/home";
@@ -56,7 +57,7 @@ function HomeNews({ news, locale, dict }: { news: Awaited<ReturnType<typeof home
 // Signed in: what others added first, then their own moments.
 async function SignedInHome({ user, locale, dict, google }: { user: User; locale: Locale; dict: Dictionary; google: boolean }) {
   const [news, blocked] = await Promise.all([homeNews(user), blockedIdsFor(user.id)]);
-  const shots = inEnglish(await publicShowcase(12, [user.id, ...blocked]), locale);
+  const [shots, card] = await Promise.all([publicShowcase(12, [user.id, ...blocked]).then((s) => inEnglish(s, locale)), CARDS_PUBLIC ? homeCard() : null]);
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-7 pb-12">
       <div className="flex items-center justify-between gap-3">
@@ -116,7 +117,7 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
       <HomeNews news={news} locale={locale} dict={dict} />
 
       <div id="people" className="scroll-mt-6">
-        <Showcase shots={shots} labels={{ title: dict.home.peopleTitle, more: dict.home.showcaseMore }} />
+        <Showcase shots={shots} labels={{ title: dict.home.peopleTitle, more: dict.home.showcaseMore }} card={card && { ...card, label: dict.card.tile }} />
       </div>
 
       <DailyCard user={user} locale={locale} dict={dict} />
@@ -138,7 +139,7 @@ const POINT_ICONS = [
 // Visitors: the idea at a glance (a wheel of real public shots, each with its owner's
 // photo and first name), real shots, three ways to start, then sign in or try as a guest.
 async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; google: boolean; inAppHint: string | null }) {
-  const shots = inEnglish(await visitorShowcase(), await getLocale());
+  const [shots, card] = await Promise.all([visitorShowcase().then(async (s) => inEnglish(s, await getLocale())), CARDS_PUBLIC ? homeCard() : null]);
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 py-4 sm:py-10">
       <section className="flex flex-col items-center gap-5 text-center sm:flex-row sm:gap-8 sm:text-start">
@@ -153,7 +154,7 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
       </section>
 
       {/* What Zawmo looks like, for real (public shots, videos first) — before anything is asked. */}
-      <Showcase shots={shots} labels={{ title: dict.home.showcaseTitle, more: dict.home.showcaseMore }} />
+      <Showcase shots={shots} labels={{ title: dict.home.showcaseTitle, more: dict.home.showcaseMore }} card={card && { ...card, label: dict.card.tile }} />
 
       {/* Three ways in, the easiest first: a moment around you (nothing at stake), a story over
           time (useful alone, private), then an occasion — shown boldly, for when trust comes. */}

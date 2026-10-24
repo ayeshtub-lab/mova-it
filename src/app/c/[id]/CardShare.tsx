@@ -44,7 +44,7 @@ export function CardShare({ id, text, label, by, labels }: { id: string; text: s
       <button type="button" onClick={share} className="min-h-12 rounded-full bg-accent px-6 font-extrabold text-white shadow-sm">
         {label}
       </button>
-      {sent && <CardBridge by={by} labels={labels} />}
+      {sent && <CardBridge text={labels.bridge.replace("{name}", by)} button={labels.bridgeButton} />}
     </>
   );
 }

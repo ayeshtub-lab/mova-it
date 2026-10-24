@@ -131,7 +131,7 @@ export async function listCards(kind: CardKind | null, take = 60, exclude?: stri
     where: { ...shownCard(), ...(kind ? { kind } : {}), ...(exclude ? { id: { not: exclude } } : {}) },
     orderBy: [{ shares: "desc" }, { createdAt: "desc" }],
     take,
-    select: { id: true, text: true, kind: true, angleId: true },
+    select: { id: true, text: true, kind: true },
   });
 }
 
@@ -144,8 +144,35 @@ export async function sitemapCards() {
   return db.card.findMany({ where: { ...shownCard(), shares: { gt: 0 } }, orderBy: { shares: "desc" }, take: 500, select: { id: true, createdAt: true } });
 }
 
-export async function countCards() {
-  return db.card.count({ where: shownCard() });
+// «💌 اعمل بطاقة» without a picture yet (2026-10-24): public photos to pick from, Zawmo's picks
+// first, then the newest — kept 10 minutes.
+export const cardPictures = unstable_cache(
+  async () => {
+    const shots = await db.angle.findMany({
+      where: { ...shownAngle(new Date()), mediaType: "PHOTO" },
+      orderBy: [{ pickedAt: { sort: "desc", nulls: "last" } }, { uploadedAt: "desc" }],
+      take: 30,
+      select: { id: true },
+    });
+    return shots.map((s) => s.id);
+  },
+  ["card-pictures-1"],
+  { revalidate: 600 },
+);
+
+// On the home pages' grid (his idea, 2026-10-24): the newest public card, once there are enough
+// cards for /cards to be worth the visit — kept 5 minutes.
+export const homeCard = unstable_cache(
+  async () => {
+    if ((await countCards()) < CARDS_IN_SITEMAP_FROM) return null;
+    return db.card.findFirst({ where: shownCard(), orderBy: { createdAt: "desc" }, select: { id: true, text: true } });
+  },
+  ["home-card-1"],
+  { revalidate: 300 },
+);
+
+export async function countCards(kind?: CardKind) {
+  return db.card.count({ where: { ...shownCard(), ...(kind ? { kind } : {}) } });
 }
 
 export async function sharedCard(id: string) {
