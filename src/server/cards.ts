@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob";
+import { del, put } from "@vercel/blob";
 import { unstable_cache } from "next/cache";
 import { CARD_TEXT_MAX, isCardKind, isCardStyle, type CardKind } from "@/lib/card-styles";
 import { db } from "@/lib/db";
@@ -14,7 +14,7 @@ import { publicShot, shownAngle } from "@/server/seo";
 // words pass the same check as a public comment, for others to find ready-made on /cards.
 
 export class CardError extends Error {
-  constructor(public code: "not_found" | "words" | "bad_text" | "bad_image" | "members_only") {
+  constructor(public code: "not_found" | "words" | "bad_text" | "bad_image" | "members_only" | "forbidden") {
     super(code);
   }
 }
@@ -97,13 +97,14 @@ export const cardIdeas = (angleId: string) => unstable_cache(() => askIdeas(angl
 const JPEG = (b: Buffer) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 const IMAGE_MAX = 2 * 1024 * 1024;
 
-export async function publishCard(user: User, input: { angleId: unknown; text: unknown; kind: unknown; style: unknown; image: Buffer }) {
+export async function publishCard(user: User, input: { angleId: unknown; text: unknown; kind: unknown; style: unknown; image: Buffer; replace?: unknown }) {
   if (user.isGuest) throw new CardError("members_only");
   const shot = typeof input.angleId === "string" ? await publicShot(input.angleId) : null;
   if (!shot) throw new CardError("not_found");
   const text = typeof input.text === "string" ? cleanCardText(input.text) : "";
   if ([...text].length < 2 || !isCardKind(input.kind) || !isCardStyle(input.style)) throw new CardError("bad_text");
   if (!JPEG(input.image) || input.image.length > IMAGE_MAX) throw new CardError("bad_image");
+  if (typeof input.replace === "string" && input.replace) return replaceCard(user, input.replace, shot.id, { text, kind: input.kind, style: input.style, image: input.image });
   // The same words on the same picture are one card (2026-10-23): two pages of one image are a
   // duplicate to search engines — the one already there is opened to send instead.
   const same = await db.card.findFirst({ where: { angleId: shot.id, text, ...shownCard() }, orderBy: { createdAt: "asc" } });
@@ -115,6 +116,35 @@ export async function publishCard(user: User, input: { angleId: unknown; text: u
   const imagePath = `cards/${card.id}.jpg`;
   await put(imagePath, input.image, { access: "private", contentType: "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
   return db.card.update({ where: { id: card.id }, data: { imagePath } });
+}
+
+// «✏️ عدّل» (his ask, 2026-10-25): its maker (or an admin) changes a published card — new words or
+// look on the same picture. The words are checked again when they change; the picture is saved
+// under a new name (so no cached copy of the old one lingers) and the old one removed.
+async function replaceCard(user: User, id: string, angleId: string, input: { text: string; kind: CardKind; style: string; image: Buffer }) {
+  const card = await ownCard(user, id);
+  if (card.angleId !== angleId) throw new CardError("bad_text");
+  if (input.text !== card.text && (await screenText(input.text)).result !== "allowed") throw new CardError("words");
+  const imagePath = `cards/${card.id}-${Date.now().toString(36)}.jpg`;
+  await put(imagePath, input.image, { access: "private", contentType: "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
+  const updated = await db.card.update({ where: { id: card.id }, data: { text: input.text, kind: input.kind, style: input.style, imagePath, screening: "allowed" } });
+  if (card.imagePath && card.imagePath !== imagePath) await del(card.imagePath).catch(() => {});
+  return updated;
+}
+
+// A card its maker (or an admin) may change or remove.
+export async function ownCard(user: User, id: string) {
+  const card = /^[a-z0-9]{20,40}$/.test(id) ? await db.card.findUnique({ where: { id } }) : null;
+  if (!card) throw new CardError("not_found");
+  if (card.creatorId !== user.id && !user.isAdmin) throw new CardError("forbidden");
+  return card;
+}
+
+// «🗑️ احذفها» (his ask, 2026-10-25): gone for good — the card and its picture.
+export async function deleteCard(user: User, id: string) {
+  const card = await ownCard(user, id);
+  await db.card.delete({ where: { id: card.id } });
+  if (card.imagePath) await del(card.imagePath).catch(() => {});
 }
 
 // Shown: public, checked, its picture still public.

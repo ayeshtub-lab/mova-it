@@ -5,9 +5,9 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { googleEnabled } from "@/server/google";
-import { cardKindsNow } from "@/lib/card-styles";
+import { cardKindsNow, isCardKind } from "@/lib/card-styles";
 import { SCENES } from "@/lib/scenes";
-import { cardPictures } from "@/server/cards";
+import { cardPictures, ownCard } from "@/server/cards";
 import { publicShot } from "@/server/seo";
 import { CardEditor } from "./CardEditor";
 import { CardStart } from "./CardStart";
@@ -36,9 +36,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function NewCardPage({ searchParams }: PageProps<"/card/new">) {
-  const id = (await searchParams).shot;
+  const { shot: id, card: cardId } = await searchParams;
   const shot = typeof id === "string" ? await publicShot(id) : null;
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
+  // «✏️ عدّلها»: one's own published card on this picture (anyone else's: a new card instead).
+  const own = user && shot && typeof cardId === "string" ? await ownCard(user, cardId).catch(() => null) : null;
+  const edit = own && own.angleId === shot?.id && isCardKind(own.kind) ? { id: own.id, text: own.text, kind: own.kind, style: own.style } : undefined;
   const dict = await getDictionary(locale);
   const t = dict.card;
   const member = !!user && !user.isGuest;
@@ -68,6 +71,7 @@ export default async function NewCardPage({ searchParams }: PageProps<"/card/new
             member={member}
             signIn={!member && googleEnabled() ? <GoogleButton label={t.signIn} returnTo={`/card/new?shot=${shot.id}`} /> : null}
             labels={t}
+            edit={edit}
           />
         ) : (
           <CardStart

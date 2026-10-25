@@ -6,7 +6,7 @@
 import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
-import { CardError, cardIdeasOf, listCards, publicCard, publishCard, sharedCard } from "../src/server/cards";
+import { CardError, cardIdeasOf, deleteCard, listCards, publicCard, publishCard, sharedCard } from "../src/server/cards";
 import { createMoment } from "../src/server/moments";
 
 const TAG = "[cardstest]";
@@ -22,8 +22,8 @@ async function main() {
   // No Gemini here: everything checked comes before its call (screening is off without a key).
   delete process.env.GEMINI_API_KEY;
   const mk = (n: string, isGuest = false) => db.user.create({ data: { displayName: `${TAG} ${n}`, isGuest } });
-  const [owner, guest] = await Promise.all([mk("owner"), mk("guest", true)]);
-  const ids = [owner.id, guest.id];
+  const [owner, guest, stranger] = await Promise.all([mk("owner"), mk("guest", true), mk("stranger")]);
+  const ids = [owner.id, guest.id, stranger.id];
   try {
     const pub = await createMoment(owner, { title: "cards public", visibility: "PUBLIC" });
     const priv = await createMoment(owner, { title: "cards friends", visibility: "FRIENDS" });
@@ -81,6 +81,30 @@ async function main() {
       // (With good input, unchecked words — no Gemini here — are never published.)
       await assert.rejects(publishCard(owner, ok), isCard("words"));
       assert.equal(await db.card.count({ where: { creatorId: owner.id, text: "صباح الخير" } }), 0);
+    });
+
+    await check("editing (2026-10-25): its maker only, same picture; new look saved under a new picture", async () => {
+      const edit = { angleId: open.id, text: shown.text, kind: "morning", style: "ruqaa.gold.outline.black.50.30.110.-5", image: JPEG, replace: shown.id };
+      await assert.rejects(publishCard(stranger, edit), isCard("forbidden"));
+      await assert.rejects(publishCard(owner, { ...edit, angleId: hidden.id }), isCard("not_found"));
+      const other = await db.angle.create({ data: { momentId: pub.id, contributorId: owner.id, mediaType: "PHOTO", status: "READY", screening: "allowed", mediaPath: "y" } });
+      await assert.rejects(publishCard(owner, { ...edit, angleId: other.id }), isCard("bad_text"), "a card stays on its own picture");
+      // (New words would be checked by Gemini — off here — so they are refused, the card unchanged.)
+      await assert.rejects(publishCard(owner, { ...edit, text: "كلام جديد تمامًا" }), isCard("words"));
+      const saved = await publishCard(owner, edit);
+      assert.equal(saved.id, shown.id);
+      assert.equal(saved.style, edit.style);
+      assert.notEqual(saved.imagePath, "cards/x.jpg");
+      assert.match(saved.imagePath ?? "", new RegExp(`^cards/${shown.id}-`));
+    });
+
+    await check("deleting: its maker (or an admin) only, the card gone", async () => {
+      await assert.rejects(deleteCard(stranger, evening.id), isCard("forbidden"));
+      await assert.rejects(deleteCard(owner, "nope"), isCard("not_found"));
+      await deleteCard(owner, evening.id);
+      assert.equal(await db.card.count({ where: { id: evening.id } }), 0);
+      await deleteCard({ ...stranger, isAdmin: true }, shown.id);
+      assert.equal(await db.card.count({ where: { id: shown.id } }), 0);
     });
   } finally {
     await db.card.deleteMany({ where: { creatorId: { in: ids } } });

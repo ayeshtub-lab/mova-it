@@ -1,6 +1,7 @@
 import { alternatesFor } from "@/i18n/alternates";
 import { GRID_SIZES, gridSrcSet, INDEXABLE } from "@/lib/indexable";
 import { clip, plain } from "@/lib/clip";
+import { tagPhrase } from "@/lib/tag-phrase";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
@@ -20,9 +21,12 @@ export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Pro
   const tag = decodeURIComponent((await params).tag);
   const [locale, moments] = await Promise.all([getLocale(), visitorList(tag)]);
   const dict = await getDictionary(locale);
-  // (Words as people type them: «قهوة_المساء» → «قهوة المساء».)
-  const title = dict.tag.metaTitle.replace("{words}", tag.replace(/_/g, " ")).replace("{tag}", tag);
-  const description = clip(dict.tag.metaDescription.replace("{tag}", tag).replace("{titles}", moments.slice(0, 4).map((m) => m.title).join("، ")));
+  // (Words as people type them: «صور_قهوة_حقيقية» → «صور قهوة حقيقية», nothing said twice —
+  // src/lib/tag-phrase.ts; and each moment's title once.)
+  const phrase = tagPhrase(tag, locale);
+  const title = dict.tag.metaTitle.replace("{phrase}", phrase);
+  const titles = [...new Set(moments.map((m) => plain(m.title)))].slice(0, 4);
+  const description = clip(dict.tag.metaDescription.replace("{phrase}", phrase).replace("{titles}", titles.join(locale === "ar" ? "، " : ", ")));
   return {
     title,
     description,

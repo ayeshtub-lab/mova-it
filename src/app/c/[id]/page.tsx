@@ -10,6 +10,8 @@ import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { INDEXABLE } from "@/lib/indexable";
 import { listCards, publicCard } from "@/server/cards";
 import type { CardKind } from "@/lib/card-styles";
+import { getCurrentUser } from "@/lib/session";
+import { CardManage } from "./CardManage";
 import { CardShare } from "./CardShare";
 
 // One public «💌 بطاقة» (src/server/cards.ts): the card, ready to send on — and to make one like it
@@ -35,9 +37,10 @@ export async function generateMetadata({ params }: PageProps<"/c/[id]">): Promis
 export default async function CardPage({ params }: PageProps<"/c/[id]">) {
   const card = await publicCard((await params).id);
   if (!card) notFound();
-  const locale = await getLocale();
+  const [locale, user] = await Promise.all([getLocale(), getCurrentUser()]);
   const dict = await getDictionary(locale);
   const t = dict.card;
+  const mine = !!user && (user.id === card.creator.id || user.isAdmin);
   // «💌 بطاقات تانية متلها»: the same kind, most sent first — more to send, and links between cards.
   const more = await listCards(card.kind as CardKind, 6, card.id);
   const site = `https://${CANONICAL_HOST}`;
@@ -71,6 +74,7 @@ export default async function CardPage({ params }: PageProps<"/c/[id]">) {
         <Link href={`/card/new?shot=${card.angle.id}`} className="flex min-h-12 items-center justify-center rounded-full bg-surface px-6 font-extrabold">
           {t.makeOwn}
         </Link>
+        {mine && <CardManage id={card.id} shotId={card.angle.id} labels={t} />}
         {more.length > 0 && (
           <section className="flex flex-col gap-2">
             <h2 className="text-base font-extrabold">{t.more}</h2>

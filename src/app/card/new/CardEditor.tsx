@@ -175,6 +175,7 @@ export function CardEditor({
   signIn,
   labels,
   onOtherPicture,
+  edit,
 }: {
   picture: CardPicture;
   fonts: Record<CardFont, string>;
@@ -183,6 +184,9 @@ export function CardEditor({
   signIn: ReactNode;
   labels: Labels;
   onOtherPicture?: () => void;
+  // «✏️ عدّلها» (2026-10-25): a published card of one's own, opened with its words and look; saved
+  // over the same card (same address).
+  edit?: { id: string; text: string; kind: CardKind; style: string };
 }) {
   const router = useRouter();
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -191,19 +195,19 @@ export function CardEditor({
   // Where the words are drawn (canvas pixels), for dragging them.
   const box = useRef<Box | null>(null);
   const drag = useRef<{ id: number; px: number; py: number; x: number; y: number } | null>(null);
-  const chosen = useRef(false); // the colour was picked by hand: no more automatic one
+  const chosen = useRef(!!edit); // the colour was picked by hand (or the card's own): no automatic one
   const [ready, setReady] = useState(false);
   const [ideas, setIdeas] = useState<Idea[] | null>(picture.shotId ? null : []);
   const [tab, setTab] = useState<Tab | null>(null);
-  const [text, setText] = useState("");
-  const [kind, setKind] = useState<CardKind>("other");
-  const [style, setStyle] = useState(DEFAULT_CARD_STYLE);
+  const [text, setText] = useState(edit?.text ?? "");
+  const [kind, setKind] = useState<CardKind>(edit?.kind ?? "other");
+  const [style, setStyle] = useState(edit?.style ?? DEFAULT_CARD_STYLE);
   const look = cardStyle(style);
   const set = (patch: Partial<CardStyle>) => setStyle((s) => styleKey({ ...cardStyle(s), ...patch }));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
-  const [editing, setEditing] = useState(true); // the lines open (until one is picked)
+  const [editing, setEditing] = useState(!edit); // the lines open (until one is picked)
   const [tool, setTool] = useState<"font" | "color" | "size" | "frame">("font");
   const [occasions, setOccasions] = useState(false);
   const [gate, setGate] = useState(false);
@@ -427,6 +431,7 @@ export function CardEditor({
     form.set("kind", kind);
     form.set("style", style);
     form.set("image", blob, "card.jpg");
+    if (edit) form.set("replace", edit.id);
     const res = await fetch("/api/cards", { method: "POST", body: form }).catch(() => null);
     const body = (await res?.json().catch(() => null)) as { id?: string; error?: string } | null;
     if (res?.ok && body?.id) {
@@ -649,6 +654,7 @@ export function CardEditor({
 
   return (
     <div className="flex flex-col gap-4">
+      {edit && <p className="rounded-2xl bg-moment/15 px-4 py-2 text-center text-sm font-bold">{labels.editing}</p>}
       <div className="flex flex-col gap-1">
         <canvas
           ref={canvas}
@@ -714,7 +720,7 @@ export function CardEditor({
           (member ? (
             <>
               <button type="button" onClick={publish} disabled={!ready || busy || !text.trim()} className="min-h-12 rounded-full bg-surface px-6 font-extrabold disabled:opacity-50">
-                {busy ? labels.publishing : labels.publish}
+                {busy ? labels.publishing : edit ? labels.saveEdit : labels.publish}
               </button>
               <p className="text-center text-xs text-muted">{labels.publishHint}</p>
             </>
