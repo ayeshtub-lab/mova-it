@@ -128,6 +128,10 @@ type Labels = {
   };
 };
 
+// Moving between moments, as on TikTok (2026-10-26): the shot goes on from where the finger let
+// go, easing out — not quick and sharp; the next moment comes up with the same curve and timing.
+const SLIDE_MS = 450;
+const SLIDE = `transform ${SLIDE_MS}ms cubic-bezier(.22,.61,.36,1)`;
 const HEART = "M12 20.5s-7.6-4.6-9.5-9.3C1.2 7.8 3.3 4.5 6.7 4.5c2.1 0 3.6 1.2 5.3 3.1 1.7-1.9 3.2-3.1 5.3-3.1 3.4 0 5.5 3.3 4.2 6.7-1.9 4.7-9.5 9.3-9.5 9.3z";
 
 function timeAgo(iso: string, locale: string) {
@@ -314,7 +318,8 @@ export function AngleGallery({
   }, [current, sideHint]);
   const [upcoming, setUpcoming] = useState<NextMoment | null>(null);
   const [hint, setHint] = useState(false);
-  const touch = useRef<{ x: number; y: number; at: number } | null>(null);
+  const touch = useRef<{ x: number; y: number; at: number; axis: "x" | "y" | null } | null>(null);
+  const dragFrame = useRef(0);
   const wheelAt = useRef(0);
   useEffect(() => {
     if (!opened || !continueTo?.next.length) return;
@@ -377,7 +382,7 @@ export function AngleGallery({
     // black gap in between.
     const track = trackRef.current;
     if (track) {
-      track.style.transition = "transform .35s cubic-bezier(.3,.7,.3,1)";
+      track.style.transition = SLIDE;
       track.style.transform = "translateY(-100%)";
     }
     history.replaceState(null, "", `/m/${next.code}`);
@@ -388,10 +393,11 @@ export function AngleGallery({
       if (track) {
         track.style.transition = "";
         track.style.transform = "";
+        track.style.willChange = "";
       }
       setGoing(false);
       leaving.current = false;
-    }, 420);
+    }, SLIDE_MS + 60);
   }
 
   // ⬆️ back to the moment before: it comes down over this one, then this one closes (as going
@@ -401,21 +407,21 @@ export function AngleGallery({
     leaving.current = true;
     const track = trackRef.current;
     if (track) {
-      track.style.transition = "transform .35s cubic-bezier(.3,.7,.3,1)";
+      track.style.transition = SLIDE;
       track.style.transform = "translateY(100%)";
     }
     onBack();
     setTimeout(() => {
       handingOver.current = true;
       dialogRef.current?.close();
-    }, 420);
+    }, SLIDE_MS + 60);
   }
   // (the parent's side: reopen on the angle it was left on, then let the next moment go)
   function comeBack() {
     setEnter("down");
     openRef.current(current);
     if (continueTo) history.replaceState(null, "", `/m/${continueTo.code}`);
-    setTimeout(() => setChain(null), 450);
+    setTimeout(() => setChain(null), SLIDE_MS + 90);
   }
 
   // The angle wheel above the grid opens the viewer through a window event, so the
@@ -1068,7 +1074,9 @@ export function AngleGallery({
         onKeyDown={onKeyDown}
         onTouchStart={(event) => {
           const t = event.touches[0];
-          touch.current = t ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
+          touch.current = t ? { x: t.clientX, y: t.clientY, at: Date.now(), axis: null } : null;
+          // (Its own layer before it moves: no hitch on the first frame of a drag.)
+          if (trackRef.current) trackRef.current.style.willChange = "transform";
         }}
         onTouchMove={(event) => {
           // An upward drag (more up than sideways) moves the shot with the finger, toward the next moment.
@@ -1077,11 +1085,20 @@ export function AngleGallery({
           const track = trackRef.current;
           if (!start || !t || !track || busyOver() || leaving.current) return;
           const dy = t.clientY - start.y;
-          if (((dy < 0 && upcoming) || (dy > 0 && onBack)) && Math.abs(dy) > Math.abs(t.clientX - start.x)) {
-            track.style.transition = "none";
-            // (With the finger, as on TikTok — 2026-10-26; it was 0.6 of it and felt heavy.)
-            track.style.transform = `translateY(${Math.round(dy * 0.9)}px)`;
+          const dx = t.clientX - start.x;
+          // One way per drag (2026-10-26, «بشعر بدقرة»): decided in the first few pixels, so a
+          // slightly slanted swipe never jerks the shot up and down while the angles slide sideways.
+          if (!start.axis) {
+            if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
+            start.axis = Math.abs(dy) > Math.abs(dx) ? "y" : "x";
           }
+          if (start.axis !== "y" || !((dy < 0 && upcoming) || (dy > 0 && onBack))) return;
+          // With the finger, one paint per frame.
+          cancelAnimationFrame(dragFrame.current);
+          dragFrame.current = requestAnimationFrame(() => {
+            track.style.transition = "none";
+            track.style.transform = `translateY(${Math.round(dy)}px)`;
+          });
         }}
         onTouchEnd={(event) => {
           const start = touch.current;
@@ -1091,14 +1108,17 @@ export function AngleGallery({
           if (!start || !t || busyOver()) return;
           // A clear swipe up (the page "goes down"), not a sideways one: on to the next moment —
           // a long drag, or a quick flick (2026-10-26: shorter than before, as on TikTok).
+          cancelAnimationFrame(dragFrame.current);
           const dy = t.clientY - start.y;
-          const dx = Math.abs(t.clientX - start.x);
-          const far = Math.abs(dy) > 70 || (Math.abs(dy) > 35 && Date.now() - start.at < 250);
-          if (far && dy < 0 && dx < Math.abs(dy)) return void goNext();
+          // Past a fifth of the screen, or a real flick (fast, not a twitch) — as on TikTok.
+          const speed = Math.abs(dy) / Math.max(1, Date.now() - start.at);
+          const far = start.axis === "y" && (Math.abs(dy) > window.innerHeight * 0.2 || (Math.abs(dy) > 50 && speed > 0.45));
+          if (far && dy < 0) return void goNext();
           // …and a clear swipe down: back to the moment before (when there is one).
-          if (far && onBack && dy > 0 && dx < Math.abs(dy)) return void goBack();
+          if (far && onBack && dy > 0) return void goBack();
+          if (track) track.style.willChange = "";
           if (track && track.style.transform) {
-            track.style.transition = "transform .25s cubic-bezier(.2,.8,.2,1)";
+            track.style.transition = "transform .3s cubic-bezier(.22,.61,.36,1)";
             track.style.transform = "";
           }
         }}
@@ -1117,7 +1137,7 @@ export function AngleGallery({
           setSoundFor(null);
           if (window.location.hash.startsWith("#angle-")) history.replaceState(null, "", window.location.pathname + window.location.search);
         }}
-        className={`m-0 h-dvh max-h-none w-screen max-w-none bg-black p-0 text-white backdrop:bg-black ${enter === "down" ? "animate-[viewer-down_.35s_ease-out]" : autoOpen ? "animate-[viewer-up_.35s_ease-out]" : ""}`}
+        className={`m-0 h-dvh max-h-none w-screen max-w-none bg-black p-0 text-white backdrop:bg-black ${enter === "down" ? "animate-[viewer-down_.45s_cubic-bezier(.22,.61,.36,1)]" : autoOpen ? "animate-[viewer-up_.45s_cubic-bezier(.22,.61,.36,1)]" : ""}`}
       >
         <div ref={trackRef} className="flex h-full snap-x snap-mandatory overflow-x-auto overscroll-contain [scrollbar-width:none]">
           {angles.map((a) => {
@@ -1396,9 +1416,9 @@ export function AngleGallery({
 
         {/* Which angle of the moment, as dots — the way «اكتشف» shows it (his ask, 2026-10-26). */}
         {angles.length > 1 && angles.length <= 24 && (
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-14 flex justify-center gap-1.5">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-[66%] z-[1] flex justify-center gap-2">
             {angles.map((a, i) => (
-              <span key={a.id} className={`h-1.5 rounded-full shadow transition-all ${i === current ? "w-5 bg-moment" : "w-1.5 bg-white/60"}`} />
+              <span key={a.id} className={`h-2 rounded-full shadow-[0_0_4px_rgb(0_0_0/0.6)] transition-all ${i === current ? "w-6 bg-moment" : "w-2 bg-white/75"}`} />
             ))}
           </div>
         )}
