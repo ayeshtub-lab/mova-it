@@ -65,7 +65,7 @@ async function visibilityFor(viewer: User | null, owner: User, moments: MomentLi
     m.visibility === "PUBLIC" || inMoment.has(m.id) || (m.visibility === "FRIENDS" && friend);
   const angle = (a: { id: string; moment: MomentLite }) =>
     moment(a.moment) &&
-    ((a.moment.visibility === "PUBLIC" && a.moment.kind !== "DAILY") || a.moment.creatorId === viewer?.id || unlocked.has(a.moment.id) || firstIds.has(a.id));
+    (a.moment.visibility === "PUBLIC" || a.moment.creatorId === viewer?.id || unlocked.has(a.moment.id) || firstIds.has(a.id));
   return { moment, angle };
 }
 

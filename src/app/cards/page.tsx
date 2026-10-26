@@ -4,7 +4,7 @@ import Link from "next/link";
 import { after } from "next/server";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
-import { CARDS_PUBLIC, cardKindsNow, isCardKind, isOccasion } from "@/lib/card-styles";
+import { CARDS_PUBLIC, cardImage, cardKindsNow, isCardKind, isOccasion } from "@/lib/card-styles";
 import { INDEXABLE } from "@/lib/indexable";
 import { NEW_VISIT_HEADER } from "@/lib/source";
 import { countCards, listCards } from "@/server/cards";
@@ -99,7 +99,7 @@ export default async function CardsPage({ searchParams }: PageProps<"/cards">) {
               <li key={c.id}>
                 <Link href={`/c/${c.id}`} className="block overflow-hidden rounded-2xl bg-surface">
                   {/* eslint-disable-next-line @next/next/no-img-element -- the card's fixed address */}
-                  <img src={`/i/card-${c.id}.jpg`} alt={c.text} loading="lazy" className="aspect-[3/4] w-full object-cover" />
+                  <img src={cardImage(c)} alt={c.text} loading="lazy" className="aspect-[3/4] w-full object-cover" />
                 </Link>
               </li>
             ))}

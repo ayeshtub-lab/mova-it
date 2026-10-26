@@ -2,7 +2,7 @@
 // tilt; older cards' three-part key still read and accepted; the occasions first in their days.
 // Run: npx tsx tests/card-styles.test.ts
 import assert from "node:assert/strict";
-import { DEFAULT_CARD_STYLE, cardKindsNow, cardStyle, isCardStyle, occasionsNow, styleKey } from "../src/lib/card-styles";
+import { DEFAULT_CARD_STYLE, cardImage, cardKindsNow, cardStyle, isCardStyle, occasionsNow, styleKey } from "../src/lib/card-styles";
 
 let n = 0;
 const check = (name: string, fn: () => void) => {
@@ -35,6 +35,12 @@ check("the occasions in their days (Hijri), first among the tabs", () => {
   assert.equal(cardKindsNow(new Date("2027-03-12T12:00:00Z"))[0], "fitr");
   assert.equal(cardKindsNow(new Date("2026-10-24T12:00:00Z"))[0], "morning");
   assert.ok(!cardKindsNow().includes("other" as never));
+});
+
+check("an edited card's picture gets a new address (2026-10-26: phones kept the old one)", () => {
+  assert.equal(cardImage({ id: "cabc123", imagePath: "cards/cabc123.jpg" }), "/i/card-cabc123.jpg");
+  assert.equal(cardImage({ id: "cabc123", imagePath: "cards/cabc123-mh2x9k.jpg" }), "/i/card-cabc123.jpg?v=mh2x9k");
+  assert.equal(cardImage({ id: "cabc123" }), "/i/card-cabc123.jpg");
 });
 
 console.log(`${n} checks`);

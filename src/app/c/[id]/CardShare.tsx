@@ -9,17 +9,17 @@ import { cardStep } from "@/lib/funnel";
 // then the way to shooting one's own (CardBridge).
 // The picture is fetched before any tap (2026-10-24): an iPhone opens the share sheet only straight
 // from the tap, and refused it after waiting for the picture — the button did nothing there.
-export function CardShare({ id, text, label, by, labels }: { id: string; text: string; label: string; by: string; labels: { bridge: string; bridgeButton: string } }) {
+export function CardShare({ id, src, text, label, by, labels }: { id: string; src: string; text: string; label: string; by: string; labels: { bridge: string; bridgeButton: string } }) {
   const file = useRef<File | null>(null);
   const [sent, setSent] = useState(false);
   useEffect(() => {
-    fetch(`/i/card-${id}.jpg`)
+    fetch(src)
       .then((r) => (r.ok ? r.blob() : null))
       .then((blob) => {
         if (blob) file.current = new File([blob], "zawmo-card.jpg", { type: "image/jpeg" });
       })
       .catch(() => {});
-  }, [id]);
+  }, [src]);
 
   function done() {
     fetch(`/api/cards/${id}/share`, { method: "POST", keepalive: true }).catch(() => {});

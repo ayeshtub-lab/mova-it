@@ -49,22 +49,18 @@ async function main() {
       dailyCode = r.moment.code;
     });
 
-    await check("give-to-get: you see the others' angles only after adding yours", async () => {
+    await check("open (2026-10-26): everyone sees every angle of «لحظة اليوم», no give-to-get", async () => {
       const m = await db.moment.findUniqueOrThrow({ where: { code: dailyCode } });
       const angle = (userId: string, minute: number) =>
         db.angle.create({ data: { momentId: m.id, contributorId: userId, mediaType: "PHOTO", status: "READY", screening: "allowed", capturedAt: new Date(Date.UTC(2099, 0, 10, 9, minute)), expiresAt: at("2100-01-01T00:00:00Z") } });
       const a1 = await angle(sara.id, 1);
       const a2 = await angle(sara.id, 2);
-      let view = await getMomentView(dailyCode, ali);
-      assert.equal(view?.angles.length, 1);
-      assert.equal(view?.lockedCount, 1);
-      assert.equal(await visibleAngle(ali, a2.id), null);
+      const view = await getMomentView(dailyCode, ali);
+      assert.equal(view?.angles.length, 2);
+      assert.equal(view?.lockedCount, 0);
       const d = (await listDiscover(ali)).find((x) => x.code === dailyCode);
       assert.equal(d?.daily, true);
-      assert.equal(d?.lockedCount, 1);
-      await angle(ali.id, 3);
-      view = await getMomentView(dailyCode, ali);
-      assert.equal(view?.lockedCount, 0);
+      assert.equal(d?.lockedCount, 0);
       assert.ok(await visibleAngle(ali, a2.id));
       assert.ok(a1);
     });

@@ -85,8 +85,8 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
   const code = typeof input.code === "string" ? input.code.toUpperCase() : "";
   const moment = await db.moment.findUnique({ where: { code } });
   if (!moment || moment.status === "HIDDEN") throw new AngleError("not_found");
-  // Anything added to a public moment is public: only official (Google) accounts.
-  if (moment.visibility === "PUBLIC" && user.isGuest) throw new AngleError("official_required");
+  // Visitors (guests) may add to public moments too (2026-10-26): every shot is checked by
+  // Gemini before it shows, and the team can hide it after.
   // A «مع الوقت» story is shot by its owner alone.
   if (moment.kind === "STORY" && moment.creatorId !== user.id) throw new AngleError("story_owner");
 

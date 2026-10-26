@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AutoVideo } from "@/app/AutoVideo";
+import { cardImage } from "@/lib/card-styles";
 import { filterCss } from "@/lib/filters";
 
 type Shot = { id: string; picked?: boolean; video: boolean; mediaUrl: string | null; backupUrl?: string | null; hlsUrl?: string | null; imageUrl: string | null; momentCode: string; title: string; name: string; filter: string | null };
@@ -15,7 +16,7 @@ export function Showcase({
 }: {
   shots: Shot[];
   labels: { title: string; more: string };
-  card?: { id: string; text: string; label: string } | null;
+  card?: { id: string; text: string; label: string; imagePath?: string | null } | null;
 }) {
   if (!shots.length) return null;
   const firstPhoto = shots.findIndex((s) => !s.video);
@@ -27,7 +28,7 @@ export function Showcase({
     <li key="card">
       <Link href="/cards" className="group relative block size-full overflow-hidden rounded-2xl bg-surface">
         {/* eslint-disable-next-line @next/next/no-img-element -- the card's fixed address */}
-        <img src={`/i/card-${card.id}.jpg`} alt={card.text} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
+        <img src={cardImage(card)} alt={card.text} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
         <span className="absolute start-1.5 top-1.5 rounded-full bg-white/90 px-1.5 text-xs font-extrabold text-black shadow">{card.label}</span>
       </Link>
     </li>

@@ -141,3 +141,11 @@ export const styleKey = (s: Pick<CardStyle, "font" | "color" | "frame" | "frameC
 const LEGACY = /^[a-z]+\.(top|center|bottom)\.[a-z]+$/;
 export const isCardStyle = (v: unknown): v is string =>
   typeof v === "string" && (styleKey(cardStyle(v)) === v || (LEGACY.test(v) && CARD_FONTS.some((f) => f.key === v.split(".")[0]) && isColor(v.split(".")[2])));
+
+// A card's picture at zawmo.com/i/card-ID.jpg, with its version (2026-10-26): an edited card is
+// saved under a new name (cards/ID-v.jpg), and the address changes with it — otherwise phones and
+// the CDN kept showing the old picture for an hour after «✏️ عدّلها».
+export function cardImage(card: { id: string; imagePath?: string | null }) {
+  const v = /-([a-z0-9]+)\.jpg$/.exec(card.imagePath ?? "")?.[1];
+  return `/i/card-${card.id}.jpg${v ? `?v=${v}` : ""}`;
+}

@@ -98,32 +98,15 @@ export async function listDiscover(viewer: User | null) {
     .slice(0, PAGE)
     .map((x) => x.m);
 
-  // Give-to-get stays for «لحظة اليوم»: until you add yours, you see one angle.
-  const dailyIds = viewer ? ranked.filter((m) => m.kind === "DAILY").map((m) => m.id) : [];
-  const joined = new Set(
-    dailyIds.length
-      ? (
-          await db.angle.findMany({
-            where: {
-              momentId: { in: dailyIds },
-              contributorId: viewer!.id,
-              status: "READY",
-            },
-            select: { momentId: true },
-          })
-        ).map((a) => a.momentId)
-      : [],
-  );
-
   // What happened to each angle shown: hearts (and the viewer's), comments, views.
   const stats = await engagementFor(ranked.flatMap((m) => m.angles.map((a) => a.id)), viewer);
 
   const places = await placeViews(ranked.map((m) => m.placeId));
   return Promise.all(
     ranked.map(async (m) => {
-      const locked = m.kind === "DAILY" && !joined.has(m.id);
+      // Every angle is open here, «لحظة اليوم» too (no give-to-get since 2026-10-26).
       const lasting = m.kind !== "DAILY";
-      const angles = locked ? m.angles.slice(0, 1) : m.angles;
+      const angles = m.angles;
       return {
         code: m.code,
         daily: m.kind === "DAILY",

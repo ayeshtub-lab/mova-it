@@ -66,10 +66,11 @@ export async function shotSeconds(shot: Pick<Shot, "mediaType" | "durationSec" |
   const sound = await resolveSound(shot.soundKey);
   // A video stays on its last frame while a verse laid on it is still heard (render.ts
   // withShotSound): counted at the verse's length then, so the part never runs over.
-  if (shot.mediaType === "VIDEO") return Math.max(1, Math.min(whole ? LIMIT : VIDEO_CLIP, shot.durationSec ?? 6), isQuran(sound) ? sound!.seconds + 0.8 : 0);
+  if (shot.mediaType === "VIDEO") return Math.max(1, Math.min(whole ? LIMIT : VIDEO_CLIP, shot.durationSec ?? 6), isQuran(sound) ? sound!.seconds + 0.8 + T : 0);
   if (!sound) return PHOTO;
   // A verse is heard once and whole, however long (as everywhere on Zawmo).
-  if (isQuran(sound)) return sound.seconds + 0.8;
+  // (Plus the cut into it: the verse starts after it, heard alone — render.ts withShotSound.)
+  if (isQuran(sound)) return sound.seconds + 0.8 + T;
   return Math.min(SOUND_MAX, Math.max(SOUND_MIN, sound.seconds));
 }
 

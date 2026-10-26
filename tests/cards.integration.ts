@@ -68,9 +68,10 @@ async function main() {
       assert.equal(mine[0], evening.id);
     });
 
-    await check("publishing: members only, a public shot, real words, a JPEG", async () => {
+    await check("publishing: anyone (visitors too, 2026-10-26), a public shot, real words, a JPEG", async () => {
       const ok = { angleId: open.id, text: "صباح الخير", kind: "morning", style: "cairo.bottom.white", image: JPEG };
-      await assert.rejects(publishCard(guest, ok), isCard("members_only"));
+      // A guest goes the same way as a member: only the words' check (no Gemini here) stops it.
+      await assert.rejects(publishCard(guest, ok), isCard("words"));
       await assert.rejects(publishCard(owner, { ...ok, angleId: hidden.id }), isCard("not_found"));
       await assert.rejects(publishCard(owner, { ...ok, text: " " }), isCard("bad_text"));
       await assert.rejects(publishCard(owner, { ...ok, kind: "rude" }), isCard("bad_text"));

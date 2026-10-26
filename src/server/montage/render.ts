@@ -281,11 +281,14 @@ async function lyricLayers(sound: Sound, total: number, dir: string, first: numb
 async function withShotSound(segment: string, soundPath: string, sound: Sound, muteOriginal: boolean, seconds: number, out: string, lyrics = false) {
   const dir = join(out, "..");
   if (isQuran(sound)) {
-    const total = Math.max(seconds, sound.seconds + 0.8);
+    // The verse starts once the cut into this shot is over (2026-10-26: «القرآن ما بيختلط بشي» —
+    // the cut blends the shot before's sound with this one's start), and ends 0.8s before the
+    // cut out: heard alone, never over another sound.
+    const total = Math.max(seconds, TRANSITION + sound.seconds + 0.8);
     const words = lyrics ? await lyricLayers(sound, total, dir, 2, "vt", "v") : null;
     await ffmpeg([
       "-i", segment, "-i", soundPath, ...(words?.inputs ?? []),
-      "-filter_complex", `[0:v]tpad=stop_mode=clone:stop_duration=${(total - seconds).toFixed(2)}[${words ? "vt" : "v"}];${words ? `${words.graph};` : ""}[0:a]anullsink;[1:a]aresample=44100,apad=whole_dur=${total.toFixed(2)}[a]`,
+      "-filter_complex", `[0:v]tpad=stop_mode=clone:stop_duration=${(total - seconds).toFixed(2)}[${words ? "vt" : "v"}];${words ? `${words.graph};` : ""}[0:a]anullsink;[1:a]aresample=44100,adelay=${Math.round(TRANSITION * 1000)}:all=1,apad=whole_dur=${total.toFixed(2)}[a]`,
       "-map", "[v]", "-map", "[a]", ...PIECE, "-t", total.toFixed(2), out,
     ]);
     return total;

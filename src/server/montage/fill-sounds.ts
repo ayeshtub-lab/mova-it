@@ -14,7 +14,7 @@ import { resolveSound } from "@/server/sound-resolve";
 const LISTS = ["calm", "daf", "nature"] as const;
 // Never under a film, whatever the pictures (his call, 2026-10-23): animals and insects — frogs,
 // sheep, goats, a rooster, crickets… (birds, water, fire and wind stay).
-const NEVER = /ضفدع|ضفادع|بِ?ركة|خراف|خروف|غنم|ماعز|معز|ديك|دجاج|صرصور|صراصير|حشر|بقر|حمار|كلب|قطط|قطة|حصان|نحل|\b(?:pond|frogs?|sheep|goats?|roosters?|chickens?|crickets?|insects?|cows?|donkeys?|dogs?|cats?|horses?|bees?)\b/i;
+const NEVER = /ضفدع|ضفادع|بِ?ركة|خراف|خروف|غنم|ماعز|معز|ديك|دجاج|صرصور|صراصير|حشر|بقر|حمار|كلب|قطط|قطة|حصان|نحل|زيز|جندب|جنادب|حيوان|\b(?:pond|frogs?|toads?|sheep|goats?|roosters?|chickens?|crickets?|cicadas?|grasshoppers?|insects?|cows?|donkeys?|dogs?|cats?|horses?|bees?|animals?|farm|barn)\b/i;
 type Candidate = { key: string; cat: string; words: string };
 
 // A shot's words → the words a fitting sound's name has (Arabic and English names both).

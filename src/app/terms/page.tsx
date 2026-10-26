@@ -24,7 +24,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
         title: "من يستخدم زاومو",
         items: [
           "زاومو لمن عمره ١٣ سنة فأكثر.",
-          "تستطيع الدخول كزائر باسم فقط، أو بحساب Google. بعض الأشياء (مثل الإضافة للحظات «للكل») للحسابات الرسمية بـ Google فقط.",
+          "تستطيع الدخول كزائر باسم فقط، أو بحساب Google. بعض الأشياء (مثل بدء لحظة «للكل») للحسابات الرسمية بـ Google فقط.",
           "أنت مسؤول عن حسابك وعمّا تنشره منه.",
         ],
       },
@@ -119,7 +119,7 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
         title: "Who can use Zawmo",
         items: [
           "Zawmo is for people aged 13 and over.",
-          "You can join as a guest with just a name, or with a Google account. Some things (like adding to “Everyone” moments) need an official Google account.",
+          "You can join as a guest with just a name, or with a Google account. Some things (like making an “Everyone” moment) need an official Google account.",
           "You are responsible for your account and for what you post from it.",
         ],
       },

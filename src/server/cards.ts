@@ -98,7 +98,7 @@ const JPEG = (b: Buffer) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[
 const IMAGE_MAX = 2 * 1024 * 1024;
 
 export async function publishCard(user: User, input: { angleId: unknown; text: unknown; kind: unknown; style: unknown; image: Buffer; replace?: unknown }) {
-  if (user.isGuest) throw new CardError("members_only");
+  // Everyone may publish (2026-10-26), visitors too: the words are checked by Gemini, the team can hide it.
   const shot = typeof input.angleId === "string" ? await publicShot(input.angleId) : null;
   if (!shot) throw new CardError("not_found");
   const text = typeof input.text === "string" ? cleanCardText(input.text) : "";
@@ -163,7 +163,7 @@ export async function listCards(kind: CardKind | null, take = 60, exclude?: stri
     where: { ...shownCard(), ...(kind ? { kind } : {}), ...(exclude ? { id: { not: exclude } } : {}) },
     orderBy: [{ shares: "desc" }, { createdAt: "desc" }],
     take,
-    select: { id: true, text: true, kind: true },
+    select: { id: true, text: true, kind: true, imagePath: true },
   });
 }
 
@@ -173,7 +173,7 @@ export async function listCards(kind: CardKind | null, take = 60, exclude?: stri
 export const CARDS_IN_SITEMAP_FROM = 12;
 export async function sitemapCards() {
   if ((await countCards()) < CARDS_IN_SITEMAP_FROM) return [];
-  return db.card.findMany({ where: { ...shownCard(), shares: { gt: 0 } }, orderBy: { shares: "desc" }, take: 500, select: { id: true, createdAt: true } });
+  return db.card.findMany({ where: { ...shownCard(), shares: { gt: 0 } }, orderBy: { shares: "desc" }, take: 500, select: { id: true, createdAt: true, imagePath: true } });
 }
 
 // «💌 اعمل بطاقة» without a picture yet (2026-10-24): public photos to pick from — 60, varied (one
@@ -208,7 +208,7 @@ export const cardPictures = unstable_cache(
 export const homeCard = unstable_cache(
   async () => {
     if ((await countCards()) < CARDS_IN_SITEMAP_FROM) return null;
-    return db.card.findFirst({ where: shownCard(), orderBy: { createdAt: "desc" }, select: { id: true, text: true } });
+    return db.card.findFirst({ where: shownCard(), orderBy: { createdAt: "desc" }, select: { id: true, text: true, imagePath: true } });
   },
   ["home-card-1"],
   { revalidate: 300 },

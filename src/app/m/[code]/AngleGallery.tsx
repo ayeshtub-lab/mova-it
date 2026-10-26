@@ -314,7 +314,7 @@ export function AngleGallery({
   }, [current, sideHint]);
   const [upcoming, setUpcoming] = useState<NextMoment | null>(null);
   const [hint, setHint] = useState(false);
-  const touch = useRef<{ x: number; y: number } | null>(null);
+  const touch = useRef<{ x: number; y: number; at: number } | null>(null);
   const wheelAt = useRef(0);
   useEffect(() => {
     if (!opened || !continueTo?.next.length) return;
@@ -377,7 +377,7 @@ export function AngleGallery({
     // black gap in between.
     const track = trackRef.current;
     if (track) {
-      track.style.transition = "transform .35s ease-in";
+      track.style.transition = "transform .35s cubic-bezier(.3,.7,.3,1)";
       track.style.transform = "translateY(-100%)";
     }
     history.replaceState(null, "", `/m/${next.code}`);
@@ -401,7 +401,7 @@ export function AngleGallery({
     leaving.current = true;
     const track = trackRef.current;
     if (track) {
-      track.style.transition = "transform .35s ease-in";
+      track.style.transition = "transform .35s cubic-bezier(.3,.7,.3,1)";
       track.style.transform = "translateY(100%)";
     }
     onBack();
@@ -1068,7 +1068,7 @@ export function AngleGallery({
         onKeyDown={onKeyDown}
         onTouchStart={(event) => {
           const t = event.touches[0];
-          touch.current = t ? { x: t.clientX, y: t.clientY } : null;
+          touch.current = t ? { x: t.clientX, y: t.clientY, at: Date.now() } : null;
         }}
         onTouchMove={(event) => {
           // An upward drag (more up than sideways) moves the shot with the finger, toward the next moment.
@@ -1079,7 +1079,8 @@ export function AngleGallery({
           const dy = t.clientY - start.y;
           if (((dy < 0 && upcoming) || (dy > 0 && onBack)) && Math.abs(dy) > Math.abs(t.clientX - start.x)) {
             track.style.transition = "none";
-            track.style.transform = `translateY(${Math.round(dy * 0.6)}px)`;
+            // (With the finger, as on TikTok — 2026-10-26; it was 0.6 of it and felt heavy.)
+            track.style.transform = `translateY(${Math.round(dy * 0.9)}px)`;
           }
         }}
         onTouchEnd={(event) => {
@@ -1088,12 +1089,16 @@ export function AngleGallery({
           const t = event.changedTouches[0];
           const track = trackRef.current;
           if (!start || !t || busyOver()) return;
-          // A clear swipe up (the page "goes down"), not a sideways one: on to the next moment.
-          if (t.clientY - start.y < -90 && Math.abs(t.clientX - start.x) < 60) return void goNext();
+          // A clear swipe up (the page "goes down"), not a sideways one: on to the next moment —
+          // a long drag, or a quick flick (2026-10-26: shorter than before, as on TikTok).
+          const dy = t.clientY - start.y;
+          const dx = Math.abs(t.clientX - start.x);
+          const far = Math.abs(dy) > 70 || (Math.abs(dy) > 35 && Date.now() - start.at < 250);
+          if (far && dy < 0 && dx < Math.abs(dy)) return void goNext();
           // …and a clear swipe down: back to the moment before (when there is one).
-          if (onBack && t.clientY - start.y > 90 && Math.abs(t.clientX - start.x) < 60) return void goBack();
+          if (far && onBack && dy > 0 && dx < Math.abs(dy)) return void goBack();
           if (track && track.style.transform) {
-            track.style.transition = "transform .2s ease-out";
+            track.style.transition = "transform .25s cubic-bezier(.2,.8,.2,1)";
             track.style.transform = "";
           }
         }}
@@ -1121,7 +1126,7 @@ export function AngleGallery({
             const canFollow = !!a.profileId && a.profileId !== viewerId && !following.has(a.profileId);
             const initial = [...a.contributorName][0] ?? "?";
             return (
-              <figure key={a.id} className="relative flex h-full w-screen shrink-0 snap-center items-center justify-center">
+              <figure key={a.id} className="relative flex h-full w-screen shrink-0 snap-center snap-always items-center justify-center">
                 {a.mediaType === "VIDEO" ? (
                   <StreamVideo
                     file={a.mediaUrl}
@@ -1385,6 +1390,15 @@ export function AngleGallery({
                 </svg>
                 {d.name}
               </span>
+            ))}
+          </div>
+        )}
+
+        {/* Which angle of the moment, as dots — the way «اكتشف» shows it (his ask, 2026-10-26). */}
+        {angles.length > 1 && angles.length <= 24 && (
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-14 flex justify-center gap-1.5">
+            {angles.map((a, i) => (
+              <span key={a.id} className={`h-1.5 rounded-full shadow transition-all ${i === current ? "w-5 bg-moment" : "w-1.5 bg-white/60"}`} />
             ))}
           </div>
         )}

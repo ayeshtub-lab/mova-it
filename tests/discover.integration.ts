@@ -43,8 +43,10 @@ async function main() {
     const friends = await createMoment(owner, { title: "friends one", visibility: "FRIENDS" });
     await angle(friends.id, owner.id, 1, null); // added before the moment went public, never checked
 
-    await check("a guest can't add an angle to a public moment", async () => {
-      await assert.rejects(prepareAngle(guest, { code: pub.code, mediaType: "PHOTO" }), (e) => e instanceof AngleError && e.code === "official_required");
+    await check("a guest may add an angle to a public moment (2026-10-26)", async () => {
+      const r = await prepareAngle(guest, { code: pub.code, mediaType: "PHOTO" }).then(() => null, (e) => e);
+      assert.ok(!(r instanceof AngleError && r.code === "official_required"), String(r));
+      await db.angle.deleteMany({ where: { momentId: pub.id, contributorId: guest.id } });
     });
 
     await check("public moments are open: no give-to-get for non-contributors", async () => {

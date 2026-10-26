@@ -497,12 +497,6 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                   {dict.story.start}
                 </Link>
               </>
-            ) : /* Public moments take official (Google) accounts only: no guest form here. */
-            (!user || user.isGuest) && view.visibility === "PUBLIC" ? (
-              <>
-                <p className="text-sm leading-relaxed text-muted">{dict.visibility.publicGuest}</p>
-                {googleEnabled() && <GoogleButton label={user ? dict.account.saveButton : dict.account.google} returnTo={`/m/${view.code}#join`} />}
-              </>
             ) : user ? (
               <AngleUploader
                 locale={locale}

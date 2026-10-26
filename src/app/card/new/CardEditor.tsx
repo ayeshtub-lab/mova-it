@@ -437,6 +437,8 @@ export function CardEditor({
     if (res?.ok && body?.id) {
       cardStep("published");
       router.push(`/c/${body.id}`);
+      // (After an edit the card's page is the same address: asked for again, not from memory.)
+      if (edit) router.refresh();
       return;
     }
     setBusy(false);
@@ -716,17 +718,15 @@ export function CardEditor({
           </>
         )}
         {sent && (picture.shotId ? <CardBridge text={labels.bridge.replace("{name}", picture.by ?? "")} button={labels.bridgeButton} /> : <CardBridge text={labels.bridgeOwn} button={labels.bridgeButton} />)}
-        {picture.shotId &&
-          (member ? (
-            <>
-              <button type="button" onClick={publish} disabled={!ready || busy || !text.trim()} className="min-h-12 rounded-full bg-surface px-6 font-extrabold disabled:opacity-50">
-                {busy ? labels.publishing : edit ? labels.saveEdit : labels.publish}
-              </button>
-              <p className="text-center text-xs text-muted">{labels.publishHint}</p>
-            </>
-          ) : (
-            !gate && signIn
-          ))}
+        {/* Publishing is open to everyone (2026-10-26), visitors too. */}
+        {picture.shotId && (
+          <>
+            <button type="button" onClick={publish} disabled={!ready || busy || !text.trim()} className="min-h-12 rounded-full bg-surface px-6 font-extrabold disabled:opacity-50">
+              {busy ? labels.publishing : edit ? labels.saveEdit : labels.publish}
+            </button>
+            <p className="text-center text-xs text-muted">{labels.publishHint}</p>
+          </>
+        )}
         {error && (
           <p role="alert" className="text-center text-sm font-bold text-accent">
             {error}
