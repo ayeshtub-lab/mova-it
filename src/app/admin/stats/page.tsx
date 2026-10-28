@@ -7,6 +7,7 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { getStats, TARGET_RETURN } from "@/server/stats";
 import { cardFunnelStats } from "@/server/card-funnel";
+import { joinFunnelStats } from "@/server/join-funnel";
 import { installStats } from "@/server/install";
 import { LiveVisitors } from "./LiveVisitors";
 
@@ -47,7 +48,7 @@ export default async function StatsPage() {
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const s = await getStats(user);
-  const [installs, cardRows] = await Promise.all([installStats(14), cardFunnelStats(14)]);
+  const [installs, cardRows, joinRows] = await Promise.all([installStats(14), cardFunnelStats(14), joinFunnelStats(14)]);
   const days = s.series.map((d) => d.day);
   const tiles = [
     ["👥", "النشطين اليوم", s.totals.active],
@@ -184,6 +185,36 @@ export default async function StatsPage() {
             <p className="text-sm text-muted">ما انضم أحد بعد.</p>
           )}
           <p className="text-xs text-muted">رابط كل إعلان: zawmo.com/start?src=اسم-الحملة · «وصلوا» = زوار جدد لصفحة الإعلان أو الألبوم أو صفحتي الدليل (قارنها بكبسات الإعلان: الفرق الكبير = كبسات وهمية) · «بلّشوا» = كبسوا الكاميرا أو كتبوا اسم · «كمّلوا» = نزّلوا أول لقطة أو كبسوا ابدأ · «رجعوا» = فتحوا زاومو بيوم بعد يوم انضمامهم. التسجيل بدأ ١ أكتوبر ٢٠٢٦.</p>
+        </section>
+
+        {/* «🚪 من زائر لعضو» (src/server/join-funnel.ts): for every visitor, where they stop before joining. */}
+        <section className="flex flex-col gap-2 rounded-3xl bg-surface p-4">
+          <h2 className="font-extrabold">🚪 من زائر لعضو (آخر ١٤ يوم)</h2>
+          {joinRows.length ? (
+            <table className="w-full text-sm">
+              <thead className="text-xs text-muted">
+                <tr>
+                  <th className="py-1 text-start font-bold">الصفحة</th>
+                  <th className="py-1 font-bold">شافوا الدعوة</th>
+                  <th className="py-1 font-bold">بلّشوا</th>
+                  <th className="py-1 font-bold">كبسوا انضم</th>
+                </tr>
+              </thead>
+              <tbody>
+                {joinRows.map((r) => (
+                  <tr key={r.place} className="border-t border-line">
+                    <td className="py-2 font-bold">{({ moment: "صفحة لحظة", home: "الرئيسية", discover: "اكتشف" } as Record<string, string>)[r.place] ?? r.place}</td>
+                    <td className="py-2 text-center tabular-nums">{num(r.seen)}</td>
+                    <td className="py-2 text-center tabular-nums">{num(r.started)}</td>
+                    <td className="py-2 text-center tabular-nums">{num(r.joined)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="text-sm text-muted">لسا ما في أرقام.</p>
+          )}
+          <p className="text-xs text-muted">لكل زائر مش مسجّل، من أي مكان إجا · «شافوا الدعوة» = وصلت عينهم لمربع «انضم» (الاسم أو جوجل) · «بلّشوا» = كتبوا اسم أو كبسوا جوجل · «كبسوا انضم» = كبسوا «ابدأ» أو جوجل · مرة وحدة لكل زائر بالجلسة · اللي انضموا فعلاً بجدول المصادر فوق · بدأ العد ٢٨ أكتوبر ٢٠٢٦.</p>
         </section>
 
         {/* «💌 بطاقات» per source (src/server/card-funnel.ts): the cards ad's funnel after «وصلوا». */}

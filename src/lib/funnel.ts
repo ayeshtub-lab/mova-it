@@ -11,6 +11,18 @@ export function funnel(step: "typed" | "tried") {
   if (!navigator.sendBeacon?.(url)) fetch(url, { method: "POST", keepalive: true }).catch(() => {});
 }
 
+// «من زائر لعضو» (src/app/api/join/funnel): a visitor saw the join box, started, pressed to join —
+// on which page. Once per browser session, page and step, like the above.
+export function joinStep(place: "moment" | "home" | "discover", step: "seen" | "started" | "joined") {
+  try {
+    const key = `zw_join_${place}_${step}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+  } catch {}
+  const url = `/api/join/funnel?place=${place}&step=${step}`;
+  if (!navigator.sendBeacon?.(url)) fetch(url, { method: "POST", keepalive: true }).catch(() => {});
+}
+
 // The cards' steps (src/app/api/cards/funnel): opened the maker, sent a card, published one. Once
 // per browser session and step, like the above.
 export function cardStep(step: "opened" | "shared" | "published") {

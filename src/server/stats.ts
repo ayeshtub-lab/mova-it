@@ -61,11 +61,12 @@ export async function sourceStats(since: Date) {
   const shot = new Set(shooters.map((s) => s.contributorId));
   const joinedDay = new Map(people.map((p) => [p.id, activityDay(p.createdAt)]));
   const cameBack = new Set(days.filter((d) => d.day > joinedDay.get(d.userId)!).map((d) => d.userId));
-  // («install:…» rows are the «📲 ثبّت زاومو» counts — src/server/install.ts — and «card:…» the
-  // cards' — src/server/card-funnel.ts — not sources.)
+  // («install:…» rows are the «📲 ثبّت زاومو» counts — src/server/install.ts — «card:…» the
+  // cards' — src/server/card-funnel.ts — and «join:…» «من زائر لعضو» — src/server/join-funnel.ts —
+  // not sources.)
   const landed = await db.sourceVisit.groupBy({
     by: ["source"],
-    where: { day: { gte: activityDay(since) }, NOT: [{ source: { startsWith: "install:" } }, { source: { startsWith: "card:" } }] },
+    where: { day: { gte: activityDay(since) }, NOT: [{ source: { startsWith: "install:" } }, { source: { startsWith: "card:" } }, { source: { startsWith: "join:" } }] },
     _sum: { visits: true, typed: true, tried: true },
   });
   const rows = new Map<string, { source: string; landed: number; typed: number; tried: number; joined: number; shot: number; returned: number }>();

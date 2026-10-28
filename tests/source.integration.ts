@@ -5,9 +5,12 @@ import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { cardFunnelStats, recordCardStep } from "../src/server/card-funnel";
+import { joinFunnelStats, recordJoinStep } from "../src/server/join-funnel";
 import { activityDay, recordFunnel, recordLanding, sourceStats } from "../src/server/stats";
 
 const TAG = "[srctest]";
+const JOIN_DAY = new Date("2099-03-03T12:00:00Z");
+
 async function main() {
   const since = new Date(Date.now() - 60_000);
   const mk = (n: string, source: string | null) => db.user.create({ data: { displayName: `${TAG} ${n}`, isGuest: true, source } });
@@ -43,7 +46,21 @@ async function main() {
     const cards = (await cardFunnelStats(1)).find((r) => r.source === "srctest-house");
     assert.deepEqual(cards, { source: "srctest-house", opened: 2, shared: 1, published: 1 });
     console.log("PASS the cards' funnel per source: opened / sent / published");
+    // «من زائر لعضو» (2026-10-28): per page, for every visitor — on a far day, so real rows stay apart.
+    await recordJoinStep("moment", "seen", JOIN_DAY);
+    await recordJoinStep("moment", "seen", JOIN_DAY);
+    await recordJoinStep("moment", "started", JOIN_DAY);
+    await recordJoinStep("moment", "joined", JOIN_DAY);
+    await recordJoinStep("home", "seen", JOIN_DAY);
+    const join = await joinFunnelStats(1, JOIN_DAY);
+    assert.deepEqual(join, [
+      { place: "moment", seen: 2, started: 1, joined: 1 },
+      { place: "home", seen: 1, started: 0, joined: 0 },
+    ]);
+    assert.ok(!(await sourceStats(since)).some((r) => r.source.startsWith("join:")), "the join rows are not sources");
+    console.log("PASS from visitor to member, per page: saw the box / started / pressed to join");
   } finally {
+    await db.sourceVisit.deleteMany({ where: { day: activityDay(JOIN_DAY), source: { startsWith: "join:" } } });
     await db.activeDay.deleteMany({ where: { userId: { in: ids } } });
     await db.sourceVisit.deleteMany({ where: { OR: [{ source: { startsWith: "srctest-" } }, { source: { startsWith: "card:srctest-" } }] } });
     await db.angle.deleteMany({ where: { contributorId: { in: ids } } });

@@ -115,13 +115,13 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
       {!official && (
         <div className="flex flex-col gap-2">
           <p className="rounded-2xl bg-secondary-soft px-4 py-3 text-sm font-semibold leading-relaxed text-secondary">{user?.isGuest ? t.gateGuest : t.visitorBar}</p>
-          {googleEnabled() && <GoogleButton label={user?.isGuest ? dict.account.saveButton : dict.account.google} returnTo="/discover" />}
+          {googleEnabled() && <GoogleButton label={user?.isGuest ? dict.account.saveButton : dict.account.google} returnTo="/discover" place={user ? undefined : "discover"} />}
           {/* A visitor can also just give a name, as on the home page — not Google only. */}
           {!user && (
             <details className="rounded-2xl bg-surface px-4 py-2">
               <summary className="cursor-pointer py-1 text-center text-sm font-bold">{dict.account.guestOption}</summary>
               <div className="pt-2">
-                <GuestForm labels={dict.guest} next="/discover" />
+                <GuestForm labels={dict.guest} next="/discover" place="discover" />
               </div>
             </details>
           )}

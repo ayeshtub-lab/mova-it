@@ -188,7 +188,7 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
         <section id="start" className="flex flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">
           {google && (
             <>
-              <GoogleButton label={dict.account.google} returnTo="/" />
+              <GoogleButton label={dict.account.google} returnTo="/" place="home" />
               <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
             </>
           )}
@@ -196,7 +196,7 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
             <h2 className="text-lg font-bold">{google ? dict.account.guestOption : dict.guest.title}</h2>
             <p className="text-sm leading-relaxed text-muted">{dict.guest.hint}</p>
           </div>
-          <GuestForm labels={dict.guest} />
+          <GuestForm labels={dict.guest} place="home" />
           {inAppHint && <p className="text-xs leading-relaxed text-muted">{inAppHint}</p>}
         </section>
       </div>

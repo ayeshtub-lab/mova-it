@@ -523,11 +523,11 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
                 )}
                 {googleEnabled() && (
                   <>
-                    <GoogleButton label={dict.account.google} returnTo={`/m/${view.code}#join`} />
+                    <GoogleButton label={dict.account.google} returnTo={`/m/${view.code}#join`} place="moment" />
                     <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{dict.account.or}</p>
                   </>
                 )}
-                <GuestForm labels={dict.guest} />
+                <GuestForm labels={dict.guest} place="moment" />
               </>
             )}
           </section>

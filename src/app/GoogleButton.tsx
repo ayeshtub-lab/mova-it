@@ -1,12 +1,39 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { joinStep } from "@/lib/funnel";
+
 // "Continue with Google": a plain link to /auth/google, so it works without JavaScript.
 // rel="nofollow": a sign-in link is nothing for search engines to follow (robots.txt blocks
 // /auth/ anyway — this keeps it out of Search Console's «blocked» list).
 // Google's "G" mark in its official colours, as their sign-in branding asks.
-export function GoogleButton({ label, returnTo }: { label: string; returnTo: string }) {
+// `place`: count «من زائر لعضو» (src/lib/funnel.ts joinStep) — a tap is starting and pressing to join.
+export function GoogleButton({ label, returnTo, place }: { label: string; returnTo: string; place?: "moment" | "home" | "discover" }) {
+  const ref = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    const link = ref.current;
+    if (!place || !link || typeof IntersectionObserver === "undefined") return;
+    const seen = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      joinStep(place, "seen");
+      seen.disconnect();
+    }, { threshold: 0.5 });
+    seen.observe(link);
+    return () => seen.disconnect();
+  }, [place]);
   return (
     <a
+      ref={ref}
       href={`/auth/google?returnTo=${encodeURIComponent(returnTo)}`}
       rel="nofollow"
+      onClick={
+        place
+          ? () => {
+              joinStep(place, "started");
+              joinStep(place, "joined");
+            }
+          : undefined
+      }
       className="flex min-h-12 items-center justify-center gap-3 rounded-full border border-line bg-white px-5 font-bold text-[#1f1f1f] shadow-sm transition-shadow hover:shadow-md"
     >
       <svg viewBox="0 0 48 48" aria-hidden="true" className="size-5">

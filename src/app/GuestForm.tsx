@@ -1,19 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { continueAsGuest } from "@/app/actions/session";
-import { funnel } from "@/lib/funnel";
+import { funnel, joinStep } from "@/lib/funnel";
 
 type Labels = { nameLabel: string; placeholder: string; submit: string; nameError: string; serverError: string; consent: string; terms: string; privacy: string };
 
 // `next`: where to go once the guest account exists (an ad's landing page sends people on).
 // `track`: count the landing funnel (typing, pressing «ابدأ») for the admin's numbers.
-export function GuestForm({ labels, next, track = false }: { labels: Labels; next?: string; track?: boolean }) {
+// `place`: count «من زائر لعضو» for every visitor (2026-10-28) — saw this box, typed, pressed «ابدأ».
+export function GuestForm({ labels, next, track = false, place }: { labels: Labels; next?: string; track?: boolean; place?: "moment" | "home" | "discover" }) {
   const [state, action, pending] = useActionState(continueAsGuest, undefined);
+  const ref = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    const form = ref.current;
+    if (!place || !form || typeof IntersectionObserver === "undefined") return;
+    const seen = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      joinStep(place, "seen");
+      seen.disconnect();
+    }, { threshold: 0.5 });
+    seen.observe(form);
+    return () => seen.disconnect();
+  }, [place]);
 
   return (
-    <form action={action} onSubmit={track ? () => funnel("tried") : undefined} className="flex flex-col gap-2">
+    <form
+      ref={ref}
+      action={action}
+      onSubmit={() => {
+        if (track) funnel("tried");
+        if (place) joinStep(place, "joined");
+      }}
+      className="flex flex-col gap-2"
+    >
       {next && <input type="hidden" name="next" value={next} />}
       <label htmlFor="displayName" className="text-sm font-bold">
         {labels.nameLabel}
@@ -25,7 +46,10 @@ export function GuestForm({ labels, next, track = false }: { labels: Labels; nex
           required
           maxLength={40}
           autoComplete="nickname"
-          onInput={track ? () => funnel("typed") : undefined}
+          onInput={() => {
+            if (track) funnel("typed");
+            if (place) joinStep(place, "started");
+          }}
           placeholder={labels.placeholder}
           aria-invalid={state?.error === "name"}
           aria-describedby={state?.error ? "displayName-error" : undefined}
