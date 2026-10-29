@@ -134,6 +134,7 @@
     "nameNeeded": "Name the moment before publishing.",
     "errors": {
       "unsupported": "This file type is not supported in this browser.",
+      "not_ready": "This photo hasn't fully reached your phone yet (from the cloud). Pick it again.",
       "too_long": "The video is longer than 40 seconds.",
       "too_many": "You reached the maximum number of angles for this moment.",
       "failed": "Upload failed. Please try again.",

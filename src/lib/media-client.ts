@@ -24,7 +24,7 @@ export type PreparedAngle = {
 export class PrepareError extends Error {
   // too_long carries the file, so the page can offer to send its first seconds instead.
   constructor(
-    public code: "unsupported" | "too_long",
+    public code: "unsupported" | "not_ready" | "too_long",
     public durationSec?: number,
   ) {
     super(code);
@@ -76,11 +76,15 @@ const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // The picked file, read once into memory (2026-10-20: «غير مدعومة» on the first try, fine on the
 // second — a photo from the gallery's cloud (Google Photos) isn't all on the phone yet when picked,
-// and three reads of it at once — date, place, picture — failed). Tried three times, a little later
+// and three reads of it at once — date, place, picture — failed). Tried a few times, a little later
 // each time; everything after works on these bytes.
+// 2026-10-29 (Sentry: four 4.5 MB photos on Android 10, all «NotReadableError» at the read): the
+// photo changed on the phone after it was picked — it was still coming down from the cloud — and
+// the browser then refuses that pick for good, however long one waits; picked again, it goes up.
+// So that one says so («not_ready»: pick it again) instead of «غير مدعومة».
 async function readBytes(file: File) {
   let last: unknown;
-  for (const wait of [0, 400, 1200]) {
+  for (const wait of [0, 500, 1500]) {
     if (wait) await pause(wait);
     try {
       const bytes = await file.arrayBuffer();
@@ -90,7 +94,8 @@ async function readBytes(file: File) {
       last = error;
     }
   }
-  throw Object.assign(new PrepareError("unsupported"), { cause: last, stage: "read" });
+  const stale = last instanceof Error && last.name === "NotReadableError";
+  throw Object.assign(new PrepareError(stale ? "not_ready" : "unsupported"), { cause: last, stage: "read" });
 }
 
 // The picture itself, drawable: an <img> first (browsers apply the EXIF rotation when drawing, so
@@ -160,7 +165,8 @@ function within<T>(ms: number, start: (done: (value: T) => void, fail: () => voi
 // «loaded» or «seeked» never came). What the phone can't read, the server works out itself: the
 // length (it measures every video anyway) and the cover (made from the video when none came).
 async function prepareVideo(file: File, long = false, onCut?: (share: number) => void): Promise<PreparedAngle> {
-  const type = file.type || (/\.mov$/i.test(file.name) ? "video/quicktime" : /\.webm$/i.test(file.name) ? "video/webm" : "video/mp4");
+  // (no type, or only «application/octet-stream»: its name, else mp4 — its first bytes said video)
+  const type = (file.type && file.type !== "application/octet-stream" ? file.type : "") || (/\.mov$/i.test(file.name) ? "video/quicktime" : /\.webm$/i.test(file.name) ? "video/webm" : "video/mp4");
   if (!VIDEO_TYPES.includes(type)) throw new PrepareError("unsupported");
   const capturedAt = file.lastModified ? new Date(file.lastModified).toISOString() : null;
   const url = URL.createObjectURL(file);
@@ -213,10 +219,29 @@ async function prepareVideo(file: File, long = false, onCut?: (share: number) =>
   }
 }
 
-export function prepareAngleFile(file: File, long = false, onCut?: (share: number) => void) {
+// What a file is, from its first bytes — for one handed over with no type and no telling name
+// (some galleries and share sheets give «1000012345» and nothing else, or application/octet-stream).
+export function sniffKind(head: Uint8Array): "photo" | "video" | null {
+  const at = (i: number, ...bytes: number[]) => bytes.every((b, k) => head[i + k] === b);
+  const text = (i: number, n: number) => String.fromCharCode(...head.slice(i, i + n));
+  if (at(0, 0xff, 0xd8, 0xff) || at(0, 0x89, 0x50, 0x4e, 0x47) || text(0, 4) === "GIF8" || (text(0, 4) === "RIFF" && text(8, 4) === "WEBP")) return "photo";
+  if (text(4, 4) === "ftyp") return /^(heic|heix|hevc|hevx|heim|heis|mif1|msf1|avif|avis)$/.test(text(8, 4)) ? "photo" : "video";
+  if (at(0, 0x1a, 0x45, 0xdf, 0xa3)) return "video"; // webm
+  return null;
+}
+
+// A photo the phone couldn't prepare is tried once more by itself, a moment later — what the
+// person did by hand when it said «غير مدعومة» and then went up fine (2026-10-29: it came back).
+const photoAgain = (file: File) => preparePhoto(file).catch((error) => (error instanceof PrepareError && error.code === "unsupported" ? pause(1500).then(() => preparePhoto(file)) : Promise.reject(error)));
+
+export async function prepareAngleFile(file: File, long = false, onCut?: (share: number) => void) {
   // (some Android galleries hand a video over with no type at all: its name says what it is)
   if (file.type.startsWith("video/") || (!file.type && /\.(mp4|mov|webm|m4v)$/i.test(file.name))) return prepareVideo(file, long, onCut);
   // (a photo with no type at all — some apps hand one over so — goes by its name)
-  if (file.type.startsWith("image/") || /\.(heic|heif|jpe?g|png|webp|gif|avif)$/i.test(file.name)) return preparePhoto(file);
-  return Promise.reject(new PrepareError("unsupported"));
+  if (file.type.startsWith("image/") || /\.(heic|heif|jpe?g|png|webp|gif|avif)$/i.test(file.name)) return photoAgain(file);
+  // Neither its type nor its name says: its first bytes do.
+  const kind = sniffKind(new Uint8Array(await file.slice(0, 16).arrayBuffer().catch(() => new ArrayBuffer(0))));
+  if (kind === "photo") return photoAgain(file);
+  if (kind === "video") return prepareVideo(file, long, onCut);
+  throw Object.assign(new PrepareError("unsupported"), { stage: "type" });
 }

@@ -28,7 +28,7 @@ type Labels = {
   uploading: string;
   checking: string;
   done: string;
-  errors: { unsupported: string; too_long: string; too_many: string; failed: string; blocked: string; official_required: string };
+  errors: { unsupported: string; not_ready: string; too_long: string; too_many: string; failed: string; blocked: string; official_required: string };
   longNotice: string;
   longAction: string;
   trimming: string;
@@ -488,7 +488,7 @@ export function AngleUploader({
       }
       // «غير مدعومة»: told to error monitoring with what the file was and where it failed, so the
       // cause is known and not guessed (2026-10-20).
-      if (error instanceof PrepareError && error.code === "unsupported" && input instanceof File) {
+      if (error instanceof PrepareError && (error.code === "unsupported" || error.code === "not_ready") && input instanceof File) {
         const ua = navigator.userAgent;
         const cause = (error as { cause?: unknown }).cause;
         Sentry.captureMessage(`unsupported file (${/iPhone|iPad/.test(ua) ? "iphone" : /Android/.test(ua) ? "android" : "other"})`, {
