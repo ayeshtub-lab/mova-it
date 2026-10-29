@@ -20,8 +20,8 @@ async function main() {
     const m = await db.moment.create({ data: { code: `SM${Math.random().toString(36).slice(2, 6).toUpperCase()}`, title: `${TAG} قهوة & «حلويات» <صباح>`, named: true, visibility: "PUBLIC", status: "ACTIVE", creatorId: owner.id } });
     const shot = (mediaType: "PHOTO" | "VIDEO") =>
       db.angle.create({ data: { momentId: m.id, contributorId: owner.id, mediaType, status: "READY", screening: "allowed", mediaPath: `m/${m.id}/x.${mediaType === "VIDEO" ? "mp4" : "jpg"}`, thumbPath: mediaType === "VIDEO" ? `m/${m.id}/x-poster.jpg` : null, durationSec: mediaType === "VIDEO" ? 12.4 : null, aiTitle: `${TAG} ${"عنوان طويل جدا ".repeat(10)}` } });
-    await shot("PHOTO");
-    await shot("VIDEO");
+    const photo = await shot("PHOTO");
+    const video = await shot("VIDEO");
 
     await check("the sitemap the site writes meets Google's schemas, a video and odd characters included", async () => {
       const res = await GET();
@@ -31,6 +31,16 @@ async function main() {
       assert.ok(xml.includes(`/m/${m.code}`), "the test moment is listed");
       assert.ok(/<video:video>/.test(xml), "a video entry is there");
       assert.deepEqual(sitemapProblems(xml), []);
+    });
+
+    // Focused 2026-10-29: a video keeps its own page in the map; a photo's page and the English
+    // copies are left out (the photo's picture is still listed under its moment).
+    await check("a video's page is listed, a photo's own page and the English copies are not", async () => {
+      const xml = await (await GET()).text();
+      assert.ok(xml.includes(`/a/${video.id}<`), "the video's page is listed");
+      assert.ok(!xml.includes(`/a/${photo.id}<`), "the photo's own page is left out");
+      assert.ok(xml.includes(`/i/${photo.id}.jpg`), "the photo's picture is still under its moment");
+      assert.ok(!xml.includes(`/en/m/${m.code}`), "no English copies");
     });
   } finally {
     await db.moment.deleteMany({ where: { creatorId: owner.id } });

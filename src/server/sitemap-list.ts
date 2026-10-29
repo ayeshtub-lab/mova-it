@@ -20,6 +20,13 @@ import { sitemapAuthors, sitemapEntries, sitemapShots, sitemapSoundKeys, sitemap
 // moments or more (one spelling of each: «الارض» and «الأرض» are one), sounds on 3 shots or more,
 // places of 3 shots or more. The other pages stay open to people and links; just not pushed.
 // Written out by src/app/sitemap.xml/route.ts (in the order Google's schema asks — 2026-10-19).
+// Focused again (2026-10-29): 2159 addresses, 280 indexed and 759 «found but not indexed» — a site a
+// month old pushing more pages than Google will trust it with. Out of the map for now (the pages stay
+// open, linked and indexable): the English copies (923 — the Arabic first; each page still points to
+// its English twin with hreflang) and a photo's own page (one picture and a line — its picture is
+// still listed under its moment, for Google Images).
+const EN_IN_SITEMAP = false;
+const PHOTO_PAGES_IN_SITEMAP = false;
 
 // One tag per spelling: «خيرات_الارض» and «خيرات_الأرض» (alef with or without hamza, ى/ي, ة/ه at
 // the end) are one page for a reader — the more used spelling stays.
@@ -99,7 +106,7 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
     // A photo's own page too (its picture, who shot it, where): found from the map, not only
     // through its moment.
     ...shots
-      .filter((s) => s.mediaType === "PHOTO")
+      .filter((s) => PHOTO_PAGES_IN_SITEMAP && s.mediaType === "PHOTO")
       .map((s) => ({ url: `${base}${shotPath(s)}`, lastModified: s.uploadedAt, changeFrequency: "monthly" as const, priority: 0.4, images: [`${base}/i/${s.id}.jpg`] })),
     // Who shot them: a member's page with their public shots (E-E-A-T).
     ...authors.map((a) => ({ url: `${base}/u/${a.id}`, lastModified: a.updatedAt, changeFrequency: "weekly" as const, priority: 0.5 })),
@@ -117,7 +124,7 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
   // Zawmo in English (2026-10-21): once the English pages are open to Google (EN_INDEXED), each of
   // phase 1's pages that has its English words gets its /en address too, both tied together
   // (hreflang), its videos under their English names.
-  if (!EN_INDEXED) return list;
+  if (!EN_INDEXED || !EN_IN_SITEMAP) return list;
   const englishTitle = new Map<string, string | null>([
     [base, "Zawmo"],
     ...moments.map((m) => [`${base}/m/${m.code}`, m.titleEn] as const),
