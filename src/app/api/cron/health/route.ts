@@ -8,7 +8,7 @@ import { smokeChecks, type Check } from "@/server/smoke";
 
 export const maxDuration = 120;
 
-// Every 15 minutes (vercel.json), from Vercel itself — so it runs whether or not anyone's
+// Every 30 minutes (vercel.json), from Vercel itself — so it runs whether or not anyone's
 // computer is on: the site's vital signs as people and crawlers see them (src/server/smoke.ts),
 // the database, and films stuck rendering. Anything wrong → a push to the admins, once per
 // problem every 6 hours (no flood while it is being fixed). A whole-site outage is caught from

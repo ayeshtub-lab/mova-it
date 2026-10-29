@@ -1,7 +1,7 @@
 // The live site's vital signs, checked from the outside the way people and crawlers see it:
 // pages open, a shared link shows its card, pictures load, hearts answer, crons stay locked.
 // Read-only (GET requests, nothing is changed). Used after every deploy (tests/deploy.mjs,
-// which switches back to the previous version when one fails) and every 15 minutes by
+// which switches back to the previous version when one fails) and every 30 minutes by
 // /api/cron/health (which tells the admins). Plain fetch only: runs anywhere.
 
 import { sitemapProblems, structuredProblems } from "@/lib/seo-spec";

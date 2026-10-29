@@ -17,7 +17,7 @@ import { viewUrl } from "@/server/media";
 // page for Google); a shot deleted from it remakes that part only. Everyone with a shot in the
 // moment hears of each new part.
 //
-// Gently on the server: the cron makes ONE part per run (every 15 minutes) across the whole site.
+// Gently on the server: the cron makes ONE part per run (every 30 minutes) across the whole site.
 // Until PARTS_SHOWN is on, parts are made but not shown or announced (checked first by hand).
 
 export { PARTS_SHOWN } from "./index";
@@ -216,7 +216,7 @@ export async function duePart(momentId: string, now = new Date()) {
   return { part, shots: next.shots, seconds: next.seconds, title: await partTitle(moment.title, part, next.shots.map((s) => s.id)), remake: false };
 }
 
-// Every 15 minutes (cron «montages»): ONE part made across the whole site — the most recently
+// Every 30 minutes (cron «montages»): ONE part made across the whole site — the most recently
 // active moments first. Returns the montage made, or null.
 export async function makeDuePart(host: string, now = new Date()) {
   const moments = await db.moment.findMany({

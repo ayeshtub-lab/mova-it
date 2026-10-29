@@ -106,6 +106,11 @@ async function fetchSound(sound: Sound, siteHost: string, file: string) {
 // for photos and mute clips) so segments of any origin — iPhone HEVC, Android, webm —
 // join cleanly, with that angle's overlay burnt in.
 const COVER = `scale=${FRAME.width}:${FRAME.height}:force_original_aspect_ratio=increase,crop=${FRAME.width}:${FRAME.height},setsar=1,fps=${FPS},format=yuv420p`;
+// The blurred fill behind a video shot that doesn't fill the frame («شارك بختم زاومو»): blurred at a
+// quarter of the size, then enlarged — the same soft look, but a 24-pixel blur over every full-size
+// frame ran at ~4.6 fps on busy camera footage, and a 40 s clip outran the 240 s limit (2026-10-27).
+const BLUR_SCALE = 4;
+const BLURRED_FILL = `scale=${FRAME.width / BLUR_SCALE}:${FRAME.height / BLUR_SCALE}:force_original_aspect_ratio=increase,crop=${FRAME.width / BLUR_SCALE}:${FRAME.height / BLUR_SCALE},setsar=1,fps=${FPS},boxblur=${24 / BLUR_SCALE}:2,eq=brightness=-0.12,scale=${FRAME.width}:${FRAME.height},setsar=1,format=yuv420p`;
 // …with a ceiling on the rate (2026-10-17): busy camera footage (a tomato field's leaves) came out at
 // ~10 Mb/s — a 40 s part of 51 MB, which Android's Chrome refuses to share («Permission denied») and
 // no one wants to download on a phone. 2.5 Mb/s at 720p keeps it sharp (TikTok's own rate) and a
@@ -697,7 +702,7 @@ export async function buildBrandedShot(
   // The shot: blurred fill behind, the whole picture on top, then its look, writing and mark.
   const body = join(dir, "body.mp4");
   const fit = `scale=${FRAME.width}:${FRAME.height}:force_original_aspect_ratio=decrease,setsar=1`;
-  const base = `[0:v]split[a][b];[a]${COVER},boxblur=24:2,eq=brightness=-0.12[bg];[b]${fit}[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,fps=${FPS},format=yuv420p${look(shot.filter)}`;
+  const base = `[0:v]split[a][b];[a]${BLURRED_FILL}[bg];[b]${fit}[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,fps=${FPS},format=yuv420p${look(shot.filter)}`;
   await ffmpeg([
     "-i", input,
     "-loop", "1", "-t", String(seconds), "-i", mark,

@@ -17,7 +17,7 @@
     },
     {
       "path": "/api/cron/montages",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/reminders",
@@ -25,11 +25,11 @@
     },
     {
       "path": "/api/cron/branded",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/health",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/30 * * * *"
     }
   ],
   "functions": {
@@ -61,6 +61,12 @@
       "memory": 3009
     },
     "src/app/api/angles/[id]/join/route.ts": {
+      "memory": 3009
+    },
+    "src/app/api/angles/[id]/branded/route.ts": {
+      "memory": 3009
+    },
+    "src/app/api/cron/branded/route.ts": {
       "memory": 3009
     }
   }

@@ -8,7 +8,7 @@ import { rescanReposts } from "@/server/repost-scan";
 // A moment's film may be made here (big films take minutes on the server).
 export const maxDuration = 800;
 
-// Every quarter hour (vercel.json): moments' videos left waiting for more shots are made once
+// Every half hour (vercel.json, since 2026-10-29 — every quarter hour kept Neon awake): moments' videos left waiting for more shots are made once
 // nobody has added one for a while (src/server/montage/index.ts). Vercel's scheduler sends the
 // secret; nobody else can run it.
 export async function GET(request: Request) {

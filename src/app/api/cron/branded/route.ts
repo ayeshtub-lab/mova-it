@@ -18,7 +18,7 @@ const RETITLE_PREVIEW = false;
 // Each render takes a while (the whole clip is re-encoded once).
 export const maxDuration = 300;
 
-// Every 15 minutes (vercel.json; once an hour at night — src/lib/night-rest.ts): fresh shots get the weather they were taken in (quick, a few
+// Every 30 minutes (vercel.json, since 2026-10-29; once an hour at night — src/lib/night-rest.ts): fresh shots get the weather they were taken in (quick, a few
 // calls), then older videos get their stamped copy made ahead, a few per run, and photos with a
 // sound their shared video. A weather failure never stops the videos.
 export async function GET(request: Request) {

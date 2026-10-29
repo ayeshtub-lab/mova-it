@@ -2,7 +2,7 @@
 // checked against the official specs, not against how it looks to us. The live sitemap had 873
 // errors for weeks (Next.js wrote a video's title before its cover, and lastmod after the images)
 // and nothing of ours noticed — the owner did, by chance. These checks run on every deploy and every
-// 15 minutes (src/server/smoke.ts), and in the tests. Plain string work: runs anywhere.
+// 30 minutes (src/server/smoke.ts), and in the tests. Plain string work: runs anywhere.
 //
 // Sitemap: https://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd,
 //          https://www.google.com/schemas/sitemap-image/1.1/sitemap-image.xsd,
