@@ -18,6 +18,9 @@ import { SHARED_MARK } from "@/app/new/SharedArrival";
 import { PlaceGuess, type PlaceGuessLabels } from "@/app/PlaceGuess";
 import type { DraftView } from "@/server/drafts";
 
+// «صوّر معك» after an upload (src/server/join.ts): off — see where it is asked below.
+const JOIN_SUGGESTIONS = false;
+
 
 type Labels = {
   cameraPhoto: string;
@@ -469,7 +472,8 @@ export function AngleUploader({
       });
       // «صوّر معك» (2026-10-24): asked now, while the person names the shot — never waited for (it
       // added 7–15 s to «عم نفحص»). Its card shows if it comes while the shot is still a draft.
-      if (!result.suggestion) {
+      // Off since 2026-10-29 (his call: its matches weren't right) — JOIN_SUGGESTIONS brings it back.
+      if (JOIN_SUGGESTIONS && !result.suggestion) {
         update(index, { looking: true });
         postJson(`/api/angles/${angleId}/join-suggestion`)
           .then((r: { suggestion?: JoinSuggestion | null }) =>

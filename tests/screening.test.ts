@@ -22,6 +22,34 @@ function reply(status: number, body: unknown) {
 const answer = (text: string, finishReason = "STOP") => ({ candidates: [{ finishReason, content: { parts: [{ text }] } }] });
 
 async function main() {
+  // The quick check after an upload (2026-10-29): no words for search engines asked, Gemini told to
+  // think little; the whole look still asks for them and leaves the thinking as it was.
+  await check("the quick check asks less, thinking little; the whole look as before", async () => {
+    reply(200, answer('{"verdict":"allow","category":"none","reason":"ok","captions":["أحلى صبحية ☕"]}'));
+    const quick = await askGemini(["aGk="], undefined, false, true);
+    assert.equal(quick.result, "allowed");
+    const quickText = JSON.stringify(lastRequest?.body);
+    assert.ok(!quickText.includes("seo_title"), "no SEO words in the quick check");
+    assert.ok(quickText.includes("captions") && quickText.includes("repost"), "its lines to write and where it comes from stay");
+    assert.ok(quickText.includes('"thinkingLevel":"low"'), "thinking little");
+    await askGemini(["aGk="]);
+    const fullText = JSON.stringify(lastRequest?.body);
+    assert.ok(fullText.includes("seo_title") && fullText.includes("description_en") && fullText.includes("captions"), "the whole look asks for everything");
+    assert.ok(!fullText.includes("thinkingLevel"), "the whole look thinks as before");
+  });
+
+  await check("a quick check whose thinking setting is refused is asked again without it", async () => {
+    let calls = 0;
+    globalThis.fetch = (async (url: string, init: RequestInit) => {
+      calls++;
+      lastRequest = { url, body: JSON.parse(String(init.body)), headers: init.headers as Record<string, string> };
+      return calls === 1 ? new Response(JSON.stringify({ error: { message: "Unknown name thinkingLevel" } }), { status: 400 }) : new Response(JSON.stringify(answer('{"verdict":"allow","category":"none","reason":"ok"}')), { status: 200 });
+    }) as typeof fetch;
+    assert.equal((await askGemini(["aGk="], undefined, false, true)).result, "allowed");
+    assert.equal(calls, 2);
+    assert.ok(!JSON.stringify(lastRequest?.body).includes("thinkingLevel"), "the second time without it");
+  });
+
   await check("allow", async () => {
     reply(200, answer('{"verdict":"allow","category":"none","reason":"family dinner"}'));
     assert.deepEqual(await askGemini(["aGk="]), { result: "allowed" });

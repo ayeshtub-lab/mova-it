@@ -83,7 +83,11 @@ Answer only with JSON: {"verdict":"allow"|"block","category":"none"|"sexual"|"mi
 // without a description.
 // The SEO rules (agreed with the owner of the site, 2026-10-14): written for Google Images and
 // Google Video, every word TRUE of what is seen — the things themselves, not feelings.
-const DESCRIBE = `
+// Split 2026-10-29 (his OK): the person waits only for the check itself (PROMPT + its lines to
+// write on the shot + where it comes from — QUICK); the words for search engines (SEO) are written
+// right after the answer has gone back (src/server/angles.ts describeShot) — together they made
+// «عم نفحص» take 15 s for a photo and up to 31 s for a video (Sentry «slow upload»).
+const SEO = `
 
 Now write for search engines (Google Images and Google Video), as a senior SEO lead would. Google ranks a picture by the words around it, so name what is IN it, in the words people type to find such a picture. Every word must be true of what is seen.
 
@@ -93,17 +97,28 @@ Now write for search engines (Google Images and Google Video), as a senior SEO l
 
 "hashtags": 4 to 8 Arabic search keywords (single words or joined with _, no spaces): first what is seen, as people type it (قهوة_عربية, زيتون, عرس_فلسطيني, دبكة); then the related practical topics people search for that come straight from something visible — the activity, the craft, the method, the kind of place. For example tomatoes with drip-irrigation hoses inside a greenhouse → زراعة_الطماطم, بيوت_بلاستيكية, ري_بالتنقيط, شبكة_ري_بالتنقيط, تمديد_شبكة_ري. Every keyword must come from something actually seen — never one for what is not in the picture (no سماد without fertiliser in sight).
 
-Also suggest 3 different short lines the person could write ON the shot itself, like TikTok text: 2 to 6 words each, in simple Arabic understood across the Arab world, warm or playful or proud, about what is seen (for example «أحلى صبحية ☕», «ريحة البلاد 🌿», «لمّة ما بتنتسى ❤️»). Each may end with one fitting emoji. Never name or guess who the people are, no hashtags, no quotation marks.
-
 And the same for English searchers (Zawmo's English pages, 2026-10-21) — written as an English SEO lead would for people outside the Arab world, NOT a word-for-word translation of the Arabic. Choose the phrasing with real search demand in English: the common words people actually type into Google and Google Images for such a picture (for example «homemade hummus», «olive harvest», «sunset over the sea», «Palestinian food», «real photo of …»), over literal or rare wording; never stuff keywords, every word still true of what is seen:
 "seo_title_en": English, 4 to 10 words, the subject first, in the words people type in Google Images («real photo», «homemade», «traditional», «authentic» only when true), then the setting — general and wide, NO place name (the same rule as the Arabic title: only a famous landmark that is itself the subject, e.g. «Church of the Nativity», «Dead Sea»). For example «Arabic Coffee Among Olive Trees», «Fresh Ripe Red Tomatoes in the Field». Title case, no emoji, no quotation marks, no app name.
 "description_en": English, one or two factual sentences, 18 to 35 words, with the same rules as the Arabic description (what is seen, «real photo» / «real video», the place exactly as given below «in English» and the year — once, only when given).
 
-Add them to the same JSON: "seo_title":"<the title>","description":"<the sentences>","hashtags":["<tag>","<tag>"],"captions":["<line>","<line>","<line>"],"seo_title_en":"<English title>","description_en":"<English sentences>"
+Add them to the same JSON: "seo_title":"<the title>","description":"<the sentences>","hashtags":["<tag>","<tag>"],"seo_title_en":"<English title>","description_en":"<English sentences>"`;
+
+const CAPTIONS = `
+
+Also suggest 3 different short lines the person could write ON the shot itself, like TikTok text: 2 to 6 words each, in simple Arabic understood across the Arab world, warm or playful or proud, about what is seen (for example «أحلى صبحية ☕», «ريحة البلاد 🌿», «لمّة ما بتنتسى ❤️»). Each may end with one fitting emoji. Never name or guess who the people are, no hashtags, no quotation marks.
+
+Add to the same JSON: "captions":["<line>","<line>","<line>"]`;
+
+const REPOST = `
 
 Also judge where it comes from: was it clearly NOT shot by the person uploading it? Say so only on clear signs — a watermark or logo of another app with an account name (TikTok, Instagram, Snapchat, YouTube, Likee, a CapCut template), a TV channel logo or broadcast graphics, a scene from a film, series, music video, cartoon or advertisement, or a screen captured or filmed (a phone status bar, another app's buttons and comments, a TV or monitor filmed as the subject). NOT a repost: an ordinary phone photo or video, one with the person's own text, stickers or filters, a photo of an old printed family photo, people in front of a TV where the screen is not the subject. When unsure, it is not a repost.
 
 Add to the same JSON: "repost":"" when it is not a repost, else a short English reason naming the sign (for example "TikTok watermark @name").`;
+
+// The whole look (a second look, a moment made public, the words written after an upload)…
+const DESCRIBE = SEO + CAPTIONS + REPOST;
+// …and the quick one a person waits for after an upload.
+const QUICK = CAPTIONS + REPOST;
 
 // Lines to write on the shot, offered in «✍️»: tidied, 2–40 characters, three at most.
 export function captionIdeasOf(raw: unknown) {
@@ -178,14 +193,23 @@ const mediaLine = (video?: boolean) =>
       ? "\n\nTHE MEDIA: a VIDEO — the images are frames taken from it (the first is its cover). Call it a real video («فيديو حقيقي», «real video»), never a photo."
       : "\n\nTHE MEDIA: a PHOTO. Call it a real photo («صورة حقيقية», «real photo»).";
 
-export async function askGemini(imagesBase64: string[], context?: ShotContext, video?: boolean): Promise<Verdict> {
-  const res = await callGemini({
-    purpose: "screening",
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: PROMPT + DESCRIBE + contextLine(context) + mediaLine(video) }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
-      generationConfig: { temperature: 0, responseMimeType: "application/json" },
-    }),
-  });
+// `quick`: the check a person waits for after an upload — no words for search engines, and
+// Gemini thinking little («low»; the model's own default is «medium»: a safety call doesn't need
+// more, Google's guide 2026). Should Gemini ever refuse that setting, asked again without it.
+export async function askGemini(imagesBase64: string[], context?: ShotContext, video?: boolean, quick = false): Promise<Verdict> {
+  const ask = (thinkLittle: boolean) =>
+    callGemini({
+      purpose: "screening",
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: PROMPT + (quick ? QUICK : DESCRIBE) + (quick ? "" : contextLine(context)) + mediaLine(video) }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
+        generationConfig: { temperature: 0, responseMimeType: "application/json", ...(thinkLittle ? { thinkingConfig: { thinkingLevel: "low" } } : {}) },
+      }),
+    });
+  let res = await ask(quick);
+  if (quick && res.status === 400) {
+    reportGemini("screening", `thinkingLevel refused (model ${MODEL}): asked without it`);
+    res = await ask(false);
+  }
   const body = (await res.json().catch(() => null)) as {
     promptFeedback?: { blockReason?: string };
     candidates?: { finishReason?: string; content?: { parts?: { text?: string }[] } }[];
@@ -232,7 +256,8 @@ export async function screenAngle(angle: {
   mediaPath: string | null;
   thumbPath: string | null;
   durationSec: number | null;
-}, context?: ShotContext): Promise<Verdict> {
+}, context?: ShotContext, quick = false): Promise<Verdict> {
+  const started = Date.now();
   try {
     const images: string[] = [];
     if (angle.mediaType === "PHOTO") {
@@ -245,7 +270,11 @@ export async function screenAngle(angle: {
       if (videoUrl) images.push(...(await videoFrames(videoUrl, angle.durationSec).catch(() => [])));
       if (!images.length) return { result: "error", reason: "no frames" };
     }
-    return await askGemini(images, context, angle.mediaType !== "PHOTO");
+    // Where the check's time goes (2026-10-29): the pictures, then Gemini.
+    const pictured = Date.now();
+    const verdict = await askGemini(images, context, angle.mediaType !== "PHOTO", quick);
+    console.log("screen timing", JSON.stringify({ kind: angle.mediaType, quick, picturesMs: pictured - started, geminiMs: Date.now() - pictured, result: verdict.result }));
+    return verdict;
   } catch (error) {
     return { result: "error", reason: String((error as Error)?.message ?? error).slice(0, 300) };
   }

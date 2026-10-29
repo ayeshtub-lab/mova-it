@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { after, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
-import { AngleError, completeAngle, repairBlackCover } from "@/server/angles";
+import { AngleError, completeAngle, describeShot, repairBlackCover } from "@/server/angles";
 import { makeSmall } from "@/server/small";
 import { sendToStream } from "@/server/stream";
 import { embedAngle } from "@/server/similar";
@@ -10,7 +10,8 @@ import { afterWentLive } from "@/server/went-live";
 import { brandAfterChange } from "@/server/branded";
 
 // The automatic content check runs inside this request (a few seconds). A fine shot becomes
-// a draft and the answer goes back at once; «صوّر معك» is asked by the phone right after
+// a draft and the answer goes back at once (the quick check — its words for search engines come
+// after it, 2026-10-29); «صوّر معك» was asked by the phone right after — off since 2026-10-29
 // (../join-suggestion — 2026-10-24: it added 7–15 s here); the owner then publishes (./publish).
 export const maxDuration = 300;
 
@@ -48,6 +49,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const total = (timing.prepareMs ?? 0) + (timing.sendMs ?? 0) + timing.checkMs;
       if (total > 20_000) Sentry.captureMessage(`slow upload (${timing.device}, ${timing.kind})`, { level: "warning", extra: timing, fingerprint: ["slow-upload", timing.device, timing.kind] });
     };
+    // Its words for search engines (title, description, English), after the response: the check
+    // above was the quick one (2026-10-29).
+    after(() => describeShot(angle.id));
     // The small copy for grids (photos), after the response; until then grids use the photo.
     after(() => makeSmall(angle.id).catch((error) => console.error("small copy failed", angle.id, error)));
     // Videos: a cover the phone drew black (before the frame was decoded) made again from the video.

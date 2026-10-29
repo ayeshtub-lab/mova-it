@@ -416,13 +416,15 @@ export async function shotContext(angle: { momentId: string; placeId: string | n
 
 // The check, tried again (a little later each time) when it fails rather than answers.
 const SCREEN_RETRY_MS = [2000, 5000];
+// The quick check (src/server/screening.ts QUICK): the words for search engines come after
+// (describeShot), so the person waits only for the check itself.
 async function screenWithRetry(angle: Parameters<typeof screenAngle>[0] & Parameters<typeof shotContext>[0]) {
   const context = await shotContext(angle).catch(() => undefined);
-  let verdict = await screenAngle(angle, context);
+  let verdict = await screenAngle(angle, context, true);
   for (const wait of SCREEN_RETRY_MS) {
     if (verdict.result !== "error") break;
     await new Promise((r) => setTimeout(r, wait));
-    verdict = await screenAngle(angle, context);
+    verdict = await screenAngle(angle, context, true);
   }
   return verdict;
 }
@@ -478,20 +480,35 @@ export async function describePending(take = 8) {
   });
   let done = 0;
   for (const shot of shots) {
-    const verdict = await screenAngle(shot, await shotContext(shot).catch(() => undefined));
-    if (verdict.result === "error") {
-      console.error("describe failed", shot.id, verdict.reason);
-      break;
-    }
-    // (A second look that disagrees with the first is left to the admins, never acted on here.)
-    if (verdict.result === "blocked") console.error("describe: second look would block", shot.id, verdict.category);
-    await db.angle.update({
-      where: { id: shot.id },
-      data: verdict.result === "allowed" ? { aiTitle: verdict.seoTitle ?? "", ...(verdict.text ? { aiText: verdict.text } : {}), ...(verdict.seoTitleEn ? { aiTitleEn: verdict.seoTitleEn } : {}), ...(verdict.textEn ? { aiTextEn: verdict.textEn } : {}) } : { aiTitle: "" },
-    });
+    if (!(await describeOne(shot))) break;
     done++;
   }
   return done;
+}
+
+// One shot's words for search engines; false when Gemini failed (tried again later).
+async function describeOne(shot: { id: string; momentId: string; placeId: string | null; capturedAt: Date | null; mediaType: string; mediaPath: string | null; thumbPath: string | null; durationSec: number | null }) {
+  const verdict = await screenAngle(shot, await shotContext(shot).catch(() => undefined));
+  if (verdict.result === "error") {
+    console.error("describe failed", shot.id, verdict.reason);
+    return false;
+  }
+  // (A second look that disagrees with the first is left to the admins, never acted on here.)
+  if (verdict.result === "blocked") console.error("describe: second look would block", shot.id, verdict.category);
+  await db.angle.update({
+    where: { id: shot.id },
+    data: verdict.result === "allowed" ? { aiTitle: verdict.seoTitle ?? "", ...(verdict.text ? { aiText: verdict.text } : {}), ...(verdict.seoTitleEn ? { aiTitleEn: verdict.seoTitleEn } : {}), ...(verdict.textEn ? { aiTextEn: verdict.textEn } : {}) } : { aiTitle: "" },
+  });
+  return true;
+}
+
+// Right after an upload's answer has gone back (src/app/api/angles/[id]/complete, 2026-10-29): the
+// words the quick check left out — its title, description and English for search engines. A shot
+// it misses (Gemini busy) is caught by describePending once it is public. Never throws.
+export async function describeShot(angleId: string) {
+  const shot = await db.angle.findUnique({ where: { id: angleId }, select: { id: true, momentId: true, placeId: true, capturedAt: true, mediaType: true, mediaPath: true, thumbPath: true, durationSec: true, aiTitle: true, screening: true } });
+  if (!shot || shot.aiTitle != null || shot.screening !== "allowed") return;
+  await describeOne(shot).catch((error) => console.error("describe failed", angleId, error));
 }
 
 // A moment just became public: angles added before (unchecked, or checked while the
