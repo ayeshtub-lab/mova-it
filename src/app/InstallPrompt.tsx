@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { isInAppBrowser } from "@/lib/inapp";
-import { ANDROID_PACKAGE } from "@/lib/site";
 
 export type InstallLabels = {
   title: string;
@@ -32,6 +31,8 @@ const AFTER_PAGES = 2; // …or a second page — never the moment someone arriv
 const QUIET = /^\/(new|messages|admin|start|share)(\/|$)/;
 // The app on Google Play, opened in the Play Store app — from Chrome and from inside Facebook,
 // TikTok or Instagram alike — with the web page as the fallback. The referrer shows in Play Console.
+// (src/lib/site.ts ANDROID_PACKAGE — that file reads the request, so a phone's page can't import it)
+const ANDROID_PACKAGE = "com.zawmo.app";
 const PLAY_REFERRER = "utm_source%3Dzawmo%26utm_medium%3Dinstall-card";
 const PLAY_PAGE = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}&referrer=${PLAY_REFERRER}`;
 const PLAY_INTENT = `intent://details?id=${ANDROID_PACKAGE}&referrer=${PLAY_REFERRER}#Intent;scheme=market;package=com.android.vending;S.browser_fallback_url=${encodeURIComponent(PLAY_PAGE)};end`;

@@ -28,7 +28,7 @@ export function Showcase({
     <li key="card">
       <Link href="/cards" className="group relative block size-full overflow-hidden rounded-2xl bg-surface">
         {/* eslint-disable-next-line @next/next/no-img-element -- the card's fixed address */}
-        <img src={cardImage(card)} alt={card.text} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
+        <img src={cardImage(card, true)} alt={card.text} loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
         <span className="absolute start-1.5 top-1.5 rounded-full bg-white/90 px-1.5 text-xs font-extrabold text-black shadow">{card.label}</span>
       </Link>
     </li>

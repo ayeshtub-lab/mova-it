@@ -99,7 +99,7 @@ export default async function CardsPage({ searchParams }: PageProps<"/cards">) {
               <li key={c.id}>
                 <Link href={`/c/${c.id}`} className="block overflow-hidden rounded-2xl bg-surface">
                   {/* eslint-disable-next-line @next/next/no-img-element -- the card's fixed address */}
-                  <img src={cardImage(c)} alt={c.text} loading="lazy" className="aspect-[3/4] w-full object-cover" />
+                  <img src={cardImage(c, true)} alt={c.text} loading="lazy" className="aspect-[3/4] w-full object-cover" />
                 </Link>
               </li>
             ))}

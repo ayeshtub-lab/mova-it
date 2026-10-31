@@ -69,8 +69,8 @@ export function DiscoverFeed({
   const sharesOf = (a: FeedAngle) => shares.get(a.id) ?? a.shares;
   const commentsOf = (a: FeedAngle) => commentCounts.get(a.id) ?? a.comments;
 
+  // Visitors too (2026-10-31): their first five hearts need no name (src/server/quiet-guest.ts).
   async function toggleLike(a: FeedAngle) {
-    if (!canAct) return setSheet({ kind: "signin" });
     const current = likeOf(a);
     const liked = !current.liked;
     setLikes((m) => new Map(m).set(a.id, { count: current.count + (liked ? 1 : -1), liked }));
@@ -78,7 +78,10 @@ export function DiscoverFeed({
     if (res?.ok) {
       const next: Likes = await res.json();
       setLikes((m) => new Map(m).set(a.id, next));
-    } else setLikes((m) => new Map(m).set(a.id, current));
+    } else {
+      setLikes((m) => new Map(m).set(a.id, current));
+      if (res?.status === 403 || res?.status === 401) setSheet({ kind: "signin" });
+    }
   }
 
   // «شارك»: a member gets Zawmo's sheet first (their people, then the phone's sheet — below — and the

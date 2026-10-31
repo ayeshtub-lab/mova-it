@@ -1,5 +1,6 @@
 import { del, put } from "@vercel/blob";
 import { unstable_cache } from "next/cache";
+import sharp from "sharp";
 import { CARD_TEXT_MAX, isCardKind, isCardStyle, type CardKind } from "@/lib/card-styles";
 import { db } from "@/lib/db";
 import { isScene, type Scene } from "@/lib/scenes";
@@ -97,6 +98,19 @@ export const cardIdeas = (angleId: string) => unstable_cache(() => askIdeas(angl
 const JPEG = (b: Buffer) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 const IMAGE_MAX = 2 * 1024 * 1024;
 
+// The grids of /cards show a card at ~170 px; the full picture (1080 px, 200–400 KB) left them
+// blank for seconds on 3G (his guest tour, 2026-10-31). Each card keeps a small copy beside it
+// (cards/ID-small.jpg), made when it is saved — or, for older cards, on its first visit (src/app/i).
+const SMALL_WIDTH = 480; // a grid cell on a phone at 3× pixel density
+export const smallCardPath = (imagePath: string) => imagePath.replace(/\.jpg$/, "-small.jpg");
+
+export async function saveSmallCard(imagePath: string, image: Buffer) {
+  const small = await sharp(image).resize({ width: SMALL_WIDTH, withoutEnlargement: true }).jpeg({ quality: 75, mozjpeg: true }).toBuffer();
+  await put(smallCardPath(imagePath), small, { access: "private", contentType: "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
+  return small;
+}
+const dropCardFiles = (imagePath: string) => Promise.all([del(imagePath), del(smallCardPath(imagePath))]).catch(() => {});
+
 export async function publishCard(user: User, input: { angleId: unknown; text: unknown; kind: unknown; style: unknown; image: Buffer; replace?: unknown }) {
   // Everyone may publish (2026-10-26), visitors too: the words are checked by Gemini, the team can hide it.
   const shot = typeof input.angleId === "string" ? await publicShot(input.angleId) : null;
@@ -115,6 +129,7 @@ export async function publishCard(user: User, input: { angleId: unknown; text: u
   const card = await db.card.create({ data: { angleId: shot.id, creatorId: user.id, text, kind: input.kind, style: input.style, public: true, screening: "allowed" } });
   const imagePath = `cards/${card.id}.jpg`;
   await put(imagePath, input.image, { access: "private", contentType: "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
+  await saveSmallCard(imagePath, input.image).catch((error) => console.error("small card", error));
   return db.card.update({ where: { id: card.id }, data: { imagePath } });
 }
 
@@ -127,8 +142,9 @@ async function replaceCard(user: User, id: string, angleId: string, input: { tex
   if (input.text !== card.text && (await screenText(input.text)).result !== "allowed") throw new CardError("words");
   const imagePath = `cards/${card.id}-${Date.now().toString(36)}.jpg`;
   await put(imagePath, input.image, { access: "private", contentType: "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
+  await saveSmallCard(imagePath, input.image).catch((error) => console.error("small card", error));
   const updated = await db.card.update({ where: { id: card.id }, data: { text: input.text, kind: input.kind, style: input.style, imagePath, screening: "allowed" } });
-  if (card.imagePath && card.imagePath !== imagePath) await del(card.imagePath).catch(() => {});
+  if (card.imagePath && card.imagePath !== imagePath) await dropCardFiles(card.imagePath);
   return updated;
 }
 
@@ -144,7 +160,7 @@ export async function ownCard(user: User, id: string) {
 export async function deleteCard(user: User, id: string) {
   const card = await ownCard(user, id);
   await db.card.delete({ where: { id: card.id } });
-  if (card.imagePath) await del(card.imagePath).catch(() => {});
+  if (card.imagePath) await dropCardFiles(card.imagePath);
 }
 
 // Shown: public, checked, its picture still public.

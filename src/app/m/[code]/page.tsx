@@ -312,7 +312,9 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               .filter(Boolean)
               .join(" · ")}
           </p>
-          {view.creatorName && <p className="text-sm text-muted">{fill(t.by, { name: view.creatorName })}</p>}
+          {/* «بدأها X» only when the sentence below doesn't already name them (2026-10-31: the same
+              name twice in two lines; the sentence stays — it is what search engines show). */}
+          {view.creatorName && !(!daily && summary && people.includes(view.creatorName)) && <p className="text-sm text-muted">{fill(t.by, { name: view.creatorName })}</p>}
           {/* What this moment is, in one sentence of its own (search engines show it rather than the
               invitations every moment shares). */}
           {!daily && summary && <p className="text-sm leading-relaxed text-muted">{summary}</p>}

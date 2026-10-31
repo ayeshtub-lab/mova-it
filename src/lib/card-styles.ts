@@ -144,8 +144,9 @@ export const isCardStyle = (v: unknown): v is string =>
 
 // A card's picture at zawmo.com/i/card-ID.jpg, with its version (2026-10-26): an edited card is
 // saved under a new name (cards/ID-v.jpg), and the address changes with it — otherwise phones and
-// the CDN kept showing the old picture for an hour after «✏️ عدّلها».
-export function cardImage(card: { id: string; imagePath?: string | null }) {
+// the CDN kept showing the old picture for an hour after «✏️ عدّلها». `small`: its small copy, for
+// grids (2026-10-31).
+export function cardImage(card: { id: string; imagePath?: string | null }, small = false) {
   const v = /-([a-z0-9]+)\.jpg$/.exec(card.imagePath ?? "")?.[1];
-  return `/i/card-${card.id}.jpg${v ? `?v=${v}` : ""}`;
+  return `/i/card-${card.id}${small ? "-small" : ""}.jpg${v ? `?v=${v}` : ""}`;
 }

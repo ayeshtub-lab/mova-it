@@ -53,6 +53,7 @@ export default async function StatsPage() {
   const tiles = [
     ["👥", "النشطين اليوم", s.totals.active],
     ["🆕", "الجدد اليوم", s.totals.joined],
+    ["🤍", "زوار عجبهم بلا اسم", s.totals.quietLikers],
     ["📸", "لقطات اليوم", s.totals.shots],
     ["⭐", "لحظات جديدة", s.totals.moments],
     ["❤️", "إعجابات اليوم", s.totals.reactions],

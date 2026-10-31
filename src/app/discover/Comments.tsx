@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { askSignIn } from "@/app/SignInSheet";
 import { VerifiedBadge } from "@/app/VerifiedBadge";
 
 type Comment = { id: string; body: string; authorName: string; authorVerified?: boolean; parentId: string | null };
@@ -50,6 +51,7 @@ export function CommentsSheet({
       body: JSON.stringify({ body, parentId: replyTo?.id ?? null }),
     }).catch(() => null);
     setSending(false);
+    if (res?.status === 403) return askSignIn();
     if (!res?.ok) return setError(res?.status === 429 ? labels.tooMany : labels.failed);
     // Shown at once from the server's answer (no second round trip): a reply goes after
     // the last reply of its thread, a comment at the end.

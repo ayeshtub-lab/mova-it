@@ -7,6 +7,8 @@ import { PATH_HEADER, type Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { currentUnread } from "@/server/inbox";
+import { unnamedGuest } from "@/lib/guest-name";
+import { SignInButton } from "@/app/SignInSheet";
 
 export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dictionary }) {
   const user = await getCurrentUser();
@@ -68,6 +70,8 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
             </Link>
           </span>
         )}
+        {/* «👤 دخول» (2026-10-31): visitors, and guests who never said their name (src/app/SignInSheet.tsx). */}
+        {(!user || unnamedGuest(user)) && <SignInButton label={dict.signIn.button} />}
         {/* «الوارد» is a 🔔, on phones too: it keeps the bottom bar's ＋ in the middle. */}
         {user && <InboxLink unread={unread} label={unread ? dict.inbox.openUnread.replace("{n}", String(unread)) : dict.inbox.open} />}
         {user && !user.isGuest && (

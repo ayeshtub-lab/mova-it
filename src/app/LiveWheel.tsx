@@ -11,18 +11,33 @@ import { arcPath, bbox, pt, R_OUT, R_RING, slicePath } from "@/lib/wheel";
 
 export type WheelShot = { id: string; momentCode: string; title: string; angles: number; anglesLabel?: string; name: string; avatarUrl: string | null; imageUrl: string | null };
 
-// A moment's name in two short lines at most, on word boundaries («قهوة / الصباح»).
-function lines(title: string, max = 12) {
-  const words = title.split(/\s+/).filter(Boolean);
+// Words that say nothing in a slice (titles carry them for search engines: «صور قهوة حقيقية…»),
+// and ones that cannot end a line.
+const FILLER = new Set(["صور", "صورة", "فيديو", "وفيديو", "فيديوهات", "وفيديوهات", "وفيدوهات", "حقيقية", "حقيقي", "وحقيقية", "زاومو", "-", "—", "|"]);
+const DANGLING = new Set(["مع", "في", "على", "من", "و", "بين", "عن", "ل", "الى", "إلى"]);
+
+// A moment's name in two short lines at most, on word boundaries («قهوة / الصباح») — whole words
+// only, never «…» (his guest tour, 2026-10-31: «صور حقيقية…» was the first thing a visitor read).
+// A single word too long for a line is the one thing still cut.
+export function lines(title: string, max = 12) {
+  const all = title.split(/\s+/).filter(Boolean);
+  const kept = all.filter((w) => !FILLER.has(w));
+  // (nor may one start on it: «من الخريف» → «الخريف»)
+  while (kept.length > 1 && DANGLING.has(kept[0])) kept.shift();
+  const words = kept.length ? kept : all;
   const out: string[] = [];
   for (const w of words) {
     const last = out.at(-1);
     if (last !== undefined && [...`${last} ${w}`].length <= max) out[out.length - 1] = `${last} ${w}`;
     else if (out.length < 2) out.push([...w].length > max ? `${[...w].slice(0, max - 1).join("")}…` : w);
-    else {
-      out[1] = `${[...out[1]].slice(0, max - 1).join("")}…`;
-      break;
-    }
+    else break;
+  }
+  // «قهوة مع» / «كتاب»: no line ends on a little word left hanging.
+  for (let i = out.length - 1; i >= 0; i--) {
+    const ws = out[i].split(" ");
+    while (ws.length > 1 && DANGLING.has(ws.at(-1)!)) ws.pop();
+    if (ws.length === 1 && DANGLING.has(ws[0]) && i > 0) out.splice(i, 1);
+    else out[i] = ws.join(" ");
   }
   return out;
 }

@@ -12,6 +12,9 @@ import { PresencePing } from "./PresencePing";
 import { BottomNav } from "./BottomNav";
 import { FreshVersion } from "@/app/FreshVersion";
 import { AppShell } from "@/app/AppShell";
+import { SignInSheet } from "@/app/SignInSheet";
+import { googleEnabled } from "@/server/google";
+import { unnamedGuest } from "@/lib/guest-name";
 import { InstallPrompt } from "@/app/InstallPrompt";
 import { EnglishBar } from "@/app/EnglishBar";
 import { GoogleAnalytics } from "@/app/GoogleAnalytics";
@@ -69,6 +72,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <PresencePing />
         <GoogleAnalytics />
         <InstallPrompt labels={dict.install} aboveNav={!!user} />
+        {(!user || unnamedGuest(user)) && (
+          <SignInSheet labels={{ ...dict.signIn, or: dict.account.or, google: dict.account.google }} guestLabels={dict.guest} google={googleEnabled()} />
+        )}
         {/* The website's footer (hidden inside the app: its links are on your own profile). */}
         <footer className={`site-footer px-4 py-6 text-center text-xs text-muted print:hidden ${user ? "pb-28 sm:pb-6" : ""}`}>
           <Link href="/album" className="font-bold underline-offset-4 hover:underline">

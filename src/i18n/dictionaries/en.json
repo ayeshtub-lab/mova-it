@@ -498,6 +498,14 @@
     "givenBack": "Done, their shot is back in its own moment 🤍",
     "giveBackFailed": "That didn't work, try again."
   },
+  "signIn": {
+    "button": "Join",
+    "title": "👋 Welcome to Zawmo",
+    "text": "No sign-up needed: just your name, or your Google account. Then like, comment and add your angle.",
+    "likeTitle": "❤️ Enjoying Zawmo?",
+    "likeText": "Type your name to keep your likes and carry on, no sign-up needed. Or continue with Google.",
+    "close": "Close"
+  },
   "account": {
     "google": "Continue with Google",
     "or": "or",
@@ -576,7 +584,7 @@
     "add": "Add your angle",
     "swipe": "Swipe ↔ for more angles",
     "by": "Started by {name}",
-    "visitorBar": "These are public moments on Zawmo. Sign in with Google to like, comment and add your angle.",
+    "visitorBar": "These are public moments on Zawmo. No sign-up needed: just your name, or your Google account. Then like, comment and add your angle.",
     "trending": "🔥 Trending this week",
     "heroTitle": "Discover 🧭",
     "heroText": "Real moments from everywhere, from every angle.",

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
 import { addComment, CommentError, listComments } from "@/server/comments";
+import { unnamedGuest } from "@/lib/guest-name";
 import { limited } from "@/server/rate-limit";
 
 const failure = (error: unknown) => {
@@ -23,6 +24,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // Words in public need a name (2026-10-31): a guest still called «ضيف ٤٢١٧» is asked for theirs.
+  if (unnamedGuest(user)) return NextResponse.json({ error: "name_needed" }, { status: 403 });
   const slow = await limited("comment", request, user.id);
   if (slow) return slow;
   const payload = await request.json().catch(() => null);

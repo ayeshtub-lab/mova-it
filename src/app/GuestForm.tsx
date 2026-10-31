@@ -10,7 +10,8 @@ type Labels = { nameLabel: string; placeholder: string; submit: string; nameErro
 // `next`: where to go once the guest account exists (an ad's landing page sends people on).
 // `track`: count the landing funnel (typing, pressing «ابدأ») for the admin's numbers.
 // `place`: count «من زائر لعضو» for every visitor (2026-10-28) — saw this box, typed, pressed «ابدأ».
-export function GuestForm({ labels, next, track = false, place }: { labels: Labels; next?: string; track?: boolean; place?: "moment" | "home" | "discover" }) {
+// `inputId`: another id for the name box where the page has one already (src/app/SignInSheet.tsx).
+export function GuestForm({ labels, next, track = false, place, inputId = "displayName" }: { labels: Labels; next?: string; track?: boolean; place?: "moment" | "home" | "discover"; inputId?: string }) {
   const [state, action, pending] = useActionState(continueAsGuest, undefined);
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -36,12 +37,12 @@ export function GuestForm({ labels, next, track = false, place }: { labels: Labe
       className="flex flex-col gap-2"
     >
       {next && <input type="hidden" name="next" value={next} />}
-      <label htmlFor="displayName" className="text-sm font-bold">
+      <label htmlFor={inputId} className="text-sm font-bold">
         {labels.nameLabel}
       </label>
       <div className="flex gap-2">
         <input
-          id="displayName"
+          id={inputId}
           name="displayName"
           required
           maxLength={40}
@@ -52,7 +53,7 @@ export function GuestForm({ labels, next, track = false, place }: { labels: Labe
           }}
           placeholder={labels.placeholder}
           aria-invalid={state?.error === "name"}
-          aria-describedby={state?.error ? "displayName-error" : undefined}
+          aria-describedby={state?.error ? `${inputId}-error` : undefined}
           className="min-h-11 min-w-0 flex-1 rounded-full border border-line bg-background px-4 outline-none focus:border-accent"
         />
         <button
@@ -80,7 +81,7 @@ export function GuestForm({ labels, next, track = false, place }: { labels: Labe
         )}
       </p>
       {state?.error && (
-        <p id="displayName-error" role="alert" className="text-sm font-semibold text-accent-ink">
+        <p id={`${inputId}-error`} role="alert" className="text-sm font-semibold text-accent-ink">
           {state.error === "name" ? labels.nameError : labels.serverError}
         </p>
       )}

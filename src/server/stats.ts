@@ -1,3 +1,4 @@
+import { unnamedGuest } from "@/lib/guest-name";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { assertAdmin } from "@/server/moderation";
@@ -22,12 +23,19 @@ export async function recordActivity(user: User, at = new Date(), place?: { coun
   if (!user.country && place?.country) await db.user.updateMany({ where: { id: user.id, country: null }, data: place });
 }
 
+// A visitor who only tapped ❤️ (2026-10-31: the first five need no name, src/server/quiet-guest.ts):
+// counted apart, not as someone who joined.
+const NEWCOMER = { id: true, createdAt: true, isGuest: true, displayName: true, _count: { select: { angles: true } } } as const;
+const quiet = (u: { isGuest: boolean; displayName: string; _count: { angles: number } }) => unnamedGuest(u) && u._count.angles === 0;
+
 // Of the people who joined on `day`, the share active `after` days later (null: nobody joined).
 async function returnRate(day: string, after: number) {
-  const joined = await db.user.findMany({
-    where: { isSystem: false, createdAt: { gte: dayStart(day), lt: dayStart(shift(day, 1)) } },
-    select: { id: true },
-  });
+  const joined = (
+    await db.user.findMany({
+      where: { isSystem: false, createdAt: { gte: dayStart(day), lt: dayStart(shift(day, 1)) } },
+      select: NEWCOMER,
+    })
+  ).filter((u) => !quiet(u));
   if (!joined.length) return { joined: 0, returned: 0, rate: null as number | null };
   const returned = await db.activeDay.count({ where: { day: shift(day, after), userId: { in: joined.map((u) => u.id) } } });
   return { joined: joined.length, returned, rate: returned / joined.length };
@@ -157,7 +165,7 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
 
   const [active, users, angles, moments, reactionsToday, commentsToday, weekAngles] = await Promise.all([
     db.activeDay.groupBy({ by: ["day"], where: { day: { gte: first } }, _count: { _all: true } }),
-    db.user.findMany({ where: { isSystem: false, createdAt: { gte: since } }, select: { createdAt: true } }),
+    db.user.findMany({ where: { isSystem: false, createdAt: { gte: since } }, select: NEWCOMER }),
     db.angle.findMany({ where: { uploadedAt: { gte: since } }, select: { uploadedAt: true } }),
     db.moment.findMany({ where: { createdAt: { gte: since }, kind: { not: "DAILY" } }, select: { createdAt: true } }),
     db.reaction.count({ where: { createdAt: { gte: dayStart(today) } } }),
@@ -171,7 +179,8 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
     return m;
   };
   const activeBy = new Map(active.map((a) => [a.day, a._count._all]));
-  const newBy = count(users.map((u) => u.createdAt));
+  const newBy = count(users.filter((u) => !quiet(u)).map((u) => u.createdAt));
+  const quietBy = count(users.filter(quiet).map((u) => u.createdAt));
   const shotsBy = count(angles.map((a) => a.uploadedAt));
   const momentsBy = count(moments.map((m) => m.createdAt));
   const series = Array.from({ length: days }, (_, i) => {
@@ -192,6 +201,7 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
     totals: {
       active: activeBy.get(today) ?? 0,
       joined: newBy.get(today) ?? 0,
+      quietLikers: quietBy.get(today) ?? 0,
       shots: shotsBy.get(today) ?? 0,
       moments: momentsBy.get(today) ?? 0,
       reactions: reactionsToday,

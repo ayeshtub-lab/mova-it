@@ -1,5 +1,6 @@
 "use client";
 
+import { askSignIn } from "@/app/SignInSheet";
 import { plain } from "@/lib/clip";
 import { ShareSheet } from "@/app/ShareSheet";
 import { download, progressText, shareFile } from "@/lib/share-file";
@@ -617,6 +618,8 @@ export function AngleGallery({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ liked }),
       }).catch(() => null);
+      // A visitor's free hearts are used up (src/server/quiet-guest.ts): their name, or Google.
+      if (res?.status === 403) askSignIn("like");
       const settled: Likes = res?.ok ? await res.json() : before;
       if (latestTap.current.get(angleId) === tap) setLikes((m) => new Map(m).set(angleId, settled));
     };
@@ -653,7 +656,6 @@ export function AngleGallery({
     if (lastTap.current.id === a.id && now - lastTap.current.at < 300) {
       clearTimeout(singleTap.current);
       lastTap.current = { id: "", at: 0 };
-      if (!canReact) return join();
       const box = area.getBoundingClientRect();
       setBurst({ id: a.id, x: event.clientX - box.left, y: event.clientY - box.top, key: now });
       setLiked(a.id, true);
@@ -940,7 +942,8 @@ export function AngleGallery({
       setReplyTo(null);
       setCommentCounts((m) => new Map(m).set(angleId, (m.get(angleId) ?? 0) + 1));
       setDraft("");
-    } else setCommentError(res?.status === 429 ? labels.comments.tooMany : labels.comments.failed);
+    } else if (res?.status === 403) askSignIn();
+    else setCommentError(res?.status === 429 ? labels.comments.tooMany : labels.comments.failed);
   }
 
   async function removeComment(id: string) {
@@ -967,9 +970,10 @@ export function AngleGallery({
   }
 
   // Visitors without a name yet: close the viewer and take them to the name form.
+  // A visitor's comment, save or follow: the sign-in sheet over the viewer (src/app/SignInSheet.tsx),
+  // so they stay on this shot.
   function join() {
-    dialogRef.current?.close();
-    document.getElementById("join")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    askSignIn();
   }
 
   function onKeyDown(event: React.KeyboardEvent) {
@@ -1302,8 +1306,8 @@ export function AngleGallery({
                   <button
                     type="button"
                     aria-pressed={like.liked}
-                    aria-label={canReact ? (like.liked ? labels.reactions.unlike : labels.reactions.like) : labels.reactions.joinToReact}
-                    onClick={() => (canReact ? setLiked(a.id, !like.liked) : join())}
+                    aria-label={like.liked ? labels.reactions.unlike : labels.reactions.like}
+                    onClick={() => setLiked(a.id, !like.liked)}
                     className={railButton}
                   >
                     <svg viewBox="0 0 24 24" className={`size-9 ${like.liked ? "heart-pop fill-accent" : "fill-white"}`}>

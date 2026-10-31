@@ -1,4 +1,4 @@
-import { publicCard } from "@/server/cards";
+import { publicCard, saveSmallCard, smallCardPath } from "@/server/cards";
 import { viewUrl } from "@/server/media";
 import { publicPart } from "@/server/montage/parts";
 import { partCoverPath } from "@/server/montage/render";
@@ -12,13 +12,22 @@ import { publicShot } from "@/server/seo";
 // part is made again with one, its first shot's picture.
 export async function GET(_request: Request, { params }: { params: Promise<{ file: string }> }): Promise<Response> {
   const name = (await params).file;
-  // zawmo.com/i/card-ID.jpg: a public «💌 بطاقة» (src/server/cards.ts).
-  const cardOf = /^card-([a-z0-9]{20,40})\.jpg$/.exec(name);
+  // zawmo.com/i/card-ID.jpg: a public «💌 بطاقة» (src/server/cards.ts); card-ID-small.jpg its small
+  // copy for grids — made here on the first visit for a card saved before there were small copies.
+  const cardOf = /^card-([a-z0-9]{20,40})(-small)?\.jpg$/.exec(name);
   if (cardOf) {
     const card = await publicCard(cardOf[1]);
-    const url = card?.imagePath ? await viewUrl(card.imagePath) : null;
-    const file = url ? await fetch(url).catch(() => null) : null;
-    return file?.ok && file.body ? image(file) : new Response("Not found", { status: 404 });
+    if (!card?.imagePath) return new Response("Not found", { status: 404 });
+    if (cardOf[2]) {
+      const small = await fetch((await viewUrl(smallCardPath(card.imagePath)))!).catch(() => null);
+      if (small?.ok && small.body) return image(small);
+    }
+    const file = await fetch((await viewUrl(card.imagePath))!).catch(() => null);
+    if (!file?.ok || !file.body) return new Response("Not found", { status: 404 });
+    if (!cardOf[2]) return image(file);
+    const made = await saveSmallCard(card.imagePath, Buffer.from(await file.arrayBuffer())).catch(() => null);
+    if (made) return image(new Response(new Uint8Array(made), { headers: { "content-type": "image/jpeg" } }));
+    return GET(_request, { params: Promise.resolve({ file: `card-${cardOf[1]}.jpg` }) });
   }
   const partOf = /^([2-9A-HJKMNP-Z]{6})-(\d{1,3})\.jpg$/.exec(name);
   if (partOf) {
