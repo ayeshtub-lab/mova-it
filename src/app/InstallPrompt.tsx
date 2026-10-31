@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { isInAppBrowser } from "@/lib/inapp";
+import { ANDROID_PACKAGE } from "@/lib/site";
 
 export type InstallLabels = {
   title: string;
@@ -10,17 +11,15 @@ export type InstallLabels = {
   install: string;
   iosHint: string; // «{share}» is where the share icon goes
   gotIt: string;
-  inappAndroid: string;
-  openChrome: string;
+  play: string;
   inappIos: string;
   close: string;
 };
 
-type Kind = "android" | "ios" | "inapp-android" | "inapp-ios";
-type PromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
+type Kind = "android" | "ios" | "inapp-ios";
 declare global {
-  interface Window {
-    __zawmoInstall?: PromptEvent; // kept by the inline script in src/app/layout.tsx (it can fire before hydration)
+  interface Navigator {
+    getInstalledRelatedApps?: () => Promise<{ platform: string; id?: string }[]>;
   }
 }
 
@@ -31,6 +30,11 @@ const AFTER_MS = 40_000; // a visit of 40 seconds…
 const AFTER_PAGES = 2; // …or a second page — never the moment someone arrives
 // Where the card would be in the way: writing, chatting, starting, the dashboard, the ad landing.
 const QUIET = /^\/(new|messages|admin|start|share)(\/|$)/;
+// The app on Google Play, opened in the Play Store app — from Chrome and from inside Facebook,
+// TikTok or Instagram alike — with the web page as the fallback. The referrer shows in Play Console.
+const PLAY_REFERRER = "utm_source%3Dzawmo%26utm_medium%3Dinstall-card";
+const PLAY_PAGE = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}&referrer=${PLAY_REFERRER}`;
+const PLAY_INTENT = `intent://details?id=${ANDROID_PACKAGE}&referrer=${PLAY_REFERRER}#Intent;scheme=market;package=com.android.vending;S.browser_fallback_url=${encodeURIComponent(PLAY_PAGE)};end`;
 
 const count = (platform: "android" | "ios" | "inapp", step: "shown" | "pressed" | "installed") =>
   fetch(`/api/install?platform=${platform}&step=${step}`, { method: "POST", keepalive: true }).catch(() => {});
@@ -42,10 +46,11 @@ const hideFor = (days: number) => {
 
 // «📲 ثبّت زاومو»: phones get no install offer from the browser any more (Chrome hides it in its
 // menu), so Zawmo asks itself — once someone is looking around, never inside the app, and ✕
-// keeps it away for 14 days. Android: the browser's own install dialog. iPhone: how to add it to
-// the home screen (Apple allows no button). Inside Facebook/TikTok/Instagram installing is
-// impossible: open Zawmo in Chrome (Android) or Safari (iPhone) first. Counted per platform
-// (src/server/install.ts → /admin/stats). When the Play app is public, Android goes there instead.
+// keeps it away for 14 days. Android (any browser, in-app ones too): the app on Google Play, and no
+// card once it is installed (Chrome's getInstalledRelatedApps, via the manifest's
+// related_applications). iPhone: how to add it to the home screen (Apple allows no button); inside
+// Facebook/TikTok/Instagram there it is impossible: open Zawmo in Safari first. Counted per
+// platform (src/server/install.ts → /admin/stats).
 export function InstallPrompt({ labels, aboveNav }: { labels: InstallLabels; aboveNav: boolean }) {
   const path = usePathname();
   const [kind, setKind] = useState<Kind | null>(null);
@@ -67,33 +72,20 @@ export function InstallPrompt({ labels, aboveNav }: { labels: InstallLabels; abo
     const android = /Android/i.test(ua);
     if (!ios && !android) return;
     const inApp = isInAppBrowser(ua);
-    const decide = setTimeout(() => {
-      if (inApp) setKind(android ? "inapp-android" : "inapp-ios");
+    let cancelled = false;
+    (async () => {
+      if (android) {
+        // Already has the Play app: no card (only Chrome can tell; elsewhere it shows).
+        const apps = await navigator.getInstalledRelatedApps?.().catch(() => []);
+        if (!cancelled && !apps?.some((a) => a.id === ANDROID_PACKAGE)) setKind("android");
+      } else if (inApp) setKind("inapp-ios");
       // Safari only: Chrome, Firefox and Edge on iPhone can't always add to the home screen.
-      else if (ios && !/CriOS|FxiOS|EdgiOS/i.test(ua)) setKind("ios");
-      // Android: only once the browser says Zawmo can be installed (not installed yet).
-      else if (android && window.__zawmoInstall) setKind("android");
-    }, 0);
-    const take = (e: Event) => {
-      e.preventDefault();
-      window.__zawmoInstall = e as PromptEvent;
-      if (!inApp) setKind("android");
-    };
-    const installed = () => {
-      try {
-        localStorage.setItem(DONE, "1");
-      } catch {}
-      count("android", "installed");
-      setGone(true);
-    };
-    window.addEventListener("beforeinstallprompt", take);
-    window.addEventListener("appinstalled", installed);
+      else if (!/CriOS|FxiOS|EdgiOS/i.test(ua)) setKind("ios");
+    })();
     const timer = setTimeout(() => setReady(true), AFTER_MS);
     return () => {
-      clearTimeout(decide);
+      cancelled = true;
       clearTimeout(timer);
-      window.removeEventListener("beforeinstallprompt", take);
-      window.removeEventListener("appinstalled", installed);
     };
   }, []);
 
@@ -119,20 +111,12 @@ export function InstallPrompt({ labels, aboveNav }: { labels: InstallLabels; abo
     hideFor(14);
     setGone(true);
   };
-  async function install() {
-    const e = window.__zawmoInstall;
+  // Off to Google Play; not again for a few days (whether they installed is Play Console's to say).
+  const install = () => {
     count("android", "pressed");
+    hideFor(3);
     setGone(true);
-    if (!e) return;
-    window.__zawmoInstall = undefined;
-    await e.prompt().catch(() => {});
-    const { outcome } = await e.userChoice.catch(() => ({ outcome: "dismissed" as const }));
-    // Said no to the browser's dialog: not again for a few days. Yes: «appinstalled» follows.
-    if (outcome !== "accepted") hideFor(3);
-  }
-  const openInChrome = () => {
-    count("inapp", "pressed");
-    location.href = `intent://${location.host}${location.pathname}${location.search}#Intent;scheme=https;package=com.android.chrome;end`;
+    location.href = PLAY_INTENT;
   };
   const gotIt = () => {
     count(platform, "pressed");
@@ -169,7 +153,6 @@ export function InstallPrompt({ labels, aboveNav }: { labels: InstallLabels; abo
                 {after}
               </>
             )}
-            {kind === "inapp-android" && labels.inappAndroid}
             {kind === "inapp-ios" && labels.inappIos}
           </p>
         </div>
@@ -178,14 +161,16 @@ export function InstallPrompt({ labels, aboveNav }: { labels: InstallLabels; abo
         </button>
       </div>
       {kind === "android" && (
-        <button type="button" onClick={install} className={`${button} bg-accent text-white`}>
-          {labels.install}
-        </button>
-      )}
-      {kind === "inapp-android" && (
-        <button type="button" onClick={openInChrome} className={`${button} bg-accent text-white`}>
-          {labels.openChrome}
-        </button>
+        <a
+          href={PLAY_PAGE}
+          onClick={(e) => {
+            e.preventDefault();
+            install();
+          }}
+          className={`${button} bg-accent text-white`}
+        >
+          {labels.play}
+        </a>
       )}
       {(kind === "ios" || kind === "inapp-ios") && (
         <button type="button" onClick={gotIt} className={`${button} bg-secondary-soft text-secondary`}>

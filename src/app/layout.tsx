@@ -56,10 +56,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${cairo.variable} ${syne.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        {/* Android's «can be installed» can come before the page is interactive: kept for
-            «📲 ثبّت زاومو» (src/app/InstallPrompt.tsx), and the browser's own banner held back. */}
+        {/* Chrome's own «install this web app» banner held back (it can come before the page is
+            interactive): «📲 ثبّت زاومو» sends Android to the app on Google Play instead. */}
         <script
-          dangerouslySetInnerHTML={{ __html: "addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__zawmoInstall=e})" }}
+          dangerouslySetInnerHTML={{ __html: "addEventListener('beforeinstallprompt',function(e){e.preventDefault()})" }}
         />
         {locale === "ar" && <EnglishBar />}
         <FreshVersion />

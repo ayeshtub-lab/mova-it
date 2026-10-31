@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { ANDROID_PACKAGE } from "@/lib/site";
 
 // Lets Zawmo be added to the home screen as an app (on iPhone, notifications need it) — and is the
 // Android app's too (a Trusted Web Activity of zawmo.com: android/twa-manifest.json). Its
@@ -18,6 +19,10 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#10163a",
     theme_color: "#10163a",
     categories: ["social", "photo", "lifestyle"],
+    // The Android app on Google Play, so Chrome can tell a page it is installed (InstallPrompt).
+    // Not preferred: Chrome itself still offers the web app.
+    related_applications: [{ platform: "play", id: ANDROID_PACKAGE, url: `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}` }],
+    prefer_related_applications: false,
     // A link to Zawmo opens in the app window already open, not a second one.
     launch_handler: { client_mode: "navigate-existing" },
     shortcuts: [

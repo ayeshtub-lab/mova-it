@@ -903,12 +903,11 @@
   },
   "install": {
     "title": "📲 Install Zawmo on your phone",
-    "hint": "Opens faster, full screen, with notifications.",
+    "hint": "Opens faster, full screen, with notifications. Free on Google Play.",
     "install": "Install",
     "iosHint": "Tap {share} below, then «Add to Home Screen».",
     "gotIt": "Got it",
-    "inappAndroid": "Installing isn't possible inside this app. Open Zawmo in Chrome and install it there.",
-    "openChrome": "Open in Chrome",
+    "play": "Get it on Google Play",
     "inappIos": "Installing isn't possible inside this app. Tap ⋯ at the top, then «Open in Safari».",
     "close": "Close"
   },
