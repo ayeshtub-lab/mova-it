@@ -150,6 +150,22 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
             {dict.home.motto}
           </p>
           <p className="text-lg leading-relaxed text-muted">{dict.home.lead}</p>
+          {/* What sets Zawmo apart, at a glance (positioning, 2026-11-01): real, from every angle, a film. */}
+          <ul className="flex flex-wrap justify-center gap-2 sm:justify-start">
+            {dict.home.pillars.map((p) => (
+              <li key={p} className="rounded-full bg-surface px-3 py-1.5 text-sm font-bold">
+                {p}
+              </li>
+            ))}
+            {/* «💌 بطاقات» (his note, 2026-11-01): the cards are part of what Zawmo is — and a door in. */}
+            {CARDS_PUBLIC && (
+              <li>
+                <Link href="/cards" className="block rounded-full bg-accent px-3 py-1.5 text-sm font-bold text-white">
+                  {dict.home.cardsPillar}
+                </Link>
+              </li>
+            )}
+          </ul>
         </div>
       </section>
 

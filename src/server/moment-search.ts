@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { publicCover } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
 import { placeViews } from "@/server/places";
+import { shownAngle } from "@/server/seo";
 
 // «اكتشف ← لحظات»: public moments as cards, newest activity first, or those whose name,
 // description or place match what was typed («عرس أحمد»، «قهوة الصباح»). Only public,
@@ -69,4 +70,36 @@ export async function findMoments(viewer: User | null, rawQuery: string | null):
       people: m._count.participants,
     })),
   );
+}
+
+// «👤 أشخاص» in the same search (his ask, 2026-11-01): members found by name, the way moments are
+// (each word, however it was spelled). Only members with a profile (no guests) and at least one
+// public shot — someone who shares nothing publicly can't be found — never one either side blocked,
+// never Zawmo's own system account. The most shared first.
+const PEOPLE = 8;
+
+export type PersonCard = { id: string; name: string; avatarUrl: string | null; verified: boolean; shots: number };
+
+export async function findPeople(viewer: User | null, rawQuery: string | null): Promise<PersonCard[]> {
+  const q = rawQuery ? rawQuery.replace(/\s+/g, " ").trim().slice(0, MAX_QUERY) : "";
+  const words = q ? [...new Set(q.split(" ").map(normalize).filter(Boolean))] : [];
+  if (!words.length) return [];
+  const ids = (
+    await db.$queryRaw<{ id: string }[]>`
+      SELECT u."id" FROM "User" u
+      WHERE u."isGuest" = false AND u."isSystem" = false
+        AND (SELECT bool_and(translate(lower(u."displayName"), 'أإآٱةىؤئ', 'ااااهيوي') LIKE '%' || w || '%') FROM unnest(${words}::text[]) AS w)
+      LIMIT 100`
+  ).map((r) => r.id);
+  if (!ids.length) return [];
+  const blocked = viewer ? [...(await blockedIdsFor(viewer.id))] : [];
+  const shown = shownAngle(new Date());
+  const people = await db.user.findMany({
+    where: { id: { in: ids, notIn: blocked }, angles: { some: shown } },
+    select: { id: true, displayName: true, avatarUrl: true, verified: true, _count: { select: { angles: { where: shown } } } },
+  });
+  return people
+    .map((p) => ({ id: p.id, name: p.displayName, avatarUrl: p.avatarUrl, verified: p.verified, shots: p._count.angles }))
+    .sort((a, b) => b.shots - a.shots)
+    .slice(0, PEOPLE);
 }

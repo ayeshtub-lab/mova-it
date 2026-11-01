@@ -2,13 +2,15 @@ import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import { plural } from "@/i18n/plural";
 import type { Dictionary } from "@/i18n/server";
-import { MAX_QUERY, type MomentCard } from "@/server/moment-search";
+import { VerifiedBadge } from "@/app/VerifiedBadge";
+import { MAX_QUERY, type MomentCard, type PersonCard } from "@/server/moment-search";
 
 // «اكتشف ← لحظات»: a search box, then public moments as cards — cover, name, how many
 // angles and people, «شاهد» and «أضف زاويتك». Never a blank page: no match offers to make
 // that moment (its name already filled in), a failed load offers to try again.
 export function MomentCards({
   cards,
+  people = [],
   query,
   failed,
   focus,
@@ -16,6 +18,7 @@ export function MomentCards({
   dict,
 }: {
   cards: MomentCard[];
+  people?: PersonCard[];
   query: string;
   failed: boolean;
   focus: boolean;
@@ -46,6 +49,37 @@ export function MomentCards({
         </button>
       </form>
 
+      {/* «👤 أشخاص» first: a name typed is most often someone (2026-11-01). */}
+      {!failed && people.length > 0 && (
+        <section aria-label={t.peopleTitle} className="flex flex-col gap-2">
+          <h2 className="text-sm font-extrabold text-muted">{t.peopleTitle}</h2>
+          <ul className="flex flex-col gap-1.5">
+            {people.map((p) => (
+              <li key={p.id}>
+                <Link href={`/u/${p.id}`} className="flex min-h-14 items-center gap-3 rounded-2xl bg-surface px-3 py-2 hover:bg-line">
+                  {p.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- the member's own picture
+                    <img src={p.avatarUrl} alt="" className="size-11 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <span aria-hidden="true" className="flex size-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-red via-moment to-brand-blue text-lg font-extrabold text-white">
+                      {[...p.name][0]}
+                    </span>
+                  )}
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="flex items-center gap-1 truncate font-extrabold">
+                      {p.name}
+                      {p.verified && <VerifiedBadge label={dict.verified.badge} />}
+                    </span>
+                    <span className="text-xs text-muted">{plural(locale, dict.plurals.shots, p.shots)}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {cards.length > 0 && <h2 className="mt-2 text-sm font-extrabold text-muted">{t.momentsTitle}</h2>}
+        </section>
+      )}
+
       {failed ? (
         <div className="flex flex-col items-center gap-3 rounded-3xl bg-surface p-6 text-center">
           <p className="text-lg font-extrabold">{t.failedTitle}</p>
@@ -53,7 +87,7 @@ export function MomentCards({
             {t.retry}
           </Link>
         </div>
-      ) : cards.length === 0 ? (
+      ) : cards.length === 0 && people.length > 0 ? null : cards.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-3xl bg-surface p-6 text-center">
           <p className="text-lg font-extrabold">{query ? t.noneTitle.replace("{q}", query) : t.emptyTitle}</p>
           <p className="text-sm text-muted">{query ? t.noneText : t.emptyText}</p>

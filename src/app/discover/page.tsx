@@ -13,7 +13,7 @@ import { sceneCards } from "@/server/places";
 import { SCENES, type Scene } from "@/lib/scenes";
 import { DiscoverFeed } from "./DiscoverFeed";
 import { MomentCards } from "./MomentCards";
-import { findMoments, type MomentCard } from "@/server/moment-search";
+import { findMoments, findPeople, type MomentCard, type PersonCard } from "@/server/moment-search";
 
 export const metadata = { title: "اكتشف · زاومو", robots: { index: false } };
 
@@ -42,9 +42,10 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
   );
   if (cardsTab) {
     let cards: MomentCard[] = [];
+    let people: PersonCard[] = [];
     let failed = false;
     try {
-      cards = await findMoments(user, query || null);
+      [cards, people] = await Promise.all([findMoments(user, query || null), findPeople(user, query || null)]);
     } catch (error) {
       console.error("moment search failed", error);
       failed = true;
@@ -56,7 +57,7 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
         </div>
         <main className="mx-auto flex w-full max-w-xl flex-col gap-4">
           <div className="px-4">{tabs}</div>
-          <MomentCards cards={cards} query={query} failed={failed} focus={params.focus === "1"} locale={locale} dict={dict} />
+          <MomentCards cards={cards} people={people} query={query} failed={failed} focus={params.focus === "1"} locale={locale} dict={dict} />
         </main>
       </div>
     );
