@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useRef } from "react";
 import { continueAsGuest } from "@/app/actions/session";
-import { funnel, joinStep } from "@/lib/funnel";
+import { funnel, joinStep, track as track_ } from "@/lib/funnel";
 
 type Labels = { nameLabel: string; placeholder: string; submit: string; nameError: string; serverError: string; consent: string; terms: string; privacy: string };
 
@@ -31,6 +31,7 @@ export function GuestForm({ labels, next, track = false, place, inputId = "displ
       ref={ref}
       action={action}
       onSubmit={() => {
+        track_("sign_up", { method: "name" });
         if (track) funnel("tried");
         if (place) joinStep(place, "joined");
       }}

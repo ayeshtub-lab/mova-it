@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { joinStep } from "@/lib/funnel";
+import { joinStep, track } from "@/lib/funnel";
 
 // "Continue with Google": a plain link to /auth/google, so it works without JavaScript.
 // rel="nofollow": a sign-in link is nothing for search engines to follow (robots.txt blocks
@@ -26,14 +26,12 @@ export function GoogleButton({ label, returnTo, place }: { label: string; return
       ref={ref}
       href={`/auth/google?returnTo=${encodeURIComponent(returnTo)}`}
       rel="nofollow"
-      onClick={
-        place
-          ? () => {
-              joinStep(place, "started");
-              joinStep(place, "joined");
-            }
-          : undefined
-      }
+      onClick={() => {
+        track("sign_up", { method: "google" });
+        if (!place) return;
+        joinStep(place, "started");
+        joinStep(place, "joined");
+      }}
       className="flex min-h-12 items-center justify-center gap-3 rounded-full border border-line bg-white px-5 font-bold text-[#1f1f1f] shadow-sm transition-shadow hover:shadow-md"
     >
       <svg viewBox="0 0 48 48" aria-hidden="true" className="size-5">

@@ -3,7 +3,7 @@
 import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import { useId, useState } from "react";
-import { funnel } from "@/lib/funnel";
+import { funnel, track } from "@/lib/funnel";
 import { prepareAngleFile } from "@/lib/media-client";
 
 export type QuickStartLabels = {
@@ -76,6 +76,7 @@ export function QuickStart({ kind, labels }: { kind: "STORY" | "EVERYDAY"; label
       const title = typeof result.titleSuggestion === "string" && result.titleSuggestion.trim() ? result.titleSuggestion : labels.fallbackTitle;
       await postJson(`/api/angles/${angleId}/publish`, { title });
       funnel("tried");
+      track("publish_shot");
       setStep({ at: "done", code: started.code });
     } catch (error) {
       console.error("quick start failed", error);

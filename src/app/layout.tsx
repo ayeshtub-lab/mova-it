@@ -70,7 +70,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         {user && <ActivityPing userId={user.id} />}
         <PresencePing />
-        <GoogleAnalytics />
+        <GoogleAnalytics team={!!(user?.isAdmin || user?.verified)} />
         <InstallPrompt labels={dict.install} aboveNav={!!user} />
         {(!user || unnamedGuest(user)) && (
           <SignInSheet labels={{ ...dict.signIn, or: dict.account.or, google: dict.account.google }} guestLabels={dict.guest} google={googleEnabled()} />

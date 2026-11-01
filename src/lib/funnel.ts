@@ -1,3 +1,12 @@
+// Google Analytics' «key events» (2026-11-01): joined, published a shot, sent a card — so its reports
+// say which source brings members, not only visitors. Only where GA runs (the live site, not for the
+// team: src/app/GoogleAnalytics.tsx); nothing personal is sent, only the step.
+export function track(event: "sign_up" | "publish_shot" | "card_sent", params?: Record<string, string>) {
+  try {
+    (window as Window & { gtag?: (...args: unknown[]) => void }).gtag?.("event", event, params);
+  } catch {}
+}
+
 // The ad landing's funnel (src/app/api/funnel): «بلّشوا» (typed a name, or tapped the camera)
 // and «كمّلوا» (pressed «ابدأ», or a first shot went up). Once per browser and step; nothing
 // is sent but the step — the campaign comes from a cookie. Browser only.
@@ -26,6 +35,7 @@ export function joinStep(place: "moment" | "home" | "discover", step: "seen" | "
 // The cards' steps (src/app/api/cards/funnel): opened the maker, sent a card, published one. Once
 // per browser session and step, like the above.
 export function cardStep(step: "opened" | "shared" | "published") {
+  if (step === "shared") track("card_sent");
   try {
     const key = `zw_card_${step}`;
     if (sessionStorage.getItem(key)) return;

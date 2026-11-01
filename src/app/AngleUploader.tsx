@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@/lib/funnel";
 import { CoverPicker, type CoverLabels } from "@/app/CoverPicker";
 import * as Sentry from "@sentry/nextjs";
 import { upload } from "@vercel/blob/client";
@@ -243,6 +244,7 @@ export function AngleUploader({
         body: JSON.stringify({ title: name.trim() }),
       }).catch(() => null);
       if (res?.ok) {
+        track("publish_shot");
         update(i, { queued: true });
         setNamed(true);
         queued++;
@@ -265,6 +267,7 @@ export function AngleUploader({
         body: JSON.stringify({ title: name.trim() }),
       }).catch(() => null);
       if (res?.ok) {
+        track("publish_shot");
         update(i, { status: "done", suggestion: null });
         setNamed(true);
       } else failed = true;
