@@ -1,5 +1,6 @@
 "use client";
 
+import { upload } from "@vercel/blob/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -23,13 +24,44 @@ import {
 import type { Dictionary } from "@/i18n/server";
 import { CardBridge } from "@/app/cards/CardBridge";
 import { cardStep } from "@/lib/funnel";
+import { prepareAngleFile } from "@/lib/media-client";
 
 type Labels = Dictionary["card"];
 type Idea = { kind: CardKind; text: string };
 type Tab = Exclude<CardKind, "other">;
-// The picture to write on: a public shot (its lines from Gemini, publishable), or one of the
-// visitor's own photos (2026-10-24: never uploaded — ready lines, shared privately only).
-export type CardPicture = { image: string; by: string | null; shotId: string | null };
+// The picture to write on: a public shot (its lines from Gemini, publishable), or one of a member's
+// own photos (`file`): it stays on the phone when the card is shared privately; published (his ask,
+// 2026-11-01), the photo first goes up as their own public shot — through the same check as any
+// shot (what it shows, copied from elsewhere) — and the card is made on that.
+export type CardPicture = { image: string; by: string | null; shotId: string | null; file?: File };
+
+const postJson = async (url: string, body?: unknown) => {
+  const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}) });
+  if (!res.ok) throw new Error(`${url} ${res.status}`);
+  return res.status === 204 ? {} : res.json();
+};
+
+// The photo as a public shot of its own moment, named the way the check suggests. null: refused
+// (not fit for everyone, or copied).
+async function ownPhotoShot(file: File, untitled: string): Promise<string | null> {
+  const prepared = await prepareAngleFile(file);
+  const { code } = await postJson("/api/moments", { title: "", untitled, visibility: "PUBLIC", kind: "EVERYDAY" });
+  const { angleId, mediaPath } = await postJson("/api/angles", {
+    code,
+    mediaType: prepared.mediaType,
+    contentType: prepared.contentType,
+    capturedAt: prepared.capturedAt,
+    placeId: prepared.placeId ?? null,
+    width: prepared.width,
+    height: prepared.height,
+  });
+  await upload(mediaPath, prepared.file, { access: "private", handleUploadUrl: "/api/angles/upload", contentType: prepared.contentType });
+  const checked = await postJson(`/api/angles/${angleId}/complete`);
+  if (checked.status === "HIDDEN") return null;
+  const title = typeof checked.titleSuggestion === "string" && checked.titleSuggestion.trim() ? checked.titleSuggestion : untitled;
+  await postJson(`/api/angles/${angleId}/publish`, { title });
+  return angleId;
+}
 
 // The card is drawn here, on the phone: the picture (cropped to at most 3:4 tall, 1:1 wide), the
 // words over it in the chosen look — dragged anywhere, sized, tilted like a stamp — and a small
@@ -419,14 +451,26 @@ export function CardEditor({
   async function publish() {
     setError("");
     const blob = await jpeg();
-    if (!text.trim() || !picture.shotId) return;
+    if (!text.trim() || !(picture.shotId || picture.file)) return;
     if (!blob) {
       setError(labels.errors.generic);
       return;
     }
     setBusy(true);
+    let shot = picture.shotId;
+    if (!shot && picture.file) {
+      shot = await ownPhotoShot(picture.file, labels.ownMoment).catch((e) => {
+        console.error("own photo", e);
+        return null;
+      });
+      if (!shot) {
+        setBusy(false);
+        setError(labels.errors.photo);
+        return;
+      }
+    }
     const form = new FormData();
-    form.set("shot", picture.shotId);
+    form.set("shot", shot!);
     form.set("text", text.trim());
     form.set("kind", kind);
     form.set("style", style);
@@ -442,7 +486,8 @@ export function CardEditor({
       return;
     }
     setBusy(false);
-    setError(body?.error === "words" ? labels.errors.words : labels.errors.generic);
+    // (an own photo that went up but isn't public — copied from elsewhere — can't carry a card)
+    setError(body?.error === "words" ? labels.errors.words : body?.error === "not_found" && picture.file ? labels.errors.photo : labels.errors.generic);
   }
 
   // Lines: Gemini's for the picture, then the ready ones of the kind (all of them for an occasion,
@@ -718,13 +763,13 @@ export function CardEditor({
           </>
         )}
         {sent && (picture.shotId ? <CardBridge text={labels.bridge.replace("{name}", picture.by ?? "")} button={labels.bridgeButton} /> : <CardBridge text={labels.bridgeOwn} button={labels.bridgeButton} />)}
-        {/* Publishing is open to everyone (2026-10-26), visitors too. */}
-        {picture.shotId && (
+        {/* Publishing is open to everyone (2026-10-26), visitors too; on one's own photo, members. */}
+        {(picture.shotId || picture.file) && (
           <>
             <button type="button" onClick={publish} disabled={!ready || busy || !text.trim()} className="min-h-12 rounded-full bg-surface px-6 font-extrabold disabled:opacity-50">
-              {busy ? labels.publishing : edit ? labels.saveEdit : labels.publish}
+              {busy ? (picture.shotId ? labels.publishing : labels.publishingPhoto) : edit ? labels.saveEdit : labels.publish}
             </button>
-            <p className="text-center text-xs text-muted">{labels.publishHint}</p>
+            <p className="text-center text-xs text-muted">{picture.shotId ? labels.publishHint : labels.publishOwnHint}</p>
           </>
         )}
         {error && (

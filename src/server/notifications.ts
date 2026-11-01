@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import type { NotificationKind, Prisma, User } from "@/generated/prisma/client";
+import { cardImage } from "@/lib/card-styles";
 import { db } from "@/lib/db";
 import { coverOf } from "@/server/media";
 import { blockedIdsFor } from "@/server/moderation";
@@ -9,7 +10,7 @@ import { pushTo } from "@/server/push";
 // replies to your comments. Never for what you did yourself, never from someone either
 // of you blocked.
 
-type Event = { userId: string; actorId: string; kind: NotificationKind; angleId?: string; commentId?: string };
+type Event = { userId: string; actorId: string; kind: NotificationKind; angleId?: string; commentId?: string; cardId?: string; count?: number };
 
 // How long hearts on one moment keep adding up into the same (unread) notice.
 const GROUP_MS = 6 * 60 * 60 * 1000;
@@ -21,9 +22,9 @@ export async function notify(event: Event, once?: { key: string; where: Prisma.N
     if (event.userId === event.actorId) return;
     if ((await blockedIdsFor(event.userId)).has(event.actorId)) return;
     // A heart or a follow taken back and given again tells only once.
-    if (event.kind === "LIKE" || event.kind === "FOLLOW") {
+    if (event.kind === "LIKE" || event.kind === "FOLLOW" || event.kind === "CARD_LIKE") {
       const told = await db.notification.findFirst({
-        where: { userId: event.userId, actorId: event.actorId, kind: event.kind, angleId: event.angleId ?? null },
+        where: { userId: event.userId, actorId: event.actorId, kind: event.kind, angleId: event.angleId ?? null, cardId: event.cardId ?? null },
         select: { id: true },
       });
       if (told) return;
@@ -44,7 +45,7 @@ export async function notify(event: Event, once?: { key: string; where: Prisma.N
         return;
       }
     }
-    const include = { actor: { select: { displayName: true, verified: true } }, angle: { select: { id: true, contributorId: true, moment: { select: { code: true, title: true } } } }, comment: { select: { body: true } } } as const;
+    const include = { actor: { select: { displayName: true, verified: true } }, angle: { select: { id: true, contributorId: true, moment: { select: { code: true, title: true } } } }, comment: { select: { body: true } }, card: { select: { id: true, text: true } } } as const;
     const created = once
       ? await db.$transaction(async (tx) => {
           await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${once.key}))`;
@@ -59,10 +60,11 @@ export async function notify(event: Event, once?: { key: string; where: Prisma.N
         kind: event.kind,
         actorName: created.actor.displayName,
         actorVerified: created.actor.verified,
-        momentTitle: created.angle?.moment.title ?? null,
+        momentTitle: created.angle?.moment.title ?? created.card?.text ?? null,
         ownShot: created.angle?.contributorId === event.userId,
         comment: created.comment?.body ?? null,
-        url: created.angle ? (event.kind === "VIDEO_READY" || event.kind === "FILM_PART" ? `/m/${created.angle.moment.code}#video` : `/m/${created.angle.moment.code}#angle-${created.angle.id}`) : `/u/${event.actorId}`,
+        count: created.count,
+        url: created.card ? `/c/${created.card.id}` : created.angle ? (event.kind === "VIDEO_READY" || event.kind === "FILM_PART" ? `/m/${created.angle.moment.code}#video` : `/m/${created.angle.moment.code}#angle-${created.angle.id}`) : `/u/${event.actorId}`,
       }).catch((error) => console.error("push failed", error));
     try {
       after(push);
@@ -123,6 +125,7 @@ export async function listNotifications(user: User, take = 40) {
       actor: { select: { id: true, displayName: true, avatarUrl: true, isGuest: true, verified: true } },
       angle: { select: { id: true, contributorId: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, moment: { select: { code: true, title: true } } } },
       comment: { select: { body: true } },
+      card: { select: { id: true, text: true, imagePath: true } },
     },
   });
   return Promise.all(
@@ -139,11 +142,11 @@ export async function listNotifications(user: User, take = 40) {
       // Guests have no profile page; everyone else links to theirs.
       actorHasProfile: !n.actor.isGuest,
       comment: n.comment?.body ?? null,
-      href: n.angle ? (n.kind === "VIDEO_READY" || n.kind === "FILM_PART" ? `/m/${n.angle.moment.code}#video` : `/m/${n.angle.moment.code}#angle-${n.angle.id}`) : `/u/${n.actor.id}`,
-      momentTitle: n.angle?.moment.title ?? null,
+      href: n.card ? `/c/${n.card.id}` : n.angle ? (n.kind === "VIDEO_READY" || n.kind === "FILM_PART" ? `/m/${n.angle.moment.code}#video` : `/m/${n.angle.moment.code}#angle-${n.angle.id}`) : `/u/${n.actor.id}`,
+      momentTitle: n.angle?.moment.title ?? n.card?.text ?? null,
       // The person's own shot (a «🎬» notice: «لقطتك صارت بفيديو» rather than the creator's words).
       ownShot: n.angle?.contributorId === user.id,
-      thumbUrl: n.angle ? await coverOf(n.angle) : null,
+      thumbUrl: n.card ? cardImage(n.card, true) : n.angle ? await coverOf(n.angle) : null,
       // «صوّر معك»: the host may give the joined shot back («شيلها»).
       angleId: n.angle?.id ?? null,
     })),

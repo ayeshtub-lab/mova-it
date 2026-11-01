@@ -5,8 +5,9 @@ import { sitemapList } from "@/server/sitemap-list";
 // video's <video:title> before its <video:thumbnail_loc>, while Google's video-sitemap schema is a
 // fixed sequence (thumbnail_loc, title, description, content_loc, … duration, publication_date) —
 // Search Console counted 0 of our 169 videos. Same pages, same order of fields as the schema.
-// Rebuilt at most once an hour.
-export const revalidate = 3600;
+// Rebuilt at most once an hour, by the CDN (2026-11-01: as a page rebuilt by Next every hour it was
+// never rebuilt at all — the sitemap stayed as it was at the last deploy, a day or more behind).
+export const dynamic = "force-dynamic";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 const day = (d: string | Date | undefined) => (d ? new Date(d).toISOString() : null);
@@ -59,5 +60,5 @@ export async function GET() {
     ...list.map(entry),
     "</urlset>",
   ].join("\n");
-  return new Response(xml, { headers: { "content-type": "application/xml; charset=utf-8" } });
+  return new Response(xml, { headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, s-maxage=3600, stale-while-revalidate=3600" } });
 }

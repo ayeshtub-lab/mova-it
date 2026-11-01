@@ -5,7 +5,9 @@ import { CARD_TEXT_MAX, isCardKind, isCardStyle, type CardKind } from "@/lib/car
 import { db } from "@/lib/db";
 import { isScene, type Scene } from "@/lib/scenes";
 import type { User } from "@/generated/prisma/client";
+import { systemUser } from "@/server/daily";
 import { viewUrl } from "@/server/media";
+import { notify } from "@/server/notifications";
 import { callGemini, screenText, screeningEnabled } from "@/server/screening";
 import { publicShot, shownAngle } from "@/server/seo";
 
@@ -234,6 +236,33 @@ export async function countCards(kind?: CardKind) {
   return db.card.count({ where: { ...shownCard(), ...(kind ? { kind } : {}) } });
 }
 
+// The steps at which a card's maker hears how far it went («🎉 بطاقتك انبعتت 10 مرات»), once each.
+export const SENT_STEPS = [5, 10, 25, 50, 100, 250, 500, 1000];
+
 export async function sharedCard(id: string) {
-  await db.card.updateMany({ where: { id, public: true }, data: { shares: { increment: 1 } } });
+  const card = await db.card.update({ where: { id, public: true }, data: { shares: { increment: 1 } }, select: { id: true, shares: true, creatorId: true } }).catch(() => null);
+  if (!card || !SENT_STEPS.includes(card.shares)) return;
+  const zawmo = await systemUser();
+  await notify(
+    { userId: card.creatorId, actorId: zawmo.id, kind: "CARD_SENT", cardId: card.id, count: card.shares },
+    { key: `card-sent:${card.id}:${card.shares}`, where: { userId: card.creatorId, kind: "CARD_SENT", cardId: card.id, count: card.shares } },
+  );
+}
+
+// ❤️ on a public card (2026-11-01): its maker hears of it (once per person — a heart taken back and
+// given again tells nothing new).
+export async function likeCard(user: User, id: string, liked: unknown) {
+  if (typeof liked !== "boolean") throw new CardError("bad_text");
+  const card = await publicCard(id);
+  if (!card) throw new CardError("not_found");
+  if (liked) {
+    const made = await db.cardLike.createMany({ data: [{ cardId: card.id, userId: user.id }], skipDuplicates: true });
+    if (made.count) await notify({ userId: card.creator.id, actorId: user.id, kind: "CARD_LIKE", cardId: card.id });
+  } else await db.cardLike.deleteMany({ where: { cardId: card.id, userId: user.id } });
+  return cardLikes(card.id, user);
+}
+
+export async function cardLikes(id: string, user: User | null) {
+  const [count, mine] = await Promise.all([db.cardLike.count({ where: { cardId: id } }), user ? db.cardLike.count({ where: { cardId: id, userId: user.id } }) : 0]);
+  return { count, liked: mine > 0 };
 }

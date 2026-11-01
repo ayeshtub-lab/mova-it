@@ -28,17 +28,17 @@ export function CardStart({
   labels: Dictionary["card"];
   sceneLabels: Record<Scene, string>;
 }) {
-  const [own, setOwn] = useState<string | null>(null);
+  const [own, setOwn] = useState<{ url: string; file: File } | null>(null);
   const [ask, setAsk] = useState(false);
   const [scene, setScene] = useState<Scene | null>(null);
   useEffect(() => cardStep("opened"), []);
-  useEffect(() => () => void (own && URL.revokeObjectURL(own)), [own]);
+  useEffect(() => () => void (own && URL.revokeObjectURL(own.url)), [own]);
 
   if (own)
     return (
       <CardEditor
-        key={own}
-        picture={{ image: own, by: null, shotId: null }}
+        key={own.url}
+        picture={{ image: own.url, by: null, shotId: null, file: own.file }}
         fonts={fonts}
         kinds={kinds}
         member={member}
@@ -63,7 +63,7 @@ export function CardStart({
             className="sr-only"
             onChange={(e) => {
               const file = e.target.files?.[0];
-              if (file) setOwn(URL.createObjectURL(file));
+              if (file) setOwn({ url: URL.createObjectURL(file), file });
             }}
           />
         </label>

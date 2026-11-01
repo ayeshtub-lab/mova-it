@@ -8,9 +8,10 @@ import { clip } from "@/lib/clip";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { CARDS_PUBLIC, cardImage } from "@/lib/card-styles";
 import { INDEXABLE } from "@/lib/indexable";
-import { listCards, publicCard } from "@/server/cards";
+import { cardLikes, listCards, publicCard } from "@/server/cards";
 import type { CardKind } from "@/lib/card-styles";
 import { getCurrentUser } from "@/lib/session";
+import { CardLike } from "./CardLike";
 import { CardManage } from "./CardManage";
 import { CardShare } from "./CardShare";
 
@@ -42,7 +43,7 @@ export default async function CardPage({ params }: PageProps<"/c/[id]">) {
   const t = dict.card;
   const mine = !!user && (user.id === card.creator.id || user.isAdmin);
   // «💌 بطاقات تانية متلها»: the same kind, most sent first — more to send, and links between cards.
-  const more = await listCards(card.kind as CardKind, 6, card.id);
+  const [more, likes] = await Promise.all([listCards(card.kind as CardKind, 6, card.id), cardLikes(card.id, user)]);
   const site = `https://${CANONICAL_HOST}`;
   const image = `${site}${cardImage(card)}`;
   const structured = {
@@ -70,6 +71,7 @@ export default async function CardPage({ params }: PageProps<"/c/[id]">) {
           {t.kinds[card.kind as keyof typeof t.kinds]} · {t.photoBy.replace("{name}", card.angle.contributor.displayName)}
           {!card.creator.isGuest && ` · ${t.by.replace("{name}", card.creator.displayName)}`}
         </p>
+        <CardLike id={card.id} initial={likes} shares={card.shares} labels={{ likes: t.likes, like: t.like, unlike: t.unlike, sentTimes: t.sentTimes }} />
         <CardShare id={card.id} src={cardImage(card)} text={card.text} label={t.share} by={card.angle.contributor.displayName} labels={t} />
         <Link href={`/card/new?shot=${card.angle.id}`} className="flex min-h-12 items-center justify-center rounded-full bg-surface px-6 font-extrabold">
           {t.makeOwn}

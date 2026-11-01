@@ -83,6 +83,7 @@ model User {
   conversationsAsUser2 Conversation[] @relation("ConversationUser2")
   sentMessages    Message[]
   cards           Card[]
+  cardLikes       CardLike[]
 }
 
 // Opaque random token in an httpOnly cookie (web) or a bearer header (app later);
@@ -606,6 +607,8 @@ enum NotificationKind {
   DRAFT_WAITING // a shot you added an hour ago still waits for «نشر» (from Zawmo, once per shot)
   SHOT_READY // «نشر» pressed before the shot was checked: it is up now (from Zawmo, once)
   FILM_PART // a new part of a moment's film is ready: everyone with a shot in the moment (from Zawmo)
+  CARD_LIKE // a heart on your «💌 بطاقة»
+  CARD_SENT // your card was sent on 5, 10, 25… times (from Zawmo, once per step; the number in `count`)
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.
@@ -616,6 +619,7 @@ model Notification {
   kind      NotificationKind
   angleId   String?
   commentId String?
+  cardId    String? // CARD_LIKE / CARD_SENT
   createdAt DateTime         @default(now())
   readAt    DateTime?
   // Grouped: «سلمى حبّت ٥ من لقطاتك» is one notice (and one push), not five.
@@ -625,6 +629,7 @@ model Notification {
   actor   User     @relation("NotificationsSent", fields: [actorId], references: [id], onDelete: Cascade)
   angle   Angle?   @relation(fields: [angleId], references: [id], onDelete: Cascade)
   comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  card    Card?    @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([actorId])
@@ -860,11 +865,26 @@ model Card {
   shares    Int      @default(0)
   createdAt DateTime @default(now())
 
-  angle   Angle @relation(fields: [angleId], references: [id], onDelete: Cascade)
-  creator User  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  angle         Angle          @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  creator       User           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  likes         CardLike[]
+  notifications Notification[]
 
   @@index([public, kind, createdAt])
   @@index([creatorId])
+}
+
+// ❤️ on a public card (2026-11-01, his OK): one per person per card.
+model CardLike {
+  cardId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  card Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, userId])
+  @@index([userId])
 }
 
 model AngleVector {
