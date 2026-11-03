@@ -414,6 +414,10 @@ export function AngleUploader({
       const slow = input instanceof File ? setTimeout(() => slowPrepare(input), 20_000) : null;
       const prepared = input instanceof File ? await prepareAngleFile(input).finally(() => slow && clearTimeout(slow)) : input;
       const preparedAt = clock();
+      // Seen as soon as it is ready here, while it goes up (a video by its cover).
+      const picture = prepared.mediaType === "VIDEO" ? prepared.poster : (prepared.preview ?? prepared.file);
+      const preview = picture ? URL.createObjectURL(picture) : undefined;
+      if (preview) update(index, { preview });
       const { angleId, mediaPath, thumbPath } = await postJson("/api/angles", {
         code,
         mediaType: prepared.mediaType,
@@ -457,14 +461,13 @@ export function AngleUploader({
       // The lens's name for the first shot fills the name box, unless the person wrote one.
       const lensName = typeof result.titleSuggestion === "string" ? result.titleSuggestion : "";
       if (lensName && !typed) setName((current) => current.trim() || lensName);
-      const picture = prepared.mediaType === "VIDEO" ? prepared.poster : prepared.file;
       update(index, {
         status: "draft",
         angleId,
         isVideo: prepared.mediaType === "VIDEO",
         video: prepared.mediaType === "VIDEO" ? URL.createObjectURL(prepared.file) : undefined,
         soundKey: null,
-        preview: picture ? URL.createObjectURL(picture) : undefined,
+        preview,
         // The retro stamp: now, on this phone's clock (not the file's own date).
         stampAt: new Date().toISOString(),
         filter: "auto", // «✨ تحسين», set on the server when the shot was created
@@ -553,8 +556,10 @@ export function AngleUploader({
     setLeaving(false);
     const start = items.length;
     setSelected(start);
-    // A photo shows at once, big, while it goes up (a video once its poster is made).
-    setItems((all) => [...all, ...files.map((f) => ({ name: f.name, status: "preparing" as const, pct: 0, preview: f.type.startsWith("image/") ? URL.createObjectURL(f) : undefined }))]);
+    // Each shot shows once it is ready on the phone, from its own smaller copy — never the originals:
+    // many picked at once, all shown full size, filled the phone's memory and the page reloaded after
+    // two or three (2026-11-03), the rest never going up and the first ones back as drafts.
+    setItems((all) => [...all, ...files.map((f) => ({ name: f.name, status: "preparing" as const, pct: 0 }))]);
     // One at a time: phones on weak connections do better than with parallel uploads.
     for (const [i, file] of files.entries()) await send(file, start + i);
     router.refresh();

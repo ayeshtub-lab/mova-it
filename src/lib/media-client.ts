@@ -5,12 +5,17 @@ import { placeAt } from "@/lib/places-client";
 export const MAX_VIDEO_SECONDS = 40;
 const PHOTO_MAX_EDGE = 2048;
 const POSTER_MAX_EDGE = 720;
+// The picture shown in the publish sheet and its tools, made here from the same decoding: sharp on a
+// phone, and a fifth of a 12-megapixel original in memory (2026-11-03: the originals, all shown at once
+// when many were picked, filled the phone's memory — the page reloaded after two or three).
+const PREVIEW_MAX_EDGE = 1080;
 
 export type PreparedAngle = {
   mediaType: "PHOTO" | "VIDEO";
   file: Blob;
   contentType: string;
   poster?: Blob;
+  preview?: Blob; // a photo's own smaller copy, for the sheet (PREVIEW_MAX_EDGE)
   capturedAt: string | null;
   // Where it was taken, as a Zawmo place id worked out on the phone (never coordinates).
   placeId?: string | null;
@@ -134,7 +139,9 @@ async function preparePhoto(file: File): Promise<PreparedAngle> {
   try {
     const { width, height } = fitWithin(picture.width, picture.height, PHOTO_MAX_EDGE);
     const jpeg = await toJpeg(picture.source, width, height, 0.85).catch(() => pause(500).then(() => toJpeg(picture.source, width, height, 0.8)));
-    return { mediaType: "PHOTO", file: jpeg, contentType: "image/jpeg", capturedAt, placeId, width, height };
+    const small = fitWithin(picture.width, picture.height, PREVIEW_MAX_EDGE);
+    const preview = await toJpeg(picture.source, small.width, small.height, 0.8).catch(() => undefined);
+    return { mediaType: "PHOTO", file: jpeg, preview, contentType: "image/jpeg", capturedAt, placeId, width, height };
   } finally {
     picture.close?.();
   }

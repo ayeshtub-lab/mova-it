@@ -1173,8 +1173,11 @@ export function AngleGallery({
                     style={{ filter: filterCss(lookOf(a.id).filter) }}
                   />
                 ) : (
+                  // Lazy (2026-11-03): the viewer is closed when the page opens, yet without it React
+                  // preloaded every full-size picture (5.7 MB of a 7 MB moment page). The address stays
+                  // in the page for search engines; the phone fetches it, and its neighbours, on opening.
                   // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs, not optimizable
-                  <img src={a.mediaUrl ?? ""} alt={[altBase, a.aiText?.replace(/#\S+/g, "").trim(), a.contributorName].filter(Boolean).join(" — ")} className="max-h-full max-w-full object-contain" style={{ filter: filterCss(lookOf(a.id).filter) }} />
+                  <img src={a.mediaUrl ?? ""} alt={[altBase, a.aiText?.replace(/#\S+/g, "").trim(), a.contributorName].filter(Boolean).join(" — ")} loading="lazy" className="max-h-full max-w-full object-contain" style={{ filter: filterCss(lookOf(a.id).filter) }} />
                 )}
                 {lookOf(a.id).stamp && (
                   <span className="stamp absolute bottom-24 left-4 z-10 text-base">
@@ -1281,7 +1284,7 @@ export function AngleGallery({
                       <Link href={`/u/${a.profileId}`} aria-label={labels.profile.replace("{name}", a.contributorName)} className="block rounded-full border-2 border-white">
                         {a.contributorAvatar ? (
                           // eslint-disable-next-line @next/next/no-img-element -- profile photo
-                          <img src={a.contributorAvatar} alt="" referrerPolicy="no-referrer" className="size-12 rounded-full object-cover" />
+                          <img src={a.contributorAvatar} alt="" referrerPolicy="no-referrer" loading="lazy" className="size-12 rounded-full object-cover" />
                         ) : (
                           <span className="flex size-12 items-center justify-center rounded-full bg-secondary text-lg font-extrabold">{initial}</span>
                         )}
