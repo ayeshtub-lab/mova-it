@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 // (public/sw.js), which keeps the files. Here only when it wasn't running yet (the very first
 // share before Zawmo was ever opened): the new-moment page says to share once more.
 export async function POST(request: Request) {
-  return NextResponse.redirect(new URL("/new?shared=0", request.url), 303);
+  return NextResponse.redirect(new URL("/new?shared=0&why=server", request.url), 303);
 }
 
 export async function GET(request: Request) {

@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect, useState } from "react";
 
 // Files shared to Zawmo from the gallery (public/sw.js keeps them): the moment about to be started
@@ -36,14 +37,24 @@ async function smallPictures() {
   return out;
 }
 
-export function SharedArrival({ count, text }: { count: number; text: string }) {
+export function SharedArrival({ count, text, why }: { count: number; text: string; why?: string }) {
   const [pictures, setPictures] = useState<{ url: string | null; video: boolean }[]>([]);
   useEffect(() => {
     try {
       if (count > 0) sessionStorage.setItem(SHARED_MARK, String(Date.now()));
     } catch {}
     if (count > 0) smallPictures().then(setPictures, () => {});
-  }, [count]);
+    // Nothing came (public/sw.js says why): told to error monitoring with the phone, so the cause
+    // is known and not guessed (2026-11-03, a Tecno phone's gallery share).
+    if (count === 0) {
+      const ua = navigator.userAgent;
+      Sentry.captureMessage(`share arrived empty (${why ?? "?"})`, {
+        level: "warning",
+        fingerprint: ["share-empty", why?.split(":")[0] ?? "?"],
+        extra: { why, ua, app: document.referrer.startsWith("android-app://") || /wv\)/.test(ua) },
+      });
+    }
+  }, [count, why]);
   return (
     <div className="flex flex-col gap-2 rounded-2xl bg-moment/25 px-4 py-3">
       <p className="text-sm font-bold">{text}</p>

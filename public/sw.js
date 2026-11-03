@@ -37,15 +37,20 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   // «شارك لزاومو» from the gallery: keep the files (10 at most), then open the new-moment page.
+  // Every file in the form is taken, whatever its field's name (2026-11-03: a Tecno phone's share
+  // arrived «empty»); when none is usable, the page is told why (`why`) and reports it.
   if (url.pathname === "/share" && request.method === "POST") {
     event.respondWith(
       (async () => {
         try {
           const form = await request.formData();
-          const files = form
-            .getAll("media")
-            .filter((f) => f && typeof f === "object" && f.size > 0)
-            .slice(0, 10);
+          const all = [];
+          for (const [, value] of form.entries()) if (value && typeof value === "object" && "size" in value) all.push(value);
+          const files = all.filter((f) => f.size > 0).slice(0, 10);
+          if (!files.length) {
+            const why = all.length ? `empty:${all.length}` : `nofile:${[...new Set(form.keys())].join("|") || "-"}`;
+            return Response.redirect(`/new?shared=0&why=${encodeURIComponent(why)}`, 303);
+          }
           await caches.delete(SHARE);
           const cache = await caches.open(SHARE);
           const at = String(Date.now());
@@ -55,8 +60,8 @@ self.addEventListener("fetch", (event) => {
             ),
           );
           return Response.redirect(`/new?shared=${files.length}`, 303);
-        } catch {
-          return Response.redirect("/new?shared=0", 303);
+        } catch (error) {
+          return Response.redirect(`/new?shared=0&why=${encodeURIComponent(`error:${(error && error.name) || "?"}`)}`, 303);
         }
       })(),
     );

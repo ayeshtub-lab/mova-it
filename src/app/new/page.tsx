@@ -30,7 +30,7 @@ function Fold({ folded, summary, children }: { folded: boolean; summary: string;
 // Start a moment: the page behind the ＋ in the bottom bar.
 export default async function NewMomentPage({ searchParams }: PageProps<"/new">) {
   const user = await getCurrentUser();
-  const { kind, shared, title } = await searchParams;
+  const { kind, shared, title, why } = await searchParams;
   // «/new?shared=3»: photos or videos shared to Zawmo from the gallery (public/sw.js).
   const sharedCount = typeof shared === "string" ? Math.min(10, Math.max(0, Number.parseInt(shared, 10) || 0)) : null;
   const locale = await getLocale();
@@ -74,7 +74,7 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
           </div>
         </header>
         {sharedCount !== null && (
-          <SharedArrival count={sharedCount} text={sharedCount > 0 ? dict.create.shared.replace("{n}", String(sharedCount)) : dict.create.sharedNone} />
+          <SharedArrival count={sharedCount} text={sharedCount > 0 ? dict.create.shared.replace("{n}", String(sharedCount)) : dict.create.sharedNone} why={typeof why === "string" ? why.slice(0, 80) : undefined} />
         )}
         {/* «شارك لزاومو» from the gallery: into a moment you are in (its uploader takes the files —
             src/app/AngleUploader.tsx), or a new moment with the form below. */}
