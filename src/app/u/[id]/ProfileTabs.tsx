@@ -21,7 +21,50 @@ type Labels = {
   savedPrivate: string;
   seenBy: string;
   isNew: string;
+  showMore: string;
+  loadFailed: string;
 };
+
+type List = "shots" | "moments" | "likes" | "saved";
+
+// One list on the profile: the first page from the server, then «عرض المزيد» brings the next
+// (src/app/api/users/[id]/more) until there is no more.
+function usePaged<T>(userId: string, list: List, first: T[], firstMore: boolean) {
+  const [items, setItems] = useState(first);
+  const [more, setMore] = useState(firstMore);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  async function loadMore() {
+    if (busy) return;
+    setBusy(true);
+    setFailed(false);
+    const res = await fetch(`/api/users/${userId}/more?list=${list}&from=${items.length}`, { cache: "no-store" }).catch(() => null);
+    if (res?.ok) {
+      const page = (await res.json()) as { items: T[]; more: boolean };
+      setItems((now) => [...now, ...page.items]);
+      setMore(page.more);
+    } else setFailed(true);
+    setBusy(false);
+  }
+  return { items, more, busy, failed, loadMore };
+}
+
+function MoreButton({ paged, labels }: { paged: { more: boolean; busy: boolean; failed: boolean; loadMore: () => void }; labels: Labels }) {
+  if (!paged.more) return null;
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <button
+        type="button"
+        onClick={paged.loadMore}
+        disabled={paged.busy}
+        className="flex min-h-11 items-center justify-center rounded-full bg-surface px-6 text-sm font-extrabold transition-colors hover:bg-line disabled:opacity-60"
+      >
+        {paged.busy ? "…" : labels.showMore}
+      </button>
+      {paged.failed && <p className="text-xs text-muted">{labels.loadFailed}</p>}
+    </div>
+  );
+}
 
 function Tile({ href, coverUrl, video, filter, children }: { href: string; coverUrl: string | null; video: boolean; filter?: string | null; children?: React.ReactNode }) {
   return (
@@ -43,7 +86,7 @@ function Tile({ href, coverUrl, video, filter, children }: { href: string; cover
 }
 
 // A private grid (what you liked / saved): tiles open the shot in its moment.
-function PrivateGrid({ items, note, empty, mark }: { items: Like[]; note: string; empty: string; mark: string }) {
+function PrivateGrid({ items, note, empty, mark, children }: { items: Like[]; note: string; empty: string; mark: string; children?: React.ReactNode }) {
   if (!items.length) return <p className="rounded-3xl bg-surface p-6 text-center text-muted">{empty}</p>;
   return (
     <>
@@ -57,24 +100,36 @@ function PrivateGrid({ items, note, empty, mark }: { items: Like[]; note: string
           </Tile>
         ))}
       </div>
+      {children}
     </>
   );
 }
 
 // Shots / moments, plus — in the owner's own view only — liked and saved.
 export function ProfileTabs({
-  shots,
-  moments,
-  likes,
-  saved,
+  userId,
+  shots: firstShots,
+  moments: firstMoments,
+  likes: firstLikes,
+  saved: firstSaved,
+  more,
   labels,
 }: {
+  userId: string;
   shots: Shot[];
   moments: MomentItem[];
   likes: Like[] | null;
   saved: Like[] | null;
+  more: Record<List, boolean>;
   labels: Labels;
 }) {
+  const shotsPaged = usePaged(userId, "shots", firstShots, more.shots);
+  const momentsPaged = usePaged(userId, "moments", firstMoments, more.moments);
+  const likesPaged = usePaged(userId, "likes", firstLikes ?? [], more.likes);
+  const savedPaged = usePaged(userId, "saved", firstSaved ?? [], more.saved);
+  const [shots, moments] = [shotsPaged.items, momentsPaged.items];
+  const likes = firstLikes && likesPaged.items;
+  const saved = firstSaved && savedPaged.items;
   const tabs = [
     { key: "shots", emoji: "📸", label: labels.shots },
     { key: "moments", emoji: "⭐", label: labels.moments },
@@ -117,6 +172,7 @@ export function ProfileTabs({
         ) : (
           <p className="rounded-3xl bg-surface p-6 text-center text-muted">{labels.emptyShots}</p>
         ))}
+      {tab === "shots" && <MoreButton paged={shotsPaged} labels={labels} />}
 
       {tab === "moments" &&
         (moments.length ? (
@@ -134,9 +190,10 @@ export function ProfileTabs({
         ) : (
           <p className="rounded-3xl bg-surface p-6 text-center text-muted">{labels.emptyMoments}</p>
         ))}
+      {tab === "moments" && <MoreButton paged={momentsPaged} labels={labels} />}
 
-      {tab === "likes" && likes && <PrivateGrid items={likes} note={labels.likesPrivate} empty={labels.emptyLikes} mark="❤️" />}
-      {tab === "saved" && saved && <PrivateGrid items={saved} note={labels.savedPrivate} empty={labels.emptySaved} mark="🔖" />}
+      {tab === "likes" && likes && <PrivateGrid items={likes} note={labels.likesPrivate} empty={labels.emptyLikes} mark="❤️"><MoreButton paged={likesPaged} labels={labels} /></PrivateGrid>}
+      {tab === "saved" && saved && <PrivateGrid items={saved} note={labels.savedPrivate} empty={labels.emptySaved} mark="🔖"><MoreButton paged={savedPaged} labels={labels} /></PrivateGrid>}
     </section>
   );
 }

@@ -20,6 +20,7 @@ import { askGemini, screeningEnabled } from "@/server/screening";
 // Counts (views, likes received) are public; what you liked and saved stays yours.
 
 const SHOTS = 60;
+const MOMENTS = 40;
 
 export class ProfileError extends Error {
   constructor(public code: "not_found" | "invalid" | "forbidden" | "blocked") {
@@ -69,65 +70,80 @@ async function visibilityFor(viewer: User | null, owner: User, moments: MomentLi
   return { moment, angle };
 }
 
-export async function getProfile(viewer: User | null, userId: string) {
+// Who may see this profile at all (null = nobody: no such member, a guest, or blocked).
+async function profileOwner(viewer: User | null, userId: string) {
   const owner = await db.user.findUnique({ where: { id: userId } });
   if (!owner || owner.isGuest) return null;
   if (viewer && viewer.id !== owner.id && (await blockedIdsFor(viewer.id)).has(owner.id)) return null;
-  const isMe = viewer?.id === owner.id;
+  return owner;
+}
 
-  const [followers, following, isFollowing, likesReceived, angles, participations] = await Promise.all([
-    db.follow.count({ where: { followingId: owner.id } }),
-    db.follow.count({ where: { followerId: owner.id } }),
-    viewer && !isMe ? db.follow.count({ where: { followerId: viewer.id, followingId: owner.id } }).then((n) => n > 0) : false,
-    db.reaction.count({ where: { angle: { contributorId: owner.id, status: "READY" } } }),
+// Every shot and moment of the owner this viewer may see, newest first, as light rows: a member
+// has a few hundred at most, so the counts on the profile are true (they stood at 60 shots and
+// 40 moments, 2026-11-03) and «عرض المزيد» pages through the very same lists.
+async function visibleLists(viewer: User | null, owner: User) {
+  const isMe = viewer?.id === owner.id;
+  const lite = { id: true, visibility: true, creatorId: true, kind: true } as const;
+  const [angles, participations] = await Promise.all([
     db.angle.findMany({
       where: { contributorId: owner.id, ...live(), moment: { status: "ACTIVE" } },
       orderBy: { uploadedAt: "desc" },
-      take: SHOTS,
-      include: { moment: { select: { id: true, code: true, title: true, visibility: true, creatorId: true, kind: true } } },
+      select: { id: true, screening: true, moment: { select: lite } },
     }),
     db.participant.findMany({
       where: { userId: owner.id, moment: { status: "ACTIVE" } },
       orderBy: { moment: { lastActivityAt: "desc" } },
-      take: 40,
-      include: {
-        moment: {
-          select: {
-            id: true,
-            code: true,
-            title: true,
-            visibility: true,
-            creatorId: true,
-            kind: true,
-            lastActivityAt: true,
-            angles: { where: { ...live(), ...ownShot }, orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } },
-          },
-        },
-      },
+      select: { moment: { select: lite } },
     }),
   ]);
-
   const can = await visibilityFor(viewer, owner, [...angles.map((a) => a.moment), ...participations.map((p) => p.moment)]);
-  // (Shots that are clearly someone else's show on their owner's own profile only.)
-  const shownAngles = angles.filter((a) => can.angle(a) && (isMe || a.screening !== "repost"));
-  const views = await viewCounts(shownAngles.map((a) => a.id));
+  return {
+    // (Shots that are clearly someone else's show on their owner's own profile only.)
+    shotIds: angles.filter((a) => can.angle(a) && (isMe || a.screening !== "repost")).map((a) => a.id),
+    momentIds: participations.filter((p) => can.moment(p.moment)).map((p) => p.moment.id),
+  };
+}
 
-  const shots = await Promise.all(
-    shownAngles.map(async (a) => ({
-      id: a.id,
-      mediaType: a.mediaType,
-      coverUrl: await cover(a),
-      momentCode: a.moment.code,
-      momentTitle: a.moment.title,
-      views: views.get(a.id) ?? 0,
-      isNew: isNew(a.uploadedAt),
-      filter: a.filter,
-    })),
+async function shotPage(ids: string[]) {
+  const [rows, views] = await Promise.all([
+    db.angle.findMany({ where: { id: { in: ids } }, include: { moment: { select: { code: true, title: true } } } }),
+    viewCounts(ids),
+  ]);
+  const byId = new Map(rows.map((a) => [a.id, a]));
+  return Promise.all(
+    ids
+      .map((id) => byId.get(id))
+      .filter((a) => a !== undefined)
+      .map(async (a) => ({
+        id: a.id,
+        mediaType: a.mediaType,
+        coverUrl: await cover(a),
+        momentCode: a.moment.code,
+        momentTitle: a.moment.title,
+        views: views.get(a.id) ?? 0,
+        isNew: isNew(a.uploadedAt),
+        filter: a.filter,
+      })),
   );
-  const moments = await Promise.all(
-    participations
-      .filter((p) => can.moment(p.moment))
-      .map(async ({ moment: m }) => ({
+}
+
+async function momentPage(ids: string[]) {
+  const rows = await db.moment.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      code: true,
+      title: true,
+      lastActivityAt: true,
+      angles: { where: { ...live(), ...ownShot }, orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }], select: { mediaType: true, mediaPath: true, thumbPath: true, smallPath: true } },
+    },
+  });
+  const byId = new Map(rows.map((m) => [m.id, m]));
+  return Promise.all(
+    ids
+      .map((id) => byId.get(id))
+      .filter((m) => m !== undefined)
+      .map(async (m) => ({
         code: m.code,
         title: plain(m.title),
         angleCount: m.angles.length,
@@ -135,6 +151,26 @@ export async function getProfile(viewer: User | null, userId: string) {
         coverUrl: m.angles[0] ? await cover(m.angles[0]) : null,
       })),
   );
+}
+
+export async function getProfile(viewer: User | null, userId: string) {
+  const owner = await profileOwner(viewer, userId);
+  if (!owner) return null;
+  const isMe = viewer?.id === owner.id;
+
+  const [followers, following, isFollowing, likesReceived, lists] = await Promise.all([
+    db.follow.count({ where: { followingId: owner.id } }),
+    db.follow.count({ where: { followerId: owner.id } }),
+    viewer && !isMe ? db.follow.count({ where: { followerId: viewer.id, followingId: owner.id } }).then((n) => n > 0) : false,
+    db.reaction.count({ where: { angle: { contributorId: owner.id, status: "READY" } } }),
+    visibleLists(viewer, owner),
+  ]);
+  const [shots, moments, likes, saved] = await Promise.all([
+    shotPage(lists.shotIds.slice(0, SHOTS)),
+    momentPage(lists.momentIds.slice(0, MOMENTS)),
+    isMe ? likedShots(owner) : null,
+    isMe ? savedShots(owner) : null,
+  ]);
 
   return {
     id: owner.id,
@@ -149,23 +185,45 @@ export async function getProfile(viewer: User | null, userId: string) {
     likesReceived,
     isFollowing,
     canFollow: !!viewer && !isMe,
+    shotCount: lists.shotIds.length,
+    momentCount: lists.momentIds.length,
     shots,
     moments,
-    likes: isMe ? await likedShots(owner) : null,
-    saved: isMe ? await savedShots(owner) : null,
+    likes: likes?.items ?? null,
+    saved: saved?.items ?? null,
+    more: { shots: lists.shotIds.length > SHOTS, moments: lists.momentIds.length > MOMENTS, likes: !!likes?.more, saved: !!saved?.more },
   };
 }
 
-// The owner's own list of what they liked, newest first; only angles still up.
-async function likedShots(user: User) {
+// «عرض المزيد» on a profile: the next page of one list, by the same rules as the page itself.
+// Liked and saved are their owner's alone.
+export type ProfileList = "shots" | "moments" | "likes" | "saved";
+export async function profileMore(viewer: User | null, userId: string, list: ProfileList, from: number) {
+  const owner = await profileOwner(viewer, userId);
+  if (!owner) throw new ProfileError("not_found");
+  if (!Number.isInteger(from) || from < 0 || from > 10_000) throw new ProfileError("invalid");
+  if (list === "likes" || list === "saved") {
+    if (viewer?.id !== owner.id) throw new ProfileError("forbidden");
+    return list === "likes" ? likedShots(owner, from) : savedShots(owner, from);
+  }
+  const lists = await visibleLists(viewer, owner);
+  if (list === "shots") return { items: await shotPage(lists.shotIds.slice(from, from + SHOTS)), more: lists.shotIds.length > from + SHOTS };
+  if (list === "moments") return { items: await momentPage(lists.momentIds.slice(from, from + MOMENTS)), more: lists.momentIds.length > from + MOMENTS };
+  throw new ProfileError("invalid");
+}
+
+// The owner's own list of what they liked, newest first; only angles still up. One page of SHOTS
+// from `from` (a heart-happy member has hundreds: the 61st used to vanish from here, 2026-11-03).
+async function likedShots(user: User, from = 0) {
   const rows = await db.reaction.findMany({
     where: { userId: user.id, angle: { ...live(), moment: { status: "ACTIVE" } } },
     orderBy: { createdAt: "desc" },
-    take: SHOTS,
+    skip: from,
+    take: SHOTS + 1,
     include: { angle: { include: { moment: { select: { code: true, title: true } } } } },
   });
-  return Promise.all(
-    rows.map(async (r) => ({
+  const items = await Promise.all(
+    rows.slice(0, SHOTS).map(async (r) => ({
       id: r.angle.id,
       mediaType: r.angle.mediaType,
       coverUrl: await cover(r.angle),
@@ -173,19 +231,21 @@ async function likedShots(user: User) {
       momentTitle: r.angle.moment.title,
     })),
   );
+  return { items, more: rows.length > SHOTS };
 }
 
 // The owner's «المحفوظات», newest first, still visible to them (an angle can become
-// hidden or its moment private after it was saved).
-async function savedShots(user: User) {
+// hidden or its moment private after it was saved). Paged like likedShots.
+async function savedShots(user: User, from = 0) {
   const rows = await db.savedAngle.findMany({
     where: { userId: user.id, angle: { ...live(), moment: { status: "ACTIVE" } } },
     orderBy: { createdAt: "desc" },
-    take: SHOTS,
+    skip: from,
+    take: SHOTS + 1,
     include: { angle: { include: { moment: { select: { code: true, title: true } } } } },
   });
-  const visible = await Promise.all(rows.map(async (r) => ((await visibleAngle(user, r.angleId)) ? r : null)));
-  return Promise.all(
+  const visible = await Promise.all(rows.slice(0, SHOTS).map(async (r) => ((await visibleAngle(user, r.angleId)) ? r : null)));
+  const items = await Promise.all(
     visible
       .filter((r) => r !== null)
       .map(async (r) => ({
@@ -196,6 +256,7 @@ async function savedShots(user: User) {
         momentTitle: r.angle.moment.title,
       })),
   );
+  return { items, more: rows.length > SHOTS };
 }
 
 // ── Follow ─────────────────────────────────────────────────────────────────

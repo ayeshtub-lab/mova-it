@@ -133,7 +133,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
           <div className="grid w-full max-w-sm grid-cols-4 gap-1.5">
             {(
               [
-                [profile.shots.length, t.shots, null],
+                [profile.shotCount, t.shots, null],
                 [profile.followers, t.followers, "followers"],
                 [profile.following, t.following, "following"],
                 [profile.likesReceived, t.likesReceived, null],
@@ -173,10 +173,12 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
         </section>
 
         <ProfileTabs
+          userId={profile.id}
           shots={profile.shots}
           moments={profile.moments.map((m) => ({ ...m, lastActivityAt: m.lastActivityAt.toISOString() }))}
           likes={profile.likes}
           saved={profile.saved}
+          more={profile.more}
           labels={{
             shots: t.shots,
             moments: t.moments,
@@ -190,6 +192,8 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             savedPrivate: t.savedPrivate,
             seenBy: dict.viewer.seenBy,
             isNew: dict.viewer.isNew,
+            showMore: t.showMore,
+            loadFailed: t.loadFailed,
           }}
         />
         {profile.isMe && viewer && !viewer.isGuest && (

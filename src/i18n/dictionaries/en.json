@@ -542,6 +542,8 @@
     "saved": "Saved",
     "emptySaved": "Nothing saved yet. Tap 🔖 on any shot to keep it here.",
     "savedPrivate": "🔒 Only you can see what you saved",
+    "showMore": "Show more",
+    "loadFailed": "Couldn't load, try again",
     "changePhoto": "Change photo",
     "photoSaving": "Saving…",
     "photoFailed": "Couldn't upload the photo. Try another one.",

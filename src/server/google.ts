@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { cleanDisplayName } from "@/lib/session";
+import { adoptGuestHearts } from "@/server/quiet-guest";
 
 // "Continue with Google" (OpenID Connect, authorization code + PKCE). No library:
 // two redirects and one server-to-server token request.
@@ -83,7 +84,8 @@ export async function exchangeCode(code: string, attempt: Attempt, redirectUri: 
 }
 
 // Who is this Google account on Zawmo?
-// - already linked → that user (a guest on this browser stays as it was);
+// - already linked → that user (a guest on this browser stays as it was, but its hearts and
+//   saves move to them: src/server/quiet-guest.ts adoptGuestHearts);
 // - a guest is signed in here → upgrade that guest in place: same row, so every
 //   moment, angle, comment and message stays theirs (and the name they chose);
 // - otherwise → a new official account named after their Google name.
@@ -104,7 +106,10 @@ export async function accountForGoogle(
   });
 
   const linked = await db.user.findUnique({ where: { googleSub: profile.sub } });
-  if (linked) return db.user.update({ where: { id: linked.id }, data: fromGoogle(linked) });
+  if (linked) {
+    if (current?.isGuest && !current.googleSub) await adoptGuestHearts(current.id, linked.id);
+    return db.user.update({ where: { id: linked.id }, data: fromGoogle(linked) });
+  }
   if (current?.isGuest && !current.googleSub) {
     return db.user.update({ where: { id: current.id }, data: { googleSub: profile.sub, isGuest: false, ...fromGoogle(current) } });
   }
