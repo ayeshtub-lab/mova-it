@@ -352,8 +352,10 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           </form>
         )}
 
+        {/* The wheel's slices are small: the grid's small copy (2026-11-03: the full pictures here
+            were 2.3 MB of a 3.3 MB moment page, fetched before anything else). */}
         {!story && <AngleWheel
-          angles={view.angles.map((a) => ({ id: a.id, imageUrl: a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl, name: a.contributorName, avatarUrl: a.contributorAvatar, caption: a.caption }))}
+          angles={view.angles.map((a) => ({ id: a.id, imageUrl: a.gridUrl ?? (a.mediaType === "VIDEO" ? a.thumbUrl : a.mediaUrl), name: a.contributorName, avatarUrl: a.contributorAvatar, caption: a.caption }))}
           locked={view.lockedCount}
           labels={dict.wheel}
         />}
