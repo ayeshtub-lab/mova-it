@@ -7,7 +7,9 @@ import { publicShot } from "@/server/seo";
 // zawmo.com/i/ID.jpg: a public shot's picture (a video's poster) at an address that stays
 // the same, for search engines and link previews; ID-small.jpg its small copy, for the grids of
 // public pages (src/server/media.ts publicCover). Anything not public is "not found".
-// Cached for an hour only, so a shot made private or deleted leaves the cache soon after.
+// Kept by the CDN six hours (an hour until 2026-11-03: these pictures were the biggest CPU use —
+// his choice, «6 ساعات بلا مسح»), by browsers an hour: a shot made private or deleted leaves the
+// cache within six hours at most.
 // zawmo.com/i/CODE-N.jpg (2026-10-23): a film part's own cover, a frame from its middle — until the
 // part is made again with one, its first shot's picture.
 export async function GET(_request: Request, { params }: { params: Promise<{ file: string }> }): Promise<Response> {
@@ -54,7 +56,7 @@ function image(file: Response) {
   return new Response(file.body, {
     headers: {
       "content-type": file.headers.get("content-type") ?? "image/jpeg",
-      "cache-control": "public, max-age=3600, s-maxage=3600",
+      "cache-control": "public, max-age=3600, s-maxage=21600",
       "x-content-type-options": "nosniff",
     },
   });
