@@ -40,13 +40,13 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
     // Shared from the gallery while signed out (the app on a phone whose Chrome isn't signed in):
     // once sent to the home page and the photos lost without a word (2026-11-03). Now: sign in
     // here, and back to this page with the photos still waiting (kept an hour, public/sw.js).
-    if (!sharedCount) redirect("/");
+    if (sharedCount === null) redirect("/");
     const back = `/new?shared=${sharedCount}`;
     return (
       <div className="flex flex-1 flex-col px-4 sm:px-8">
         <SiteHeader locale={locale} dict={dict} />
         <main className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-12">
-          <SharedArrival count={sharedCount} text={dict.create.shared.replace("{n}", String(sharedCount))} />
+          <SharedArrival count={sharedCount} text={sharedCount > 0 ? dict.create.shared.replace("{n}", String(sharedCount)) : dict.create.sharedNone} pickLabel={dict.create.sharedPick} why={typeof why === "string" ? why.slice(0, 80) : undefined} />
           <h1 className="text-xl font-extrabold">{dict.create.sharedSignIn}</h1>
           {googleEnabled() && !inApp && (
             <>
@@ -74,7 +74,7 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
           </div>
         </header>
         {sharedCount !== null && (
-          <SharedArrival count={sharedCount} text={sharedCount > 0 ? dict.create.shared.replace("{n}", String(sharedCount)) : dict.create.sharedNone} why={typeof why === "string" ? why.slice(0, 80) : undefined} />
+          <SharedArrival count={sharedCount} text={sharedCount > 0 ? dict.create.shared.replace("{n}", String(sharedCount)) : dict.create.sharedNone} pickLabel={dict.create.sharedPick} why={typeof why === "string" ? why.slice(0, 80) : undefined} />
         )}
         {/* «شارك لزاومو» from the gallery: into a moment you are in (its uploader takes the files —
             src/app/AngleUploader.tsx), or a new moment with the form below. */}

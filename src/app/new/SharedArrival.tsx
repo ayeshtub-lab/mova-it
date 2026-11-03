@@ -37,7 +37,22 @@ async function smallPictures() {
   return out;
 }
 
-export function SharedArrival({ count, text, why }: { count: number; text: string; why?: string }) {
+// The share came empty (some phones' galleries hand the app nothing — a Tecno, 2026-11-03): one tap
+// picks the same photos here, kept just as public/sw.js keeps a share, and the page goes on as if
+// they had come from the gallery.
+async function keepPicked(files: File[]) {
+  await caches.delete("zawmo-share");
+  const fresh = await caches.open("zawmo-share");
+  const at = String(Date.now());
+  const kept = files.slice(0, 10);
+  for (const [i, f] of kept.entries()) {
+    await fresh.put(`/shared/${i}`, new Response(f, { headers: { "content-type": f.type || "application/octet-stream", "x-name": encodeURIComponent(f.name || `zawmo-${i}`), "x-at": at } }));
+  }
+  return kept.length;
+}
+
+export function SharedArrival({ count, text, why, pickLabel }: { count: number; text: string; why?: string; pickLabel?: string }) {
+  const [picking, setPicking] = useState(false);
   const [pictures, setPictures] = useState<{ url: string | null; video: boolean }[]>([]);
   useEffect(() => {
     try {
@@ -58,6 +73,29 @@ export function SharedArrival({ count, text, why }: { count: number; text: strin
   return (
     <div className="flex flex-col gap-2 rounded-2xl bg-moment/25 px-4 py-3">
       <p className="text-sm font-bold">{text}</p>
+      {count === 0 && pickLabel && "caches" in globalThis && (
+        <label className={`flex min-h-12 cursor-pointer items-center justify-center rounded-full bg-accent px-5 text-base font-extrabold text-white ${picking ? "pointer-events-none opacity-60" : ""}`}>
+          {picking ? "…" : pickLabel}
+          <input
+            type="file"
+            accept="image/*,video/mp4,video/quicktime,video/webm"
+            multiple
+            className="sr-only"
+            onChange={async (event) => {
+              const files = Array.from(event.target.files ?? []);
+              event.target.value = "";
+              if (!files.length) return;
+              setPicking(true);
+              try {
+                const n = await keepPicked(files);
+                window.location.replace(`/new?shared=${n}`);
+              } catch {
+                setPicking(false);
+              }
+            }}
+          />
+        </label>
+      )}
       {pictures.length > 0 && (
         <ul className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
           {pictures.map((p, i) => (
