@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { db } from "@/lib/db";
 import { hashtagsIn, normalizeTag } from "@/lib/hashtags";
+import { HUB_TAGS } from "@/lib/tag-hub";
 import { sitemapTags } from "@/server/seo";
 
 // A collection page's own facts (src/lib/tag-hub.ts), as a visitor and a search engine see them:
@@ -28,13 +29,15 @@ async function compute(rawTag: string) {
     },
     orderBy: { lastActivityAt: "desc" },
     take: 200,
-    select: { description: true, angles: { where: shown, select: { contributorId: true, uploadedAt: true, aiText: true } } },
+    select: { description: true, angles: { where: shown, orderBy: { uploadedAt: "asc" }, select: { id: true, contributorId: true, uploadedAt: true, aiText: true } } },
   });
   // "contains" also matches #tagger for #tag: exact tags only.
   const mine = moments.filter((m) => hashtagsIn(m.description).includes(tag) || m.angles.some((a) => hashtagsIn(a.aiText).includes(tag)));
   if (!mine.length) return null;
 
   const people = new Set<string>();
+  // A few of its newest pictures of the topic, for a cover (src/app/discover «مواضيع»).
+  const covers: string[] = [];
   let shots = 0;
   let latest = 0;
   const beside = new Map<string, number>();
@@ -44,6 +47,7 @@ async function compute(rawTag: string) {
     const whole = hashtagsIn(m.description).includes(tag);
     const ofTopic = whole ? m.angles : m.angles.filter((a) => hashtagsIn(a.aiText).includes(tag));
     shots += ofTopic.length;
+    for (const a of ofTopic.slice(-2)) if (covers.length < 6) covers.push(a.id);
     for (const a of ofTopic) {
       people.add(a.contributorId);
       latest = Math.max(latest, a.uploadedAt.getTime());
@@ -65,7 +69,25 @@ async function compute(rawTag: string) {
     people: people.size,
     latest: latest ? new Date(latest).toISOString() : null,
     related,
+    covers,
   };
 }
 
-export const tagHub = (tag: string) => unstable_cache(() => compute(tag), ["tag-hub-2", normalizeTag(tag)], { revalidate: 3600 })();
+export const tagHub = (tag: string) => unstable_cache(() => compute(tag), ["tag-hub-3", normalizeTag(tag)], { revalidate: 3600 })();
+
+// «📂 مواضيع بزاومو» on /discover: each collection page as a card — its words, how many pictures,
+// and a cover of its own (never the same picture on two cards). The most pictures first.
+export const topicCards = unstable_cache(
+  async () => {
+    const hubs = (await Promise.all([...HUB_TAGS].map(async (tag) => ({ tag, hub: await tagHub(tag) })))).filter((x) => x.hub && x.hub.shots >= 3);
+    hubs.sort((a, b) => b.hub!.shots - a.hub!.shots);
+    const used = new Set<string>();
+    return hubs.map(({ tag, hub }) => {
+      const id = hub!.covers.find((c) => !used.has(c)) ?? hub!.covers[0];
+      if (id) used.add(id);
+      return { tag, shots: hub!.shots, coverUrl: id ? `/i/${id}-small.jpg` : null };
+    });
+  },
+  ["topic-cards-1"],
+  { revalidate: 3600 },
+);

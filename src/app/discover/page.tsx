@@ -1,3 +1,5 @@
+import { topicCards } from "@/server/tag-hub";
+import { tagPhrase } from "@/lib/tag-phrase";
 import Link from "next/link";
 import { DemoWheel } from "@/app/DemoWheel";
 import { GoogleButton } from "@/app/GoogleButton";
@@ -65,7 +67,7 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
   const t = dict.discover;
   const official = !!user && !user.isGuest;
 
-  const [moments, trending, scenes, totals] = await Promise.all([listDiscover(user).then((l) => inEnglish(l, locale)), trendingVideos(user).then((l) => inEnglish(l, locale)), sceneCards(user?.id ?? null).then((l) => inEnglish(l, locale)), discoverTotals()]);
+  const [moments, trending, scenes, totals, topics] = await Promise.all([listDiscover(user).then((l) => inEnglish(l, locale)), trendingVideos(user).then((l) => inEnglish(l, locale)), sceneCards(user?.id ?? null).then((l) => inEnglish(l, locale)), discoverTotals(), locale === "ar" ? topicCards() : []]);
   const stats = await engagementFor(
     trending.map((v) => v.id),
     user,
@@ -105,6 +107,30 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
                       {SCENES[c.scene as Scene]?.emoji} {locale === "ar" ? SCENES[c.scene as Scene]?.ar : SCENES[c.scene as Scene]?.en} {c.placeName}
                     </span>
                     <span className="text-xs text-white/85">{dict.place.angles.replace("{n}", String(c.count))}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* «📂 مواضيع بزاومو» (2026-11-04): the collection pages (src/lib/tag-hub.ts) one tap away —
+          people see what Zawmo holds, and search engines find those pages linked from here. */}
+      {topics.length > 0 && (
+        <section aria-label={t.topicsTitle} className="flex flex-col gap-2">
+          <h2 className="text-lg font-extrabold">{t.topicsTitle}</h2>
+          <ul className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
+            {topics.map((c) => (
+              <li key={c.tag} className="shrink-0 snap-start">
+                <Link href={`/tag/${encodeURIComponent(c.tag)}`} className="relative block h-40 w-32 overflow-hidden rounded-2xl bg-surface">
+                  {c.coverUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element -- a fixed public picture (/i/…-small.jpg)
+                    <img src={c.coverUrl} alt="" loading="lazy" className="size-full object-cover" />
+                  )}
+                  <span className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/80 to-transparent p-2 pt-8 text-white">
+                    <span className="text-sm font-extrabold leading-tight">{tagPhrase(c.tag, locale)}</span>
+                    <span className="text-xs text-white/85">{plural(locale, dict.plurals.eventShots, c.shots)}</span>
                   </span>
                 </Link>
               </li>
