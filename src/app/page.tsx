@@ -23,7 +23,7 @@ import { getCurrentUser } from "@/lib/session";
 import { isInAppBrowser } from "@/lib/inapp";
 import { headers } from "next/headers";
 import { CANONICAL_HOST } from "@/lib/hosts";
-import { CONTACT_EMAIL } from "@/lib/site";
+import { ANDROID_PACKAGE, CONTACT_EMAIL } from "@/lib/site";
 import { JsonLd } from "@/app/JsonLd";
 import { googleEnabled } from "@/server/google";
 
@@ -230,7 +230,7 @@ const structured = {
   "@context": "https://schema.org",
   "@graph": [
     { "@type": "WebSite", "@id": `${site}/#website`, url: site, name: "زاومو", alternateName: "Zawmo", inLanguage: ["ar", "en"], publisher: { "@id": `${site}/#org` } },
-    { "@type": "Organization", "@id": `${site}/#org`, name: "زاومو", alternateName: "Zawmo", url: site, logo: `${site}/icons/icon-512.png`, email: CONTACT_EMAIL },
+    { "@type": "Organization", "@id": `${site}/#org`, name: "زاومو", alternateName: "Zawmo", url: site, logo: `${site}/icons/icon-512.png`, email: CONTACT_EMAIL, sameAs: [`https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`] },
   ],
 };
 
