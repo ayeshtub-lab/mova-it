@@ -651,7 +651,11 @@
     "hint": "Public moments with this hashtag",
     "empty": "No public moments with this hashtag yet.",
     "metaTitle": "{phrase} from real people | Zawmo",
-    "metaDescription": "{phrase} shared by real people on Zawmo: {titles}. One moment, from every angle."
+    "metaDescription": "{phrase} shared by real people on Zawmo: {titles}. One moment, from every angle.",
+    "hub": "{shots} in {moments}, taken by {people} on Zawmo with their phones — real photos from real lives.",
+    "hubFrom": "Among them: {titles}.",
+    "hubLatest": "Newest photo added on {date}.",
+    "related": "Related topics"
   },
   "sounds": {
     "title": "🎵 Pick a sound",
@@ -791,6 +795,7 @@
     "photo": "photo",
     "video": "video",
     "from": "From the moment “{title}”",
+    "allOfTag": "📸 All {phrase} on Zawmo",
     "watchAll": "▶︎ See them all, angle by angle",
     "more": "📸 More shots from this moment",
     "open": "See the whole moment, every angle",

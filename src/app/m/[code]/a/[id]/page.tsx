@@ -14,6 +14,8 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { imageRights, plain } from "@/lib/clip";
 import { hashtagsIn } from "@/lib/hashtags";
+import { isHubTag } from "@/lib/tag-hub";
+import { tagPhrase } from "@/lib/tag-phrase";
 import { soundSearch } from "@/lib/sound-search";
 import { filterCss } from "@/lib/filters";
 import { CANONICAL_HOST } from "@/lib/hosts";
@@ -80,6 +82,8 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   // The weather it was taken in («🌧️ مطر · 12°»), when known (src/server/weather.ts).
   const weather = weatherLine(shot.weather, shot.weatherTemp, locale);
   const sound = soundSearch(shot.soundKey, locale);
+  // Its first hashtag that has a collection page (Arabic pages: the tags are Arabic words).
+  const hubTag = locale === "ar" ? (hashtagsIn(shot.aiText).find(isHubTag) ?? null) : null;
   // A video's page is its watch page: the video the one thing on it (Google, «Is on a watch page?
   // No — the video is supplementary content», 2026-10-22, after 16/10 put 12 covers under it). So
   // under a video, a few plain links; under a photo, the covers as before.
@@ -206,6 +210,13 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
           )}
           <p className="text-sm text-muted">{fill(t.from, { title: shot.moment.title })}</p>
         </header>
+        {/* Its topic's collection page, when it has one (src/lib/tag-hub.ts): one clear way on from
+            this picture to all the others like it — for a visitor, and for a search engine. */}
+        {hubTag && (
+          <Link href={`/tag/${encodeURIComponent(hubTag)}`} className="flex min-h-12 items-center justify-center rounded-full border-2 border-secondary/40 px-6 text-center font-bold text-secondary">
+            {fill(t.allOfTag, { phrase: tagPhrase(hubTag, locale) })}
+          </Link>
+        )}
         {/* «▶︎ شوفها كلها»: the moment's viewer, on this shot — sideways its other angles, down the
             next moment (src/app/m/[code]/AngleGallery.tsx). */}
         <Link
