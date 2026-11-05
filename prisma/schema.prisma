@@ -142,6 +142,10 @@ model Moment {
   named          Boolean          @default(true)
   // A short line under the title; may carry #hashtags (public ones link to /tag/…).
   description    String?
+  // true: Zawmo wrote the description (from its shots) and keeps it up to date as shots are added
+  // (src/server/moment-summary.ts); false once its creator or staff edits it, and for every moment
+  // made before 2026-11-05 (left as they were).
+  descriptionAuto Boolean         @default(false)
   kind           MomentKind       @default(EVERYDAY)
   visibility     Visibility       @default(FRIENDS)
   status         ModerationStatus @default(ACTIVE)

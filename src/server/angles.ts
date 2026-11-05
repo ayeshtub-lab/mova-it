@@ -517,7 +517,7 @@ export async function screenForPublic(momentId: string) {
   // The description too: one that does not pass is removed rather than shown to everyone.
   const moment = await db.moment.findUnique({ where: { id: momentId }, select: { description: true } });
   if (moment?.description && (await screenText(moment.description)).result !== "allowed") {
-    await db.moment.update({ where: { id: momentId }, data: { description: null } });
+    await db.moment.update({ where: { id: momentId }, data: { description: null, descriptionAuto: false } });
   }
   const angles = await db.angle.findMany({ where: { momentId, status: "READY", OR: [{ screening: null }, { screening: { not: "allowed" } }] }, include: { contributor: { select: { verified: true } } } });
   for (const angle of angles) {
@@ -567,7 +567,7 @@ export async function publishAngle(user: User, angleId: string, title?: unknown)
 }
 
 // A shot's line as a moment's description (≤ 150): its words cut at a word, then its first hashtags.
-function momentLine(aiText: string) {
+export function momentLine(aiText: string) {
   if (aiText.length <= 150) return aiText;
   const words = aiText.replace(/#\S+/g, "").replace(/\s+/g, " ").trim();
   const cut = words.length <= 120 ? words : `${words.slice(0, 120).replace(/\s+\S*$/, "")}…`;
@@ -581,7 +581,8 @@ async function goLive(angle: { id: string; momentId: string; aiText: string | nu
   const now = new Date();
   // A moment without a description takes the first shot's line (with its #hashtags), so
   // nothing goes up undescribed; the creator may change it. ("" = they cleared it: left so.)
-  const describe = angle.moment.description === null && angle.aiText ? { description: momentLine(angle.aiText) } : {};
+  // Marked as Zawmo's (descriptionAuto): it grows with the moment's next shots (moment-summary.ts).
+  const describe = angle.moment.description === null && angle.aiText ? { description: momentLine(angle.aiText), descriptionAuto: true } : {};
   const [done] = await db.$transaction([
     db.angle.update({ where: { id: angle.id }, data: { status: "READY", autoPublish: false } }),
     db.moment.update({

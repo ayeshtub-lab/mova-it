@@ -368,5 +368,9 @@ export async function updateMomentDetails(user: User, code: string, input: { tit
     throw new MomentError("description_blocked");
   }
   // Cleared by its creator: kept empty (""), so a new shot's line does not fill it again.
-  return db.moment.update({ where: { id: moment.id }, data: { title, named: true, titleEn: null, description: description ?? (moment.description !== null ? "" : null) } });
+  const kept = description ?? (moment.description !== null ? "" : null);
+  // Their own words from now on: Zawmo stops rewriting it from the shots (moment-summary.ts). Only
+  // the title changed: the description is still Zawmo's, and goes on growing with the moment.
+  const own = kept !== moment.description ? { descriptionAuto: false } : {};
+  return db.moment.update({ where: { id: moment.id }, data: { title, named: true, titleEn: null, description: kept, ...own } });
 }
