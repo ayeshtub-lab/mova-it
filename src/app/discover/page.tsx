@@ -1,4 +1,6 @@
 import { topicCards } from "@/server/tag-hub";
+import { filmCards, filmLength, filmTitle } from "@/server/films";
+import { plain } from "@/lib/clip";
 import { tagPhrase } from "@/lib/tag-phrase";
 import Link from "next/link";
 import { DemoWheel } from "@/app/DemoWheel";
@@ -67,7 +69,7 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
   const t = dict.discover;
   const official = !!user && !user.isGuest;
 
-  const [moments, trending, scenes, totals, topics] = await Promise.all([listDiscover(user).then((l) => inEnglish(l, locale)), trendingVideos(user).then((l) => inEnglish(l, locale)), sceneCards(user?.id ?? null).then((l) => inEnglish(l, locale)), discoverTotals(), locale === "ar" ? topicCards() : []]);
+  const [moments, trending, scenes, totals, topics, films] = await Promise.all([listDiscover(user).then((l) => inEnglish(l, locale)), trendingVideos(user).then((l) => inEnglish(l, locale)), sceneCards(user?.id ?? null).then((l) => inEnglish(l, locale)), discoverTotals(), locale === "ar" ? topicCards() : [], filmCards()]);
   const stats = await engagementFor(
     trending.map((v) => v.id),
     user,
@@ -132,6 +134,30 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
                     <span className="text-sm font-extrabold leading-tight">{tagPhrase(c.tag, locale)}</span>
                     <span className="text-xs text-white/85">{plural(locale, dict.plurals.eventShots, c.shots)}</span>
                   </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* «🎬 أفلام زاومو» (2026-11-05): the newest films, and the way to all of them (/films). */}
+      {films.length > 0 && (
+        <section aria-label={dict.films.rail} className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 className="text-lg font-extrabold">{dict.films.rail}</h2>
+            <Link href="/films" className="text-sm font-bold text-accent-ink">
+              {dict.films.all}
+            </Link>
+          </div>
+          <ul className="-mx-4 flex snap-x gap-2 overflow-x-auto px-4 [scrollbar-width:none]">
+            {films.slice(0, 12).map((f) => (
+              <li key={`${f.code}-${f.part}`} className="shrink-0 snap-start">
+                <Link href={`/m/${f.code}/film/${f.part}`} className="relative block h-48 w-28 overflow-hidden rounded-2xl bg-surface">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- the part's own lasting cover (/i/CODE-N.jpg) */}
+                  <img src={`/i/${f.code}-${f.part}.jpg`} alt="" loading="lazy" className="size-full object-cover" />
+                  {f.seconds && <span className="absolute end-1.5 top-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[11px] font-bold text-white">▶︎ {filmLength(f.seconds)}</span>}
+                  <span className="absolute inset-x-0 bottom-0 line-clamp-3 bg-gradient-to-t from-black/80 to-transparent p-2 pt-8 text-xs font-extrabold leading-tight text-white">{plain(filmTitle(f, locale))}</span>
                 </Link>
               </li>
             ))}

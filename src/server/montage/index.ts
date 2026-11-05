@@ -73,6 +73,8 @@ async function unlockedMoment(user: User, code: string) {
 // The look of the film itself (motion, transitions, title, ending): a new style makes every
 // moment's video again the next time it's asked for.
 const MONTAGE_STYLE = "pro-1";
+// A story's own pace (2026-11-05: slower with few shots): its films alone are made again.
+const STORY_STYLE = "story-2";
 
 type Candidate = { id: string; contributorId: string; mediaType: string; capturedAt: Date | null; uploadedAt: Date; pickedAt: Date | null };
 
@@ -131,7 +133,7 @@ async function currentContent(momentId: string, soundKey: string | null) {
   // A story keeps its whole span, spread evenly; a moment its distinct shots, best ones past the cap.
   const angles = size.story ? spread(found, size.max) : await bestShots(found, size.max, filmLimit(soundKey));
   const signature = createHash("sha256")
-    .update(JSON.stringify([MONTAGE_STYLE, soundKey, ...wordsMark(soundKey), angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null, ...wordsMark(a.soundKey, a.lyrics)])]))
+    .update(JSON.stringify([MONTAGE_STYLE, ...(size.story ? [STORY_STYLE] : []), soundKey, ...wordsMark(soundKey), angles.map((a) => [a.id, a.filter, a.stamp, a.soundKey, a.muteOriginal, parseCaption(a.caption)?.path ?? null, ...wordsMark(a.soundKey, a.lyrics)])]))
     .digest("hex")
     .slice(0, 32);
   return { angleIds: angles.map((a) => a.id), signature };

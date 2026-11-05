@@ -93,7 +93,7 @@ type ItemState = {
 };
 // «📍 وين صوّرت؟»: asked when a shot has no place (phones strip a photo's location on the web).
 type PlaceLabels = { ask: string; hint: string; failed: string; placeholder: string; guess?: PlaceGuessLabels; here: { label: string; why: string; finding: string; denied: string; blocked: string; outside: string; approx: string } };
-type UploaderSoundLabels = SoundLabels & { add: string; failed: string; pending: string; pendingClear: string };
+type UploaderSoundLabels = SoundLabels & { add: string; failed: string; pending: string; pendingClear: string; perShot?: string; applyAll?: string };
 
 // The files shared from the gallery (kept by public/sw.js), when this visit started a moment from
 // the share: its mark (set on /new) under 30 minutes old, files under an hour. Taken once.
@@ -332,6 +332,7 @@ export function AngleUploader({
   function close() {
     if (busy || (drafts.length > 0 && !publishing)) return setLeaving(true);
     setOpen(false);
+    setBatchSound(null);
     setItems((all) => all.filter((it) => it.status === "done"));
   }
   // A sound chosen on a sound's page, waiting for the next shot.
@@ -352,6 +353,9 @@ export function AngleUploader({
   const longFiles = useRef(new Map<number, File>());
   const [saving, setSaving] = useState(false);
   const [soundError, setSoundError] = useState(false);
+  // The sound chosen first went on the first shot of a batch (2026-11-05, his call): with several
+  // shots, one tap offers it to the rest too — each can still get its own.
+  const [batchSound, setBatchSound] = useState<string | null>(null);
 
   function clearPending() {
     setPending(null);
@@ -489,7 +493,10 @@ export function AngleUploader({
       }
       // A sound chosen beforehand (on a sound's page) goes on now. Otherwise nothing opens by
       // itself: the person picks a sound only if they want, from the shot's «🎵» button.
-      if (pending && (await saveSound(index, angleId, pending, false))) clearPending();
+      if (pending && (await saveSound(index, angleId, pending, false))) {
+        setBatchSound(pending);
+        clearPending();
+      }
     } catch (error) {
       // A gallery video past 40 s: offer to send its first 40 seconds instead.
       if (error instanceof PrepareError && error.code === "too_long" && input instanceof File) {
@@ -729,6 +736,29 @@ export function AngleUploader({
                     {editLabels.cover.open}
                   </button>
                 )}
+              </div>
+            )}
+            {/* Several shots: each its own sound (tap one, then «🎵»), or the sound chosen first on all. */}
+            {shown.length > 1 && drafts.length > 0 && (
+              <div className="flex flex-col items-center gap-2">
+                {soundLabels.perShot && <p className="text-center text-xs font-bold text-muted">{soundLabels.perShot}</p>}
+                {(() => {
+                  const sound = soundByKey(batchSound);
+                  const missing = drafts.filter(({ it }) => !it.soundKey);
+                  if (!sound || !missing.length || !soundLabels.applyAll) return null;
+                  return (
+                    <button
+                      type="button"
+                      disabled={saving}
+                      onClick={async () => {
+                        for (const { it, i } of missing) if (!(await saveSound(i, it.angleId!, sound.key, false))) break;
+                      }}
+                      className="min-h-10 rounded-full border-2 border-accent px-4 text-sm font-bold text-accent-ink disabled:opacity-60"
+                    >
+                      {soundLabels.applyAll.replace("{name}", soundName(sound, locale))}
+                    </button>
+                  );
+                })()}
               </div>
             )}
             {(() => {

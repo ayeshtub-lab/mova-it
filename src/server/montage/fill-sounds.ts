@@ -11,11 +11,17 @@ import { resolveSound } from "@/server/sound-resolve";
 // there later joins by itself (matched by the words of its name). A moment of prayer or loss:
 // nature only. Never the same sound twice in one part while another fits.
 
-const LISTS = ["calm", "daf", "nature"] as const;
+// Since 2026-11-05 (his call: «من المكتبة بما يناسب الصور، مش بس الطبيعة») also the occasions and
+// the nasheeds — but those only where the pictures call for them (a wedding, a mother, Ramadan…),
+// never as the general fallback, which stays calm music.
+const LISTS = ["calm", "daf", "nature", "occasions", "nasheed"] as const;
+const ONLY_WHEN_FITTING = new Set(["occasions", "nasheed"]);
+// Too short to carry a part (a zaghrouta of 6 seconds).
+const SHORTEST = 12;
 // Never under a film, whatever the pictures (his call, 2026-10-23): animals and insects — frogs,
 // sheep, goats, a rooster, crickets… (birds, water, fire and wind stay).
 const NEVER = /ضفدع|ضفادع|بِ?ركة|خراف|خروف|غنم|ماعز|معز|ديك|دجاج|صرصور|صراصير|حشر|بقر|حمار|كلب|قطط|قطة|حصان|نحل|زيز|جندب|جنادب|حيوان|\b(?:pond|frogs?|toads?|sheep|goats?|roosters?|chickens?|crickets?|cicadas?|grasshoppers?|insects?|cows?|donkeys?|dogs?|cats?|horses?|bees?|animals?|farm|barn)\b/i;
-type Candidate = { key: string; cat: string; words: string };
+type Candidate = { key: string; cat: string; words: string; seconds?: number };
 
 // A shot's words → the words a fitting sound's name has (Arabic and English names both).
 const THEMES: { shot: RegExp; sound: RegExp }[] = [
@@ -28,6 +34,10 @@ const THEMES: { shot: RegExp; sound: RegExp }[] = [
   { shot: /عرس|زفة|زفاف|عريس|عروس|دبكة|حنة|حناء|فرح|عيد|احتفال|تخرج|نجاح|مباراة|ملعب|حفلة|مهرجان/, sound: /drum|دف/i },
   { shot: /قهوة|فطور|صبح|صباح|شاي|مطبخ|أكل|طبخ|حلو|كعك|معمول|خبز|طابون|سفرة|غدا|عشا/, sound: /morning|cozy|guitar|oud|صبح|رواق|عود/i },
   { shot: /تراث|قديم|بلدة|حارة|سوق|جدة|ستي|سيدي|حجر|قرية|بيت/, sound: /oud|عود|taqsim|تقاسيم/i },
+  { shot: /عرس|زفة|زفاف|عريس|عروس|دبكة|حنة|حناء/, sound: /wedding|زفة|عرس|darbuka|دربكة/i },
+  { shot: /عيد|احتفال|تخرج|نجاح|مباراة|ملعب|حفلة|مهرجان|فوز/, sound: /cheer|clap|تصفيق|هتاف|fireworks|ألعاب نارية|darbuka|دربكة/i },
+  { shot: /أمي|امي|ماما|يوم الأم|والدتي|ستي|جدتي/, sound: /mother|أُمّي|أمي/i },
+  { shot: /رمضان|إفطار|افطار|سحور|مسجد|جامع|المولد|النبي|صلاة|عمرة|حج|الأقصى|هلال/, sound: /praise|peace be upon|مديح|سلام/i },
   { shot: /غروب|شروق|شمس|أفق|هدوء|سكينة/, sound: /dream|stillness|gymnop|nocturne|träumerei|حالم|سكون|ساتي|شوبان|شومان|أحلام/i },
 ];
 // A shot's scene, in the words of the themes above.
@@ -50,7 +60,7 @@ export async function fillPicker(solemn: boolean) {
     .findMany({ where: { status: "public", shared: true, category: { in: [...LISTS] }, path: { not: null } }, select: { key: true, name: true, category: true } })
     .catch(() => []);
   const pool: Candidate[] = [
-    ...SOUNDS.filter((s) => (LISTS as readonly string[]).includes(s.cat)).map((s) => ({ key: s.key, cat: s.cat, words: `${s.ar} ${s.en}` })),
+    ...SOUNDS.filter((s) => (LISTS as readonly string[]).includes(s.cat) && s.seconds >= SHORTEST).map((s) => ({ key: s.key, cat: s.cat, words: `${s.ar} ${s.en}`, seconds: s.seconds })),
     ...curated.map((s) => ({ key: s.key, cat: s.category!, words: s.name })),
   ].filter((s) => !NEVER.test(s.words) && (!solemn || s.cat === "nature"));
   const used = new Set<string>();
@@ -63,7 +73,7 @@ export async function fillPicker(solemn: boolean) {
     const open = pool.filter((s) => s.key !== last && (rainy || !WEATHER.test(s.words)));
     const score = (s: Candidate) => THEMES.reduce((n, t) => n + (t.shot.test(text) && t.sound.test(s.words) ? 1 : 0), 0);
     const fresh = open.filter((s) => !used.has(s.key));
-    let choices = (fresh.length ? fresh : open).map((s) => ({ s, n: score(s) }));
+    let choices = (fresh.length ? fresh : open).map((s) => ({ s, n: score(s) })).filter((c) => c.n > 0 || !ONLY_WHEN_FITTING.has(c.s.cat));
     const best = Math.max(0, ...choices.map((c) => c.n));
     if (best > 0) choices = choices.filter((c) => c.n === best);
     else {

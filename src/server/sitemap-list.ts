@@ -65,6 +65,7 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
   const list: MetadataRoute.Sitemap = [
     { url: base, changeFrequency: "daily", priority: 1 },
     { url: `${base}/album`, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${base}/films`, changeFrequency: "daily", priority: 0.8 },
     { url: `${base}/guide/house`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${base}/guide/plant`, changeFrequency: "monthly", priority: 0.8 },
     ...places.filter((p) => p.shots >= 3).map((p) => ({ url: `${base}/p/${encodeURIComponent(p.slug)}`, lastModified: p.updatedAt, changeFrequency: "daily" as const, priority: 0.8 })),

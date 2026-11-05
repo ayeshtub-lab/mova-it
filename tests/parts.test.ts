@@ -66,9 +66,12 @@ async function main() {
     const fire = await pick({ id: "a2", scene: "other", aiText: "سهرة على نار الحطب" }, "سهرة", null);
     assert.ok(/fire/i.test(fire!.en), fire!.en);
     const wedding = await pick({ id: "a3", scene: "wedding", aiText: "زفة العريس #عرس" }, "عرس", null);
-    assert.equal(wedding!.cat, "daf");
+    // (Since 2026-11-05 the occasions list too: a wedding's drums and chants, or the daf.)
+    assert.ok(["daf", "occasions"].includes(wedding!.cat) && !/zaghrout|ululation/i.test(wedding!.en), wedding!.en);
+    const mother = await pick({ id: "a6", scene: "other", aiText: "قهوة مع أمي الصبح" }, "أمي", null);
+    assert.ok(/mother/i.test(mother!.en), mother!.en);
     const plain = await pick({ id: "a4", scene: "other", aiText: null }, "يوم عادي", null);
-    assert.ok(plain && plain.cat !== "daf" && !/thunder|storm|rain/i.test(plain.en));
+    assert.ok(plain && plain.cat === "calm" && !/thunder|storm|rain/i.test(plain.en), plain?.en);
   });
   await check("never an animal or an insect under a film, even when the picture has one (his call, 2026-10-23)", async () => {
     const pick = await fillPicker(false);

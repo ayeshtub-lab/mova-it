@@ -26,6 +26,10 @@ const VIDEO_MAX_SECONDS = 6;
 // «مع الوقت»: quick, like time passing — a month in a few seconds.
 const STORY_PHOTO_SECONDS = 1.3;
 const STORY_VIDEO_SECONDS = 2.5;
+const STORY_TARGET = 33; // seconds of shots for a story with few of them (4 → ~20 s film, 10 → ~35 s)
+const STORY_PHOTO_MAX = 4;
+// A story's photo on screen this long moves slowly, like the others; quicker ones stay still.
+const STORY_MOVES_FROM = 2.5;
 const FPS = 30;
 // Shots flow into each other (ffmpeg xfade), varied so it never feels mechanical; a story
 // only dissolves, quickly, like days passing.
@@ -60,9 +64,12 @@ export function shotTimes(photos: number, videos: number, story: boolean, limit 
   const fit = n ? room / (photos + VIDEO_WEIGHT * videos) : Infinity;
   // Under a long verse the shots may stay up to twice as long, so the film fills the verse
   // instead of resting on its last frame.
-  const longest = (story ? STORY_PHOTO_SECONDS : PHOTO_SECONDS) * (limit > MAX_FILM_SECONDS ? 2 : 1);
+  // A story with few shots goes slower (his call, 2026-11-05: «اليقطين» — 4 photos made 8 seconds):
+  // its shots share about STORY_TARGET seconds, up to STORY_PHOTO_MAX each; many shots stay quick.
+  const storyPhoto = Math.min(STORY_PHOTO_MAX, Math.max(STORY_PHOTO_SECONDS, STORY_TARGET / Math.max(1, n)));
+  const longest = (story ? storyPhoto : PHOTO_SECONDS) * (limit > MAX_FILM_SECONDS ? 2 : 1);
   const photo = Math.min(longest, Math.max(MIN_PHOTO_SECONDS, fit));
-  const video = Math.min(story ? STORY_VIDEO_SECONDS : VIDEO_MAX_SECONDS, Math.max(MIN_VIDEO_SECONDS, photo * VIDEO_WEIGHT));
+  const video = Math.min(story ? Math.max(STORY_VIDEO_SECONDS, Math.min(VIDEO_MAX_SECONDS, photo * 1.5)) : VIDEO_MAX_SECONDS, Math.max(MIN_VIDEO_SECONDS, photo * VIDEO_WEIGHT));
   // Rounded down, so the film never ends up a hair over the limit.
   return { photo: Math.floor(photo * 100) / 100, video: Math.floor(video * 100) / 100 };
 }
@@ -75,6 +82,7 @@ const GRADE = "eq=contrast=1.06:saturation=1.12:brightness=0.01";
 // moment whose name speaks of a prayer or a loss.
 const AUTO_SOUND = "d01";
 const AUTO_SOUND_SOLEMN = "n15";
+const BED_CROSSFADE = 1.5;
 const SOLEMN_WORDS = /رحم|عزاء|وفاة|فقيد|شهيد|اللهم|دعاء|قرآن|جنازة|تعزية|إنا لله/;
 
 // ffmpeg-static has no ffprobe, so read what we need from `ffmpeg -i`'s banner.
@@ -399,14 +407,9 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   // (A part: ONE sound under the whole part, chosen for what its pictures show together —
   // ./fill-sounds.ts; the shots with a sound of their own keep it, the bed going quiet there.)
   const silentPhotos = ordered.filter((a) => a.mediaType !== "VIDEO" && !a.soundKey);
-  const partSound =
-    fill && !soundKey && !story
-      ? await (await fillPicker(SOLEMN_WORDS.test(moment.title)))(
-          { id: moment.id, scene: mostCommon(ordered.map((a) => a.scene)), aiText: (silentPhotos.length ? silentPhotos : ordered).map((a) => a.aiText ?? "").join(" ") },
-          moment.title,
-          null,
-        )
-      : null;
+  const bedShot = { id: moment.id, scene: mostCommon(ordered.map((a) => a.scene)), aiText: (silentPhotos.length ? silentPhotos : ordered).map((a) => a.aiText ?? "").join(" ") };
+  const picker = fill && !soundKey && !story ? await fillPicker(SOLEMN_WORDS.test(moment.title)) : null;
+  const partSound = picker ? await picker(bedShot, moment.title, null) : null;
   const times = shotTimes(ordered.filter((a) => a.mediaType !== "VIDEO").length, ordered.filter((a) => a.mediaType === "VIDEO").length, story, filmLimit(soundKey));
   const pieces: string[] = [];
   let made = 0;
@@ -465,7 +468,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
     let seconds =
       angle.mediaType === "VIDEO"
         ? await videoSegment(input, overlay, out, angle.filter, caption, plan ? plan[i] : times.video)
-        : await photoSegment(input, overlay, out, angle.filter, caption, plan ? plan[i] : times.photo, story ? null : i);
+        : await photoSegment(input, overlay, out, angle.filter, caption, plan ? plan[i] : times.photo, story && (plan ? plan[i] : times.photo) < STORY_MOVES_FROM ? null : i);
     let segment = out;
     const shotSoundFile = shotSound ? await soundAt(shotSound) : null;
     if (shotSound && shotSoundFile) {
@@ -527,7 +530,31 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
       total += hold;
       mix = `[orig]anullsink;[${film.segments.length}:a]aresample=44100,apad=whole_dur=${total.toFixed(2)}[a]`;
     } else {
-      soundInput.push("-stream_loop", "-1", "-i", soundPath);
+      // Zawmo's own bed (a part's sound, or the calm one) never repeats itself (his call, 2026-11-05:
+      // «صوت يغطي كل الصور… مرة واحدة»): when it ends before the film, a second fitting sound follows
+      // it (a third at most), crossfaded. Only the last one loops, should even they fall short.
+      // A sound someone chose themselves plays as they chose it.
+      const beds: string[] = [soundPath];
+      if (!chosen && !isSolemn(sound)) {
+        const more = picker ?? (await fillPicker(SOLEMN_WORDS.test(moment.title)));
+        const keys = new Set([sound.key]);
+        let covered = sound.seconds;
+        while (covered < total - 0.5 && beds.length < 3) {
+          const next = await more(bedShot, moment.title, [...keys].pop() ?? null);
+          if (!next || keys.has(next.key) || isQuran(next) || isSolemn(next)) break;
+          const path = await soundAt(next).catch(() => null);
+          if (!path) break;
+          keys.add(next.key);
+          beds.push(path);
+          covered += next.seconds - BED_CROSSFADE;
+        }
+      }
+      beds.forEach((p, k) => soundInput.push(...(k === beds.length - 1 ? ["-stream_loop", "-1"] : []), "-i", p));
+      const first0 = film.segments.length;
+      const chain = beds.length === 1
+        ? `[${first0}:a]aresample=44100`
+        : beds.map((_, k) => `[${first0 + k}:a]aresample=44100,aformat=channel_layouts=stereo[b${k}]`).join(";") +
+          ";" + beds.slice(1).map((_, k) => `${k === 0 ? "[b0]" : `[x${k}]`}[b${k + 1}]acrossfade=d=${BED_CROSSFADE}${k === beds.length - 2 ? "" : `[x${k + 1}]`}`).join(";");
       const fade = `afade=t=in:d=0.6,afade=t=out:st=${Math.max(0, total - 1.5).toFixed(2)}:d=1.5`;
       // (A part: the bed goes quiet under the shots that carry their own sound — from the cut
       // into them to the cut out, transitions included.)
@@ -539,14 +566,14 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
             .filter(Boolean)
             .join("+")
         : "";
-      const bed = `[${film.segments.length}:a]aresample=44100,atrim=0:${total.toFixed(2)},${fade}${auto ? (underAll ? ",volume=0.8" : ",volume=0.55") : ""}${quiet ? `,volume=0:enable='${quiet}'` : ""}[bed]`;
+      const bed = `${chain}${beds.length === 1 ? "," : "[chain];[chain]"}atrim=0:${total.toFixed(2)},${fade}${auto ? (underAll ? ",volume=0.8" : ",volume=0.55") : ""}${quiet ? `,volume=0:enable='${quiet}'` : ""}[bed]`;
       mix = isSolemn(sound)
         ? `${bed};[orig]anullsink;[bed]anull[a]`
         : `${bed};[orig]volume=${auto ? "0.9" : "0.35"}[soft];[soft][bed]amix=inputs=2:duration=first:normalize=0[a]`;
     }
   }
   // «📝»: the chosen sound's words over the whole film, as they are heard (from its start).
-  const words = sound && !auto ? await lyricLayers(sound, total, dir, film.segments.length + 1, "v", "vw") : null;
+  const words = sound && !auto ? await lyricLayers(sound, total, dir, film.segments.length + Math.max(1, soundInput.filter((x) => x === "-i").length), "v", "vw") : null;
   const output = join(dir, "montage.mp4");
   const inputs = film.segments.flatMap((s) => ["-i", s]);
   const run = (g: string) =>
