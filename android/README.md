@@ -24,4 +24,12 @@ What the site already does for the app (all in this repo):
 5. Copy both fingerprints from App integrity into `ANDROID_CERT_SHA256`, redeploy, and check
    https://zawmo.com/.well-known/assetlinks.json.
 6. A new shell release: raise `appVersionCode` (and `appVersionName`) here, `bubblewrap update`,
-   `bubblewrap build`, upload.
+   then **copy `custom/` over `app/src/main/`** (step 7), `bubblewrap build`, upload.
+7. `custom/` holds Zawmo's own changes to the generated project — `bubblewrap update` writes
+   those files afresh, so copy them back after every update, before building:
+   `cp -r custom/java custom/res app/src/main/`
+   - `ZawmoShare.java` + the `LauncherActivity.java` hook + `res/xml/filepaths.xml`: photos shared
+     from the gallery are copied into the app first and handed to Chrome from its own
+     FileProvider (2026-11-05: a Tecno gallery's photo shares reached the site empty, videos fine).
+     When a photo can't be copied, the share's text says why (`zawmo-share:…`) and the site
+     reports it to Sentry as `share arrived empty (app:…)`.

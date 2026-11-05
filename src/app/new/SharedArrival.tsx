@@ -1,7 +1,9 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+
+const noChange = () => () => {};
 
 // Files shared to Zawmo from the gallery (public/sw.js keeps them): the moment about to be started
 // here takes them — its uploader finds this mark and adds them by itself (src/app/AngleUploader.tsx).
@@ -54,6 +56,9 @@ async function keepPicked(files: File[]) {
 export function SharedArrival({ count, text, why, pickLabel }: { count: number; text: string; why?: string; pickLabel?: string }) {
   const [picking, setPicking] = useState(false);
   const [pictures, setPictures] = useState<{ url: string | null; video: boolean }[]>([]);
+  // Known only on the phone (the server has no `caches`): decided after the page shows, so the
+  // first render matches the server's (2026-11-05: React error #418 on /new?shared=0).
+  const canKeep = useSyncExternalStore(noChange, () => "caches" in window, () => false);
   useEffect(() => {
     try {
       if (count > 0) sessionStorage.setItem(SHARED_MARK, String(Date.now()));
@@ -73,7 +78,7 @@ export function SharedArrival({ count, text, why, pickLabel }: { count: number; 
   return (
     <div className="flex flex-col gap-2 rounded-2xl bg-moment/25 px-4 py-3">
       <p className="text-sm font-bold">{text}</p>
-      {count === 0 && pickLabel && "caches" in globalThis && (
+      {count === 0 && pickLabel && canKeep && (
         <label className={`flex min-h-12 cursor-pointer items-center justify-center rounded-full bg-accent px-5 text-base font-extrabold text-white ${picking ? "pointer-events-none opacity-60" : ""}`}>
           {picking ? "…" : pickLabel}
           <input

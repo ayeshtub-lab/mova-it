@@ -48,7 +48,9 @@ self.addEventListener("fetch", (event) => {
           for (const [, value] of form.entries()) if (value && typeof value === "object" && "size" in value) all.push(value);
           const files = all.filter((f) => f.size > 0).slice(0, 10);
           if (!files.length) {
-            const why = all.length ? `empty:${all.length}` : `nofile:${[...new Set(form.keys())].join("|") || "-"}`;
+            // The Android app says why when it could not copy a photo (android/custom/…/ZawmoShare.java).
+            const note = String(form.get("text") || "").match(/zawmo-share:\S+(?: sdk\d+)?/);
+            const why = note ? `app:${note[0].slice(12, 200)}` : all.length ? `empty:${all.length}` : `nofile:${[...new Set(form.keys())].join("|") || "-"}`;
             return Response.redirect(`/new?shared=0&why=${encodeURIComponent(why)}`, 303);
           }
           await caches.delete(SHARE);
