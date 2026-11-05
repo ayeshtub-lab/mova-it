@@ -58,3 +58,15 @@ export function MomentDetails({ code, initial, labels, onSaved }: { code: string
     </div>
   );
 }
+
+// The creator's own way in, right under the moment's header (2026-11-05: the edit used to live
+// only inside a shot's «تعديل» sheet, and the owner of 5FCGH7 couldn't find it). Folded, so the
+// page looks the same until they open it; only the creator gets it, never visitors or crawlers.
+export function CreatorMomentEdit({ code, title, description, labels, open }: { code: string; title: string; description: string | null; labels: MomentDetailsLabels; open: string }) {
+  return (
+    <details className="flex flex-col gap-2 rounded-3xl border border-line bg-surface p-3">
+      <summary className="min-h-9 cursor-pointer list-none text-sm font-extrabold text-foreground [&::-webkit-details-marker]:hidden">{open}</summary>
+      <MomentDetails code={code} initial={{ title, description }} labels={labels} />
+    </details>
+  );
+}

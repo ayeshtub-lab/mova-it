@@ -3,6 +3,7 @@ import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { alternatesFor } from "@/i18n/alternates";
 import { SendToFriend } from "@/app/SendToFriend";
 import { StaffMomentEdit } from "@/app/StaffEdit";
+import { CreatorMomentEdit } from "@/app/MomentDetails";
 import { guessPlace } from "@/server/place-guess";
 import { INDEXABLE } from "@/lib/indexable";
 import { MomentHint } from "./MomentHint";
@@ -319,6 +320,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               invitations every moment shares). */}
           {!daily && summary && <p className="text-sm leading-relaxed text-muted">{summary}</p>}
           {/* Zawmo's own accounts fix someone else's public moment (its owner edits inside «تعديل»). */}
+          {/* The creator's own, in plain sight (it also stays inside a shot's «تعديل»). */}
+          {view.viewer.isCreator && !daily && <CreatorMomentEdit code={view.code} title={view.arabic.title} description={view.arabic.description} labels={dict.momentDetails} open={dict.momentDetails.open} />}
           {view.viewer.manage && !view.viewer.isCreator && !daily && <StaffMomentEdit code={view.code} title={view.arabic.title} description={view.arabic.description} labels={dict.momentDetails} />}
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-full px-3 py-1 text-xs font-bold ${view.visibility === "PUBLIC" ? "bg-secondary-soft text-secondary" : "bg-surface text-muted"}`}>

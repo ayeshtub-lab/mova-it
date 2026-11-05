@@ -276,6 +276,7 @@
   },
   "momentDetails": {
     "section": "Title & description",
+    "open": "✏️ Edit title & description",
     "title": "Title",
     "description": "Description",
     "save": "Save title & description",
