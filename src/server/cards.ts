@@ -191,7 +191,9 @@ export async function listCards(kind: CardKind | null, take = 60, exclude?: stri
 export const CARDS_IN_SITEMAP_FROM = 12;
 export async function sitemapCards() {
   if ((await countCards()) < CARDS_IN_SITEMAP_FROM) return [];
-  return db.card.findMany({ where: { ...shownCard(), shares: { gt: 0 } }, orderBy: { shares: "desc" }, take: 500, select: { id: true, createdAt: true, imagePath: true } });
+  // Every public card since 2026-11-06 (only the ones sent on before: 32 of 60), so Google finds
+  // each card's own page — its picture now shows in Google Images from there only (src/app/i).
+  return db.card.findMany({ where: shownCard(), orderBy: [{ shares: "desc" }, { createdAt: "desc" }], take: 500, select: { id: true, createdAt: true, imagePath: true } });
 }
 
 // «💌 اعمل بطاقة» without a picture yet (2026-10-24): public photos to pick from — 60, varied (one

@@ -6,7 +6,7 @@
 import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
-import { CardError, cardIdeasOf, deleteCard, listCards, publicCard, publishCard, sharedCard } from "../src/server/cards";
+import { CARDS_IN_SITEMAP_FROM, CardError, cardIdeasOf, deleteCard, listCards, publicCard, publishCard, sharedCard, sitemapCards } from "../src/server/cards";
 import { createMoment } from "../src/server/moments";
 
 const TAG = "[cardstest]";
@@ -106,6 +106,14 @@ async function main() {
       assert.equal(await db.card.count({ where: { id: evening.id } }), 0);
       await deleteCard({ ...stranger, isAdmin: true }, shown.id);
       assert.equal(await db.card.count({ where: { id: shown.id } }), 0);
+    });
+
+    await check("the sitemap (2026-11-06): every public card, the never-sent too; not a hidden one", async () => {
+      const made = await Promise.all(Array.from({ length: CARDS_IN_SITEMAP_FROM }, () => card(open.id)));
+      const hiddenOne = await card(open.id, { public: false });
+      const listed = new Set((await sitemapCards()).map((c) => c.id));
+      assert.ok(made.every((c) => listed.has(c.id)), "never sent, still listed");
+      assert.ok(!listed.has(hiddenOne.id));
     });
   } finally {
     await db.card.deleteMany({ where: { creatorId: { in: ids } } });

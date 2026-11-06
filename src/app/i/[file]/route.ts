@@ -16,20 +16,23 @@ export async function GET(_request: Request, { params }: { params: Promise<{ fil
   const name = (await params).file;
   // zawmo.com/i/card-ID.jpg: a public «💌 بطاقة» (src/server/cards.ts); card-ID-small.jpg its small
   // copy for grids — made here on the first visit for a card saved before there were small copies.
+  // The small copy is kept out of Google Images (2026-11-06, his OK «الخطوتين مع بعض»): it showed
+  // under /cards with the one gallery title for every card (425 impressions, 0 clicks, the same card
+  // twice); the full picture stays, on the card's own page with its own words as the title.
   const cardOf = /^card-([a-z0-9]{20,40})(-small)?\.jpg$/.exec(name);
   if (cardOf) {
     const card = await publicCard(cardOf[1]);
     if (!card?.imagePath) return new Response("Not found", { status: 404 });
     if (cardOf[2]) {
       const small = await fetch((await viewUrl(smallCardPath(card.imagePath)))!).catch(() => null);
-      if (small?.ok && small.body) return image(small);
+      if (small?.ok && small.body) return image(small, true);
     }
     const file = await fetch((await viewUrl(card.imagePath))!).catch(() => null);
     if (!file?.ok || !file.body) return new Response("Not found", { status: 404 });
     if (!cardOf[2]) return image(file);
-    const made = await saveSmallCard(card.imagePath, Buffer.from(await file.arrayBuffer())).catch(() => null);
-    if (made) return image(new Response(new Uint8Array(made), { headers: { "content-type": "image/jpeg" } }));
-    return GET(_request, { params: Promise.resolve({ file: `card-${cardOf[1]}.jpg` }) });
+    const full = Buffer.from(await file.arrayBuffer());
+    const made = await saveSmallCard(card.imagePath, full).catch(() => null);
+    return image(new Response(new Uint8Array(made ?? full), { headers: { "content-type": "image/jpeg" } }), true);
   }
   const partOf = /^([2-9A-HJKMNP-Z]{6})-(\d{1,3})\.jpg$/.exec(name);
   if (partOf) {
@@ -52,12 +55,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ fil
   return image(file);
 }
 
-function image(file: Response) {
+function image(file: Response, notInSearch = false) {
   return new Response(file.body, {
     headers: {
       "content-type": file.headers.get("content-type") ?? "image/jpeg",
       "cache-control": "public, max-age=3600, s-maxage=21600",
       "x-content-type-options": "nosniff",
+      ...(notInSearch ? { "x-robots-tag": "noindex" } : {}),
     },
   });
 }
