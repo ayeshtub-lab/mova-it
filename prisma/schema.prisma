@@ -913,3 +913,27 @@ model SearchTerm {
 
   @@id([day, type, query])
 }
+
+// «زاوية الموسم» (his call, 2026-11-06 «الشتاء بدا واليوم مطر»): a season or an occasion pinned at
+// the top of the home page between two dates (❄️ winter, 🌙 Ramadan…), with a lasting page of its own
+// (/season/SLUG) gathering the public moments whose hashtags carry one of its words. Set in
+// /admin/seasons; the page stays (and stays indexed) after the dates, for next year.
+model Season {
+  id        String   @id @default(cuid())
+  slug      String   @unique // the page's address: /season/winter
+  label     String // on the home page: «شتاء زاومو»
+  heading   String // the page's heading, in the words people search: «صور شتاء حقيقية»
+  labelEn   String?
+  headingEn String?
+  emoji     String   @default("✨")
+  // Hashtag words: a moment is in when one of its hashtags has one of them as a word
+  // (#غيوم_ماطرة has «غيوم»; #شتلة has no «شتاء») — src/lib/seasons.ts.
+  words     String[]
+  pinned    String[] // moment codes shown first, in this order
+  startsAt  DateTime // on the home page from…
+  endsAt    DateTime // …until
+  enabled   Boolean  @default(true)
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

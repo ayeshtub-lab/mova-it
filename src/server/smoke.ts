@@ -133,6 +133,8 @@ export async function smokeChecks(base = "https://zawmo.com", expectBuild?: stri
     ["topic", pick(/<loc>(https?:\/\/[^<]+\/p\/[^</]+\/[^<]+)<\/loc>/)],
     ["shot", pick(/<loc>(https?:\/\/[^<]+\/m\/[A-Z0-9]{6}\/a\/[a-z0-9]+)<\/loc>/)],
     ["film", pick(/<loc>(https?:\/\/[^<]+\/m\/[A-Z0-9]{6}\/film\/\d+)<\/loc>/)],
+    // «زاوية الموسم» (2026-11-06): a season's lasting page.
+    ["season", pick(/<loc>(https?:\/\/[^<]+\/season\/[a-z0-9-]+)<\/loc>/)],
   ] as const;
   // …and against Google's own rules (src/lib/seo-spec.ts, 2026-10-19): the sitemap as its schemas
   // ask, and each page's structured data with what Google requires (a film part's page must carry

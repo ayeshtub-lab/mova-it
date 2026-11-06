@@ -25,6 +25,7 @@ import { headers } from "next/headers";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { ANDROID_PACKAGE, CONTACT_EMAIL } from "@/lib/site";
 import { JsonLd } from "@/app/JsonLd";
+import { SeasonZone } from "@/app/SeasonZone";
 import { googleEnabled } from "@/server/google";
 
 // «🔥 N members added M angles»: in the member's moments, and across Zawmo.
@@ -103,6 +104,9 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
         <p className="text-center text-sm font-bold text-muted">{dict.home.doorsLine}</p>
       </section>
 
+      {/* «زاوية الموسم» (2026-11-06): the season between its dates, pinned here — src/app/SeasonZone.tsx. */}
+      <SeasonZone locale={locale} dict={dict} member />
+
       {/* «💌 بطاقات» (2026-10-23): a good morning on a real picture, ready to send. */}
       {CARDS_PUBLIC && (
         <Link href="/cards" className="flex items-center gap-3 rounded-3xl bg-gradient-to-l from-moment/25 to-brand-red/15 p-4 transition-transform active:scale-[0.98]">
@@ -168,6 +172,9 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
           </ul>
         </div>
       </section>
+
+      {/* «زاوية الموسم» (2026-11-06): the season between its dates, pinned at the top. */}
+      <SeasonZone locale={await getLocale()} dict={dict} member={false} />
 
       {/* What Zawmo looks like, for real (public shots, videos first) — before anything is asked. */}
       <Showcase shots={shots} labels={{ title: dict.home.showcaseTitle, more: dict.home.showcaseMore }} card={card && { ...card, label: dict.card.tile }} />
