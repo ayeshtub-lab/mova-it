@@ -41,7 +41,7 @@ export async function SeasonZone({ locale, dict, member }: { locale: string; dic
               ))}
             </ul>
             {member && (
-              <Link href="/new" className="flex min-h-11 items-center justify-center rounded-full bg-background/80 px-5 text-sm font-extrabold transition-colors hover:bg-background">
+              <Link href={`/season/${s.slug}#add`} className="flex min-h-11 items-center justify-center rounded-full bg-background/80 px-5 text-sm font-extrabold transition-colors hover:bg-background">
                 {t.share}
               </Link>
             )}

@@ -649,7 +649,7 @@
     "cardVote": "🗳️ Your vote for tomorrow: {theme}",
     "cardVoteNow": "🗳️ Vote for tomorrow's theme"
   },
-  "season": {"metaTitle":"{heading} from real people | Zawmo","metaDescription":"{heading} taken by real people on Zawmo: {titles}. New photos every day.","intro":"{shots} in {moments}, taken by {people} on Zawmo with their phones.","latest":"Newest photo added on {date}.","empty":"No photos for this season yet. Be the first!","all":"See all →","share":"📸 Share your season","hint":"Your photos show up here by themselves when they have {words}.","zoneAria":"Season corner"},
+  "season": {"metaTitle":"{heading} from real people | Zawmo","metaDescription":"{heading} taken by real people on Zawmo: {titles}. New photos every day.","intro":"{shots} in {moments}, taken by {people} on Zawmo with their phones.","latest":"Newest photo added on {date}.","empty":"No photos for this season yet. Be the first!","all":"See all →","share":"📸 Share your season","addTitle":"📸 Add your photo to one of them","addHint":"Pick a moment and add your photo from your angle, so it grows with everyone's photos.","addNew":"Or start a new moment →","hint":"Your photos show up here by themselves when they have {words}.","zoneAria":"Season corner"},
   "tag": {
     "title": "#{tag}",
     "hint": "Public moments with this hashtag",

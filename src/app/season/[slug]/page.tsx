@@ -60,6 +60,8 @@ export default async function SeasonPage({ params }: PageProps<"/season/[slug]">
     : null;
   // A few of its words as people know them (#مطر، #غيوم…), for the line under the button.
   const words = season.words.filter((w) => !w.startsWith("ال")).slice(0, 4).map((w) => `#${w}`).join(locale === "ar" ? "، " : ", ");
+  // The moments a member may add a shot to (not a «مع الوقت» story: its owner's alone), six at most.
+  const offer = data.moments.filter((m) => !m.story).slice(0, 6);
   const site = `https://${CANONICAL_HOST}`;
   const structured = {
     "@context": "https://schema.org",
@@ -84,13 +86,39 @@ export default async function SeasonPage({ params }: PageProps<"/season/[slug]">
           </h1>
           {intro && <p className="text-sm leading-relaxed">{intro}</p>}
         </header>
+        {/* For members (his idea, 2026-11-06): add a shot to one of the season's moments first —
+            one moment growing with many people's angles is a stronger page than many single shots,
+            and it is Zawmo's «من كل الزوايا» — or start a new one. The same covers as the grid
+            below (already loaded), so nothing heavier. Its place: the home zone's button lands here. */}
         {user && (
-          <div className="flex flex-col gap-1">
-            <Link href="/new" className="flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-extrabold text-white shadow-sm">
-              {t.share}
+          <section id="add" aria-label={t.addTitle} className="flex scroll-mt-4 flex-col gap-2 rounded-3xl bg-surface p-4">
+            {offer.length > 0 ? (
+              <>
+                <h2 className="text-lg font-extrabold">{t.addTitle}</h2>
+                <p className="-mt-1 text-sm text-muted">{t.addHint}</p>
+                <ul className="grid grid-cols-3 gap-2">
+                  {offer.map((m) => (
+                    <li key={m.code}>
+                      <Link href={`/m/${m.code}#join`} className="flex flex-col gap-1">
+                        <span className="relative block aspect-[4/5] overflow-hidden rounded-2xl bg-background">
+                          {m.coverUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element -- the same small lasting picture as the grid below
+                            <img src={m.coverUrl} alt="" loading="lazy" className="size-full object-cover" />
+                          )}
+                          <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-2 pt-6 text-xs font-bold text-white">📸 {m.shots}</span>
+                        </span>
+                        <span className="line-clamp-2 text-sm font-bold leading-snug">{title(m, locale)}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+            <Link href="/new" className={offer.length ? "self-center py-2 text-sm font-bold text-secondary underline-offset-4 hover:underline" : "flex min-h-12 items-center justify-center rounded-full bg-accent px-5 font-extrabold text-white shadow-sm"}>
+              {offer.length ? t.addNew : t.share}
             </Link>
             {words && <p className="text-center text-xs text-muted">{t.hint.replace("{words}", words)}</p>}
-          </div>
+          </section>
         )}
         {data.moments.length ? (
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">

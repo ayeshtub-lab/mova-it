@@ -31,7 +31,8 @@ export async function activeSeasons(now = new Date()) {
   return (await allSeasons()).filter((s) => s.enabled && new Date(s.startsAt) <= now && now < new Date(s.endsAt)).slice(0, 2);
 }
 
-export type SeasonMoment = { code: string; title: string; titleEn: string | null; coverUrl: string | null; shots: number; pinned: boolean };
+// story: a «مع الوقت» moment (its owner alone adds to it), so never offered to add a shot to.
+export type SeasonMoment = { code: string; title: string; titleEn: string | null; coverUrl: string | null; shots: number; pinned: boolean; story: boolean };
 
 // (Exported uncached for the tests: tests/seasons.integration.ts.)
 export async function computeSeasonMoments(words: string[], pinned: string[]) {
@@ -51,7 +52,7 @@ export async function computeSeasonMoments(words: string[], pinned: string[]) {
     },
     orderBy: { lastActivityAt: "desc" },
     take: 300,
-    select: { code: true, title: true, titleEn: true, description: true, angles: { where: shown, orderBy: { uploadedAt: "asc" }, select: { id: true, contributorId: true, uploadedAt: true, aiText: true } } },
+    select: { code: true, title: true, titleEn: true, description: true, kind: true, angles: { where: shown, orderBy: { uploadedAt: "asc" }, select: { id: true, contributorId: true, uploadedAt: true, aiText: true } } },
   });
   const inSeason = (text: string | null) => hashtagsIn(text).some((t) => tagInSeason(t, set));
   const people = new Set<string>();
@@ -72,7 +73,7 @@ export async function computeSeasonMoments(words: string[], pinned: string[]) {
     }
     // Its cover: its newest picture of the season (a rainy street, not the moment's first coffee).
     const cover = ofSeason.at(-1) ?? m.angles[0];
-    moments.push({ code: m.code, title: plain(m.title), titleEn: m.titleEn ? plain(m.titleEn) : null, coverUrl: cover ? `/i/${cover.id}-small.jpg` : null, shots: Math.max(ofSeason.length, 1), pinned: isPinned });
+    moments.push({ code: m.code, title: plain(m.title), titleEn: m.titleEn ? plain(m.titleEn) : null, coverUrl: cover ? `/i/${cover.id}-small.jpg` : null, shots: Math.max(ofSeason.length, 1), pinned: isPinned, story: m.kind === "STORY" });
   }
   // The pinned ones first, in the order the admin gave.
   moments.sort((a, b) => (a.pinned || b.pinned ? (a.pinned ? pinned.indexOf(a.code) : 99) - (b.pinned ? pinned.indexOf(b.code) : 99) : 0));
@@ -81,7 +82,7 @@ export async function computeSeasonMoments(words: string[], pinned: string[]) {
 
 // A season's moments, kept an hour (a new word or pin in /admin/seasons is a new key: fresh at once).
 export const seasonMoments = (s: Pick<Season, "words" | "pinned">) =>
-  unstable_cache(() => computeSeasonMoments(s.words, s.pinned), ["season-moments-1", s.words.join(","), s.pinned.join(",")], { revalidate: 3600 })();
+  unstable_cache(() => computeSeasonMoments(s.words, s.pinned), ["season-moments-2", s.words.join(","), s.pinned.join(",")], { revalidate: 3600 })();
 
 // For the sitemap: the seasons whose page is worth indexing (a lasting page, also after its dates).
 export async function sitemapSeasons() {
