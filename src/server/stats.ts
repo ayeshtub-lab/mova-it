@@ -2,6 +2,7 @@ import { unnamedGuest } from "@/lib/guest-name";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { assertAdmin } from "@/server/moderation";
+import { NOT_NEWCOMERS } from "@/lib/source";
 
 // The admin dashboard: who opened Zawmo each day, who joined, what they made, and the
 // number the closed beta is judged by — how many come back the next day (target 20%).
@@ -25,6 +26,9 @@ export async function recordActivity(user: User, at = new Date(), place?: { coun
 
 // A visitor who only tapped ❤️ (2026-10-31: the first five need no name, src/server/quiet-guest.ts):
 // counted apart, not as someone who joined.
+// Real people only: not the «زاومو» account, nor an admin's own or a test device (src/lib/source.ts).
+// (A plain «notIn» would drop everyone with no source too: NULL is never «not in».)
+export const REAL_PEOPLE = { isSystem: false, OR: [{ source: null }, { source: { notIn: NOT_NEWCOMERS } }] };
 const NEWCOMER = { id: true, createdAt: true, isGuest: true, displayName: true, _count: { select: { angles: true } } } as const;
 const quiet = (u: { isGuest: boolean; displayName: string; _count: { angles: number } }) => unnamedGuest(u) && u._count.angles === 0;
 
@@ -32,7 +36,7 @@ const quiet = (u: { isGuest: boolean; displayName: string; _count: { angles: num
 async function returnRate(day: string, after: number) {
   const joined = (
     await db.user.findMany({
-      where: { isSystem: false, createdAt: { gte: dayStart(day), lt: dayStart(shift(day, 1)) } },
+      where: { ...REAL_PEOPLE, createdAt: { gte: dayStart(day), lt: dayStart(shift(day, 1)) } },
       select: NEWCOMER,
     })
   ).filter((u) => !quiet(u));
@@ -60,7 +64,7 @@ export async function recordFunnel(source: string, step: FunnelStep, at = new Da
 // Per campaign / source (User.source, src/lib/source.ts), for people who joined since `since`:
 // how many joined, how many published a shot, and how many came back on a later day.
 export async function sourceStats(since: Date) {
-  const people = await db.user.findMany({ where: { isSystem: false, createdAt: { gte: since } }, select: { id: true, source: true, createdAt: true } });
+  const people = await db.user.findMany({ where: { ...REAL_PEOPLE, createdAt: { gte: since } }, select: { id: true, source: true, createdAt: true } });
   const ids = people.map((p) => p.id);
   const [shooters, days] = await Promise.all([
     db.angle.groupBy({ by: ["contributorId"], where: { contributorId: { in: ids }, status: "READY" } }),
@@ -95,8 +99,8 @@ export async function sourceStats(since: Date) {
 // joined and how many published a shot — where Zawmo is growing, for per-country plans.
 export async function countryStats(since: Date) {
   const [all, recent] = await Promise.all([
-    db.user.groupBy({ by: ["country"], where: { isSystem: false }, _count: { _all: true } }),
-    db.user.findMany({ where: { isSystem: false, createdAt: { gte: since } }, select: { id: true, country: true } }),
+    db.user.groupBy({ by: ["country"], where: REAL_PEOPLE, _count: { _all: true } }),
+    db.user.findMany({ where: { ...REAL_PEOPLE, createdAt: { gte: since } }, select: { id: true, country: true } }),
   ]);
   const shooters = await db.angle.groupBy({ by: ["contributorId"], where: { contributorId: { in: recent.map((p) => p.id) }, status: "READY" } });
   const shot = new Set(shooters.map((s) => s.contributorId));
@@ -164,8 +168,8 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
   const weekAgo = dayStart(shift(today, -6));
 
   const [active, users, angles, moments, reactionsToday, commentsToday, weekAngles] = await Promise.all([
-    db.activeDay.groupBy({ by: ["day"], where: { day: { gte: first } }, _count: { _all: true } }),
-    db.user.findMany({ where: { isSystem: false, createdAt: { gte: since } }, select: NEWCOMER }),
+    db.activeDay.groupBy({ by: ["day"], where: { day: { gte: first }, user: REAL_PEOPLE }, _count: { _all: true } }),
+    db.user.findMany({ where: { ...REAL_PEOPLE, createdAt: { gte: since } }, select: NEWCOMER }),
     db.angle.findMany({ where: { uploadedAt: { gte: since } }, select: { uploadedAt: true } }),
     db.moment.findMany({ where: { createdAt: { gte: since }, kind: { not: "DAILY" } }, select: { createdAt: true } }),
     db.reaction.count({ where: { createdAt: { gte: dayStart(today) } } }),
@@ -195,6 +199,13 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
   const [yesterday, week] = await Promise.all([returnRate(shift(today, -1), 1), returnRate(shift(today, -7), 7)]);
 
   const [sources, countries, weekly] = await Promise.all([sourceStats(since), countryStats(since), weeklyNumbers(now)]);
+  // Today's newcomers one by one, the marked devices too (so a test device can be marked, or put back).
+  const newcomers = await db.user.findMany({
+    where: { isSystem: false, createdAt: { gte: dayStart(today) } },
+    orderBy: { createdAt: "asc" },
+    take: 50,
+    select: { id: true, displayName: true, isGuest: true, source: true, country: true, city: true, createdAt: true, _count: { select: { angles: true } } },
+  });
   const top = await db.moment.findMany({ where: { id: { in: weekAngles.map((w) => w.momentId) } }, select: { id: true, code: true, title: true } });
   return {
     today,
@@ -214,6 +225,7 @@ export async function getStats(viewer: User | null, now = new Date(), days = 14)
     },
     weekly,
     series,
+    newcomers: newcomers.map((u) => ({ ...u, shots: u._count.angles, marked: !!u.source && NOT_NEWCOMERS.includes(u.source) })),
     sources,
     countries,
     topMoments: weekAngles.map((w) => ({ ...top.find((m) => m.id === w.momentId)!, shots: w._count._all })).filter((m) => m.code),

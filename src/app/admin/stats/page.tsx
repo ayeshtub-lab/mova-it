@@ -1,7 +1,11 @@
 // Admin dashboard (User.isAdmin only; everyone else gets a 404). Arabic only: it is for
 // the team, not for users.
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { db } from "@/lib/db";
+import { ADMIN_DEVICE, SOURCE_COOKIE, TEST_DEVICE } from "@/lib/source";
 import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
@@ -42,12 +46,35 @@ function Bars({ title, values, days, color }: { title: string; values: number[];
   );
 }
 
+// «📱 هاد جهازي» (src/lib/source.ts): this browser's source cookie says «admin-device» for years,
+// so a guest made here (logged out by mistake, the app before signing in) is not a newcomer.
+async function markThisDevice() {
+  "use server";
+  const user = await getCurrentUser();
+  if (!user?.isAdmin) notFound();
+  (await cookies()).set(SOURCE_COOKIE, ADMIN_DEVICE, { maxAge: 5 * 365 * 24 * 3600, httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
+  revalidatePath("/admin/stats");
+}
+
+// «🧪 جهاز تجربة»: a newcomer who is a test device (Google Play's review) leaves the numbers;
+// «رجّعه» puts them back (with no source: the one they had is not kept).
+async function markTest(formData: FormData) {
+  "use server";
+  const user = await getCurrentUser();
+  if (!user?.isAdmin) notFound();
+  const id = String(formData.get("id") ?? "");
+  const test = formData.get("test") === "1";
+  await db.user.updateMany({ where: { id, isSystem: false, isAdmin: false }, data: { source: test ? TEST_DEVICE : null } });
+  revalidatePath("/admin/stats");
+}
+
 export default async function StatsPage() {
   const user = await getCurrentUser();
   if (!user?.isAdmin) notFound();
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const s = await getStats(user);
+  const thisDevice = (await cookies()).get(SOURCE_COOKIE)?.value === ADMIN_DEVICE;
   const [installs, cardRows, joinRows] = await Promise.all([installStats(14), cardFunnelStats(14), joinFunnelStats(14)]);
   const days = s.series.map((d) => d.day);
   const tiles = [
@@ -139,6 +166,42 @@ export default async function StatsPage() {
               <span className="text-3xl font-extrabold tabular-nums">{num(value)}</span>
             </div>
           ))}
+        </section>
+
+        {/* Today's newcomers one by one: where each came from, and the devices that are not people. */}
+        <section className="flex flex-col gap-3 rounded-3xl bg-surface p-4">
+          <h2 className="font-extrabold">🆕 مين انضم اليوم</h2>
+          {s.newcomers.length ? (
+            <ul className="flex flex-col gap-2">
+              {s.newcomers.map((u) => (
+                <li key={u.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-background p-3 text-sm ${u.marked ? "opacity-60" : ""}`}>
+                  <span className="flex flex-col">
+                    <span className="font-bold">
+                      {u.displayName} {u.isGuest && <span className="text-xs text-muted">(ضيف)</span>}
+                    </span>
+                    <span className="text-xs text-muted">
+                      {new Intl.DateTimeFormat("ar-EG", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Riyadh" }).format(u.createdAt)} · من: {u.source === ADMIN_DEVICE ? "📱 جهازك" : u.source === TEST_DEVICE ? "🧪 جهاز تجربة" : (u.source ?? "مباشر")} · {[u.city, u.country ? countryName(u.country) : null].filter(Boolean).join("، ") || "مكان غير معروف"} · {num(u.shots)} لقطة
+                    </span>
+                  </span>
+                  {u.source !== ADMIN_DEVICE && (
+                    <form action={markTest}>
+                      <input type="hidden" name="id" value={u.id} />
+                      <input type="hidden" name="test" value={u.marked ? "0" : "1"} />
+                      <button className="min-h-10 rounded-full border border-line px-3 text-xs font-bold">{u.marked ? "↩️ رجّعه للأرقام" : "🧪 جهاز تجربة"}</button>
+                    </form>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted">ما انضم حدا اليوم لسا.</p>
+          )}
+          <form action={markThisDevice} className="flex flex-wrap items-center gap-2">
+            <button disabled={thisDevice} className="min-h-10 rounded-full bg-secondary px-4 text-sm font-bold text-white disabled:opacity-60 dark:text-background">
+              {thisDevice ? "✓ هاد الجهاز معلّم إنو إلك" : "📱 هاد جهازي"}
+            </button>
+          </form>
+          <p className="text-xs text-muted">«📱 هاد جهازي»: اكبسه مرة من كل جهاز إلك (الجوال، والتطبيق، والكمبيوتر)، وأي ضيف بينعمل منه بعدين ما بينحسب. «🧪 جهاز تجربة»: لأجهزة مراجعة جوجل (عادة اسمها «User» ومن أمريكا، بعد كل إصدار بدقايق). المعلّمين بيطلعوا من كل الأرقام بهالصفحة، وما بيتغيّر عليهم شي تاني.</p>
         </section>
 
         <h2 className="-mb-2 font-extrabold">آخر ١٤ يوم</h2>

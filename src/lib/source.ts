@@ -7,6 +7,14 @@ export const SOURCE_DAYS = 30;
 // Set by src/proxy.ts on a first arrival that has a source (never trusted from the visitor).
 export const NEW_VISIT_HEADER = "x-zawmo-new-visit";
 
+// Devices that are not newcomers (his call, 2026-11-06: «3 guests today» were Google Play's review
+// device and maybe his own phone): an admin's own device, marked from /admin/stats («📱 هاد جهازي»,
+// this cookie's value for years, so a guest made there says so), and test devices marked by hand
+// there («🧪 جهاز تجربة»). Kept out of the admin's numbers (src/server/stats.ts); nothing else changes.
+export const ADMIN_DEVICE = "admin-device";
+export const TEST_DEVICE = "test-device";
+export const NOT_NEWCOMERS = [ADMIN_DEVICE, TEST_DEVICE];
+
 const clean = (v: string | null | undefined) =>
   (v ?? "")
     .toLowerCase()

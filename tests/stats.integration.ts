@@ -3,7 +3,7 @@
 import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
-import { activityDay, getStats, recordActivity, weeklyNumbers } from "../src/server/stats";
+import { activityDay, getStats, REAL_PEOPLE, recordActivity, weeklyNumbers } from "../src/server/stats";
 
 const TAG = "[stattest]";
 const out: string[] = [];
@@ -80,13 +80,24 @@ async function main() {
       assert.deepEqual((await weeklyNumbers(noon("2099-01-18"))).nextDay.lastWeek, { joined: 4, returned: 2, rate: 0.5 }, "a week on, it is last week's");
     });
 
+    await check("an admin's own device and test devices are not newcomers (no source still counts)", async () => {
+      for (const source of ["admin-device", "test-device"]) {
+        const t = await db.user.create({ data: { displayName: `${TAG} ${source}`, isGuest: false, source, createdAt: noon("2099-01-10") } });
+        await recordActivity(t, noon("2099-01-10"));
+      }
+      assert.deepEqual((await weeklyNumbers(noon("2099-01-12"))).nextDay.thisWeek, { joined: 4, returned: 2, rate: 0.5 }, "still the 4 real ones");
+      const where = { ...REAL_PEOPLE, displayName: { startsWith: TAG } };
+      assert.equal(await db.user.count({ where }), 6, "the 6 with no source, the marked 2 left out");
+    });
+
     await check("admins only", async () => {
       await assert.rejects(getStats(a));
       await assert.rejects(getStats(null));
     });
   } finally {
     // Everyone with this test's tag, leftovers of an earlier interrupted run included.
-    ids.splice(0, ids.length, ...(await db.user.findMany({ where: { displayName: { startsWith: TAG } }, select: { id: true } })).map((u) => u.id));
+    ids.splice(0, ids.length, ...(await db.user.findMany({ where: { displayName: { startsWith: TAG } }, select: { id: true } })).map((u) => u.id));
+
     await db.angle.deleteMany({ where: { contributorId: { in: ids } } });
     await db.momentInvite.deleteMany({ where: { fromUserId: { in: ids } } });
     await db.follow.deleteMany({ where: { followerId: { in: ids } } });

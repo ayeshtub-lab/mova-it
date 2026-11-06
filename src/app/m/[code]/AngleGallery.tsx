@@ -166,6 +166,7 @@ export function AngleGallery({
   labels,
   canReact,
   canPick = false,
+  admin = false,
   viewerId,
   share,
   momentEdit,
@@ -183,6 +184,8 @@ export function AngleGallery({
   labels: Labels;
   canReact: boolean;
   canPick?: boolean; // an official account: may mark «⭐ اختيار زاومو»
+  // A Zawmo admin: their report on a shot hides it at once (src/server/moderation.ts reportContent).
+  admin?: boolean;
   viewerId: string | null;
   share: { url: string; title: string };
   // The moment's creator edits its title and description from «تعديل» too.
@@ -1801,7 +1804,7 @@ export function AngleGallery({
             onClose={() => setSoundFor(null)}
           />
         )}
-        {reportTarget && <ReportSheet key={JSON.stringify(reportTarget)} target={reportTarget} labels={labels.report} onClose={() => setReportTarget(null)} />}
+        {reportTarget && <ReportSheet key={JSON.stringify(reportTarget)} target={reportTarget} labels={labels.report} admin={admin} onClose={() => setReportTarget(null)} />}
       </dialog>
       {/* «⬇️ اللحظة الجاية», carried on to inside the viewer: the next moment's gallery, out of
           sight (only its viewer shows, on top of everything), and so on after it. */}
@@ -1813,6 +1816,7 @@ export function AngleGallery({
             locale={locale}
             labels={labels}
             canReact={canReact}
+            admin={admin}
             viewerId={viewerId}
             share={{ url: chain.url, title: chain.title }}
             altBase={chain.title}

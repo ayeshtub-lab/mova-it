@@ -406,6 +406,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               labels={{ ...dict.viewer, verified: dict.verified, pick: dict.pick, thereTag: t.thereTag, remoteTag: t.remoteTag, sounds: dict.sounds, similar: dict.similar, edit: dict.editShot, branded: dict.branded, caption: dict.caption }}
               canReact={!!user}
               canPick={view.viewer.canPick}
+              admin={!!user?.isAdmin}
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}
               story={story}

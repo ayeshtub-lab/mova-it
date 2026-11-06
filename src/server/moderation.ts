@@ -66,6 +66,10 @@ export async function reportContent(user: User, input: ReportInput) {
   await db.report.create({
     data: { reporterId: user.id, momentId: target.momentId, angleId: target.angleId, commentId: target.commentId, reason, note },
   });
+  // An admin's report on a shot hides it at once (his call, 2026-11-06: a Play test device's
+  // picture on a member's public moment). The report stays open, so /admin lists it as «مخفية»
+  // with «إبقاؤها مخفية» or «لا مشكلة، أعِدها» (resolveReport puts it back to READY).
+  if (user.isAdmin && !target.commentId && target.angleId) await db.angle.updateMany({ where: { id: target.angleId, status: "READY" }, data: { status: "HIDDEN" } });
   if (input.block === true) await blockUser(user, target.authorId);
 }
 

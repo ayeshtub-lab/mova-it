@@ -96,6 +96,21 @@ async function main() {
       assert.ok(!(await openReports(admin)).some((i) => i.key === `a:${flagged.id}`));
     });
 
+    await check("an admin's report hides a shot at once, waiting in /admin; «أعِدها» brings it back", async () => {
+      // (A guest can't start a public moment: made as a link moment, then opened.)
+      const made = await createMoment(host, { title: "mod public", visibility: "LINK" });
+      const pub = await db.moment.update({ where: { id: made.id }, data: { visibility: "PUBLIC" } });
+      const shot = (userId: string) => db.angle.create({ data: { momentId: pub.id, contributorId: userId, mediaType: "PHOTO", status: "READY", screening: "allowed" } });
+      const [mine, theirs] = await Promise.all([shot(rude.id), shot(viewer.id)]);
+      await reportContent(outsider, { angleId: theirs.id, reason: "SPAM" });
+      assert.equal((await db.angle.findUniqueOrThrow({ where: { id: theirs.id } })).status, "READY", "a member's report only reports");
+      await reportContent(admin, { angleId: mine.id, reason: "OTHER" });
+      assert.equal((await db.angle.findUniqueOrThrow({ where: { id: mine.id } })).status, "HIDDEN");
+      assert.equal((await openReports(admin)).find((i) => i.key === `a:${mine.id}`)?.angleStatus, "HIDDEN");
+      await resolveReports(admin, `a:${mine.id}`, "dismiss");
+      assert.equal((await db.angle.findUniqueOrThrow({ where: { id: mine.id } })).status, "READY");
+    });
+
     await check("rate limit: at most 10 reports an hour", async () => {
       const target = await angle(viewer.id);
       const n = await db.report.count({ where: { reporterId: host.id } });

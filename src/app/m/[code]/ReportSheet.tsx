@@ -19,15 +19,21 @@ export type ReportLabels = {
 
 // A sheet over the viewer: why is this angle or comment a problem, and optionally
 // block its author. Reports go to the Zawmo moderators (/admin).
+// For an admin (his call, 2026-11-06: a Play test device's picture on a member's public moment,
+// with no way to hide it): their report on a shot hides it at once, and it waits in /admin
+// with «لا مشكلة، أعِدها» to bring it back. Admin-only words, in Arabic like the admin pages.
 export function ReportSheet({
   target,
   labels,
+  admin = false,
   onClose,
 }: {
   target: { angleId: string } | { commentId: string };
   labels: ReportLabels;
+  admin?: boolean;
   onClose: () => void;
 }) {
+  const hides = admin && "angleId" in target;
   const [reason, setReason] = useState<Reason | null>(null);
   const [note, setNote] = useState("");
   const [block, setBlock] = useState(false);
@@ -50,8 +56,8 @@ export function ReportSheet({
       <h2 className="text-lg font-extrabold">{labels.title}</h2>
       {status === "done" ? (
         <>
-          <p className="font-semibold">{labels.thanks}</p>
-          <button type="button" onClick={onClose} className="min-h-11 rounded-full bg-foreground px-5 font-bold text-background">
+          <p className="font-semibold">{hides ? "✓ انخفت عن الكل. بترجّعها من صفحة الإشراف بـ«لا مشكلة، أعِدها»." : labels.thanks}</p>
+          <button type="button" onClick={hides ? () => window.location.reload() : onClose} className="min-h-11 rounded-full bg-foreground px-5 font-bold text-background">
             {labels.cancel}
           </button>
         </>
@@ -78,6 +84,7 @@ export function ReportSheet({
             <input type="checkbox" checked={block} onChange={(e) => setBlock(e.target.checked)} className="size-5 accent-[var(--accent)]" />
             {labels.block}
           </label>
+          {hides && <p className="rounded-2xl bg-accent-soft/50 p-3 text-sm font-semibold">🛡️ إنت أدمن: الصورة رح تختفي فوراً عن الكل (اللحظة وصورها التانية بيضلّوا)، وبتلاقيها بصفحة الإشراف.</p>}
           {(status === "failed" || status === "tooMany") && (
             <p role="alert" className="text-sm font-semibold text-accent-ink">
               {status === "tooMany" ? labels.tooMany : labels.failed}
@@ -85,7 +92,7 @@ export function ReportSheet({
           )}
           <div className="flex gap-2">
             <button type="submit" disabled={!reason || status === "sending"} className="min-h-11 flex-1 rounded-full bg-accent px-5 font-bold text-white disabled:opacity-50">
-              {labels.submit}
+              {hides ? "🛡️ إخفاء الصورة" : labels.submit}
             </button>
             <button type="button" onClick={onClose} className="min-h-11 rounded-full border border-line px-5 font-bold">
               {labels.cancel}
