@@ -3,7 +3,9 @@ package com.zawmo.app;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.AssetFileDescriptor;
 import android.net.Uri;
+import android.os.ParcelFileDescriptor;
 import android.os.Build;
 import android.text.TextUtils;
 import android.webkit.MimeTypeMap;
@@ -11,6 +13,8 @@ import android.webkit.MimeTypeMap;
 import androidx.core.content.FileProvider;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,6 +30,14 @@ import java.util.List;
  * Videos are left as they come (they arrive, and copying a big one here would freeze the app).
  * When a photo can't be read even here, the share says why in its text (`zawmo-share:…`), which
  * the site's service worker reports (public/sw.js), so the cause is known and not guessed.
+ *
+ * 1.0.3 (2026-11-06, Sentry on his Tecno «K», Android 10, app 1.0.2: `copy:content|image/jpeg|
+ * FileNotFoundException` for every photo): the gallery's photo link can't be opened as a plain
+ * file. Some galleries only hand photos out as a typed stream (a provider with no files, which
+ * `openInputStream` reports as FileNotFoundException), or write the file a moment after the share
+ * starts. So each photo is now tried four ways (plain, typed image/*, typed any, file descriptor),
+ * and once more after a short wait; when all fail, the note says which provider and what it said,
+ * in a few letters (the site keeps 80 characters of it).
  */
 final class ZawmoShare {
     private static final int MAX = 10;
@@ -43,6 +55,7 @@ final class ZawmoShare {
             dir.mkdirs();
             ArrayList<Uri> out = new ArrayList<>();
             List<String> failed = new ArrayList<>();
+            boolean waited = false;
             int i = 0;
             for (Uri uri : uris) {
                 if (out.size() >= MAX) break;
@@ -54,11 +67,20 @@ final class ZawmoShare {
                 }
                 try {
                     File copy = new File(dir, "zawmo-" + (i++) + "." + extension(type));
-                    copyTo(context, uri, copy);
+                    try {
+                        copyTo(context, uri, copy, type);
+                    } catch (FileNotFoundException late) {
+                        // Written a moment after the share started: wait once (for the first such photo only).
+                        if (waited) throw late;
+                        waited = true;
+                        Thread.sleep(700);
+                        copyTo(context, uri, copy, type);
+                    }
                     if (copy.length() == 0) throw new IllegalStateException("empty");
                     out.add(FileProvider.getUriForFile(context, context.getPackageName() + ".fileprovider", copy));
                 } catch (Exception e) {
-                    failed.add(uri.getScheme() + "|" + type + "|" + e.getClass().getSimpleName());
+                    if (failed.isEmpty()) failed.add(why(uri, e));
+                    else failed.add("+");
                     out.add(uri); // as before: Chrome may still read it
                 }
             }
@@ -71,7 +93,7 @@ final class ZawmoShare {
                 fixed.putParcelableArrayListExtra(Intent.EXTRA_STREAM, out);
             }
             fixed.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            return failed.isEmpty() ? fixed : withNote(fixed, "copy:" + TextUtils.join(",", failed));
+            return failed.isEmpty() ? fixed : withNote(fixed, "copy:" + TextUtils.join("", failed));
         } catch (Exception e) {
             return withNote(intent, "error:" + e.getClass().getSimpleName());
         }
@@ -119,13 +141,58 @@ final class ZawmoShare {
         return ext == null || ext.isEmpty() ? "jpg" : ext;
     }
 
-    private static void copyTo(Context context, Uri uri, File copy) throws Exception {
-        try (InputStream in = context.getContentResolver().openInputStream(uri); OutputStream out = new FileOutputStream(copy)) {
-            if (in == null) throw new IllegalStateException("noinput");
+    private static void copyTo(Context context, Uri uri, File copy, String type) throws Exception {
+        try (InputStream in = open(context, uri, type); OutputStream out = new FileOutputStream(copy)) {
             byte[] buffer = new byte[64 * 1024];
             int n;
             while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
         }
+    }
+
+    // The photo's bytes, whichever way its provider gives them; the first error when none does.
+    private static InputStream open(Context context, Uri uri, String type) throws Exception {
+        Exception first = null;
+        try {
+            InputStream in = context.getContentResolver().openInputStream(uri);
+            if (in != null) return in;
+        } catch (Exception e) {
+            first = e;
+        }
+        for (String mime : new String[] {type, "image/*", "*/*"}) {
+            try {
+                AssetFileDescriptor fd = context.getContentResolver().openTypedAssetFileDescriptor(uri, mime, null);
+                if (fd != null) return fd.createInputStream();
+            } catch (Exception e) {
+                if (first == null) first = e;
+            }
+        }
+        try {
+            ParcelFileDescriptor pfd = context.getContentResolver().openFileDescriptor(uri, "r");
+            if (pfd != null) return new ParcelFileDescriptor.AutoCloseInputStream(pfd);
+        } catch (Exception e) {
+            if (first == null) first = e;
+        }
+        if (first != null) throw first;
+        throw new IllegalStateException("noinput");
+    }
+
+    // A few letters on why a photo could not be read: its provider (the last part of its name,
+    // e.g. «media» or «gallery3d») and the error, shortened to a known word when there is one.
+    // Never the photo's name or path.
+    private static String why(Uri uri, Exception e) {
+        String host = uri.getAuthority() == null ? "-" : uri.getAuthority();
+        String[] parts = host.split("\\.");
+        String provider = parts.length >= 2 ? parts[parts.length - 2] + "." + parts[parts.length - 1] : host;
+        if (provider.length() > 24) provider = provider.substring(0, 24);
+        String m = e.getMessage() == null ? "" : e.getMessage();
+        String code = m.contains("No files supported") ? "nofiles"
+                : m.contains("ENOENT") ? "enoent"
+                : m.contains("EACCES") ? "eacces"
+                : m.contains("ermission") ? "perm"
+                : m.contains("No content provider") ? "noprov"
+                : m.contains("No entry") || m.contains("No item") ? "noitem"
+                : e.getClass().getSimpleName().replace("Exception", "");
+        return provider + "|" + code;
     }
 
     private static void clear(File dir) {
