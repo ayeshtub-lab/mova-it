@@ -97,6 +97,16 @@ export async function nextPart(pending: Shot[]) {
   return { shots, seconds, full: false };
 }
 
+// How long each kept shot stays when a part is made again: as it was made (a part from before
+// 2026-10-23 kept whole videos) — unless that runs past 40 seconds, then videos as short clips like
+// every new part. (7/11: VNF4PU part 1, made at 40 s, came back at 81–86 s after a shot was
+// deleted, its four phone videos now whole; 5FCGH7 part 1 at 57 s.) A verse still stays whole.
+export async function remakeSeconds(kept: Pick<Shot, "mediaType" | "durationSec" | "soundKey">[]) {
+  const whole = await Promise.all(kept.map((s) => shotSeconds(s, true)));
+  if (partLength(whole) <= LIMIT) return whole;
+  return Promise.all(kept.map((s) => shotSeconds(s)));
+}
+
 // A part made before it is full (things went quiet): its silent photos stay a little longer, so it
 // comes as close to 40 seconds as it can.
 export function stretch(shots: Pick<Shot, "mediaType" | "soundKey" | "durationSec">[], seconds: number[]) {
@@ -188,13 +198,15 @@ export async function duePart(momentId: string, now = new Date()) {
       await db.montage.updateMany({ where: { momentId, part, status: "READY" }, data: { status: "FAILED", error: retire } });
       continue;
     }
-    if (made.angleIds.every((id) => live.has(id)) && made.signature?.startsWith(`${PART_STYLE}:`)) continue;
+    // A part made past 40 seconds that fits them now (not a long verse): made again, by itself.
+    const tooLong = (made.durationSec ?? 0) > LIMIT + 1 && partLength(await remakeSeconds(kept)) <= LIMIT;
+    if (!tooLong && made.angleIds.every((id) => live.has(id)) && made.signature?.startsWith(`${PART_STYLE}:`)) continue;
     // Every shot of it gone: the part goes (its number is not reused while others follow it).
     if (!kept.length) {
       await db.montage.updateMany({ where: { momentId, part, status: "READY" }, data: { status: "FAILED", error: "emptied" } });
       continue;
     }
-    return { part, shots: kept, seconds: stretch(kept, await Promise.all(kept.map((s) => shotSeconds(s, true)))), title: made.title ?? (await partTitle(moment.title, part, kept.map((s) => s.id))), remake: true };
+    return { part, shots: kept, seconds: stretch(kept, await remakeSeconds(kept)), title: made.title ?? (await partTitle(moment.title, part, kept.map((s) => s.id))), remake: true };
   }
 
   // A moment's first part waits for MIN_ANGLES shots (as its one film always did).

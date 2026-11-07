@@ -4,7 +4,7 @@
 // Run: npx tsx tests/parts.test.ts
 import assert from "node:assert/strict";
 import { fillPicker } from "../src/server/montage/fill-sounds";
-import { nextPart, partLength, shotSeconds, stretch } from "../src/server/montage/parts";
+import { nextPart, partLength, remakeSeconds, shotSeconds, stretch } from "../src/server/montage/parts";
 
 const out: string[] = [];
 const check = async (name: string, fn: () => Promise<void> | void) => {
@@ -21,6 +21,14 @@ async function main() {
     assert.equal(await shotSeconds(shot(1, "VIDEO", 4.5)), 4.5);
     assert.equal(await shotSeconds(shot(1, "VIDEO", 23.4), true), 23.4);
     assert.equal(await shotSeconds(shot(1, "PHOTO")), 3.2);
+  });
+  await check("a part made again keeps to 40 s: whole videos only when they fit (7/11: VNF4PU came back at 86 s)", async () => {
+    const old = [shot(1, "VIDEO", 9), shot(2, "PHOTO"), shot(3, "PHOTO"), shot(4, "VIDEO", 8)];
+    assert.deepEqual(await remakeSeconds(old), [9, 3.2, 3.2, 8], "a short old part keeps its whole videos");
+    const vnf = [shot(1, "VIDEO", 24), shot(2, "VIDEO", 40), shot(3, "VIDEO", 40), shot(4, "VIDEO", 32), shot(5, "PHOTO"), shot(6, "PHOTO")];
+    const seconds = await remakeSeconds(vnf);
+    assert.deepEqual(seconds.slice(0, 4), [6.2, 6.2, 6.2, 6.2], "too long whole: short clips");
+    assert.ok(partLength(stretch(vnf, seconds)) <= 40.01, `${partLength(stretch(vnf, seconds))}`);
   });
   await check("six shots at least (2026-10-23): five are no part", async () => {
     const five = await nextPart(Array.from({ length: 5 }, (_, i) => shot(i, "VIDEO", 30)));
