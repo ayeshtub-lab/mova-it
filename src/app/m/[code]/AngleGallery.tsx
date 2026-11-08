@@ -16,6 +16,7 @@ import { StreamVideo } from "@/app/StreamVideo";
 import { CaptionEditor, CaptionOverlay, type CaptionLabels } from "@/app/CaptionEditor";
 import { LyricsLine } from "@/app/LyricsLine";
 import { tagged } from "@/lib/source";
+import { track } from "@/lib/funnel";
 import type { CaptionView } from "@/lib/caption";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { filterCss, stampText } from "@/lib/filters";
@@ -174,6 +175,7 @@ export function AngleGallery({
   story = false,
   continueTo,
   cardLabel,
+  saveLabel,
   autoOpen = false,
   onLeave,
   onBack,
@@ -195,6 +197,8 @@ export function AngleGallery({
   continueTo?: { code: string; next: NextMoment[]; labels: { next: string; done: string; hint: string; back: string } };
   // «💌 اعملها بطاقة» on the rail (2026-10-23): given for a public moment only (a card is of a public shot).
   cardLabel?: string;
+  // «⬇️ نزّلها» on the rail (2026-11-08): a public moment's photo saved as its marked copy.
+  saveLabel?: string;
   // The next moment carried on to inside the viewer: it opens at once on its first angle, and
   // closing it leaves for that moment's page.
   autoOpen?: boolean;
@@ -889,6 +893,26 @@ export function AngleGallery({
     setTimeout(() => URL.revokeObjectURL(href), 10_000);
   }
 
+  // «⬇️ نزّلها» (his idea, 2026-11-08): a public photo saved as it is shared — its marked copy, ready
+  // since it came on screen (above), so the tap saves at once; not there yet, made now and a word to
+  // tap again. Counted in Google Analytics («save_shot»), like the shot page's button (src/app/SaveFile.tsx).
+  function saveAngle(a: GalleryAngle) {
+    const mine = marked?.id === a.id ? marked : null;
+    if (!mine?.file) {
+      if (!mine || mine.failed) loadMarked(a);
+      return flash(labels.branded.photoWorking);
+    }
+    const href = URL.createObjectURL(mine.file);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = mine.file.name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(href), 30_000);
+    track("save_shot", { from: "viewer" });
+  }
+
   // ── Comments (a sheet over the viewer, for the angle on screen) ─────────
   const [sheetFor, setSheetFor] = useState<string | null>(null);
   const [comments, setComments] = useState<CommentView[] | null>(null);
@@ -1372,6 +1396,11 @@ export function AngleGallery({
                       {labels.branded.ready}
                     </span>
                   ) : null}
+                  {saveLabel && a.mediaType === "PHOTO" && (
+                    <button type="button" onClick={() => saveAngle(a)} aria-label={saveLabel} className={`${railButton} text-3xl`}>
+                      <span aria-hidden="true">⬇️</span>
+                    </button>
+                  )}
                   {cardLabel && a.mediaType === "PHOTO" && (
                     <Link href={`/card/new?shot=${a.id}`} aria-label={cardLabel} className={`${railButton} text-3xl`}>
                       <span aria-hidden="true">💌</span>
@@ -1822,6 +1851,7 @@ export function AngleGallery({
             altBase={chain.title}
             continueTo={continueTo ? { code: chain.code, next: chain.next, labels: continueTo.labels } : undefined}
             cardLabel={cardLabel}
+            saveLabel={saveLabel}
             autoOpen
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             onLeave={() => window.location.assign(`/m/${chain.code}`)}

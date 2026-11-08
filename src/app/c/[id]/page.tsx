@@ -14,6 +14,7 @@ import { getCurrentUser } from "@/lib/session";
 import { CardLike } from "./CardLike";
 import { CardManage } from "./CardManage";
 import { CardShare } from "./CardShare";
+import { SaveFile } from "@/app/SaveFile";
 
 // One public «💌 بطاقة» (src/server/cards.ts): the card, ready to send on — and to make one like it
 // on the same picture. A page of its own for search («صباح الخير …» is searched every day).
@@ -73,6 +74,14 @@ export default async function CardPage({ params }: PageProps<"/c/[id]">) {
         </p>
         <CardLike id={card.id} initial={likes} shares={card.shares} labels={{ likes: t.likes, like: t.like, unlike: t.unlike, sentTimes: t.sentTimes }} />
         <CardShare id={card.id} src={cardImage(card)} text={card.text} label={t.share} by={card.angle.contributor.displayName} labels={t} />
+        {/* «⬇️ احفظ الصورة» (2026-11-08): sharing needs a phone; saving works everywhere (src/app/SaveFile.tsx). */}
+        <SaveFile
+          kind="card"
+          id={card.id}
+          src={cardImage(card)}
+          name={`zawmo-card-${card.id.slice(-6)}`}
+          labels={{ save: t.download, saving: t.loading, failed: t.errors.generic, bridge: t.bridge.replace("{name}", card.angle.contributor.displayName), bridgeButton: t.bridgeButton }}
+        />
         <Link href={`/card/new?shot=${card.angle.id}`} className="flex min-h-12 items-center justify-center rounded-full bg-surface px-6 font-extrabold">
           {t.makeOwn}
         </Link>

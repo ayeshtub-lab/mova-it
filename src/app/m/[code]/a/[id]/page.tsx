@@ -21,6 +21,7 @@ import { filterCss } from "@/lib/filters";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { WEATHER_CREDIT, weatherLine } from "@/lib/weather";
 import { publicShot, shotLabel, shotOrdinal, shotPath, shotTitle, siblingShots, type PublicShot } from "@/server/seo";
+import { SaveFile } from "@/app/SaveFile";
 
 // One public shot on its own page: what Google Images and Google Video list (a moment's page
 // holds many shots; a search result needs one). Friends-only shots have no such page.
@@ -216,6 +217,16 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
           <Link href={`/tag/${encodeURIComponent(hubTag)}`} className="flex min-h-12 items-center justify-center rounded-full border-2 border-secondary/40 px-6 text-center font-bold text-secondary">
             {fill(t.allOfTag, { phrase: tagPhrase(hubTag, locale) })}
           </Link>
+        )}
+        {/* «⬇️ نزّل الصورة» (2026-11-08): what an image-search visitor came for — the marked copy,
+            so the saved picture leads back here (src/app/SaveFile.tsx). This page is public shots only. */}
+        {!isVideo && (
+          <SaveFile
+            kind="shot"
+            id={shot.id}
+            name={`zawmo-${shot.moment.code}`}
+            labels={{ save: t.save, saving: t.saving, failed: t.saveFailed, bridge: fill(dict.card.bridge, { name: shot.contributor.displayName }), bridgeButton: dict.card.bridgeButton }}
+          />
         )}
         {/* «▶︎ شوفها كلها»: the moment's viewer, on this shot — sideways its other angles, down the
             next moment (src/app/m/[code]/AngleGallery.tsx). */}

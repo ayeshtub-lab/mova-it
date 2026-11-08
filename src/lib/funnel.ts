@@ -1,7 +1,7 @@
 // Google Analytics' «key events» (2026-11-01): joined, published a shot, sent a card — so its reports
 // say which source brings members, not only visitors. Only where GA runs (the live site, not for the
 // team: src/app/GoogleAnalytics.tsx); nothing personal is sent, only the step.
-export function track(event: "sign_up" | "publish_shot" | "card_sent", params?: Record<string, string>) {
+export function track(event: "sign_up" | "publish_shot" | "card_sent" | "save_shot" | "save_card", params?: Record<string, string>) {
   try {
     (window as Window & { gtag?: (...args: unknown[]) => void }).gtag?.("event", event, params);
   } catch {}

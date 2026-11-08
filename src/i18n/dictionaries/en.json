@@ -805,6 +805,9 @@
     "watchAll": "▶︎ See them all, angle by angle",
     "more": "📸 More shots from this moment",
     "open": "See the whole moment, every angle",
+    "save": "⬇️ Download the photo",
+    "saving": "Getting it ready with the Zawmo mark…",
+    "saveFailed": "The download didn't work, try again.",
     "description": "{label} — a {kind} by {name} on Zawmo, from the moment “{title}”."
   },
   "verified": {
