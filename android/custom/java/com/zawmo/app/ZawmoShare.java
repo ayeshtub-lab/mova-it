@@ -121,7 +121,7 @@ final class ZawmoShare {
 
     // The shared files: EXTRA_STREAM (one or a list), or only the clip data (some galleries).
     @SuppressWarnings("deprecation")
-    private static List<Uri> streams(Intent intent) {
+    static List<Uri> streams(Intent intent) {
         List<Uri> uris = new ArrayList<>();
         if (Intent.ACTION_SEND.equals(intent.getAction())) {
             Uri one = intent.getParcelableExtra(Intent.EXTRA_STREAM);
