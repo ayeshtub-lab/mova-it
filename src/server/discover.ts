@@ -209,24 +209,32 @@ export async function listTag(viewer: User | null, rawTag: string) {
 // One shot per moment (2026-10-16: two of the same moment, side by side, read as a repeat).
 const MAX_PER_MOMENT = 1;
 export async function publicShowcase(take = 12, exclude: string[] = []) {
-  const angles = await db.angle.findMany({
-    where: {
-      status: "READY",
-      screening: "allowed",
-      OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-      moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false },
-      ...(exclude.length ? { contributorId: { notIn: exclude } } : {}),
-    },
-    orderBy: { uploadedAt: "desc" },
-    take: Math.max(150, take * 5),
-    include: { moment: { select: { code: true, title: true, titleEn: true } }, contributor: { select: { displayName: true } } },
-  });
+  // Videos and photos are read apart (2026-11-09: the visitor's grid had 5 videos, a photo in the
+  // sixth video's place — only the newest 150 shots were read, and with ~170 photos a week the
+  // videos had slipped out of them). Each list its own newest, so the six videos are always there.
+  const read = (mediaType: "VIDEO" | "PHOTO", count: number) =>
+    db.angle.findMany({
+      where: {
+        status: "READY",
+        screening: "allowed",
+        mediaType,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        moment: { visibility: "PUBLIC", status: "ACTIVE", kind: { not: "DAILY" }, demo: false },
+        ...(exclude.length ? { contributorId: { notIn: exclude } } : {}),
+      },
+      orderBy: { uploadedAt: "desc" },
+      take: count,
+      include: { moment: { select: { code: true, title: true, titleEn: true } }, contributor: { select: { displayName: true } } },
+    });
+  const [videos, photos] = await Promise.all([read("VIDEO", 80), read("PHOTO", Math.max(150, take * 5))]);
+  const angles = [...videos, ...photos].sort((x, y) => y.uploadedAt.getTime() - x.uploadedAt.getTime());
   // «⭐ اختيار زاومو» first (newest pick first), then the newest; a few videos lead the grid.
   angles.sort((x, y) => (y.pickedAt?.getTime() ?? 0) - (x.pickedAt?.getTime() ?? 0));
   // Variety: one moment (or one title, «قهوة الصباح» again and again) never fills the grid.
   const perMoment = new Map<string, number>();
   const perTitle = new Map<string, number>();
-  const varied = angles.filter((a) => {
+  // (videos go through first: a moment's newer photo no longer takes the place of its video)
+  const varied = [...angles.filter((a) => a.mediaType === "VIDEO"), ...angles.filter((a) => a.mediaType !== "VIDEO")].filter((a) => {
     const m = perMoment.get(a.momentId) ?? 0;
     const t = perTitle.get(a.moment.title) ?? 0;
     if (m >= MAX_PER_MOMENT || t >= MAX_PER_MOMENT) return false;
