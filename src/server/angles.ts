@@ -18,7 +18,12 @@ import { regionOf } from "@/server/english-place";
 export const MAX_VIDEO_SECONDS = 40;
 // A little slack: containers round durations, and a 40.3 s clip is still "40 seconds".
 const VIDEO_SECONDS_TOLERANCE = 0.5;
-const ANGLES_PER_USER_PER_MOMENT = 30;
+// 30 until 2026-11-09: his own «من انتاج مزرعتي» reached 29 and new shots were refused after the
+// third («تجاوزت الحد»). A moment grows over months; 100 a person (and 60 uploads an hour) still stops abuse.
+const ANGLES_PER_USER_PER_MOMENT = 100;
+// An upload that never finished counts only this long (it is deleted after 3 hours, src purgeStaleUploads):
+// one that failed mid-way used to take a place until then.
+const UNFINISHED_COUNTS_MS = 30 * 60 * 1000;
 // «مع الوقت»: a shot a day for most of a year.
 const SHOTS_PER_STORY = 300;
 const UPLOAD_WINDOW_MS = 15 * 60 * 1000;
@@ -108,7 +113,12 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
   }
 
   const existing = await db.angle.count({
-    where: { momentId: moment.id, contributorId: user.id, status: { not: "REMOVED" } },
+    where: {
+      momentId: moment.id,
+      contributorId: user.id,
+      status: { not: "REMOVED" },
+      NOT: { status: "PROCESSING", uploadedAt: { lt: new Date(Date.now() - UNFINISHED_COUNTS_MS) } },
+    },
   });
   if (existing >= (moment.kind === "STORY" ? SHOTS_PER_STORY : ANGLES_PER_USER_PER_MOMENT)) throw new AngleError("too_many");
 

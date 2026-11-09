@@ -132,11 +132,13 @@
     "namePlaceholder": "Give it a name",
     "nameSuggested": "✨ Suggested by the lens. Change it if you like",
     "nameNeeded": "Name the moment before publishing.",
+    "tooManyHint": "You have 100 photos in this moment, the most one person can add. Start a new moment and carry on there 📸",
+    "newMoment": "➕ Start a new moment",
     "errors": {
       "unsupported": "This file type is not supported in this browser.",
       "not_ready": "This photo hasn't fully reached your phone yet (from the cloud). Pick it again.",
       "too_long": "The video is longer than 40 seconds.",
-      "too_many": "You reached the maximum number of angles for this moment.",
+      "too_many": "100 photos here already",
       "failed": "Upload failed. Please try again.",
       "blocked": "This shot doesn't meet Zawmo's rules and won't be shown.",
       "official_required": "Public moments need a Google account. Link yours first."

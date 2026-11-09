@@ -32,6 +32,8 @@ type Labels = {
   uploading: string;
   checking: string;
   done: string;
+  tooManyHint?: string;
+  newMoment?: string;
   errors: { unsupported: string; not_ready: string; too_long: string; too_many: string; failed: string; blocked: string; official_required: string };
   longNotice: string;
   longAction: string;
@@ -710,6 +712,18 @@ export function AngleUploader({
                 );
               })}
             </ul>
+            {/* The person's own limit on this moment reached (src/server/angles.ts): said in full, with the
+                way on — a tile has room for three words only (2026-11-09: «تجاوزت الحد» meant nothing). */}
+            {labels.tooManyHint && items.some((it) => it.status === "error" && it.error === "too_many") && (
+              <div role="status" className="flex flex-col items-center gap-2 rounded-2xl bg-surface p-3 text-center text-sm font-bold">
+                <p>{labels.tooManyHint}</p>
+                {labels.newMoment && (
+                  <a href="/new" className="flex min-h-11 items-center justify-center rounded-full bg-accent px-5 font-extrabold text-white">
+                    {labels.newMoment}
+                  </a>
+                )}
+              </div>
+            )}
             {/* The tools, once, for the shot picked (the only one, or the one tapped). */}
             {items[current]?.status === "long" && (
               <button type="button" onClick={() => sendFirstSeconds(current)} className="min-h-11 rounded-full bg-accent px-4 text-sm font-bold text-white">
