@@ -38,6 +38,16 @@ import java.util.List;
  * starts. So each photo is now tried four ways (plain, typed image/*, typed any, file descriptor),
  * and once more after a short wait; when all fail, the note says which provider and what it said,
  * in a few letters (the site keeps 80 characters of it).
+ *
+ * 1.0.4 (2026-11-09, Sentry after 1.0.3 went live, his phone, Android 16: every photo share
+ * `copy:app.fileprovider|enoent` — the link that failed was THIS app's own FileProvider). The cause,
+ * read in androidbrowserhelper 2.6.2's LauncherActivity.restartInNewTask(): a share from the gallery
+ * starts the app inside the gallery's task (no FLAG_ACTIVITY_NEW_TASK, or with NEW_DOCUMENT), so the
+ * library starts the activity again in a task of its own with a copy of getIntent() — the intent this
+ * class had already rewritten — and finishes the first one. The second start ran prepare() again: it
+ * emptied the folder first (deleting the copies just made), then tried to copy its own links to those
+ * deleted files: ENOENT, and Chrome got nothing. Now a link of this app's own is kept as it is (it was
+ * made here, moments ago), and the folder only loses files older than an hour, never the share's own.
  */
 final class ZawmoShare {
     private static final int MAX = 10;
@@ -50,9 +60,15 @@ final class ZawmoShare {
         try {
             List<Uri> uris = streams(intent);
             if (uris.isEmpty()) return withNote(intent, "nostream:" + intent.getType());
+            String own = context.getPackageName() + ".fileprovider";
+            // Already copied by the first start (the library's restart in a task of its own): as it is.
+            boolean allOwn = true;
+            for (Uri uri : uris) if (uri == null || !own.equals(uri.getAuthority())) allOwn = false;
+            if (allOwn) return intent;
             File dir = new File(context.getCacheDir(), "shared");
-            clear(dir);
+            clearOld(dir);
             dir.mkdirs();
+            long stamp = System.currentTimeMillis();
             ArrayList<Uri> out = new ArrayList<>();
             List<String> failed = new ArrayList<>();
             boolean waited = false;
@@ -60,13 +76,17 @@ final class ZawmoShare {
             for (Uri uri : uris) {
                 if (out.size() >= MAX) break;
                 if (uri == null) continue;
+                if (own.equals(uri.getAuthority())) {
+                    out.add(uri);
+                    continue;
+                }
                 String type = typeOf(context, uri, intent.getType());
                 if (type.startsWith("video/")) {
                     out.add(uri);
                     continue;
                 }
                 try {
-                    File copy = new File(dir, "zawmo-" + (i++) + "." + extension(type));
+                    File copy = new File(dir, "zawmo-" + stamp + "-" + (i++) + "." + extension(type));
                     try {
                         copyTo(context, uri, copy, type);
                     } catch (FileNotFoundException late) {
@@ -195,9 +215,11 @@ final class ZawmoShare {
         return provider + "|" + code;
     }
 
-    private static void clear(File dir) {
+    // Copies from earlier shares (over an hour old); a share's own copies stay while Chrome reads them.
+    private static void clearOld(File dir) {
         File[] old = dir.listFiles();
-        if (old != null) for (File f : old) f.delete();
+        long before = System.currentTimeMillis() - 60L * 60 * 1000;
+        if (old != null) for (File f : old) if (f.lastModified() < before) f.delete();
     }
 
     // Read by public/sw.js when a share reaches the site with no file.
