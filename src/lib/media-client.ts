@@ -23,6 +23,7 @@ export type PreparedAngle = {
   width: number;
   height: number;
   trim?: boolean; // longer than 40 s: the server keeps its first 40 seconds
+  compressed?: boolean; // made smaller here before it went up (src/lib/phone-cut.ts compressVideo)
   phoneCut?: boolean; // …already cut here, before it went up (src/lib/phone-cut.ts) — false: it couldn't be
 };
 
@@ -171,7 +172,7 @@ function within<T>(ms: number, start: (done: (value: T) => void, fail: () => voi
 // Every wait here has an end (2026-10-19: members' videos spun on «تجهيز» for ever — the phone's
 // «loaded» or «seeked» never came). What the phone can't read, the server works out itself: the
 // length (it measures every video anyway) and the cover (made from the video when none came).
-async function prepareVideo(file: File, long = false, onCut?: (share: number) => void): Promise<PreparedAngle> {
+async function prepareVideo(file: File, long = false, onCut?: (share: number) => void, onCompress?: (share: number) => void): Promise<PreparedAngle> {
   // (no type, or only «application/octet-stream»: its name, else mp4 — its first bytes said video)
   const type = (file.type && file.type !== "application/octet-stream" ? file.type : "") || (/\.mov$/i.test(file.name) ? "video/quicktime" : /\.webm$/i.test(file.name) ? "video/webm" : "video/mp4");
   if (!VIDEO_TYPES.includes(type)) throw new PrepareError("unsupported");
@@ -208,18 +209,22 @@ async function prepareVideo(file: File, long = false, onCut?: (share: number) =>
 
     const tooLong = (known && durationSec > MAX_VIDEO_SECONDS + 0.5) || (!known && long);
     const cut = long && tooLong ? await import("@/lib/phone-cut").then((m) => m.cutFirstSeconds(file, onCut)).catch(() => null) : null;
+    // A big one made smaller here first (src/lib/phone-cut.ts compressVideo, 2026-11-10); else as it was.
+    const source = cut ?? file;
+    const small = onCompress ? await import("@/lib/phone-cut").then((m) => m.compressVideo(source, onCompress)).catch(() => null) : null;
 
     return {
       mediaType: "VIDEO",
-      file: cut ?? file,
-      contentType: cut ? "video/mp4" : type,
+      file: small?.file ?? source,
+      contentType: small || cut ? "video/mp4" : type,
+      ...(small ? { compressed: true } : {}),
       poster,
       capturedAt,
       ...(known ? { durationSec: Math.min(durationSec, MAX_VIDEO_SECONDS) } : {}),
       // (still marked: the server measures it, and cuts only what is still too long)
       ...(tooLong ? { trim: true, phoneCut: !!cut } : {}),
-      width: video.videoWidth || 720,
-      height: video.videoHeight || 1280,
+      width: small?.width ?? (video.videoWidth || 720),
+      height: small?.height ?? (video.videoHeight || 1280),
     };
   } finally {
     URL.revokeObjectURL(url);
@@ -241,14 +246,14 @@ export function sniffKind(head: Uint8Array): "photo" | "video" | null {
 // person did by hand when it said «غير مدعومة» and then went up fine (2026-10-29: it came back).
 const photoAgain = (file: File) => preparePhoto(file).catch((error) => (error instanceof PrepareError && error.code === "unsupported" ? pause(1500).then(() => preparePhoto(file)) : Promise.reject(error)));
 
-export async function prepareAngleFile(file: File, long = false, onCut?: (share: number) => void) {
+export async function prepareAngleFile(file: File, long = false, onCut?: (share: number) => void, onCompress?: (share: number) => void) {
   // (some Android galleries hand a video over with no type at all: its name says what it is)
-  if (file.type.startsWith("video/") || (!file.type && /\.(mp4|mov|webm|m4v)$/i.test(file.name))) return prepareVideo(file, long, onCut);
+  if (file.type.startsWith("video/") || (!file.type && /\.(mp4|mov|webm|m4v)$/i.test(file.name))) return prepareVideo(file, long, onCut, onCompress);
   // (a photo with no type at all — some apps hand one over so — goes by its name)
   if (file.type.startsWith("image/") || /\.(heic|heif|jpe?g|png|webp|gif|avif)$/i.test(file.name)) return photoAgain(file);
   // Neither its type nor its name says: its first bytes do.
   const kind = sniffKind(new Uint8Array(await file.slice(0, 16).arrayBuffer().catch(() => new ArrayBuffer(0))));
   if (kind === "photo") return photoAgain(file);
-  if (kind === "video") return prepareVideo(file, long, onCut);
+  if (kind === "video") return prepareVideo(file, long, onCut, onCompress);
   throw Object.assign(new PrepareError("unsupported"), { stage: "type" });
 }

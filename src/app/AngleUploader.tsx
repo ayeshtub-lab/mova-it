@@ -38,6 +38,7 @@ type Labels = {
   longNotice: string;
   longAction: string;
   trimming: string;
+  compressing?: string;
   join: JoinLabels;
   draft: string;
   publish: string;
@@ -73,7 +74,7 @@ type ItemState = {
   // trimming: those seconds being taken (pct = seconds done).
   // draft: checked and fine, waiting for «نشر»; done: published.
   // removed: taken out of the sheet with its ✕ (kept in the list so the others keep their places).
-  status: "preparing" | "long" | "trimming" | "uploading" | "checking" | "draft" | "done" | "error" | "removed";
+  status: "preparing" | "long" | "trimming" | "compressing" | "uploading" | "checking" | "draft" | "done" | "error" | "removed";
   pct: number;
   error?: keyof Labels["errors"];
   angleId?: string;
@@ -192,13 +193,13 @@ export function AngleUploader({
   // The shots in the sheet (not those taken out), and the one the tools work on.
   const shown = items.map((it, i) => ({ it, i })).filter(({ it }) => it.status !== "removed");
   const current = shown.some(({ i }) => i === selected) ? selected : (shown[0]?.i ?? 0);
-  const busy = items.some((i) => i.status === "preparing" || i.status === "uploading" || i.status === "checking");
+  const busy = items.some((i) => i.status === "preparing" || i.status === "compressing" || i.status === "uploading" || i.status === "checking");
   const drafts = items.map((it, i) => ({ it, i })).filter(({ it }) => it.status === "draft" && it.angleId);
   // Still on its way but already known to the server: «نشر» may be pressed for it now.
   const onTheWay = items.map((it, i) => ({ it, i })).filter(({ it }) => (it.status === "uploading" || it.status === "checking") && it.angleId && !it.queued);
-  const preparing = items.some((it) => it.status === "preparing" || (it.status === "uploading" && !it.angleId));
+  const preparing = items.some((it) => it.status === "preparing" || it.status === "compressing" || (it.status === "uploading" && !it.angleId));
   // Its bytes still going up from this phone: the page must stay open for those.
-  const sending = items.some((it) => it.status === "preparing" || it.status === "uploading" || it.status === "trimming");
+  const sending = items.some((it) => it.status === "preparing" || it.status === "compressing" || it.status === "uploading" || it.status === "trimming");
   const [queuedNote, setQueuedNote] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishFailed, setPublishFailed] = useState(false);
@@ -418,7 +419,12 @@ export function AngleUploader({
       // iPhone member's video hung there and no report ever reached the server, which only hears of
       // uploads that arrive).
       const slow = input instanceof File ? setTimeout(() => slowPrepare(input), 20_000) : null;
-      const prepared = input instanceof File ? await prepareAngleFile(input).finally(() => slow && clearTimeout(slow)) : input;
+      // A big video is made smaller on the phone first (src/lib/phone-cut.ts compressVideo), its progress shown.
+      const compressing = (share: number) => {
+        if (slow) clearTimeout(slow);
+        update(index, { status: "compressing", pct: Math.round(share * 100) });
+      };
+      const prepared = input instanceof File ? await prepareAngleFile(input, false, undefined, compressing).finally(() => slow && clearTimeout(slow)) : input;
       const preparedAt = clock();
       // Seen as soon as it is ready here, while it goes up (a video by its cover).
       const picture = prepared.mediaType === "VIDEO" ? prepared.poster : (prepared.preview ?? prepared.file);
@@ -536,7 +542,12 @@ export function AngleUploader({
       // those go up; what the phone can't cut so goes up whole for the server to cut, as before
       // (src/lib/phone-cut.ts). (Re-recording it on the phone in real time stalled on some phones —
       // stuck at 25 of 40 — and needed the screen on all along.)
-      const prepared = await prepareAngleFile(file, true, (share) => update(index, { pct: Math.round(share * MAX_VIDEO_SECONDS) }));
+      const prepared = await prepareAngleFile(
+        file,
+        true,
+        (share) => update(index, { pct: Math.round(share * MAX_VIDEO_SECONDS) }),
+        (share) => update(index, { status: "compressing", pct: Math.round(share * 100) }),
+      );
       // Told when a phone couldn't: how often, and on which phones, the whole video still goes up.
       if (prepared.phoneCut === false && !/webm/i.test(prepared.contentType)) {
         const ua = navigator.userAgent;
@@ -689,6 +700,7 @@ export function AngleUploader({
                         className={`absolute rounded-full text-center font-bold ${one ? "inset-x-3 bottom-3 px-3 py-1.5 text-sm" : "inset-x-1.5 bottom-1.5 truncate px-2 py-1 text-[11px]"} ${item.status === "error" ? "bg-accent text-white" : item.status === "draft" ? "bg-secondary text-white dark:text-background" : "bg-black/65 text-white"}`}
                       >
                         {item.status === "preparing" && labels.preparing}
+                        {item.status === "compressing" && (labels.compressing ?? labels.preparing).replace("{pct}", String(item.pct))}
                         {item.status === "trimming" && labels.trimming.replace("{s}", String(item.pct)).replaceAll("{max}", String(MAX_VIDEO_SECONDS))}
                         {item.status === "uploading" && labels.uploading.replace("{pct}", String(item.pct))}
                         {item.status === "checking" && labels.checkingShort}

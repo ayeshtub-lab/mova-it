@@ -149,6 +149,7 @@
     "checking": "Checking…",
     "longNotice": "The video is longer than 40 seconds — we'll send its first 40 seconds.",
     "longAction": "OK, send the first 40 seconds",
+    "compressing": "📦 Making the video smaller to send faster… {pct}%",
     "trimming": "Preparing the first {max} seconds… {s} of {max} (keep the screen on)"
   },
   "topic": {"title":"{topic} in {place}","metaTitle":"{topic} in {place} — real photos from people | Zawmo","metaDescription":"{shots} {people} of «{topic}» in {place}: real photos and videos taken there, on Zawmo. {lines}","hint":"Real photos and videos of «{topic}» in {place}, by the people who shot them — newest first.","inWords":"📝 What people shot","here":"🏷️ More in {place}","elsewhere":"«{topic}» elsewhere","cta":"Got photos of {topic} in {place}? Add yours 📸","allPlace":"📍 All photos of {place}","inMoment":"🏷️ More real photos of the same","placeTopics":"🏷️ What people shoot in {name}"},

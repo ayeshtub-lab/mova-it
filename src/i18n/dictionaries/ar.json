@@ -149,6 +149,7 @@
     "checking": "فحص…",
     "longNotice": "الفيديو أطول من 40 ثانية — رح نرفع أول 40 ثانية.",
     "longAction": "تمام، ارفع أول 40 ثانية",
+    "compressing": "📦 نصغّر الفيديو ليطلع أسرع… {pct}%",
     "trimming": "نجهّز أول {max} ثانية… {s} من {max} (خلّي الشاشة مفتوحة)"
   },
   "topic": {"title":"{topic} في {place}","metaTitle":"صور {topic} حقيقية في {place} — من الناس | زاومو","metaDescription":"{shots} {people} لـ«{topic}» في {place}، صور وفيديوهات حقيقية صوّرها الناس هناك على زاومو. {lines}","hint":"صور وفيديوهات حقيقية من ناس صوّروا «{topic}» في {place}، الأحدث أول.","inWords":"📝 شو صوّر الناس","here":"🏷️ كمان ب{place}","elsewhere":"«{topic}» بأماكن ثانية","cta":"عندك صور {topic} من {place}؟ ضيفها 📸","allPlace":"📍 كل صور {place}","inMoment":"🏷️ صور حقيقية من الناس عن نفس الشي","placeTopics":"🏷️ شو بيصوّر الناس ب{name}"},

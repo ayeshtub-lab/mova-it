@@ -48,7 +48,7 @@ export function QuickStart({ kind, labels }: { kind: "STORY" | "EVERYDAY"; label
     if (!file) return;
     setStep({ at: "preparing" });
     try {
-      const [started, prepared] = await Promise.all([postJson("/api/start", { kind }) as Promise<{ code: string }>, prepareAngleFile(file)]);
+      const [started, prepared] = await Promise.all([postJson("/api/start", { kind }) as Promise<{ code: string }>, prepareAngleFile(file, false, undefined, () => {})]); // a big video made smaller first (src/lib/phone-cut.ts)
       const { angleId, mediaPath, thumbPath } = await postJson("/api/angles", {
         code: started.code,
         mediaType: prepared.mediaType,
