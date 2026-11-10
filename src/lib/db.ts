@@ -11,7 +11,18 @@ const globalForDb = globalThis as unknown as { prisma?: PrismaClient };
 const strictSsl = (url: string | undefined) => url?.replace(/([?&]sslmode=)(prefer|require|verify-ca)\b/, "$1verify-full");
 
 function createClient() {
-  const adapter = new PrismaPg({ connectionString: strictSsl(process.env.DATABASE_URL) });
+  // Limits on waiting (2026-11-10): pg's defaults wait for ever — for a free connection and for an
+  // answer. On 10/11 the database stalled for a moment and every request on that server instance
+  // waited until Vercel cut it at 300 s: the home page hung 5 minutes (20:56) and the 30-minute cron
+  // twice (19:30, 20:00), with nothing to do. Now a stalled request fails within seconds and the next
+  // one gets a fresh connection. (query_timeout is kept on the client: Neon's pooler refuses a
+  // statement_timeout sent at connection time.)
+  const adapter = new PrismaPg({
+    connectionString: strictSsl(process.env.DATABASE_URL),
+    connectionTimeoutMillis: 10_000,
+    query_timeout: 60_000,
+    idleTimeoutMillis: 30_000,
+  });
   return new PrismaClient({ adapter });
 }
 
