@@ -26,6 +26,7 @@ import { CANONICAL_HOST } from "@/lib/hosts";
 import { ANDROID_PACKAGE, CONTACT_EMAIL } from "@/lib/site";
 import { JsonLd } from "@/app/JsonLd";
 import { SeasonZone } from "@/app/SeasonZone";
+import { HomePin } from "@/app/HomePin";
 import { googleEnabled } from "@/server/google";
 
 // «🔥 N members added M angles»: in the member's moments, and across Zawmo.
@@ -104,6 +105,8 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
         <p className="text-center text-sm font-bold text-muted">{dict.home.doorsLine}</p>
       </section>
 
+      {/* «📌 صورة مثبّتة 24 ساعة» («خطة زاومو الذهبية», src/app/HomePin.tsx). */}
+      <HomePin dict={dict} />
       {/* «زاوية الموسم» (2026-11-06): the season between its dates, pinned here — src/app/SeasonZone.tsx. */}
       <SeasonZone locale={locale} dict={dict} member />
 
@@ -172,6 +175,9 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
           </ul>
         </div>
       </section>
+
+      {/* «📌 صورة مثبّتة 24 ساعة» right under the wheel («خطة زاومو الذهبية», src/app/HomePin.tsx). */}
+      <HomePin dict={dict} />
 
       {/* «زاوية الموسم» (2026-11-06): the season between its dates, pinned at the top. */}
       <SeasonZone locale={await getLocale()} dict={dict} member={false} />

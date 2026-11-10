@@ -142,7 +142,7 @@ export async function listNotifications(user: User, take = 40) {
       // Guests have no profile page; everyone else links to theirs.
       actorHasProfile: !n.actor.isGuest,
       comment: n.comment?.body ?? null,
-      href: n.card ? `/c/${n.card.id}` : n.angle ? (n.kind === "VIDEO_READY" || n.kind === "FILM_PART" ? `/m/${n.angle.moment.code}#video` : `/m/${n.angle.moment.code}#angle-${n.angle.id}`) : `/u/${n.actor.id}`,
+      href: n.kind === "WEEKLY_WINNER" ? "/points" : n.card ? `/c/${n.card.id}` : n.angle ? (n.kind === "VIDEO_READY" || n.kind === "FILM_PART" ? `/m/${n.angle.moment.code}#video` : `/m/${n.angle.moment.code}#angle-${n.angle.id}`) : `/u/${n.actor.id}`,
       momentTitle: n.angle?.moment.title ?? n.card?.text ?? null,
       // The person's own shot (a «🎬» notice: «لقطتك صارت بفيديو» rather than the creator's words).
       ownShot: n.angle?.contributorId === user.id,

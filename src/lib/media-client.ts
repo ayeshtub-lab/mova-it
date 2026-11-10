@@ -1,6 +1,7 @@
 // Browser-side preparation of an angle before upload. Import only from client components.
 import exifr from "exifr";
 import { placeAt } from "@/lib/places-client";
+import { MID, dhashFrom32, greyFromRgba } from "@/lib/dhash";
 
 export const MAX_VIDEO_SECONDS = 40;
 const PHOTO_MAX_EDGE = 2048;
@@ -23,6 +24,7 @@ export type PreparedAngle = {
   width: number;
   height: number;
   trim?: boolean; // longer than 40 s: the server keeps its first 40 seconds
+  dhash?: string; // the picture's fingerprint (src/lib/dhash.ts): a photo sent twice is refused before it goes up
   compressed?: boolean; // made smaller here before it went up (src/lib/phone-cut.ts compressVideo)
   phoneCut?: boolean; // …already cut here, before it went up (src/lib/phone-cut.ts) — false: it couldn't be
 };
@@ -42,6 +44,35 @@ const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
 function fitWithin(width: number, height: number, maxEdge: number) {
   const scale = Math.min(1, maxEdge / Math.max(width, height));
   return { width: Math.round(width * scale), height: Math.round(height * scale) };
+}
+
+// The picture's fingerprint (src/lib/dhash.ts): down to 32×32 in steps (each step averages, so the
+// small one is the picture's look, not scattered pixels), grey, then the shared 9×8 averaging.
+// Never stops an upload.
+export function dhashOf(source: CanvasImageSource, width: number, height: number): string | undefined {
+  try {
+    if (!width || !height) return undefined;
+    let from: CanvasImageSource = source;
+    let fromW = width;
+    let fromH = height;
+    for (const size of [256, 128, 64, MID]) {
+      if (fromW <= size && fromH <= size && size !== MID) continue;
+      const c = document.createElement("canvas");
+      c.width = size;
+      c.height = size;
+      const ctx = c.getContext("2d", { willReadFrequently: size === MID })!;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(from, 0, 0, fromW, fromH, 0, 0, size, size);
+      from = c;
+      fromW = size;
+      fromH = size;
+      if (size === MID) return dhashFrom32(greyFromRgba(ctx.getImageData(0, 0, MID, MID).data));
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export function toJpeg(source: CanvasImageSource, width: number, height: number, quality: number) {
@@ -142,7 +173,8 @@ async function preparePhoto(file: File): Promise<PreparedAngle> {
     const jpeg = await toJpeg(picture.source, width, height, 0.85).catch(() => pause(500).then(() => toJpeg(picture.source, width, height, 0.8)));
     const small = fitWithin(picture.width, picture.height, PREVIEW_MAX_EDGE);
     const preview = await toJpeg(picture.source, small.width, small.height, 0.8).catch(() => undefined);
-    return { mediaType: "PHOTO", file: jpeg, preview, contentType: "image/jpeg", capturedAt, placeId, width, height };
+    const dhash = dhashOf(picture.source, picture.width, picture.height);
+    return { mediaType: "PHOTO", file: jpeg, preview, contentType: "image/jpeg", capturedAt, placeId, width, height, dhash };
   } finally {
     picture.close?.();
   }
@@ -196,6 +228,7 @@ async function prepareVideo(file: File, long = false, onCut?: (share: number) =>
 
     // The cover: a frame half a second in, if the phone gets there in time.
     let poster: Blob | undefined;
+    let posterHash: string | undefined;
     if (meta && video.videoWidth > 0) {
       const seeked = await within<true>(8_000, (done) => {
         video.onseeked = () => done(true);
@@ -204,6 +237,7 @@ async function prepareVideo(file: File, long = false, onCut?: (share: number) =>
       if (seeked || video.readyState >= 2) {
         const size = fitWithin(video.videoWidth, video.videoHeight, POSTER_MAX_EDGE);
         poster = await toJpeg(video, size.width, size.height, 0.8).catch(() => undefined);
+        posterHash = dhashOf(video, video.videoWidth, video.videoHeight);
       }
     }
 
@@ -218,6 +252,7 @@ async function prepareVideo(file: File, long = false, onCut?: (share: number) =>
       file: small?.file ?? source,
       contentType: small || cut ? "video/mp4" : type,
       ...(small ? { compressed: true } : {}),
+      ...(posterHash ? { dhash: posterHash } : {}),
       poster,
       capturedAt,
       ...(known ? { durationSec: Math.min(durationSec, MAX_VIDEO_SECONDS) } : {}),

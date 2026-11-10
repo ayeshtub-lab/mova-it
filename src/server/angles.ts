@@ -14,6 +14,7 @@ import { screenAngle, screeningEnabled, screenText, type ShotContext } from "@/s
 import { deleteFromStream } from "@/server/stream";
 import { searchesForGemini } from "@/server/search-console";
 import { regionOf } from "@/server/english-place";
+import { SAME_PHOTO_BITS, TOO_CLOSE_BITS, hamming, isDhash } from "@/lib/dhash";
 
 export const MAX_VIDEO_SECONDS = 40;
 // A little slack: containers round durations, and a 40.3 s clip is still "40 seconds".
@@ -32,7 +33,9 @@ const VIDEO_TYPES: Record<string, string> = { "video/mp4": "mp4", "video/quickti
 
 export class AngleError extends Error {
   constructor(
-    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required" | "needs_title" | "story_owner",
+    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required" | "needs_title" | "story_owner" | "duplicate" | "too_close",
+    // duplicate / too_close: the moment where the twin already is
+    public where?: { code: string; title: string },
   ) {
     super(code);
   }
@@ -48,6 +51,7 @@ export type PrepareAngleInput = {
   width?: unknown;
   height?: unknown;
   presence?: unknown;
+  dhash?: unknown; // the picture's fingerprint, made on the phone (src/lib/dhash.ts)
 };
 
 const positiveInt = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v > 0 && v < 20000 ? v : null);
@@ -81,6 +85,24 @@ async function placeFor(input: PrepareAngleInput, momentPlaceId: string | null, 
   }
   if (momentPlaceId) return { placeId: momentPlaceId, placeFrom: PlaceSource.MOMENT, placeVerified: false, ipCountryMatch: null };
   return {};
+}
+
+// A shot of the person's own (any moment, any time) or anyone's in this moment whose fingerprint is
+// within TOO_CLOSE_BITS of the new one — the closest. Only shots that went up (an upload that failed
+// half-way must not stop the same photo being tried again).
+async function nearTwin(userId: string, momentId: string, mediaType: MediaType, dhash: string) {
+  const rows = await db.angle.findMany({
+    where: { dhash: { not: null }, mediaType, status: { in: ["READY", "DRAFT", "HIDDEN"] }, OR: [{ contributorId: userId }, { momentId }] },
+    select: { dhash: true, moment: { select: { code: true, title: true } } },
+    take: 3000,
+  });
+  let best: { bits: number; code: string; title: string } | null = null;
+  for (const r of rows) {
+    if (!isDhash(r.dhash)) continue; // «-»: an older shot whose picture couldn't be read
+    const bits = hamming(dhash, r.dhash);
+    if (bits <= TOO_CLOSE_BITS && (!best || bits < best.bits)) best = { bits, code: r.moment.code, title: r.moment.title };
+  }
+  return best;
 }
 
 // Step 1: reserve an angle and the exact Blob paths this user may upload to.
@@ -122,6 +144,14 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
   });
   if (existing >= (moment.kind === "STORY" ? SHOTS_PER_STORY : ANGLES_PER_USER_PER_MOMENT)) throw new AngleError("too_many");
 
+  // The same photo again, or one nearly the same (src/lib/dhash.ts, 2026-11-10): refused here,
+  // before anything goes up, with where it already is.
+  const dhash = isDhash(input.dhash) ? input.dhash : null;
+  if (dhash) {
+    const twin = await nearTwin(user.id, moment.id, mediaType, dhash);
+    if (twin) throw new AngleError(twin.bits <= SAME_PHOTO_BITS ? "duplicate" : "too_close", { code: twin.code, title: twin.title });
+  }
+
   const capturedAt = captureDate(input.capturedAt);
   const place = await placeFor(input, moment.placeId, capturedAt, ipCountry);
   const angle = await db.angle.create({
@@ -136,6 +166,7 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
       capturedAt,
       ...place,
       networkPlaceId,
+      dhash,
       // «✨ تحسين» from the start: every new shot looks its best; «طبيعي» takes it back.
       filter: "auto",
     },

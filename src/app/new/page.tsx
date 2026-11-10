@@ -12,6 +12,7 @@ import { getCurrentUser } from "@/lib/session";
 import { SharedArrival } from "./SharedArrival";
 import Link from "next/link";
 import { momentsToAddTo } from "@/server/add-to-moment";
+import { currentMission } from "@/server/points";
 
 export const metadata = { robots: { index: false } };
 
@@ -30,6 +31,7 @@ function Fold({ folded, summary, children }: { folded: boolean; summary: string;
 // Start a moment: the page behind the ＋ in the bottom bar.
 export default async function NewMomentPage({ searchParams }: PageProps<"/new">) {
   const user = await getCurrentUser();
+  const mission = await currentMission().catch(() => null);
   const { kind, shared, title, why } = await searchParams;
   // «/new?shared=3»: photos or videos shared to Zawmo from the gallery (public/sw.js).
   const sharedCount = typeof shared === "string" ? Math.min(10, Math.max(0, Number.parseInt(shared, 10) || 0)) : null;
@@ -73,6 +75,13 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
             <p className="text-sm text-muted">{dict.home.createHint}</p>
           </div>
         </header>
+        {/* «📸 مهمة الأسبوع» («خطة زاومو الذهبية»): what people search for this week, and its points. */}
+        {mission && user && !user.isGuest && (
+          <Link href="/points" className="flex flex-col gap-1 rounded-2xl border-2 border-accent/40 p-3 text-sm">
+            <span className="font-extrabold">{dict.points.missionTitle}</span>
+            <span className="text-muted">{mission.topics.map((m) => m.query).join(" · ")}</span>
+          </Link>
+        )}
         {sharedCount !== null && (
           <SharedArrival count={sharedCount} text={sharedCount > 0 ? dict.create.shared.replace("{n}", String(sharedCount)) : dict.create.sharedNone} pickLabel={dict.create.sharedPick} why={typeof why === "string" ? why.slice(0, 80) : undefined} />
         )}

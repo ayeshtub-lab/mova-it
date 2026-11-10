@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { backfillDhash } from "@/server/dhash";
+import { goldenHourly } from "@/server/points";
 import { restNow } from "@/lib/night-rest";
 import { purgeStaleUploads, repairBlackCovers } from "@/server/angles";
 import { remindDrafts } from "@/server/drafts";
@@ -23,6 +25,10 @@ export async function GET(request: Request) {
     rateLimitRows: await purgeRateLimits().catch(() => 0),
     // «📸 لقطات بتشبهها»: public shots still without vectors (the older ones, then any missed).
     embedded: await embedPending().catch(() => 0),
+    // Fingerprints of older shots (src/server/dhash.ts): a photo sent again is told apart from a new one.
+    dhashed: await backfillDhash().catch((error) => (console.error("dhash backfill failed", error), 0)),
+    // «خطة زاومو الذهبية»: points for shots, hearts and the mission; pins; milestones (src/server/points.ts).
+    golden: await goldenHourly(),
     // Videos whose cover came out black (src/server/angles.ts repairBlackCover).
     blackCovers: await repairBlackCovers().catch((error) => ({ error: String(error) })),
   };

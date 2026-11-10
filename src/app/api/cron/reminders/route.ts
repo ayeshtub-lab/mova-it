@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { makeMission, pickWinner } from "@/server/points";
 import { remindStories } from "@/server/stories";
 import { remindDaily, SUMMARY_WEEKDAY, weeklySummary } from "@/server/nudges";
 import { sendWeatherAlerts } from "@/server/weather-alerts";
@@ -17,16 +18,20 @@ export async function GET(request: Request) {
   // «لحظة اليوم» for whoever hasn't added theirs; on Fridays (Mecca), the week's summary.
   const daily = await remindDaily().catch((error) => (console.error("daily reminder failed", error), -1));
   const friday = new Date(Date.now() + 3 * 3600e3).getUTCDay() === SUMMARY_WEEKDAY;
+  // «خطة زاومو الذهبية»: the week's photographer first (their summary then says so), then the summaries.
+  const winner = friday ? await pickWinner().then((w) => (w ? 1 : 0), (error) => (console.error("weekly winner failed", error), -1)) : 0;
   const summaries = friday ? await weeklySummary().catch((error) => (console.error("weekly summary failed", error), -1)) : 0;
   // Snow or real rain on the way (src/server/weather-alerts.ts): members there are told tonight.
   const weather = await sendWeatherAlerts().catch((error) => (console.error("weather alerts failed", error), -1));
   // Mondays: what people searched in Google to find Zawmo, the last 28 days (src/server/search-console.ts).
   const monday = new Date(Date.now() + 3 * 3600e3).getUTCDay() === 1;
   const searches = monday ? await saveSearchTerms().catch((error) => (console.error("search terms failed", error), -1)) : 0;
+  // «📸 مهمة الأسبوع»: three things people search for and Zawmo has few photos of (src/server/points.ts).
+  const mission = monday ? await makeMission().then((m) => (m ? 1 : 0), (error) => (console.error("mission failed", error), -1)) : 0;
   // …and what Search Console says of the sitemap and of a sample of pages (src/server/search-console.ts).
   const seo = monday ? await seoSample().then(seoWeekly).then((r) => (r ? r.sample : "off"), (error) => (console.error("seo weekly failed", error), "failed")) : null;
-  console.log("reminders", { stories, daily, summaries, weather, searches, seo });
-  return NextResponse.json({ stories, daily, summaries, weather, searches, seo });
+  console.log("reminders", { stories, daily, winner, summaries, weather, searches, mission, seo });
+  return NextResponse.json({ stories, daily, winner, summaries, weather, searches, mission, seo });
 }
 
 // The pages the weekly check inspects: the home page, then the newest moments, film parts, shots

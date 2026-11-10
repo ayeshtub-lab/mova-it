@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { weekPointsOf } from "@/server/points";
 import { dayKey, today } from "@/server/daily";
 import ar from "@/i18n/dictionaries/ar.json";
 import en from "@/i18n/dictionaries/en.json";
@@ -55,17 +56,19 @@ export async function weeklySummary(now = new Date()) {
   });
   let sent = 0;
   for (const p of people) {
-    const [hearts, newAngles, followers] = await Promise.all([
+    const [hearts, newAngles, followers, points] = await Promise.all([
       db.reaction.count({ where: { createdAt: { gte: since }, userId: { not: p.id }, angle: { contributorId: p.id } } }),
       db.angle.count({ where: { uploadedAt: { gte: since }, status: "READY", contributorId: { not: p.id }, moment: { creatorId: p.id, kind: { not: "DAILY" } } } }),
       db.follow.count({ where: { followingId: p.id, createdAt: { gte: since } } }),
+      // «خطة زاومو الذهبية»: the week's points, in the same one message (src/server/points.ts).
+      weekPointsOf(p.id, now),
     ]);
-    if (!hearts && !newAngles && !followers) continue;
+    if (!hearts && !newAngles && !followers && !points) continue;
     const claimed = await db.user.updateMany({ where: { id: p.id, OR: [{ summaryDay: null }, { summaryDay: { not: day } }] }, data: { summaryDay: day } });
     if (!claimed.count) continue;
     await pushNote(p.id, (t, locale) => {
       const n = (x: number) => x.toLocaleString(locale === "en" ? "en" : "ar-EG");
-      const parts = [hearts && t.summaryHearts.replace("{n}", n(hearts)), newAngles && t.summaryAngles.replace("{n}", angles(locale, newAngles)), followers && (followers === 1 ? t.summaryFollower : t.summaryFollowers.replace("{n}", n(followers)))].filter(Boolean);
+      const parts = [hearts && t.summaryHearts.replace("{n}", n(hearts)), newAngles && t.summaryAngles.replace("{n}", angles(locale, newAngles)), followers && (followers === 1 ? t.summaryFollower : t.summaryFollowers.replace("{n}", n(followers))), points && t.summaryPoints.replace("{n}", n(points))].filter(Boolean);
       return { title: t.summaryTitle, body: parts.join(" · "), url: `/u/${p.id}`, tag: `summary:${day}` };
     });
     sent++;

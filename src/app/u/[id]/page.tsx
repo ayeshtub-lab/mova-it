@@ -196,6 +196,12 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             loadFailed: t.loadFailed,
           }}
         />
+        {/* «⭐ نقاطي» («خطة زاومو الذهبية», src/app/points). */}
+        {profile.isMe && viewer && !viewer.isGuest && (
+          <Link href="/points" className="flex min-h-11 items-center justify-center self-center rounded-full bg-amber-100 px-5 text-sm font-extrabold text-amber-800 dark:bg-amber-400/15 dark:text-amber-300">
+            {dict.points.title}
+          </Link>
+        )}
         {profile.isMe && viewer && !viewer.isGuest && (
           <>
             <SettingToggle initial={viewer.allowJoins} endpoint="/api/me/allow-joins" icon="🤝" labels={dict.allowJoins} />

@@ -58,6 +58,7 @@ export function QuickStart({ kind, labels }: { kind: "STORY" | "EVERYDAY"; label
         durationSec: prepared.durationSec,
         width: prepared.width,
         height: prepared.height,
+        dhash: prepared.dhash, // a photo sent twice is refused before it goes up (src/server/angles.ts)
       });
       setStep({ at: "uploading", pct: 0 });
       if (thumbPath && prepared.poster) {

@@ -12,78 +12,84 @@ datasource db {
 // A guest (web visitor who only typed a name) is a User with isGuest = true
 // and no phone; signing in with a phone later upgrades the same row.
 model User {
-  id          String   @id @default(cuid())
-  phone       String?  @unique
-  displayName String
-  avatarUrl   String?
-  locale      String   @default("ar")
-  isGuest     Boolean  @default(true)
-  isAdmin     Boolean  @default(false) // may open /admin to review reports
+  id           String   @id @default(cuid())
+  phone        String?  @unique
+  displayName  String
+  avatarUrl    String?
+  locale       String   @default("ar")
+  isGuest      Boolean  @default(true)
+  isAdmin      Boolean  @default(false) // may open /admin to review reports
   // «منسّق المكتبة»: adds sounds without the hourly limit and puts members' sounds into the
   // library's lists (/admin/sounds) — none of an admin's other powers.
-  soundCurator Boolean @default(false)
-  isSystem    Boolean  @default(false) // the «زاومو» account that starts «لحظة اليوم»
-  verified    Boolean  @default(false) // ✓ an official Zawmo account: a badge by its name, its comments first
+  soundCurator Boolean  @default(false)
+  isSystem     Boolean  @default(false) // the «زاومو» account that starts «لحظة اليوم»
+  verified     Boolean  @default(false) // ✓ an official Zawmo account: a badge by its name, its comments first
   // «اسمح للي صوّروا نفس اللحظة ينضمّوا للحظاتي»: when off, this person's moments are never
   // suggested to others (src/server/join.ts).
-  allowJoins  Boolean  @default(true)
+  allowJoins   Boolean  @default(true)
   // «اسمح تطلع صوري بفيديو لحظة اليوم»: their public «لحظة اليوم» shots may appear in Zawmo's
   // daily film (src/server/daily-video.ts). On by default; said on the daily moment's page.
-  dailyVideo  Boolean  @default(true)
+  dailyVideo   Boolean  @default(true)
   // The day (src/server/daily.ts dayKey) this person was last sent the «لحظة اليوم» reminder,
   // and the weekly summary — each at most once a day (src/server/nudges.ts).
-  nudgedDay   String?
-  summaryDay  String?
+  nudgedDay    String?
+  summaryDay   String?
+  // «خطة زاومو الذهبية» (2026-11-10): notes on how your shots do (views, Google, points, the week's
+  // winner) — the person may turn them off; nothing else changes.
+  notifyGolden Boolean  @default(true)
   // Official account: Google's stable user id. A guest who signs in with Google keeps
   // the same row (and everything they made); isGuest becomes false.
-  googleSub   String?  @unique
-  email       String? // private, never shown to other users
-  googleName  String? // name on the Google account, offered as a one-tap choice
+  googleSub    String?  @unique
+  email        String? // private, never shown to other users
+  googleName   String? // name on the Google account, offered as a one-tap choice
   // Where this person first came from (an ad's «?src=tiktok-house», a UTM source, or the referring
   // site: google, whatsapp…), for the admin's per-campaign numbers. Never shown to anyone else.
-  source      String?
+  source       String?
   // Roughly where they are, from their connection when they joined (Vercel's IP location:
   // "SA", "Riyadh"), for per-country Zawmo and local ads later. Never shown to anyone else.
-  country     String?
-  city        String?
-  createdAt   DateTime @default(now())
+  country      String?
+  city         String?
+  createdAt    DateTime @default(now())
 
-  sessions        Session[]
-  createdMoments  Moment[]         @relation("MomentCreator")
-  angles          Angle[]
-  reactions       Reaction[]
-  comments        Comment[]
-  blocking        Block[]          @relation("Blocker")
-  blockedBy       Block[]          @relation("Blocked")
-  invitesSent     MomentInvite[]   @relation("InvitesSent")
-  invitesReceived MomentInvite[]   @relation("InvitesReceived")
-  directMessages  DirectMessage[]
-  angleViews      AngleView[]
-  dailyVotes      DailyVote[]
-  savedAngles     SavedAngle[]
-  activeDays      ActiveDay[]
-  userSounds      UserSound[]
-  commentLikes    CommentLike[]
-  momentLikes     MomentLike[]
-  notifications   Notification[]   @relation("NotificationsReceived")
-  notified        Notification[]   @relation("NotificationsSent")
-  presences       SitePresence[]
-  pushDevices     PushDevice[]
+  sessions             Session[]
+  createdMoments       Moment[]         @relation("MomentCreator")
+  angles               Angle[]
+  reactions            Reaction[]
+  comments             Comment[]
+  blocking             Block[]          @relation("Blocker")
+  blockedBy            Block[]          @relation("Blocked")
+  invitesSent          MomentInvite[]   @relation("InvitesSent")
+  invitesReceived      MomentInvite[]   @relation("InvitesReceived")
+  directMessages       DirectMessage[]
+  angleViews           AngleView[]
+  dailyVotes           DailyVote[]
+  savedAngles          SavedAngle[]
+  activeDays           ActiveDay[]
+  userSounds           UserSound[]
+  commentLikes         CommentLike[]
+  momentLikes          MomentLike[]
+  notifications        Notification[]   @relation("NotificationsReceived")
+  notified             Notification[]   @relation("NotificationsSent")
+  presences            SitePresence[]
+  pushDevices          PushDevice[]
   // The home page's «N members added M angles» counts from homeSinceAt: the start of
   // the previous visit (a visit = home views less than 30 minutes apart).
-  homeSeenAt      DateTime?
-  homeSinceAt     DateTime?
-  participations  Participant[]
-  following       Follow[]         @relation("Follower")
-  followers       Follow[]         @relation("Following")
-  reports         Report[]
-  removalRequests RemovalRequest[]
+  homeSeenAt           DateTime?
+  homeSinceAt          DateTime?
+  participations       Participant[]
+  following            Follow[]         @relation("Follower")
+  followers            Follow[]         @relation("Following")
+  reports              Report[]
+  removalRequests      RemovalRequest[]
   // محادثات المستخدم (كمرسل الرسالة)
-  conversationsAsUser1 Conversation[] @relation("ConversationUser1")
-  conversationsAsUser2 Conversation[] @relation("ConversationUser2")
-  sentMessages    Message[]
-  cards           Card[]
-  cardLikes       CardLike[]
+  conversationsAsUser1 Conversation[]   @relation("ConversationUser1")
+  conversationsAsUser2 Conversation[]   @relation("ConversationUser2")
+  sentMessages         Message[]
+  cards                Card[]
+  cardLikes            CardLike[]
+  pointEntries         PointEntry[]
+  homePins             HomePin[]
+  weeklyWins           WeeklyWinner[]
 }
 
 // Opaque random token in an httpOnly cookie (web) or a bearer header (app later);
@@ -133,37 +139,37 @@ enum ModerationStatus {
 }
 
 model Moment {
-  id             String           @id @default(cuid())
-  code           String           @unique // short share code: /m/K7M2Q4
-  title          String
+  id              String           @id @default(cuid())
+  code            String           @unique // short share code: /m/K7M2Q4
+  title           String
   // Its name in English for the /en pages (2026-10-21): written from the title, never shown in Arabic.
-  titleEn        String?
+  titleEn         String?
   // false: started without a name (a placeholder title); its creator names it at «نشر».
-  named          Boolean          @default(true)
+  named           Boolean          @default(true)
   // A short line under the title; may carry #hashtags (public ones link to /tag/…).
-  description    String?
+  description     String?
   // true: Zawmo wrote the description (from its shots) and keeps it up to date as shots are added
   // (src/server/moment-summary.ts); false once its creator or staff edits it, and for every moment
   // made before 2026-11-05 (left as they were).
-  descriptionAuto Boolean         @default(false)
-  kind           MomentKind       @default(EVERYDAY)
-  visibility     Visibility       @default(FRIENDS)
-  status         ModerationStatus @default(ACTIVE)
+  descriptionAuto Boolean          @default(false)
+  kind            MomentKind       @default(EVERYDAY)
+  visibility      Visibility       @default(FRIENDS)
+  status          ModerationStatus @default(ACTIVE)
   // Where it happened: a standard place (city, village, neighbourhood — see Place), and
   // optionally a spot typed by the creator («برك سليمان»). Never coordinates.
-  placeId        String?
-  placeName      String?
+  placeId         String?
+  placeName       String?
   // Angles hide until this time ("reveal"); "give to get" lives in app logic.
-  revealAt       DateTime?
+  revealAt        DateTime?
   // A moment that gathered enough angles is kept ("لحظة خالدة"); its angles stop expiring.
-  isPermanent    Boolean          @default(false)
-  creatorId      String
-  createdAt      DateTime         @default(now())
-  lastActivityAt DateTime         @default(now()) // drives "why now" ranking
+  isPermanent     Boolean          @default(false)
+  creatorId       String
+  createdAt       DateTime         @default(now())
+  lastActivityAt  DateTime         @default(now()) // drives "why now" ranking
   // «مع الوقت»: when its owner was last reminded to add a shot, and how many times since
   // their last shot (reminders stop after a few; a new shot starts them over).
-  remindedAt     DateTime?
-  reminders      Int              @default(0)
+  remindedAt      DateTime?
+  reminders       Int              @default(0)
 
   creator      User           @relation("MomentCreator", fields: [creatorId], references: [id])
   place        Place?         @relation(fields: [placeId], references: [id])
@@ -174,13 +180,13 @@ model Moment {
   montages     Montage[]
   likes        MomentLike[]
   reports      Report[]
-
-  @@index([lastActivityAt])
-  @@index([creatorId])
   // An illustrative example (AI-made, for explaining Zawmo): opens by its link and on its
   // owner's profile, but is never listed with real people's moments (feeds, wheel, places,
   // search engines, «صوّر معك»).
-  demo Boolean @default(false)
+  demo         Boolean        @default(false)
+
+  @@index([lastActivityAt])
+  @@index([creatorId])
 }
 
 enum ParticipantRole {
@@ -223,65 +229,66 @@ enum AngleStatus {
 }
 
 model Angle {
-  id            String      @id @default(cuid())
-  momentId      String
-  contributorId String
-  mediaType     MediaType
-  presence      Presence    @default(THERE)
-  status        AngleStatus @default(PROCESSING)
+  homePins         HomePin[]
+  id               String       @id @default(cuid())
+  momentId         String
+  contributorId    String
+  mediaType        MediaType
+  presence         Presence     @default(THERE)
+  status           AngleStatus  @default(PROCESSING)
   // Pathnames in the private Blob store; viewers get short-lived signed URLs.
-  mediaPath     String? // the photo (JPEG) or the video file
-  thumbPath     String? // video poster frame (JPEG)
-  smallPath     String? // small JPEG for grids and covers (made on the server after upload)
-  streamUid     String? // Cloudflare Stream copy of a video (src/server/stream.ts)
-  streamReady   Boolean     @default(false) // Stream finished encoding: play it from there (HLS)
-  durationSec   Float? // videos only; the upload flow enforces ≤ 40
-  width         Int?
-  height        Int?
-  capturedAt    DateTime? // read from the file on the device before upload
-  uploadedAt    DateTime    @default(now())
-  expiresAt     DateTime? // 24 h unless the moment becomes permanent
+  mediaPath        String? // the photo (JPEG) or the video file
+  thumbPath        String? // video poster frame (JPEG)
+  smallPath        String? // small JPEG for grids and covers (made on the server after upload)
+  streamUid        String? // Cloudflare Stream copy of a video (src/server/stream.ts)
+  streamReady      Boolean      @default(false) // Stream finished encoding: play it from there (HLS)
+  durationSec      Float? // videos only; the upload flow enforces ≤ 40
+  width            Int?
+  height           Int?
+  capturedAt       DateTime? // read from the file on the device before upload
+  uploadedAt       DateTime     @default(now())
+  expiresAt        DateTime? // 24 h unless the moment becomes permanent
   // Automatic content check (Gemini) when the upload completes.
-  screening     String? // "allowed" | "blocked" | "error"; null = not checked
+  screening        String? // "allowed" | "blocked" | "error"; null = not checked
   // Its own title for search engines (src/server/screening.ts, the SEO rules): what is seen,
   // in the words people search with — «زفة العريس على الأكتاف في عرس فلسطيني».
-  aiTitle       String?
+  aiTitle          String?
   // …and in English (2026-10-21, the /en pages): an SEO title in the words people search with in
   // English («Morning coffee among olive trees in Palestine»), not a word-for-word translation.
-  aiTitleEn     String?
+  aiTitleEn        String?
   // Last change to the shot (its words, look, sound…): «dateModified» and the sitemap's
   // lastmod, so Google comes back for what is new.
-  updatedAt     DateTime  @default(now()) @updatedAt
+  updatedAt        DateTime     @default(now()) @updatedAt
   // «نشر» pressed while it was still being checked: published by the server once fine.
-  autoPublish   Boolean   @default(false)
-  screenedAt    DateTime?
+  autoPublish      Boolean      @default(false)
+  screenedAt       DateTime?
   // A sound from the library (src/lib/sounds.ts) played with the angle, and whether a
   // video's own sound is muted under it.
-  soundKey      String?
-  muteOriginal  Boolean     @default(false)
+  soundKey         String?
+  muteOriginal     Boolean      @default(false)
   // «📝»: a library sound's words written on the shot while they are heard (src/lib/lyrics.ts);
   // on unless its owner turned them off.
-  lyrics        Boolean     @default(true)
+  lyrics           Boolean      @default(true)
   // Times someone tapped «share» on it (for «الأكثر رواجًا هذا الأسبوع»).
-  shares        Int         @default(0)
+  shares           Int          @default(0)
   // The look chosen after upload (src/lib/filters.ts): applied when shown and burnt into
   // montages; the stored file is never changed. stamp = the retro date/time in a corner.
-  filter        String?
-  stamp         Boolean     @default(false)
+  filter           String?
+  stamp            Boolean      @default(false)
   // Writing (with emoji) on the shot: a transparent PNG drawn on the owner's phone (so the
   // emoji look the same everywhere, montages included), placed on a 9:16 frame.
   // { text, path, y (centre, 0–1 of height), w (0–1 of width) } — see src/lib/caption.ts.
-  caption       Json?
+  caption          Json?
   // Where the shot was taken (Place), found silently: from the photo's own location on the
   // phone (the coordinates never leave it), else the moment's place. placeVerified = it came
   // from the photo and the photo is recent («موثّق ✓»). ipCountryMatch = the uploader's
   // network country matched the place's (the IP itself is not kept).
-  placeId        String?
-  placeFrom      PlaceSource?
-  placeVerified  Boolean     @default(false)
-  ipCountryMatch Boolean?
+  placeId          String?
+  placeFrom        PlaceSource?
+  placeVerified    Boolean      @default(false)
+  ipCountryMatch   Boolean?
   // What it shows (src/lib/scenes.ts), from the content check: «غروب», «مطر»… Drives «صوّر معك».
-  scene          String?
+  scene            String?
   // The weather where and when it was taken (src/server/weather.ts, MET Norway): a kind from
   // src/lib/weather.ts («clearsky», «rain», «snow»…) and the temperature in °C. Only for shots
   // with a place, taken shortly before upload (the service has no past); checked once.
@@ -290,24 +297,27 @@ model Angle {
   weatherCheckedAt DateTime?
   // «⭐ اختيار زاومو»: when an official (verified) account picked this public shot; picked
   // shots carry a badge and lead the home wheel, the showcase and «اكتشف».
-  pickedAt       DateTime?
+  pickedAt         DateTime?
   // What the check read on the picture, like a lens: visible names (a sign, a venue) and a
   // landmark. Matched between shots by «صوّر معك».
-  seenText       String?
+  seenText         String?
   // A warm line about the shot with a few #hashtags, written by the content check (Arabic):
   // the shot page's description, image alts, and a moment's description when it has none.
-  aiText         String?
+  aiText           String?
   // …and in English (the /en pages' description and image alts).
-  aiTextEn       String?
+  aiTextEn         String?
   // The town the uploader's network is in (Vercel's guess from the connection, often coarse):
   // used ONLY to match «صوّر معك», never shown anywhere. The address itself is not kept.
-  networkPlaceId String?
+  networkPlaceId   String?
   // «صوّر معك»: the shot joined someone else's moment from one of its owner's. What that
   // moment was, so the host's «شيلها» can give the shot back a moment of its own.
   // { momentId, title, visibility, placeId }
-  joinedFrom     Json?
+  joinedFrom       Json?
   // The moment «صوّر معك» offered this shot (so «ضيف» joins exactly what was shown).
-  joinOffer      String?
+  joinOffer        String?
+  // The picture's fingerprint (a 64-bit difference hash, 16 hex digits): the same photo sent again,
+  // or one nearly the same, is refused before it goes up (src/lib/dhash.ts, 2026-11-10).
+  dhash            String?
 
   moment          Moment           @relation(fields: [momentId], references: [id], onDelete: Cascade)
   place           Place?           @relation(fields: [placeId], references: [id])
@@ -320,6 +330,7 @@ model Angle {
   reports         Report[]
   removalRequests RemovalRequest[]
   cards           Card[]
+  vectors         AngleVector[] // «📸 لقطات بتشبهها» (src/server/similar.ts)
 
   @@index([momentId, capturedAt])
   @@index([contributorId])
@@ -327,7 +338,6 @@ model Angle {
   @@index([soundKey])
   @@index([placeId])
   @@index([scene, capturedAt])
-  vectors        AngleVector[] // «📸 لقطات بتشبهها» (src/server/similar.ts)
 }
 
 // ── Places ────────────────────────────────────────────────────────────────
@@ -613,6 +623,10 @@ enum NotificationKind {
   FILM_PART // a new part of a moment's film is ready: everyone with a shot in the moment (from Zawmo)
   CARD_LIKE // a heart on your «💌 بطاقة»
   CARD_SENT // your card was sent on 5, 10, 25… times (from Zawmo, once per step; the number in `count`)
+  // «خطة زاومو الذهبية» (2026-11-10), all from Zawmo:
+  MILESTONE // your shot was seen N times (the number in `count`; once per step)
+  WEEKLY_WINNER // 🏆 you are the week's photographer: pick a shot to pin on the home page for 24 h
+  PIN_LIVE // 📌 your shot is pinned on the home page now (24 h)
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.
@@ -758,13 +772,13 @@ model DailyVote {
 
 // رسائل فردية (واحد لواحد) بين شخصين، مستقلة عن اللحظات
 model Conversation {
-  id        String   @id @default(cuid())
-  user1Id   String
-  user2Id   String
-  createdAt DateTime @default(now())
+  id            String    @id @default(cuid())
+  user1Id       String
+  user2Id       String
+  createdAt     DateTime  @default(now())
   // متى آخر ظهور لكل شخص (يحدد المحادثة كمقروءة لهم)
-  user1SeenAt DateTime?
-  user2SeenAt DateTime?
+  user1SeenAt   DateTime?
+  user2SeenAt   DateTime?
   // متى كان آخر ظهور للمستخدم (للـ online status)
   user1LastSeen DateTime?
   user2LastSeen DateTime?
@@ -789,7 +803,7 @@ model Conversation {
 }
 
 model Message {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   conversationId String
   senderId       String
   body           String
@@ -809,10 +823,10 @@ model Message {
   deletedAt      DateTime?
   hiddenFor      String[]  @default([])
   // حالة الرسالة: sent, delivered, read
-  status         String   @default("sent")
+  status         String    @default("sent")
   // متى تمت قراءة الرسالة
   readAt         DateTime?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime  @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
@@ -893,10 +907,10 @@ model CardLike {
 
 model AngleVector {
   angleId   String
-  angle     Angle    @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  angle     Angle                      @relation(fields: [angleId], references: [id], onDelete: Cascade)
   kind      String // "image" | "text"
   vec       Unsupported("vector(768)")
-  createdAt DateTime @default(now())
+  createdAt DateTime                   @default(now())
 
   @@id([angleId, kind])
 }
@@ -936,4 +950,61 @@ model Season {
   sort      Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// «خطة زاومو الذهبية (تحت الأضواء)» (2026-11-10): points are earned by giving Zawmo real things — a
+// shot, likes from real members, the week's Google mission — and spent on pinning a shot on the home
+// page for 24 hours (500). Every point has its line here (who, why, for what), so a balance is a sum
+// and nothing is given twice (one line per person, kind and thing).
+model PointEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String // shot | likes | mission | winner | pin
+  points    Int // negative when spent
+  ref       String // the shot, the week or the pin it is for
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, kind, ref])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+// A shot pinned under the home page's wheel for 24 hours: the week's winner's choice, or bought with
+// 500 points. One at a time; the next waits its turn (startsAt), each ends on its own (endsAt).
+model HomePin {
+  id        String   @id @default(cuid())
+  angleId   String
+  userId    String
+  source    String // winner | points
+  startsAt  DateTime
+  endsAt    DateTime
+  createdAt DateTime @default(now())
+
+  angle Angle @relation(fields: [angleId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([startsAt, endsAt])
+  @@index([userId])
+}
+
+// The week's photographer (Friday, by the week's points): picks a shot to pin within 12 hours, or
+// their most liked of the week is pinned for them.
+model WeeklyWinner {
+  week      String   @id // "2026-11-13" (the Friday)
+  userId    String
+  points    Int
+  pinId     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// «📸 مهمة الأسبوع»: three things people search Google for and Zawmo has few photos of (from the
+// Search Console terms saved each Monday). A shot whose words match one earns the mission's points.
+model WeeklyMission {
+  week      String   @id // "2026-11-09" (the Monday)
+  topics    Json // [{ query, words: [..] }]
+  createdAt DateTime @default(now())
 }

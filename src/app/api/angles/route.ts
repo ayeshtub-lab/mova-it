@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     return NextResponse.json(await prepareAngle(user, body, network.country, network.placeId), { status: 201 });
   } catch (error) {
     if (error instanceof AngleError) {
-      return NextResponse.json({ error: error.code }, { status: error.code === "not_found" ? 404 : 400 });
+      return NextResponse.json({ error: error.code, ...(error.where ? { where: error.where } : {}) }, { status: error.code === "not_found" ? 404 : 400 });
     }
     throw error;
   }

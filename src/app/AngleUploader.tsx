@@ -34,7 +34,9 @@ type Labels = {
   done: string;
   tooManyHint?: string;
   newMoment?: string;
-  errors: { unsupported: string; not_ready: string; too_long: string; too_many: string; failed: string; blocked: string; official_required: string };
+  errors: { unsupported: string; not_ready: string; too_long: string; too_many: string; failed: string; blocked: string; official_required: string; duplicate?: string; too_close?: string };
+  // The same photo again / one nearly the same (src/lib/dhash.ts): said in full under the shots.
+  twinHint?: { duplicate: string; too_close: string; see: string };
   longNotice: string;
   longAction: string;
   trimming: string;
@@ -93,6 +95,7 @@ type ItemState = {
   looking?: boolean; // «صوّر معك» still being asked (after the check, never waited for)
   queued?: boolean; // «نشر» pressed while it was still on its way: the server publishes it when checked
   placed?: boolean; // it has a place (from the photo itself or the moment)
+  twin?: { code: string; title: string }; // duplicate / too_close: where the twin already is
 };
 // «📍 وين صوّرت؟»: asked when a shot has no place (phones strip a photo's location on the web).
 type PlaceLabels = { ask: string; hint: string; failed: string; placeholder: string; guess?: PlaceGuessLabels; here: { label: string; why: string; finding: string; denied: string; blocked: string; outside: string; approx: string } };
@@ -133,7 +136,7 @@ async function postJson(url: string, body?: unknown) {
   // keepalive: a request still on its way when the page is left (the check, after «نشر») finishes.
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body ?? {}), keepalive: true });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error ?? "failed"), { code: data.error });
+  if (!res.ok) throw Object.assign(new Error(data.error ?? "failed"), { code: data.error, where: data.where });
   return data;
 }
 
@@ -439,6 +442,7 @@ export function AngleUploader({
         durationSec: prepared.durationSec,
         width: prepared.width,
         height: prepared.height,
+        dhash: prepared.dhash, // a photo sent twice is refused before it goes up (src/server/angles.ts)
       });
       update(index, { status: "uploading", angleId });
 
@@ -526,10 +530,11 @@ export function AngleUploader({
       const reason =
         error instanceof PrepareError
           ? error.code
-          : serverCode === "too_many" || serverCode === "too_long" || serverCode === "official_required"
+          : serverCode === "too_many" || serverCode === "too_long" || serverCode === "official_required" || serverCode === "duplicate" || serverCode === "too_close"
             ? serverCode
             : "failed";
-      update(index, { status: "error", error: reason });
+      const where = (error as { where?: { code: string; title: string } }).where;
+      update(index, { status: "error", error: reason, ...(where ? { twin: where } : {}) });
     }
   }
 
@@ -706,7 +711,7 @@ export function AngleUploader({
                         {item.status === "checking" && labels.checkingShort}
                         {item.status === "draft" && labels.ready}
                         {item.status === "done" && labels.done}
-                        {item.status === "error" && labels.errors[item.error ?? "failed"]}
+                        {item.status === "error" && (labels.errors[(item.error ?? "failed") as keyof typeof labels.errors] ?? labels.errors.failed)}
                         {item.status === "long" && labels.longNotice}
                       </span>
                     </button>
@@ -724,6 +729,19 @@ export function AngleUploader({
                 );
               })}
             </ul>
+            {/* The same photo again, or one nearly the same (src/lib/dhash.ts): kindly, with where it is. */}
+            {labels.twinHint &&
+              items
+                .filter((it) => it.status === "error" && (it.error === "duplicate" || it.error === "too_close") && it.twin)
+                .slice(0, 1)
+                .map((it) => (
+                  <div key="twin" role="status" className="flex flex-col items-center gap-2 rounded-2xl bg-surface p-3 text-center text-sm font-bold">
+                    <p>{(it.error === "duplicate" ? labels.twinHint!.duplicate : labels.twinHint!.too_close).replace("{title}", it.twin!.title)}</p>
+                    <a href={`/m/${it.twin!.code}`} className="text-secondary underline underline-offset-4">
+                      {labels.twinHint!.see}
+                    </a>
+                  </div>
+                ))}
             {/* The person's own limit on this moment reached (src/server/angles.ts): said in full, with the
                 way on — a tile has room for three words only (2026-11-09: «تجاوزت الحد» meant nothing). */}
             {labels.tooManyHint && items.some((it) => it.status === "error" && it.error === "too_many") && (
