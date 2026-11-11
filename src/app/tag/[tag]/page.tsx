@@ -12,16 +12,23 @@ import { getCurrentUser } from "@/lib/session";
 import { listTag } from "@/server/discover";
 import { inEnglish } from "@/server/localize";
 import { isHubTag } from "@/lib/tag-hub";
-import { tagHub } from "@/server/tag-hub";
+import { normalizeTag } from "@/lib/hashtags";
+import { tagFamily, tagHub } from "@/server/tag-hub";
 
 // What a visitor sees (and a search engine): the same list for everyone not signed in.
-const visitorList = cache((tag: string) => listTag(null, tag));
+// A family's main page (src/lib/tag-twins.ts) lists its twins' moments too; a twin, its own.
+const family = cache(async (tag: string) => {
+  const f = await tagFamily(tag);
+  const main = f.main === normalizeTag(tag);
+  return { ...f, isMain: main, also: main ? f.members.slice(1) : [] };
+});
+const visitorList = cache(async (tag: string) => listTag(null, tag, (await family(tag)).also));
 // A page worth listing in search: a few moments at least, else it stays out of the index.
 const INDEX_FROM = 3;
 
 export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Promise<Metadata> {
   const tag = decodeURIComponent((await params).tag);
-  const [locale, moments] = await Promise.all([getLocale(), visitorList(tag)]);
+  const [locale, moments, fam] = await Promise.all([getLocale(), visitorList(tag), family(tag)]);
   const dict = await getDictionary(locale);
   // (Words as people type them: «صور_قهوة_حقيقية» → «صور قهوة حقيقية», nothing said twice —
   // src/lib/tag-phrase.ts; and each moment's title once.)
@@ -32,7 +39,8 @@ export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Pro
   return {
     title,
     description,
-    alternates: await alternatesFor(`/tag/${encodeURIComponent(tag)}`),
+    // A twin points to its family's main page: the one Google should show for these words.
+    alternates: await alternatesFor(`/tag/${encodeURIComponent(fam.isMain ? tag : fam.main)}`),
     robots: moments.length >= INDEX_FROM ? INDEXABLE : { index: false, follow: true },
     // Its link shared anywhere shows the newest moment's picture (full size).
     openGraph: { title, description, type: "website", images: moments.find((m) => m.coverUrl?.startsWith("/i/"))?.coverUrl?.replace("-small.jpg", ".jpg") },
@@ -43,13 +51,13 @@ export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Pro
 // everyone, since every hashtag on the site links here.
 export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
   const tag = decodeURIComponent((await params).tag);
-  const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
+  const [user, locale, fam] = await Promise.all([getCurrentUser(), getLocale(), family(tag)]);
   // Arabic pages only for now: the tags are Arabic words, and /en reads them in English.
   const hubbed = locale === "ar" && isHubTag(tag);
   const [dict, moments, hub] = await Promise.all([
     getDictionary(locale),
-    (user ? listTag(user, tag) : visitorList(tag)).then((l) => inEnglish(l, locale)),
-    hubbed ? tagHub(tag) : null,
+    (user ? listTag(user, tag, fam.also) : visitorList(tag)).then((l) => inEnglish(l, locale)),
+    hubbed ? tagHub(tag, fam.also) : null,
   ]);
   const t = dict.tag;
   // A collection page (src/lib/tag-hub.ts): its heading in the words people search («صور قهوة
@@ -92,6 +100,12 @@ export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
             </h1>
             <p className="text-sm text-muted">{t.hint}</p>
           </header>
+        )}
+        {/* A twin page: all of its family's pictures are on the main page. */}
+        {!fam.isMain && (
+          <Link href={`/tag/${encodeURIComponent(fam.main)}`} dir="auto" className="flex min-h-11 items-center justify-center rounded-full border-2 border-secondary/40 px-5 text-center text-sm font-bold text-secondary">
+            {t.allOf.replace("{phrase}", tagPhrase(fam.main, locale))}
+          </Link>
         )}
         {moments.length ? (
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">

@@ -155,9 +155,11 @@ export async function listDiscover(viewer: User | null) {
 // Public moments whose description carries #tag, newest activity first; cover = the
 // first angle that passed the check. Same rules as «اكتشف».
 // Open to everyone (visitors too): every link in a description or a shot's line leads here.
-export async function listTag(viewer: User | null, rawTag: string) {
+// `also`: its twins (src/lib/tag-twins.ts) — a family's main page lists their moments too.
+export async function listTag(viewer: User | null, rawTag: string, also: string[] = []) {
   const tag = normalizeTag(rawTag);
   if (!/^[\p{L}\p{N}_]{1,40}$/u.test(tag)) return [];
+  const tags = [...new Set([tag, ...also.map(normalizeTag)])].filter((t) => /^[\p{L}\p{N}_]{1,40}$/u.test(t));
   const now = new Date();
   const blocked = viewer ? [...(await blockedIdsFor(viewer.id))] : [];
   const shown = { status: "READY" as const, screening: "allowed", OR: [{ expiresAt: null }, { expiresAt: { gt: now } }], contributorId: { notIn: blocked } };
@@ -172,7 +174,7 @@ export async function listTag(viewer: User | null, rawTag: string) {
       // search engines (who would index a link that expires) don't get it on a #hashtag page.
       ...(viewer ? {} : { kind: { not: "DAILY" as const } }),
       // In the moment's description, or in the line written for one of its shots.
-      OR: [{ description: { contains: `#${tag}`, mode: "insensitive" } }, { angles: { some: { ...shown, aiText: { contains: `#${tag}`, mode: "insensitive" } } } }],
+      OR: tags.flatMap((t) => [{ description: { contains: `#${t}`, mode: "insensitive" as const } }, { angles: { some: { ...shown, aiText: { contains: `#${t}`, mode: "insensitive" as const } } } }]),
     },
     orderBy: { lastActivityAt: "desc" },
     take: CANDIDATES,
@@ -182,14 +184,15 @@ export async function listTag(viewer: User | null, rawTag: string) {
     },
   });
   const tagged = await db.angle.findMany({
-    where: { ...shown, momentId: { in: moments.map((m) => m.id) }, aiText: { contains: `#${tag}`, mode: "insensitive" } },
+    where: { ...shown, momentId: { in: moments.map((m) => m.id) }, OR: tags.map((t) => ({ aiText: { contains: `#${t}`, mode: "insensitive" as const } })) },
     select: { momentId: true, aiText: true },
   });
-  const inShots = new Set(tagged.filter((a) => hashtagsIn(a.aiText).includes(tag)).map((a) => a.momentId));
+  const has = (text: string | null) => hashtagsIn(text).some((t) => tags.includes(t));
+  const inShots = new Set(tagged.filter((a) => has(a.aiText)).map((a) => a.momentId));
   // "contains" also matches #tagger for #tag: keep exact tags only.
   return Promise.all(
     moments
-      .filter((m) => hashtagsIn(m.description).includes(tag) || inShots.has(m.id))
+      .filter((m) => has(m.description) || inShots.has(m.id))
       .map(async (m) => {
         const a = m.angles[0];
         return {

@@ -8,6 +8,7 @@ import { EN_INDEXED, enIndexable, inLocale } from "@/i18n/config";
 import { SOUNDS } from "@/lib/sounds";
 import { eventPath, findEvents } from "@/server/events";
 import { topicIndex, topicPath } from "@/server/topics";
+import { twinFamilies } from "@/lib/tag-twins";
 import { sitemapAuthors, sitemapEntries, sitemapShots, sitemapSoundKeys, sitemapTags, shotOrdinals, shotPath, shotTitle } from "@/server/seo";
 
 // The pages Google should know about: the home page, public moments (with all their shots'
@@ -29,17 +30,14 @@ import { sitemapAuthors, sitemapEntries, sitemapShots, sitemapSoundKeys, sitemap
 const EN_IN_SITEMAP = false;
 const PHOTO_PAGES_IN_SITEMAP = false;
 
-// One tag per spelling: «خيرات_الارض» and «خيرات_الأرض» (alef with or without hamza, ى/ي, ة/ه at
-// the end) are one page for a reader — the more used spelling stays.
-const fold = (tag: string) => tag.replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/ة(?=_|$)/g, "ه");
-function oneSpelling<T extends { tag: string; count: number }>(tags: T[]) {
-  const best = new Map<string, T>();
-  for (const t of tags) {
-    const key = fold(t.tag);
-    const was = best.get(key);
-    if (!was || t.count > was.count) best.set(key, t);
-  }
-  return [...best.values()];
+// One page per family (src/lib/tag-twins.ts): «خيرات_الارض» and «خيرات_الأرض», or #قهوة and
+// #صور_قهوة_حقيقية («صور قهوة حقيقية» both) — the main one, the one the others point to, listed
+// when the family has 5 moments (it shows them all), with the newest of them as its date.
+function oneSpelling<T extends { tag: string; count: number; updatedAt: Date }>(tags: T[]) {
+  const fams = twinFamilies(tags);
+  return tags
+    .filter((t) => fams.get(t.tag)!.main === t.tag && fams.get(t.tag)!.count >= 5)
+    .map((t) => ({ ...t, updatedAt: new Date(Math.max(...fams.get(t.tag)!.members.map((m) => tags.find((x) => x.tag === m)!.updatedAt.getTime()))) }));
 }
 
 export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
@@ -47,7 +45,7 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
   const [{ moments, places }, shots, tags, sounds, events, topics, authors, parts, cards, seasons] = await Promise.all([
     sitemapEntries(),
     sitemapShots(),
-    sitemapTags(undefined, 5),
+    sitemapTags(undefined, 1),
     sitemapSoundKeys(undefined, 3),
     findEvents({ since: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) }),
     topicIndex(),

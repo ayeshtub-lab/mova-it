@@ -683,7 +683,8 @@
     "hub": "{shots} في {moments}، صوّرها {people} على زاومو بجوالاتهم — صور حقيقية من حياة الناس.",
     "hubFrom": "منها: {titles}.",
     "hubLatest": "آخر صورة أُضيفت في {date}.",
-    "related": "مواضيع قريبة"
+    "related": "مواضيع قريبة",
+    "allOf": "📸 كل {phrase} على زاومو ←"
   },
   "sounds": {
     "title": "🎵 اختر صوتًا",

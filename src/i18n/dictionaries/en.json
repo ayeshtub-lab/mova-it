@@ -665,7 +665,8 @@
     "hub": "{shots} in {moments}, taken by {people} on Zawmo with their phones — real photos from real lives.",
     "hubFrom": "Among them: {titles}.",
     "hubLatest": "Newest photo added on {date}.",
-    "related": "Related topics"
+    "related": "Related topics",
+    "allOf": "📸 كل {phrase} على زاومو ←"
   },
   "sounds": {
     "title": "🎵 Pick a sound",

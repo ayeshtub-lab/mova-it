@@ -15,6 +15,7 @@ import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { imageRights, plain } from "@/lib/clip";
 import { hashtagsIn } from "@/lib/hashtags";
 import { isHubTag } from "@/lib/tag-hub";
+import { tagFamily } from "@/server/tag-hub";
 import { tagPhrase } from "@/lib/tag-phrase";
 import { soundSearch } from "@/lib/sound-search";
 import { filterCss } from "@/lib/filters";
@@ -84,7 +85,9 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   const weather = weatherLine(shot.weather, shot.weatherTemp, locale);
   const sound = soundSearch(shot.soundKey, locale);
   // Its first hashtag that has a collection page (Arabic pages: the tags are Arabic words).
-  const hubTag = locale === "ar" ? (hashtagsIn(shot.aiText).find(isHubTag) ?? null) : null;
+  // (By its family's main page — src/lib/tag-twins.ts — the one Google is told to show.)
+  const firstHub = locale === "ar" ? (hashtagsIn(shot.aiText).find(isHubTag) ?? null) : null;
+  const hubTag = firstHub ? (await tagFamily(firstHub)).main : null;
   // A video's page is its watch page: the video the one thing on it (Google, «Is on a watch page?
   // No — the video is supplementary content», 2026-10-22, after 16/10 put 12 covers under it). So
   // under a video, a few plain links; under a photo, the covers as before.
