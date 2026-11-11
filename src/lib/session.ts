@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { isReservedName } from "@/lib/names";
 
 import { SESSION_COOKIE } from "@/lib/session-cookie";
-import { SOURCE_COOKIE } from "@/lib/source";
+import { INVITE_COOKIE, SOURCE_COOKIE } from "@/lib/source";
 import { placeFromHeaders } from "@/lib/geo";
 
 export { SESSION_COOKIE };
@@ -39,6 +39,11 @@ export async function visitSource() {
   return (await cookies()).get(SOURCE_COOKIE)?.value?.slice(0, 40) || null;
 }
 
+// The member whose invite link this browser followed (src/proxy.ts), for a new account.
+export async function visitInviter() {
+  return (await cookies()).get(INVITE_COOKIE)?.value?.slice(0, 32) || null;
+}
+
 // Roughly where this request comes from (src/lib/geo.ts), for a new account.
 export async function visitPlace() {
   return placeFromHeaders(await headers());
@@ -55,6 +60,7 @@ export async function startGuestSession(displayName: string, locale: string) {
       locale,
       isGuest: true,
       source: await visitSource(),
+      invitedById: await visitInviter(),
       ...(await visitPlace()),
       sessions: { create: { tokenHash: hashToken(token), expiresAt } },
     },

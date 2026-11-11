@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/session-cookie";
 import { CANONICAL_HOST, OLD_HOSTS } from "@/lib/hosts";
-import { NEW_VISIT_HEADER, SOURCE_COOKIE, SOURCE_DAYS, sourceOf, tagged } from "@/lib/source";
+import { INVITE_COOKIE, NEW_VISIT_HEADER, SOURCE_COOKIE, SOURCE_DAYS, inviterOf, sourceOf, tagged } from "@/lib/source";
 import { EN_PREFIX, enIndexable, inLocale, LOCALE_HEADER, localeCookie, PATH_HEADER } from "@/i18n/config";
 
 // Moment codes (src/server/moments.ts): no 0/O, 1/I/L. Upper case only, so no page
@@ -77,6 +77,11 @@ export function proxy(request: NextRequest) {
   // the back button, an old link — turned them back to English, and the whole site with them).
   if (english && page && request.method === "GET" && !request.cookies.has(localeCookie)) {
     response.cookies.set(localeCookie, "en", { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+  }
+  // A member's invite link: kept (the first one followed) even when the source is already set.
+  const inviter = request.method === "GET" && !request.cookies.has(INVITE_COOKIE) ? inviterOf(request.nextUrl) : null;
+  if (inviter) {
+    response.cookies.set(INVITE_COOKIE, inviter, { maxAge: SOURCE_DAYS * 24 * 3600, httpOnly: true, sameSite: "lax", secure: host !== "localhost" && !host.startsWith("localhost:"), path: "/" });
   }
   if (source) {
     response.cookies.set(SOURCE_COOKIE, source, { maxAge: SOURCE_DAYS * 24 * 3600, httpOnly: true, sameSite: "lax", secure: host !== "localhost" && !host.startsWith("localhost:"), path: "/" });

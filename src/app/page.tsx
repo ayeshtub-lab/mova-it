@@ -21,7 +21,7 @@ import type { Locale } from "@/i18n/config";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { isInAppBrowser } from "@/lib/inapp";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { ANDROID_PACKAGE, CONTACT_EMAIL } from "@/lib/site";
 import { JsonLd } from "@/app/JsonLd";
@@ -105,6 +105,14 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
         <p className="text-center text-sm font-bold text-muted">{dict.home.doorsLine}</p>
       </section>
 
+      {/* «🎁 جديد: نقاطك» — for a signed-in member until they open «⭐ نقاطي» once (a cookie it sets;
+          nothing read from the database here). */}
+      {!user.isGuest && !(await cookies()).has("zw_pts") && (
+        <Link href="/points" className="flex items-center justify-between gap-3 rounded-3xl border-2 border-amber-300/70 bg-amber-50/60 p-4 font-bold dark:bg-amber-400/10">
+          <span>{dict.points.homeHint}</span>
+          <span className="shrink-0 text-sm text-amber-700 dark:text-amber-300">{dict.points.homeHintGo}</span>
+        </Link>
+      )}
       {/* «⭐ تحت أضواء زاومو» («خطة زاومو الذهبية», src/app/HomePin.tsx). */}
       <HomePin dict={dict} />
       {/* «زاوية الموسم» (2026-11-06): the season between its dates, pinned here — src/app/SeasonZone.tsx. */}

@@ -6,7 +6,10 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { coverOf } from "@/server/media";
-import { MISSION_POINTS, PinError, SPOT_AMOUNTS, SPOT_MAX_SHOTS, SPOT_MIN, WINNER_BUDGET, followsZawmo, myPoints, spotlightForWinner, spotlightWithPoints } from "@/server/points";
+import { MISSION_POINTS, PinError, SPOT_AMOUNTS, SPOT_MAX_SHOTS, SPOT_MIN, WINNER_BUDGET, followsZawmo, myInvites, myPoints, spotlightForWinner, spotlightWithPoints } from "@/server/points";
+import { CANONICAL_HOST } from "@/lib/hosts";
+import { inviteLink } from "@/lib/source";
+import { InviteShare, PointsSeen } from "./InviteShare";
 
 // «⭐ نقاطي» («خطة زاومو الذهبية», 2026-11-10; «النقطة = ظهور», 2026-11-12): the person's points
 // (and why), how points are earned, the week's Google mission, putting 1–5 of their public shots in
@@ -43,7 +46,7 @@ async function toggleNotes() {
 export default async function PointsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getCurrentUser();
   if (!user || user.isGuest) redirect("/");
-  const [locale, mine, sp, zawmo] = await Promise.all([getLocale(), myPoints(user), searchParams, followsZawmo(user.id)]);
+  const [locale, mine, sp, zawmo, invites] = await Promise.all([getLocale(), myPoints(user), searchParams, followsZawmo(user.id), myInvites(user.id)]);
   const dict = await getDictionary(locale);
   const t = dict.points;
   // The same digits as the words around them (10, 500) — as the inbox shows its numbers.
@@ -60,7 +63,8 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
   const canPay = mine.balance >= SPOT_MIN;
   const amounts = [...SPOT_AMOUNTS.filter((a) => a <= mine.balance), ...(canPay && !SPOT_AMOUNTS.includes(mine.balance) ? [mine.balance] : [])];
   const r = typeof sp.r === "string" ? sp.r : null;
-  const kinds: Record<string, string> = { shot: t.kindShot, likes: t.kindLikes, mission: t.kindMission, winner: t.kindWinner, pin: t.kindPin, refund: t.kindRefund, undo: t.kindUndo, gift: t.kindGift, follow: t.kindFollow, unfollow: t.kindUnfollow };
+  const invite = inviteLink(`https://${CANONICAL_HOST}`, user.id);
+  const kinds: Record<string, string> = { shot: t.kindShot, likes: t.kindLikes, mission: t.kindMission, winner: t.kindWinner, pin: t.kindPin, refund: t.kindRefund, undo: t.kindUndo, gift: t.kindGift, follow: t.kindFollow, unfollow: t.kindUnfollow, invite: t.kindInvite };
   const offer = !!mine.freePin || canPay;
   // The spotlight purchases of the last 2 weeks, one card each (its shots, views of bought).
   const batches = [...Map.groupBy(mine.pins, (p) => p.batch ?? p.id).values()];
@@ -68,6 +72,7 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
       <SiteHeader locale={locale} dict={dict} />
+      <PointsSeen />
       <main className="mx-auto flex w-full max-w-xl flex-col gap-5 pb-16">
         <h1 className="text-2xl font-extrabold">{t.title}</h1>
         {r && <p role="status" className="rounded-2xl bg-surface p-3 text-center font-bold">{(t.results as Record<string, string>)[r] ?? t.results.failed}</p>}
@@ -161,12 +166,22 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
           ) : null}
         </section>
 
+        <section className="flex flex-col gap-2 rounded-3xl border-2 border-secondary/30 p-4">
+          <h2 className="text-lg font-extrabold">{t.inviteTitle}</h2>
+          <p className="text-sm leading-relaxed text-muted">{t.inviteHint}</p>
+          {invites.giftOpen && <p className="text-sm font-bold">{t.inviteGift}</p>}
+          <InviteShare link={invite} message={t.inviteMessage} labels={{ share: t.inviteShare, copy: t.inviteCopy, copied: t.inviteCopied }} />
+          <p dir="ltr" className="truncate text-center text-xs text-muted">{invite}</p>
+          {invites.joined > 0 && <p className="text-sm font-bold text-secondary">{t.inviteStats.replace("{joined}", n(invites.joined)).replace("{paid}", n(invites.paid))}</p>}
+        </section>
+
         <section className="flex flex-col gap-2 rounded-3xl bg-surface p-4">
           <h2 className="text-lg font-extrabold">{t.earnTitle}</h2>
           <ul className="flex flex-col gap-1.5 text-sm leading-relaxed">
             <li>{t.earnShot}</li>
             <li>{t.earnLikes}</li>
             <li>{t.earnMission}</li>
+            <li>{t.earnInvite}</li>
             {/* «👤 تابع زاومو»: 50 once (src/server/points.ts awardFollow) — the follow button is on its page. */}
             <li className="flex flex-wrap items-center justify-between gap-2">
               <span>{t.earnFollow}</span>

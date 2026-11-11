@@ -97,6 +97,7 @@ export async function accountForGoogle(
   locale: string,
   source: string | null = null,
   place: { country: string | null; city: string | null } = { country: null, city: null },
+  invitedById: string | null = null,
 ) {
   const googleName = cleanDisplayName(profile.name);
   const fromGoogle = (u: { avatarUrl: string | null }) => ({
@@ -111,7 +112,8 @@ export async function accountForGoogle(
     return db.user.update({ where: { id: linked.id }, data: fromGoogle(linked) });
   }
   if (current?.isGuest && !current.googleSub) {
-    return db.user.update({ where: { id: current.id }, data: { googleSub: profile.sub, isGuest: false, ...fromGoogle(current) } });
+    // (a guest who joins keeps who invited them — or, if nobody, the link they followed since)
+    return db.user.update({ where: { id: current.id }, data: { googleSub: profile.sub, isGuest: false, ...(current.invitedById || !invitedById ? {} : { invitedById }), ...fromGoogle(current) } });
   }
   return db.user.create({
     data: {
@@ -119,6 +121,7 @@ export async function accountForGoogle(
       isGuest: false,
       locale,
       source,
+      invitedById,
       ...place,
       displayName: googleName ?? cleanDisplayName(profile.email?.split("@")[0]) ?? (locale === "ar" ? "عضو جديد" : "New member"),
       ...fromGoogle({ avatarUrl: null }),

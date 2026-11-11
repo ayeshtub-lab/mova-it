@@ -14,9 +14,12 @@ import { hamming, dhashFromGrey } from "../src/lib/dhash";
 import { AngleError, prepareAngle } from "../src/server/angles";
 import { createMoment } from "../src/server/moments";
 import { systemUser } from "../src/server/daily";
+import { inviteLink, inviterOf } from "../src/lib/source";
 import {
   FOLLOW_POINTS,
   GIFT_POINTS,
+  INVITE_POINTS,
+  awardInvites,
   PinError,
   WINNER_BUDGET,
   awardFollow,
@@ -64,7 +67,7 @@ const noonIn = (days: number) => {
 
 async function main() {
   const old = new Date(Date.now() - 10 * DAY);
-  const mk = (n: string, extra: { isGuest?: boolean; isAdmin?: boolean; createdAt?: Date } = {}) => db.user.create({ data: { displayName: `${TAG} ${n}`, isGuest: false, ...extra } });
+  const mk = (n: string, extra: { isGuest?: boolean; isAdmin?: boolean; createdAt?: Date; invitedById?: string } = {}) => db.user.create({ data: { displayName: `${TAG} ${n}`, isGuest: false, ...extra } });
   const [owner, other, fan, guest, newbie, admin] = await Promise.all([mk("owner", { createdAt: old }), mk("other", { createdAt: old }), mk("fan", { createdAt: old }), mk("guest", { isGuest: true, createdAt: old }), mk("newbie"), mk("admin", { isAdmin: true, createdAt: old })]);
   const ids = [owner.id, other.id, fan.id, guest.id, newbie.id, admin.id];
   try {
@@ -240,6 +243,27 @@ async function main() {
       assert.equal(await balanceOf(fan.id), before + FOLLOW_POINTS);
     });
 
+    await check("📤 an invite: 100 once the friend (signed in with Google) has 3 public shots — never a guest, never oneself", async () => {
+      const link = inviteLink("https://zawmo.com", fan.id);
+      assert.equal(inviterOf(new URL(link)), fan.id);
+      assert.equal(inviterOf(new URL("https://zawmo.com/?src=google")), null);
+      const friend = await mk("friend", { invitedById: fan.id });
+      const guestFriend = await mk("guestfriend", { isGuest: true, invitedById: fan.id });
+      const self = await mk("self");
+      await db.user.update({ where: { id: self.id }, data: { invitedById: self.id } });
+      ids.push(friend.id, guestFriend.id, self.id);
+      const before = await balanceOf(fan.id);
+      for (let i = 0; i < 2; i++) await ready({ contributorId: friend.id });
+      assert.equal(await awardInvites(new Date(), ids), 0, "2 shots: not yet");
+      await ready({ contributorId: friend.id });
+      for (let i = 0; i < 3; i++) await ready({ contributorId: guestFriend.id });
+      for (let i = 0; i < 3; i++) await ready({ contributorId: self.id });
+      assert.equal(await awardInvites(new Date(), ids), 1);
+      assert.equal(await balanceOf(fan.id), before + INVITE_POINTS);
+      assert.equal(await awardInvites(new Date(), ids), 0, "once");
+      assert.equal(await db.notification.count({ where: { userId: fan.id, kind: "INVITE_JOINED", actorId: friend.id } }), 1);
+    });
+
     await check("the mission's words: what the picture shows, not «صور» or «حقيقية»", () => {
       assert.deepEqual(missionWords("صور فنجان قهوة حقيقي"), ["فنجان", "قهوة"]);
       assert.equal(answers("فنجان قهوة الصباح على الطاولة", ["فنجان", "قهوة"]), true);
@@ -250,7 +274,7 @@ async function main() {
     await db.homePin.deleteMany({ where: { userId: { in: ids } } });
     await db.weeklyWinner.deleteMany({ where: { userId: { in: ids } } });
     await db.pointEntry.deleteMany({ where: { userId: { in: ids } } });
-    await db.notification.deleteMany({ where: { userId: { in: ids } } });
+    await db.notification.deleteMany({ where: { OR: [{ userId: { in: ids } }, { actorId: { in: ids } }] } });
     await db.reaction.deleteMany({ where: { userId: { in: ids } } });
     await db.angle.deleteMany({ where: { contributorId: { in: ids } } });
     await db.moment.deleteMany({ where: { creatorId: { in: ids } } });

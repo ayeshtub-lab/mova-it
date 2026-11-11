@@ -42,6 +42,14 @@ export const SEEN_PER_NET = 10;
 // «🎁 هدية زاومو» (his call, 2026-11-12: «الأعضاء اللي إلهم الفضل بنمو زاومو بيستحقوا 200»): once,
 // to every real member with 3 public shots or more taken before the launch — given in the hourly
 // runs until the day after (a guest who joins by then gets it too), then never again.
+// «📤 ادعِ صاحبك» (his call, 2026-11-12): a member's own link (src/lib/source.ts inviteLink) brings
+// someone; once that person — signed in with Google (a real account, not a guest a script can make)
+// — has 3 public shots that passed the check, the inviter gets 100, once per person, 10 a week at
+// most (the rest wait for the next week). The person invited gets the same as everyone (the gift
+// before 17/11, then their own shots).
+export const INVITE_POINTS = 100;
+export const INVITE_MIN_SHOTS = 3;
+export const INVITES_PER_WEEK = 10;
 // «👤 تابع زاومو» (his call, 2026-11-12): 50 points once for following Zawmo's own account — taken
 // back if the follow is dropped, and never paid twice (follow, unfollow, follow again pays once).
 export const FOLLOW_POINTS = 50;
@@ -186,10 +194,13 @@ export async function awardFollow(only?: string[]) {
   const zawmo = await systemUser();
   const follows = await db.follow.findMany({ where: { followingId: zawmo.id, follower: { isGuest: false, isSystem: false, isAdmin: false }, ...(only ? { followerId: { in: only } } : {}) }, select: { followerId: true } });
   const following = new Set(follows.map((f) => f.followerId));
-  let changed = 0;
-  for (const id of following) changed += (await db.pointEntry.createMany({ data: [{ userId: id, kind: "follow", points: FOLLOW_POINTS, ref: "zawmo" }], skipDuplicates: true })).count;
-  // Dropped the follow: the 50 go back (an «unfollow» line, kept apart from the week's earnings), and return if they follow again.
+  // One read for everyone already paid, then a write only for the new ones (not one a follower an hour).
   const lines = await db.pointEntry.findMany({ where: { kind: "follow", ref: "zawmo", ...(only ? { userId: { in: only } } : {}) }, select: { id: true, userId: true, points: true } });
+  const paid = new Set(lines.map((l) => l.userId));
+  const fresh = [...following].filter((id) => !paid.has(id));
+  let changed = fresh.length ? (await db.pointEntry.createMany({ data: fresh.map((userId) => ({ userId, kind: "follow", points: FOLLOW_POINTS, ref: "zawmo" })), skipDuplicates: true })).count : 0;
+  // Dropped the follow: the 50 go back (an «unfollow» line, kept apart from the week's earnings), and
+  // return if they follow again.
   const undone = new Map((await db.pointEntry.findMany({ where: { kind: "unfollow", ref: { in: lines.map((l) => l.id) } }, select: { id: true, ref: true } })).map((u) => [u.ref, u.id]));
   for (const l of lines) {
     const u = undone.get(l.id);
@@ -197,6 +208,36 @@ export async function awardFollow(only?: string[]) {
     else if (following.has(l.userId) && u) changed += (await db.pointEntry.deleteMany({ where: { id: u } })).count;
   }
   return changed;
+}
+
+export async function awardInvites(now = new Date(), only?: string[]) {
+  const joined = await db.user.findMany({
+    where: { invitedById: { not: null }, isGuest: false, isSystem: false, createdAt: { gte: new Date(now.getTime() - 90 * 24 * 3600e3) }, ...(only ? { id: { in: only } } : {}) },
+    select: { id: true, invitedById: true },
+  });
+  if (!joined.length) return 0;
+  const paid = new Set((await db.pointEntry.findMany({ where: { kind: "invite", ref: { in: joined.map((j) => j.id) } }, select: { ref: true } })).map((e) => e.ref));
+  let given = 0;
+  for (const j of joined) {
+    const inviterId = j.invitedById!;
+    if (paid.has(j.id) || inviterId === j.id) continue;
+    if ((await db.angle.count({ where: { contributorId: j.id, ...publicShot } })) < INVITE_MIN_SHOTS) continue;
+    const inviter = await db.user.findUnique({ where: { id: inviterId }, select: { id: true, isSystem: true, isGuest: true } });
+    if (!inviter || inviter.isSystem || inviter.isGuest) continue;
+    if ((await db.pointEntry.count({ where: { userId: inviterId, kind: "invite", createdAt: { gte: new Date(now.getTime() - WEEK_MS) } } })) >= INVITES_PER_WEEK) continue;
+    const made = await db.pointEntry.createMany({ data: [{ userId: inviterId, kind: "invite", points: INVITE_POINTS, ref: j.id }], skipDuplicates: true });
+    if (!made.count) continue;
+    given++;
+    await notify({ userId: inviterId, actorId: j.id, kind: "INVITE_JOINED", count: INVITE_POINTS }, { key: `invite:${j.id}`, where: { userId: inviterId, actorId: j.id, kind: "INVITE_JOINED" } });
+  }
+  return given;
+}
+
+// For «⭐ نقاطي»: how many joined from the person's link, and how many of them earned them points.
+export async function myInvites(userId: string, now = new Date()) {
+  const [joined, paid] = await Promise.all([db.user.count({ where: { invitedById: userId, isSystem: false } }), db.pointEntry.count({ where: { userId, kind: "invite" } })]);
+  // (while the launch gift is open, the invite says so)
+  return { joined, paid, giftOpen: now < GIFT_SHOTS_BEFORE };
 }
 
 export const followsZawmo = async (userId: string) => {
@@ -505,6 +546,7 @@ export async function goldenHourly(now = new Date()) {
     mission: await safe("mission", awardMission(now)),
     undone: await safe("undo", undoRemoved(now)),
     follow: await safe("follow", awardFollow()),
+    invites: quiet ? 0 : await safe("invites", awardInvites(now)),
     pinsClosed: await safe("close", closePins(now)),
     autoPinned: quiet ? 0 : await safe("autopick", autoPickForWinners(now)),
     gifts: quiet ? 0 : await safe("gift", giveGift(now)),

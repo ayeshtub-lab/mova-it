@@ -3,6 +3,12 @@
 // Coarse by design — a campaign name or a site's name, never a full link or anything personal.
 
 export const SOURCE_COOKIE = "zw_src";
+// «📤 ادعِ صاحبك» (2026-11-12): a member's own link, zawmo.com/?src=u-ID, kept apart from the source
+// (which stays first-touch, for the campaign numbers): the first member's link followed is kept 30
+// days, and a new account made in that browser is counted as theirs (src/server/points.ts).
+export const INVITE_COOKIE = "zw_ref";
+export const inviterOf = (url: URL) => /^u-([a-z0-9]{20,32})$/.exec(url.searchParams.get("src") ?? "")?.[1] ?? null;
+export const inviteLink = (site: string, userId: string) => `${site}/?src=u-${userId}`;
 export const SOURCE_DAYS = 30;
 // Set by src/proxy.ts on a first arrival that has a source (never trusted from the visitor).
 export const NEW_VISIT_HEADER = "x-zawmo-new-visit";

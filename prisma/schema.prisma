@@ -45,6 +45,10 @@ model User {
   // Where this person first came from (an ad's «?src=tiktok-house», a UTM source, or the referring
   // site: google, whatsapp…), for the admin's per-campaign numbers. Never shown to anyone else.
   source       String?
+  // «📤 ادعِ صاحبك» (2026-11-12): the member whose own link (zawmo.com/?src=u-ID) brought this person
+  // (src/proxy.ts keeps it in a cookie; src/server/points.ts awardInvites gives the inviter points
+  // once this person, signed in with Google, has 3 public shots). Never shown to anyone else.
+  invitedById  String?
   // Roughly where they are, from their connection when they joined (Vercel's IP location:
   // "SA", "Riyadh"), for per-country Zawmo and local ads later. Never shown to anyone else.
   country      String?
@@ -90,6 +94,8 @@ model User {
   pointEntries         PointEntry[]
   homePins             HomePin[]
   weeklyWins           WeeklyWinner[]
+
+  @@index([invitedById])
 }
 
 // Opaque random token in an httpOnly cookie (web) or a bearer header (app later);
@@ -629,6 +635,7 @@ enum NotificationKind {
   PIN_LIVE // ⭐ your shot is under Zawmo's spotlight now (the week's photographer's, picked for them)
   PIN_DONE // ⭐ your spotlight finished: seen N times (the number in `count`)
   POINTS_GIFT // 🎁 Zawmo's thank-you points (the number in `count`), once
+  INVITE_JOINED // 📤 someone you invited joined and shared 3 public shots: +N points (`count`)
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.
