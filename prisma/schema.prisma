@@ -628,6 +628,7 @@ enum NotificationKind {
   WEEKLY_WINNER // 🏆 you are the week's photographer: pick a shot to pin on the home page for 24 h
   PIN_LIVE // ⭐ your shot is under Zawmo's spotlight now (the week's photographer's, picked for them)
   PIN_DONE // ⭐ your spotlight finished: seen N times (the number in `count`)
+  POINTS_GIFT // 🎁 Zawmo's thank-you points (the number in `count`), once
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.

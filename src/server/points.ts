@@ -11,7 +11,7 @@ import { systemUser } from "@/server/daily";
 // anyone has what they have.
 //
 // Earning — only for shots in PUBLIC moments (what Google and visitors can see):
-// - a shot that went up and passed the check: 10 — the week's first 10 shots full, the next 10 half,
+// - a shot that went up and passed the check: 10 (a video 15) — the week's first 10 shots full, the next 10 half,
 //   then a quarter, so a flood doesn't pay;
 // - a heart from a real member: 2, up to 20 a shot. Not their own, not a guest, an account of 3 days
 //   at least, and at most 5 hearts a week from one member to the same person count (friends who
@@ -23,6 +23,8 @@ import { systemUser } from "@/server/daily";
 // photographer (Friday, by the week's points, at least 5 shots) gets 500 appearances free.
 
 export const SHOT_POINTS = 10;
+// A video takes more to shoot and send, and Google Video brings Zawmo the most (his call, 2026-11-12).
+export const VIDEO_POINTS = 15;
 export const LIKE_POINTS = 2;
 export const LIKES_CAP = 20;
 export const MISSION_POINTS = 20;
@@ -37,12 +39,23 @@ export const SPOT_DAYS = 7;
 export const WINNER_BUDGET = 500;
 export const SEEN_AGAIN_MIN = 30;
 export const SEEN_PER_NET = 10;
+// «🎁 هدية زاومو» (his call, 2026-11-12: «الأعضاء اللي إلهم الفضل بنمو زاومو بيستحقوا 200»): once,
+// to every real member with 3 public shots or more taken before the launch — given in the hourly
+// runs until the day after (a guest who joins by then gets it too), then never again.
+// «👤 تابع زاومو» (his call, 2026-11-12): 50 points once for following Zawmo's own account — taken
+// back if the follow is dropped, and never paid twice (follow, unfollow, follow again pays once).
+export const FOLLOW_POINTS = 50;
+export const GIFT_POINTS = 200;
+export const GIFT_MIN_SHOTS = 3;
+export const GIFT_SHOTS_BEFORE = new Date("2026-11-17T00:00:00+03:00");
+export const GIFT_UNTIL = new Date("2026-11-19T00:00:00+03:00");
 export const WINNER_MIN_SHOTS = 5;
 export const WINNER_PICK_HOURS = 12;
 const WEEK_MS = 7 * 24 * 3600e3;
 
 // The week's first 10 shots full, the next 10 half, then a quarter.
-export const taper = (nth: number) => (nth <= 10 ? SHOT_POINTS : nth <= 20 ? Math.round(SHOT_POINTS / 2) : Math.max(1, Math.round(SHOT_POINTS / 4)));
+// (a video from 15: 15, then 8, then 4)
+export const taper = (nth: number, base = SHOT_POINTS) => (nth <= 10 ? base : nth <= 20 ? Math.round(base / 2) : Math.max(1, Math.round(base / 4)));
 
 // Mecca time (as the rest of Zawmo's days): "2026-11-13".
 export const dayOf = (at: Date) => new Date(at.getTime() + 3 * 3600e3).toISOString().slice(0, 10);
@@ -66,7 +79,7 @@ const EARNED = ["shot", "likes", "mission", "undo"];
 export async function awardShots(now = new Date()) {
   const shots = await db.angle.findMany({
     where: { ...publicShot, uploadedAt: { gte: new Date(now.getTime() - 8 * 24 * 3600e3) }, contributor: earner },
-    select: { id: true, contributorId: true, uploadedAt: true },
+    select: { id: true, contributorId: true, uploadedAt: true, mediaType: true },
     orderBy: { uploadedAt: "asc" },
     take: 500,
   });
@@ -76,7 +89,7 @@ export async function awardShots(now = new Date()) {
   for (const s of shots) {
     if (done.has(s.id)) continue;
     const before = await db.pointEntry.count({ where: { userId: s.contributorId, kind: "shot", createdAt: { gte: new Date(now.getTime() - WEEK_MS) } } });
-    const made = await db.pointEntry.createMany({ data: [{ userId: s.contributorId, kind: "shot", points: taper(before + 1), ref: s.id }], skipDuplicates: true });
+    const made = await db.pointEntry.createMany({ data: [{ userId: s.contributorId, kind: "shot", points: taper(before + 1, s.mediaType === "VIDEO" ? VIDEO_POINTS : SHOT_POINTS), ref: s.id }], skipDuplicates: true });
     given += made.count;
   }
   return given;
@@ -149,6 +162,47 @@ export async function undoRemoved(now = new Date()) {
   }
   return changed;
 }
+
+// (`only`: for the tests, a few people instead of everyone)
+export async function giveGift(now = new Date(), only?: string[]) {
+  if (now >= GIFT_UNTIL) return 0;
+  const rows = await db.angle.groupBy({ by: ["contributorId"], where: { ...publicShot, uploadedAt: { lt: GIFT_SHOTS_BEFORE }, ...(only ? { contributorId: { in: only } } : {}) }, _count: { _all: true } });
+  const ids = rows.filter((r) => r._count._all >= GIFT_MIN_SHOTS).map((r) => r.contributorId);
+  if (!ids.length) return 0;
+  const people = await db.user.findMany({ where: { id: { in: ids }, isGuest: false, isSystem: false, isAdmin: false, pointEntries: { none: { kind: "gift" } } }, select: { id: true } });
+  if (!people.length) return 0;
+  const zawmo = await systemUser();
+  let given = 0;
+  for (const p of people) {
+    const made = await db.pointEntry.createMany({ data: [{ userId: p.id, kind: "gift", points: GIFT_POINTS, ref: "launch-2026-11" }], skipDuplicates: true });
+    if (!made.count) continue;
+    given++;
+    await notify({ userId: p.id, actorId: zawmo.id, kind: "POINTS_GIFT", count: GIFT_POINTS }, { key: `gift:${p.id}`, where: { userId: p.id, kind: "POINTS_GIFT" } });
+  }
+  return given;
+}
+
+export async function awardFollow(only?: string[]) {
+  const zawmo = await systemUser();
+  const follows = await db.follow.findMany({ where: { followingId: zawmo.id, follower: { isGuest: false, isSystem: false, isAdmin: false }, ...(only ? { followerId: { in: only } } : {}) }, select: { followerId: true } });
+  const following = new Set(follows.map((f) => f.followerId));
+  let changed = 0;
+  for (const id of following) changed += (await db.pointEntry.createMany({ data: [{ userId: id, kind: "follow", points: FOLLOW_POINTS, ref: "zawmo" }], skipDuplicates: true })).count;
+  // Dropped the follow: the 50 go back (an «unfollow» line, kept apart from the week's earnings), and return if they follow again.
+  const lines = await db.pointEntry.findMany({ where: { kind: "follow", ref: "zawmo", ...(only ? { userId: { in: only } } : {}) }, select: { id: true, userId: true, points: true } });
+  const undone = new Map((await db.pointEntry.findMany({ where: { kind: "unfollow", ref: { in: lines.map((l) => l.id) } }, select: { id: true, ref: true } })).map((u) => [u.ref, u.id]));
+  for (const l of lines) {
+    const u = undone.get(l.id);
+    if (!following.has(l.userId) && !u) changed += (await db.pointEntry.createMany({ data: [{ userId: l.userId, kind: "unfollow", points: -l.points, ref: l.id }], skipDuplicates: true })).count;
+    else if (following.has(l.userId) && u) changed += (await db.pointEntry.deleteMany({ where: { id: u } })).count;
+  }
+  return changed;
+}
+
+export const followsZawmo = async (userId: string) => {
+  const zawmo = await systemUser();
+  return { zawmoId: zawmo.id, following: (await db.follow.count({ where: { followerId: userId, followingId: zawmo.id } })) > 0 };
+};
 
 // ── «📸 مهمة الأسبوع» ────────────────────────────────────────────────────────────────────────────
 // Each Monday, from what people searched in Google to find Zawmo (SearchTerm, saved that morning):
@@ -450,8 +504,10 @@ export async function goldenHourly(now = new Date()) {
     likes: await safe("likes", awardLikes(now)),
     mission: await safe("mission", awardMission(now)),
     undone: await safe("undo", undoRemoved(now)),
+    follow: await safe("follow", awardFollow()),
     pinsClosed: await safe("close", closePins(now)),
     autoPinned: quiet ? 0 : await safe("autopick", autoPickForWinners(now)),
+    gifts: quiet ? 0 : await safe("gift", giveGift(now)),
     milestones: await safe("milestones", tellMilestones(now)),
   };
 }

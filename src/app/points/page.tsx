@@ -6,7 +6,7 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { db } from "@/lib/db";
 import { coverOf } from "@/server/media";
-import { MISSION_POINTS, PinError, SPOT_AMOUNTS, SPOT_MAX_SHOTS, SPOT_MIN, WINNER_BUDGET, myPoints, spotlightForWinner, spotlightWithPoints } from "@/server/points";
+import { MISSION_POINTS, PinError, SPOT_AMOUNTS, SPOT_MAX_SHOTS, SPOT_MIN, WINNER_BUDGET, followsZawmo, myPoints, spotlightForWinner, spotlightWithPoints } from "@/server/points";
 
 // «⭐ نقاطي» («خطة زاومو الذهبية», 2026-11-10; «النقطة = ظهور», 2026-11-12): the person's points
 // (and why), how points are earned, the week's Google mission, putting 1–5 of their public shots in
@@ -43,7 +43,7 @@ async function toggleNotes() {
 export default async function PointsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getCurrentUser();
   if (!user || user.isGuest) redirect("/");
-  const [locale, mine, sp] = await Promise.all([getLocale(), myPoints(user), searchParams]);
+  const [locale, mine, sp, zawmo] = await Promise.all([getLocale(), myPoints(user), searchParams, followsZawmo(user.id)]);
   const dict = await getDictionary(locale);
   const t = dict.points;
   // The same digits as the words around them (10, 500) — as the inbox shows its numbers.
@@ -60,7 +60,7 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
   const canPay = mine.balance >= SPOT_MIN;
   const amounts = [...SPOT_AMOUNTS.filter((a) => a <= mine.balance), ...(canPay && !SPOT_AMOUNTS.includes(mine.balance) ? [mine.balance] : [])];
   const r = typeof sp.r === "string" ? sp.r : null;
-  const kinds: Record<string, string> = { shot: t.kindShot, likes: t.kindLikes, mission: t.kindMission, winner: t.kindWinner, pin: t.kindPin, refund: t.kindRefund, undo: t.kindUndo };
+  const kinds: Record<string, string> = { shot: t.kindShot, likes: t.kindLikes, mission: t.kindMission, winner: t.kindWinner, pin: t.kindPin, refund: t.kindRefund, undo: t.kindUndo, gift: t.kindGift, follow: t.kindFollow, unfollow: t.kindUnfollow };
   const offer = !!mine.freePin || canPay;
   // The spotlight purchases of the last 2 weeks, one card each (its shots, views of bought).
   const batches = [...Map.groupBy(mine.pins, (p) => p.batch ?? p.id).values()];
@@ -167,7 +167,19 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
             <li>{t.earnShot}</li>
             <li>{t.earnLikes}</li>
             <li>{t.earnMission}</li>
+            {/* «👤 تابع زاومو»: 50 once (src/server/points.ts awardFollow) — the follow button is on its page. */}
+            <li className="flex flex-wrap items-center justify-between gap-2">
+              <span>{t.earnFollow}</span>
+              {zawmo.following ? (
+                <span className="text-xs font-bold text-secondary">{t.earnFollowDone}</span>
+              ) : (
+                <Link href={`/u/${zawmo.zawmoId}`} className="flex min-h-9 items-center rounded-full bg-secondary px-4 text-xs font-extrabold text-white dark:text-background">
+                  {t.earnFollowGo}
+                </Link>
+              )}
+            </li>
           </ul>
+          <p className="text-xs text-muted">{t.earnLater}</p>
           <p className="text-xs leading-relaxed text-muted">{t.earnNote}</p>
         </section>
 

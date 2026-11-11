@@ -65,7 +65,7 @@ export async function notify(event: Event, once?: { key: string; where: Prisma.N
         comment: created.comment?.body ?? null,
         count: created.count,
         // («⭐ نقاطي» for the week's photographer and the spotlight: where to pick, and the counter)
-        url: event.kind === "WEEKLY_WINNER" || event.kind === "PIN_DONE" || event.kind === "PIN_LIVE" ? "/points" : created.card ? `/c/${created.card.id}` : created.angle ? (event.kind === "VIDEO_READY" || event.kind === "FILM_PART" ? `/m/${created.angle.moment.code}#video` : `/m/${created.angle.moment.code}#angle-${created.angle.id}`) : `/u/${event.actorId}`,
+        url: event.kind === "WEEKLY_WINNER" || event.kind === "PIN_DONE" || event.kind === "PIN_LIVE" || event.kind === "POINTS_GIFT" ? "/points" : created.card ? `/c/${created.card.id}` : created.angle ? (event.kind === "VIDEO_READY" || event.kind === "FILM_PART" ? `/m/${created.angle.moment.code}#video` : `/m/${created.angle.moment.code}#angle-${created.angle.id}`) : `/u/${event.actorId}`,
       }).catch((error) => console.error("push failed", error));
     try {
       after(push);
@@ -143,7 +143,7 @@ export async function listNotifications(user: User, take = 40) {
       // Guests have no profile page; everyone else links to theirs.
       actorHasProfile: !n.actor.isGuest,
       comment: n.comment?.body ?? null,
-      href: n.kind === "WEEKLY_WINNER" || n.kind === "PIN_DONE" || n.kind === "PIN_LIVE" ? "/points" : n.card ? `/c/${n.card.id}` : n.angle ? (n.kind === "VIDEO_READY" || n.kind === "FILM_PART" ? `/m/${n.angle.moment.code}#video` : `/m/${n.angle.moment.code}#angle-${n.angle.id}`) : `/u/${n.actor.id}`,
+      href: n.kind === "WEEKLY_WINNER" || n.kind === "PIN_DONE" || n.kind === "PIN_LIVE" || n.kind === "POINTS_GIFT" ? "/points" : n.card ? `/c/${n.card.id}` : n.angle ? (n.kind === "VIDEO_READY" || n.kind === "FILM_PART" ? `/m/${n.angle.moment.code}#video` : `/m/${n.angle.moment.code}#angle-${n.angle.id}`) : `/u/${n.actor.id}`,
       momentTitle: n.angle?.moment.title ?? n.card?.text ?? null,
       // The person's own shot (a «🎬» notice: «لقطتك صارت بفيديو» rather than the creator's words).
       ownShot: n.angle?.contributorId === user.id,

@@ -13,9 +13,14 @@ import { db } from "../src/lib/db";
 import { hamming, dhashFromGrey } from "../src/lib/dhash";
 import { AngleError, prepareAngle } from "../src/server/angles";
 import { createMoment } from "../src/server/moments";
+import { systemUser } from "../src/server/daily";
 import {
+  FOLLOW_POINTS,
+  GIFT_POINTS,
   PinError,
   WINNER_BUDGET,
+  awardFollow,
+  giveGift,
   answers,
   autoPickForWinners,
   awardLikes,
@@ -97,6 +102,7 @@ async function main() {
 
     await check("points for public shots only: full for ten a week, then half, then a quarter", async () => {
       assert.deepEqual([taper(1), taper(10), taper(11), taper(20), taper(21)], [10, 10, 5, 5, 3]);
+      assert.deepEqual([taper(1, 15), taper(11, 15), taper(21, 15)], [15, 8, 4], "a video");
       for (let i = 0; i < 12; i++) await ready({ contributorId: owner.id });
       await ready({ contributorId: owner.id, momentId: hidden.id }); // a private moment: nothing
       await awardShots();
@@ -207,12 +213,40 @@ async function main() {
       assert.equal(await autoPickForWinners(), 0, "once");
     });
 
+    await check("🎁 the gift: 200 once to members with 3 public shots — not guests, not the team", async () => {
+      const before = await balanceOf(owner.id);
+      for (let i = 0; i < 3; i++) await ready({ contributorId: guest.id });
+      const given = await giveGift(new Date(), ids);
+      assert.equal(given, 1, "owner only (admin, guest, and those with fewer shots: none)");
+      assert.equal(await balanceOf(owner.id), before + GIFT_POINTS);
+      assert.equal(await giveGift(new Date(), ids), 0, "once");
+      assert.equal(await db.notification.count({ where: { userId: owner.id, kind: "POINTS_GIFT" } }), 1);
+      assert.equal(await giveGift(new Date("2026-12-01"), ids), 0, "only around the launch");
+    });
+
+    await check("👤 following Zawmo: 50 once; dropped → taken back; again → given back, never twice", async () => {
+      const zawmo = await systemUser();
+      const before = await balanceOf(fan.id);
+      await db.follow.create({ data: { followerId: fan.id, followingId: zawmo.id } });
+      await awardFollow(ids);
+      assert.equal(await balanceOf(fan.id), before + FOLLOW_POINTS);
+      await awardFollow(ids);
+      assert.equal(await balanceOf(fan.id), before + FOLLOW_POINTS);
+      await db.follow.delete({ where: { followerId_followingId: { followerId: fan.id, followingId: zawmo.id } } });
+      await awardFollow(ids);
+      assert.equal(await balanceOf(fan.id), before);
+      await db.follow.create({ data: { followerId: fan.id, followingId: zawmo.id } });
+      await awardFollow(ids);
+      assert.equal(await balanceOf(fan.id), before + FOLLOW_POINTS);
+    });
+
     await check("the mission's words: what the picture shows, not «صور» or «حقيقية»", () => {
       assert.deepEqual(missionWords("صور فنجان قهوة حقيقي"), ["فنجان", "قهوة"]);
       assert.equal(answers("فنجان قهوة الصباح على الطاولة", ["فنجان", "قهوة"]), true);
       assert.equal(answers("كاسة شاي", ["فنجان", "قهوة"]), false);
     });
   } finally {
+    await db.follow.deleteMany({ where: { followerId: { in: ids } } });
     await db.homePin.deleteMany({ where: { userId: { in: ids } } });
     await db.weeklyWinner.deleteMany({ where: { userId: { in: ids } } });
     await db.pointEntry.deleteMany({ where: { userId: { in: ids } } });

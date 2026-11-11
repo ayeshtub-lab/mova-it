@@ -10,7 +10,7 @@ import { currentMission } from "@/server/points";
 // the pin queue, the mission and the latest lines — to see the system is fair and nobody games it.
 export const metadata = { title: "زاومو · ⭐ النقاط", robots: { index: false } };
 
-const KIND: Record<string, string> = { shot: "📸 صورة", likes: "❤️ قلوب", mission: "🎯 مهمة", winner: "🏆 فائز", pin: "⭐ تحت الأضواء", refund: "↩️ رجعة ظهور", undo: "➖ انحذفت/صارت خاصة" };
+const KIND: Record<string, string> = { shot: "📸 صورة", likes: "❤️ قلوب", mission: "🎯 مهمة", winner: "🏆 فائز", pin: "⭐ تحت الأضواء", refund: "↩️ رجعة ظهور", undo: "➖ انحذفت/صارت خاصة", gift: "🎁 هدية زاومو", follow: "👤 تابع زاومو", unfollow: "➖ لغى متابعة زاومو" };
 
 export default async function AdminPoints() {
   const user = await getCurrentUser();
