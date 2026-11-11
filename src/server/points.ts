@@ -462,13 +462,13 @@ export async function myPoints(user: User, now = new Date()) {
   const [balance, week, entries, mission, pins, win] = await Promise.all([
     balanceOf(user.id),
     weekPointsOf(user.id, now),
-    db.pointEntry.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 30 }),
+    db.pointEntry.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 12 }),
     currentMission(now),
     db.homePin.findMany({
       where: { userId: user.id, createdAt: { gte: new Date(now.getTime() - 14 * 24 * 3600e3) } },
       orderBy: { createdAt: "desc" },
       take: 20,
-      select: { id: true, batch: true, source: true, budget: true, shown: true, reach: true, endsAt: true, closedAt: true, angleId: true, angle: { select: { moment: { select: { title: true } } } } },
+      select: { id: true, batch: true, source: true, budget: true, shown: true, reach: true, endsAt: true, closedAt: true, angleId: true, angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, moment: { select: { title: true } } } } },
     }),
     db.weeklyWinner.findFirst({ where: { userId: user.id, pinId: null }, orderBy: { createdAt: "desc" } }),
   ]);

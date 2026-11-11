@@ -55,6 +55,8 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
     select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, moment: { select: { title: true } }, _count: { select: { reactions: true } } },
   });
   const covers = await Promise.all(shots.map((s) => coverOf(s)));
+  // (a small picture beside each spotlight line: shots of one moment share its title)
+  const pinCovers = new Map(await Promise.all(mine.pins.filter((p) => p.angle).map(async (p) => [p.id, await coverOf(p.angle!)] as const)));
   const canPay = mine.balance >= SPOT_MIN;
   const amounts = [...SPOT_AMOUNTS.filter((a) => a <= mine.balance), ...(canPay && !SPOT_AMOUNTS.includes(mine.balance) ? [mine.balance] : [])];
   const r = typeof sp.r === "string" ? sp.r : null;
@@ -101,10 +103,14 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
                       <div className="h-full rounded-full bg-amber-400" style={{ width: `${budget ? Math.min(100, Math.round((shown / budget) * 100)) : 0}%` }} />
                     </div>
                     {b.map((p) => (
-                      <p key={p.id} className="flex flex-col">
-                        <span className="truncate font-bold">{p.angle?.moment.title ?? "—"}</span>
-                        <span className="text-muted">{t.statsLine.replace("{shown}", n(p.shown)).replace("{budget}", n(p.budget)).replace("{reach}", n(p.reach))}</span>
-                      </p>
+                      <div key={p.id} className="flex items-center gap-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL */}
+                        {pinCovers.get(p.id) ? <img src={pinCovers.get(p.id)!} alt="" loading="lazy" className="size-11 shrink-0 rounded-lg object-cover" /> : <span className="size-11 shrink-0 rounded-lg bg-line" />}
+                        <p className="flex min-w-0 flex-col">
+                          <span className="truncate font-bold">{p.angle?.moment.title ?? "—"}</span>
+                          <span className="text-muted">{t.statsLine.replace("{shown}", n(p.shown)).replace("{budget}", n(p.budget)).replace("{reach}", n(p.reach))}</span>
+                        </p>
+                      </div>
                     ))}
                   </li>
                 );
