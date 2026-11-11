@@ -44,7 +44,8 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
   const [locale, mine, sp] = await Promise.all([getLocale(), myPoints(user), searchParams]);
   const dict = await getDictionary(locale);
   const t = dict.points;
-  const n = (x: number) => x.toLocaleString(locale === "en" ? "en" : "ar-EG");
+  // The same digits as the words around them (10, 500) — as the inbox shows its numbers.
+  const n = (x: number) => x.toLocaleString("en");
   const shots = await db.angle.findMany({
     where: { contributorId: user.id, status: "READY", screening: "allowed", moment: { visibility: "PUBLIC", status: "ACTIVE" } },
     orderBy: { uploadedAt: "desc" },
@@ -104,7 +105,8 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
                 <li key={s.id} className="flex flex-col gap-1">
                   {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL */}
                   {covers[i] && <img src={covers[i]!} alt={s.moment.title} loading="lazy" className="aspect-[3/4] w-full rounded-2xl object-cover" />}
-                  <span className="truncate text-xs text-muted">❤️ {n(s._count.reactions)}</span>
+                  {/* (no «❤️ 0» under a shot nobody liked yet) */}
+                  <span className="h-4 truncate text-xs text-muted">{s._count.reactions > 0 ? `❤️ ${n(s._count.reactions)}` : ""}</span>
                   {(mine.freePin || canPay) && (
                     <form action={pin}>
                       <input type="hidden" name="angleId" value={s.id} />

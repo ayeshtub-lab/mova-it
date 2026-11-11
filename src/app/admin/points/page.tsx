@@ -45,7 +45,7 @@ function render({ locale, dict, top, winners, pins, mission, latest, total, name
       <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 pb-16">
         <h1 className="text-2xl font-extrabold">⭐ النقاط («خطة زاومو الذهبية»)</h1>
         <p className="text-sm text-muted">
-          كل النقاط من البداية: {(total._sum.points ?? 0).toLocaleString("ar-EG")} نقطة بـ{total._count.toLocaleString("ar-EG")} سطر.
+          كل النقاط من البداية: {(total._sum.points ?? 0).toLocaleString("en")} نقطة بـ{total._count.toLocaleString("en")} سطر.
         </p>
 
         <section className="flex flex-col gap-2">
