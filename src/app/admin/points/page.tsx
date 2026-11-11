@@ -10,7 +10,7 @@ import { currentMission } from "@/server/points";
 // the pin queue, the mission and the latest lines — to see the system is fair and nobody games it.
 export const metadata = { title: "زاومو · ⭐ النقاط", robots: { index: false } };
 
-const KIND: Record<string, string> = { shot: "📸 صورة", likes: "❤️ قلوب", mission: "🎯 مهمة", winner: "🏆 فائز", pin: "📌 تثبيت" };
+const KIND: Record<string, string> = { shot: "📸 صورة", likes: "❤️ قلوب", mission: "🎯 مهمة", winner: "🏆 فائز", pin: "⭐ تحت الأضواء", refund: "↩️ رجعة ظهور", undo: "➖ انحذفت/صارت خاصة" };
 
 export default async function AdminPoints() {
   const user = await getCurrentUser();
@@ -28,7 +28,7 @@ async function adminData() {
   return Promise.all([
     db.pointEntry.groupBy({ by: ["userId"], where: { points: { gt: 0 }, createdAt: { gte: since } }, _sum: { points: true }, orderBy: { _sum: { points: "desc" } }, take: 15 }),
     db.weeklyWinner.findMany({ orderBy: { createdAt: "desc" }, take: 8, include: { user: { select: { displayName: true } } } }),
-    db.homePin.findMany({ where: { endsAt: { gt: now } }, orderBy: { startsAt: "asc" }, include: { user: { select: { displayName: true } }, angle: { select: { moment: { select: { code: true, title: true } } } } } }),
+    db.homePin.findMany({ where: { OR: [{ closedAt: null }, { closedAt: { gte: since } }] }, orderBy: { createdAt: "desc" }, take: 40, include: { user: { select: { displayName: true } }, angle: { select: { moment: { select: { code: true, title: true } } } } } }),
     currentMission(),
     db.pointEntry.findMany({ orderBy: { createdAt: "desc" }, take: 30, include: { user: { select: { displayName: true } } } }),
     db.pointEntry.aggregate({ where: { points: { gt: 0 } }, _sum: { points: true }, _count: true }),
@@ -67,11 +67,11 @@ function render({ locale, dict, top, winners, pins, mission, latest, total, name
         </section>
 
         <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-extrabold">📌 التثبيت (الحالي والدور)</h2>
+          <h2 className="text-lg font-extrabold">⭐ تحت الأضواء (الشغّال وآخر 7 أيام)</h2>
           <ul className="flex flex-col gap-1 text-sm">
             {pins.map((p) => (
               <li key={p.id}>
-                {p.source === "winner" ? "🏆" : "⭐"} <Link href={`/m/${p.angle.moment.code}`} className="underline">{p.angle.moment.title}</Link> · {p.user.displayName} · {time(p.startsAt)} ← {time(p.endsAt)}
+                {p.source === "winner" ? "🏆" : "⭐"} {p.angle ? <Link href={`/m/${p.angle.moment.code}`} className="underline">{p.angle.moment.title}</Link> : "(انحذفت)"} · {p.user.displayName} · 👁️ {p.shown}/{p.budget} · 👥 {p.reach} · {p.closedAt ? `خلص ${time(p.closedAt)}` : `لحد ${time(p.endsAt)}`}
               </li>
             ))}
             {!pins.length && <li className="text-muted">ما في شي مثبّت.</li>}
@@ -83,7 +83,7 @@ function render({ locale, dict, top, winners, pins, mission, latest, total, name
           <ul className="flex flex-col gap-1 text-sm">
             {winners.map((w) => (
               <li key={w.week}>
-                {w.week}: {w.user.displayName} ({w.points} نقطة) {w.pinId ? (w.pinId === "-" ? "· ما في صورة عامة" : "· ثبّت ✓") : "· لسا ما اختار"}
+                {w.week}: {w.user.displayName} ({w.points} نقطة) {w.pinId ? (w.pinId === "-" ? "· ما في صورة عامة" : "· اختار ✓") : "· لسا ما اختار"}
               </li>
             ))}
             {!winners.length && <li className="text-muted">أول فائز بيطلع يوم الجمعة.</li>}

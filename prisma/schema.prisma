@@ -626,7 +626,8 @@ enum NotificationKind {
   // «خطة زاومو الذهبية» (2026-11-10), all from Zawmo:
   MILESTONE // your shot was seen N times (the number in `count`; once per step)
   WEEKLY_WINNER // 🏆 you are the week's photographer: pick a shot to pin on the home page for 24 h
-  PIN_LIVE // 📌 your shot is pinned on the home page now (24 h)
+  PIN_LIVE // ⭐ your shot is under Zawmo's spotlight now (the week's photographer's, picked for them)
+  PIN_DONE // ⭐ your spotlight finished: seen N times (the number in `count`)
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.
@@ -974,19 +975,48 @@ model PointEntry {
 // A shot pinned under the home page's wheel for 24 hours: the week's winner's choice, or bought with
 // 500 points. One at a time; the next waits its turn (startsAt), each ends on its own (endsAt).
 model HomePin {
-  id        String   @id @default(cuid())
-  angleId   String
+  id        String    @id @default(cuid())
+  // (kept when the shot is deleted: what was left of its budget goes back — src/server/points.ts)
+  angleId   String?
   userId    String
   source    String // winner | points
   startsAt  DateTime
-  endsAt    DateTime
-  createdAt DateTime @default(now())
+  endsAt    DateTime // the latest it may run (7 days); it ends sooner once `shown` reaches `budget`
+  createdAt DateTime  @default(now())
+  // «⭐ تحت أضواء زاومو» (2026-11-12, his call: «النقطة = ظهور»): how many appearances were bought
+  // (1 point each, or free for the week's photographer), how many were seen, by how many devices.
+  budget    Int       @default(0)
+  shown     Int       @default(0)
+  reach     Int       @default(0)
+  // Closed by the hourly run: what was not shown went back as points, and the owner was told.
+  closedAt  DateTime?
+  // A few shots bought together share one budget, split between them.
+  batch     String?
 
-  angle Angle @relation(fields: [angleId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  angle Angle?    @relation(fields: [angleId], references: [id], onDelete: SetNull)
+  user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  seen  PinSeen[]
 
   @@index([startsAt, endsAt])
   @@index([userId])
+  @@index([closedAt])
+}
+
+// One device that saw a pin (src/app/api/pin-seen): its first and latest time, and how many times
+// it counted — the same device in the same 30 minutes counts once. `net`: a salted hash of its
+// network, so one network can't pass for a crowd. Nothing personal is kept.
+model PinSeen {
+  pinId   String
+  device  String
+  net     String
+  views   Int      @default(1)
+  firstAt DateTime @default(now())
+  lastAt  DateTime @default(now())
+
+  pin HomePin @relation(fields: [pinId], references: [id], onDelete: Cascade)
+
+  @@id([pinId, device])
+  @@index([pinId, net])
 }
 
 // The week's photographer (Friday, by the week's points): picks a shot to pin within 12 hours, or

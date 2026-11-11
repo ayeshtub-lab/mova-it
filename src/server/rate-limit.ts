@@ -41,6 +41,10 @@ export type Action = keyof typeof LIMITS;
 const ipOf = (headers: Headers) => (headers.get("x-forwarded-for")?.split(",")[0] ?? headers.get("x-real-ip") ?? "unknown").trim();
 const hashed = (ip: string) => createHash("sha256").update(`zawmo-rl:${ip}`).digest("base64url").slice(0, 22);
 
+// A network's salted name for one purpose (never the address itself): «⭐ تحت الأضواء» counts no
+// more than 10 devices from one network for one pin (src/server/points.ts countSeen).
+export const networkOf = (headers: Headers, purpose: string) => createHash("sha256").update(`zawmo-${purpose}:${ipOf(headers)}`).digest("base64url").slice(0, 16);
+
 // true = allowed. One atomic statement: start a new window, or count one more in this one.
 export async function allow(action: Action, who: string) {
   const [max, windowS] = LIMITS[action];

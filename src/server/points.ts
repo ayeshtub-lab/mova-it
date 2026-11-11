@@ -4,25 +4,39 @@ import { db } from "@/lib/db";
 import { notify } from "@/server/notifications";
 import { systemUser } from "@/server/daily";
 
-// «خطة زاومو الذهبية (تحت الأضواء)» — phase 0 and 1 (his decisions, 2026-11-10):
-// points are EARNED by giving Zawmo real things, never bought, and SPENT on a shot pinned under the
-// home page's wheel for 24 hours. Every point is a line in PointEntry (who, why, for which thing), so
-// a balance is a sum, nothing is counted twice, and the team can see why anyone has what they have.
+// «خطة زاومو الذهبية» — for members «⭐ تحت أضواء زاومو» (his decisions, 2026-11-10 and 12):
+// points are EARNED by giving Zawmo real public pictures, never bought, and SPENT on appearances
+// under the home page's wheel: one point, one appearance. Every point is a line in PointEntry (who,
+// why, for which thing), so a balance is a sum, nothing is counted twice, and the team can see why
+// anyone has what they have.
 //
-// Earning (his numbers): a shot that went up and passed the check 10 — the more someone shares the
-// more they earn, with a smart taper so a flood doesn't pay (the week's first 10 shots full, the next
-// 10 half, then a quarter); a heart from a real member (not their own, not a guest) 2, up to 20 a
-// shot; a shot that answers the week's Google mission 20 more. Near-duplicates never get here: the
-// fingerprint stops them before they go up (src/lib/dhash.ts).
-// Spending: 500 = a shot of one's own pinned for 24 h (one pin at a time; the next waits its turn).
-// The week's photographer (Friday, by the week's points, at least 5 shots) pins one for free.
+// Earning — only for shots in PUBLIC moments (what Google and visitors can see):
+// - a shot that went up and passed the check: 10 — the week's first 10 shots full, the next 10 half,
+//   then a quarter, so a flood doesn't pay;
+// - a heart from a real member: 2, up to 20 a shot. Not their own, not a guest, an account of 3 days
+//   at least, and at most 5 hearts a week from one member to the same person count (friends who
+//   heart everything of each other don't make points);
+// - a shot that answers the week's Google mission: 20 more.
+// A shot deleted or made private within 30 days takes its points back (they return if it is public
+// again). Near-duplicates never get here: the fingerprint stops them before they go up.
+// Spending: from 100 points, on 1 to 5 public shots — see «تحت أضواء زاومو» below. The week's
+// photographer (Friday, by the week's points, at least 5 shots) gets 500 appearances free.
 
 export const SHOT_POINTS = 10;
 export const LIKE_POINTS = 2;
 export const LIKES_CAP = 20;
 export const MISSION_POINTS = 20;
-export const PIN_COST = 500;
-export const PIN_HOURS = 24;
+export const HEART_ACCOUNT_DAYS = 3;
+export const HEARTS_PER_PAIR_WEEK = 5;
+export const UNDO_DAYS = 30;
+// The spotlight: one point = one appearance.
+export const SPOT_MIN = 100;
+export const SPOT_AMOUNTS = [100, 250, 500];
+export const SPOT_MAX_SHOTS = 5;
+export const SPOT_DAYS = 7;
+export const WINNER_BUDGET = 500;
+export const SEEN_AGAIN_MIN = 30;
+export const SEEN_PER_NET = 10;
 export const WINNER_MIN_SHOTS = 5;
 export const WINNER_PICK_HOURS = 12;
 const WEEK_MS = 7 * 24 * 3600e3;
@@ -35,19 +49,23 @@ export const dayOf = (at: Date) => new Date(at.getTime() + 3 * 3600e3).toISOStri
 
 // Who can earn: real people (not Zawmo's own account).
 const earner = { isSystem: false };
+// What earns: a shot up, checked, in a public moment.
+const publicShot = { status: "READY" as const, screening: "allowed", moment: { visibility: "PUBLIC" as const, status: "ACTIVE" as const } };
 
 export async function balanceOf(userId: string) {
   return (await db.pointEntry.aggregate({ where: { userId }, _sum: { points: true } }))._sum.points ?? 0;
 }
 
+// What was earned in the last 7 days (spending and refunds aside; points taken back count against).
 export async function weekPointsOf(userId: string, now = new Date()) {
-  return (await db.pointEntry.aggregate({ where: { userId, points: { gt: 0 }, createdAt: { gte: new Date(now.getTime() - WEEK_MS) } }, _sum: { points: true } }))._sum.points ?? 0;
+  return (await db.pointEntry.aggregate({ where: { userId, kind: { in: EARNED }, createdAt: { gte: new Date(now.getTime() - WEEK_MS) } }, _sum: { points: true } }))._sum.points ?? 0;
 }
+const EARNED = ["shot", "likes", "mission", "undo"];
 
-// Shots that went up and passed the check in the last 8 days, not yet counted.
+// Public shots that went up and passed the check in the last 8 days, not yet counted.
 export async function awardShots(now = new Date()) {
   const shots = await db.angle.findMany({
-    where: { status: "READY", screening: "allowed", uploadedAt: { gte: new Date(now.getTime() - 8 * 24 * 3600e3) }, contributor: earner },
+    where: { ...publicShot, uploadedAt: { gte: new Date(now.getTime() - 8 * 24 * 3600e3) }, contributor: earner },
     select: { id: true, contributorId: true, uploadedAt: true },
     orderBy: { uploadedAt: "asc" },
     take: 500,
@@ -64,28 +82,70 @@ export async function awardShots(now = new Date()) {
   return given;
 }
 
-// Hearts from real members (not the shot's own, not guests) on shots of the last 30 days.
-export async function awardLikes(now = new Date()) {
-  const rows = await db.reaction.groupBy({
-    by: ["angleId"],
-    where: { createdAt: { gte: new Date(now.getTime() - 30 * 24 * 3600e3) }, user: { isGuest: false, isSystem: false }, angle: { status: "READY", contributor: earner } },
-    _count: { _all: true },
+// Which hearts count, in time order: a giver's first 5 a week to the same person.
+export function countedHearts<T extends { giver: string; owner: string; at: Date }>(hearts: T[]) {
+  const sorted = [...hearts].sort((a, b) => a.at.getTime() - b.at.getTime());
+  const byPair = new Map<string, number[]>();
+  return sorted.filter((h) => {
+    const key = `${h.giver}>${h.owner}`;
+    const recent = (byPair.get(key) ?? []).filter((t) => t > h.at.getTime() - WEEK_MS);
+    if (recent.length >= HEARTS_PER_PAIR_WEEK) return false;
+    byPair.set(key, [...recent, h.at.getTime()]);
+    return true;
   });
+}
+
+// Hearts on public shots that got one in the last 30 days (all their hearts, so a shot's count only
+// grows), from members of 3 days or more, never the shot's own, 5 a week from one member to one person.
+export async function awardLikes(now = new Date()) {
+  const recent = await db.reaction.findMany({
+    where: { createdAt: { gte: new Date(now.getTime() - UNDO_DAYS * 24 * 3600e3) }, angle: { ...publicShot, contributor: earner } },
+    select: { angleId: true },
+    distinct: ["angleId"],
+    take: 2000,
+  });
+  if (!recent.length) return 0;
+  const angleIds = recent.map((r) => r.angleId);
+  const owners = await db.angle.findMany({ where: { id: { in: angleIds } }, select: { id: true, contributorId: true } });
+  const ownerOf = new Map(owners.map((o) => [o.id, o.contributorId]));
+  // Every heart these owners got (the weekly limit per member is across all their shots).
+  const all = await db.reaction.findMany({
+    where: { angle: { contributorId: { in: [...new Set(ownerOf.values())] } }, user: { isGuest: false, isSystem: false, createdAt: { lte: new Date(now.getTime() - HEART_ACCOUNT_DAYS * 24 * 3600e3) } } },
+    select: { angleId: true, userId: true, createdAt: true, angle: { select: { contributorId: true } } },
+  });
+  const hearts = all.filter((r) => r.userId !== r.angle.contributorId).map((r) => ({ angleId: r.angleId, giver: r.userId, owner: r.angle.contributorId, at: r.createdAt }));
+  const per = new Map<string, number>();
+  for (const h of countedHearts(hearts)) if (ownerOf.has(h.angleId)) per.set(h.angleId, (per.get(h.angleId) ?? 0) + 1);
   let changed = 0;
-  for (const r of rows) {
-    const shot = await db.angle.findUnique({ where: { id: r.angleId }, select: { contributorId: true } });
-    if (!shot) continue;
-    const real = await db.reaction.count({ where: { angleId: r.angleId, userId: { not: shot.contributorId }, user: { isGuest: false, isSystem: false } } });
-    const points = Math.min(LIKES_CAP, real * LIKE_POINTS);
-    if (!points) continue;
-    const had = await db.pointEntry.findUnique({ where: { userId_kind_ref: { userId: shot.contributorId, kind: "likes", ref: r.angleId } }, select: { points: true } });
-    if (had && had.points >= points) continue; // never taken back
-    await db.pointEntry.upsert({
-      where: { userId_kind_ref: { userId: shot.contributorId, kind: "likes", ref: r.angleId } },
-      create: { userId: shot.contributorId, kind: "likes", points, ref: r.angleId },
-      update: { points },
-    });
+  for (const [angleId, n] of per) {
+    const owner = ownerOf.get(angleId)!;
+    const points = Math.min(LIKES_CAP, n * LIKE_POINTS);
+    const had = await db.pointEntry.findUnique({ where: { userId_kind_ref: { userId: owner, kind: "likes", ref: angleId } }, select: { points: true } });
+    if (had && had.points >= points) continue; // never taken back here (a hidden shot: «undo»)
+    await db.pointEntry.upsert({ where: { userId_kind_ref: { userId: owner, kind: "likes", ref: angleId } }, create: { userId: owner, kind: "likes", points, ref: angleId }, update: { points } });
     changed++;
+  }
+  return changed;
+}
+
+// A shot deleted or no longer public within 30 days of its points: they are taken back («undo», one
+// line per line it cancels) — and given again if it is public again. (Upload, collect, delete,
+// upload again pays nothing.)
+export async function undoRemoved(now = new Date()) {
+  const lines = await db.pointEntry.findMany({ where: { kind: { in: ["shot", "likes", "mission"] }, createdAt: { gte: new Date(now.getTime() - UNDO_DAYS * 24 * 3600e3) } }, select: { id: true, userId: true, points: true, ref: true } });
+  if (!lines.length) return 0;
+  const live = new Set((await db.angle.findMany({ where: { id: { in: [...new Set(lines.map((l) => l.ref))] }, ...publicShot }, select: { id: true } })).map((a) => a.id));
+  const undone = await db.pointEntry.findMany({ where: { kind: "undo", ref: { in: lines.map((l) => l.id) } }, select: { id: true, ref: true, points: true } });
+  const undoOf = new Map(undone.map((u) => [u.ref, u]));
+  let changed = 0;
+  for (const l of lines) {
+    const u = undoOf.get(l.id);
+    if (!live.has(l.ref)) {
+      if (!u) changed += (await db.pointEntry.createMany({ data: [{ userId: l.userId, kind: "undo", points: -l.points, ref: l.id }], skipDuplicates: true })).count;
+      else if (u.points !== -l.points) changed += (await db.pointEntry.updateMany({ where: { id: u.id }, data: { points: -l.points } })).count;
+    } else if (u) {
+      changed += (await db.pointEntry.deleteMany({ where: { id: u.id } })).count;
+    }
   }
   return changed;
 }
@@ -149,7 +209,7 @@ export async function awardMission(now = new Date()) {
   if (!mission) return 0;
   const start = new Date(`${mission.week}T00:00:00+03:00`);
   const shots = await db.angle.findMany({
-    where: { status: "READY", screening: "allowed", uploadedAt: { gte: start }, contributor: earner },
+    where: { ...publicShot, uploadedAt: { gte: start }, contributor: earner },
     select: { id: true, contributorId: true, aiText: true },
   });
   let given = 0;
@@ -161,15 +221,20 @@ export async function awardMission(now = new Date()) {
   return given;
 }
 
-// ── 📌 The pin under the home page's wheel ───────────────────────────────────────────────────────
+// ── ⭐ «تحت أضواء زاومو»: the spotlight under the home page's wheel ─────────────────────────────────
+// (His call, 2026-11-12: «النقطة = ظهور».) Points buy appearances — one point, one time the picture
+// is really on someone's screen (src/app/api/pin-seen) — spread over 1 to 5 of one's public shots,
+// and shown until they are used up, 7 days at most; what is left then comes back as points. Several
+// people at once share the place: each view picks one, the more left to show the likelier. The
+// week's photographer gets 500 appearances free.
 
 export class PinError extends Error {
-  constructor(public code: "not_found" | "not_public" | "not_enough") {
+  constructor(public code: "not_found" | "not_public" | "not_enough" | "too_many" | "too_few" | "taken") {
     super(code);
   }
 }
 
-// A shot that may be pinned: the person's own, up and checked, in a public moment.
+// A shot that may be in the spotlight: the person's own, up and checked, in a public moment.
 async function pinnable(userId: string, angleId: string) {
   const shot = await db.angle.findUnique({ where: { id: angleId }, select: { id: true, contributorId: true, status: true, screening: true, moment: { select: { visibility: true, status: true } } } });
   if (!shot || shot.contributorId !== userId) throw new PinError("not_found");
@@ -177,56 +242,142 @@ async function pinnable(userId: string, angleId: string) {
   return shot;
 }
 
-// Its turn: right away if nothing is pinned, else when the last one in the queue ends.
-async function nextSlot(now: Date) {
-  const last = await db.homePin.findFirst({ where: { endsAt: { gt: now } }, orderBy: { endsAt: "desc" }, select: { endsAt: true } });
-  const startsAt = last ? last.endsAt : now;
-  return { startsAt, endsAt: new Date(startsAt.getTime() + PIN_HOURS * 3600e3) };
+// 500 over 3 shots → 167, 167, 166.
+export const split = (amount: number, parts: number) => Array.from({ length: parts }, (_, i) => Math.floor(amount / parts) + (i < amount % parts ? 1 : 0));
+
+async function checkShots(userId: string, angleIds: string[]) {
+  const ids = [...new Set(angleIds)];
+  if (!ids.length) throw new PinError("not_found");
+  if (ids.length > SPOT_MAX_SHOTS) throw new PinError("too_many");
+  for (const id of ids) await pinnable(userId, id);
+  return ids;
 }
 
-export async function pinWithPoints(user: User, angleId: string, now = new Date()) {
-  await pinnable(user.id, angleId);
+const spotRows = (userId: string, ids: string[], amount: number, source: string, batch: string, now: Date) =>
+  split(amount, ids.length).map((budget, i) => ({ angleId: ids[i], userId, source, batch, budget, startsAt: now, endsAt: new Date(now.getTime() + SPOT_DAYS * 24 * 3600e3) }));
+
+export async function spotlightWithPoints(user: User, angleIds: string[], amount: number, now = new Date()) {
+  const ids = await checkShots(user.id, angleIds);
+  if (!Number.isInteger(amount) || amount < SPOT_MIN) throw new PinError("too_few");
+  const batch = `b${now.getTime().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   return db.$transaction(async (tx) => {
+    // One spending at a time for a person: two taps at once can't spend the same points twice.
+    await tx.$executeRaw`SELECT 1 FROM "User" WHERE "id" = ${user.id} FOR UPDATE`;
     const balance = (await tx.pointEntry.aggregate({ where: { userId: user.id }, _sum: { points: true } }))._sum.points ?? 0;
-    if (balance < PIN_COST) throw new PinError("not_enough");
-    const last = await tx.homePin.findFirst({ where: { endsAt: { gt: now } }, orderBy: { endsAt: "desc" }, select: { endsAt: true } });
-    const startsAt = last ? last.endsAt : now;
-    const pin = await tx.homePin.create({ data: { angleId, userId: user.id, source: "points", startsAt, endsAt: new Date(startsAt.getTime() + PIN_HOURS * 3600e3) } });
-    await tx.pointEntry.create({ data: { userId: user.id, kind: "pin", points: -PIN_COST, ref: pin.id } });
-    return pin;
+    if (balance < amount) throw new PinError("not_enough");
+    await tx.homePin.createMany({ data: spotRows(user.id, ids, amount, "points", batch, now) });
+    await tx.pointEntry.create({ data: { userId: user.id, kind: "pin", points: -amount, ref: batch } });
+    return { batch, amount };
   });
 }
 
-// The week's photographer picks (or is picked for, after 12 h) the free pin.
-export async function pinForWinner(userId: string, week: string, angleId: string, now = new Date()) {
+// The week's photographer picks (or is picked for, after 12 h) their free appearances.
+export async function spotlightForWinner(userId: string, week: string, angleIds: string[], now = new Date()) {
   const win = await db.weeklyWinner.findUnique({ where: { week } });
   if (!win || win.userId !== userId || win.pinId) throw new PinError("not_found");
-  await pinnable(userId, angleId);
-  const slot = await nextSlot(now);
-  const pin = await db.homePin.create({ data: { angleId, userId, source: "winner", ...slot } });
-  await db.weeklyWinner.update({ where: { week }, data: { pinId: pin.id } });
-  return pin;
+  const ids = await checkShots(userId, angleIds);
+  const batch = `w${week}`;
+  return db.$transaction(async (tx) => {
+    // (claimed once, even if two taps arrive together)
+    const claimed = await tx.weeklyWinner.updateMany({ where: { week, userId, pinId: null }, data: { pinId: batch } });
+    if (!claimed.count) throw new PinError("taken");
+    await tx.homePin.createMany({ data: spotRows(userId, ids, WINNER_BUDGET, "winner", batch, now) });
+    return { batch, amount: WINNER_BUDGET };
+  });
 }
 
-export async function currentPin(now = new Date()) {
-  return db.homePin.findFirst({
-    where: { startsAt: { lte: now }, endsAt: { gt: now }, angle: { status: "READY", moment: { visibility: "PUBLIC", status: "ACTIVE" } } },
+// What may be shown now: running, not used up, the shot still public.
+export async function livePins(now = new Date()) {
+  const pins = await db.homePin.findMany({
+    where: { closedAt: null, startsAt: { lte: now }, endsAt: { gt: now }, angle: { status: "READY", screening: "allowed", moment: { visibility: "PUBLIC", status: "ACTIVE" } } },
     orderBy: { startsAt: "asc" },
+    take: 30,
     include: { angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, filter: true, moment: { select: { code: true, title: true } }, contributor: { select: { displayName: true } } } } },
   });
+  return pins.filter((p) => p.shown < p.budget);
+}
+
+// One of them for this view: the more it has left to show, the likelier (all end about together).
+export function pickPin<T extends { budget: number; shown: number }>(pins: T[], random = Math.random()) {
+  const left = pins.map((p) => Math.max(0, p.budget - p.shown));
+  const total = left.reduce((a, b) => a + b, 0);
+  if (!total) return null;
+  let at = random * total;
+  for (let i = 0; i < pins.length; i++) if ((at -= left[i]) < 0) return pins[i];
+  return pins[pins.length - 1];
+}
+
+// A real view (src/app/api/pin-seen): counted once per device in 30 minutes, never the owner's own,
+// never past what was bought, and no more than 10 devices from one network for one pin.
+export async function countSeen(pinId: string, device: string, net: string, viewerId: string | null, now = new Date()) {
+  const pin = await db.homePin.findUnique({ where: { id: pinId }, select: { userId: true, closedAt: true, endsAt: true, shown: true, budget: true } });
+  if (!pin || pin.closedAt || pin.endsAt <= now || pin.shown >= pin.budget) return "over";
+  if (viewerId && viewerId === pin.userId) return "own";
+  const known = await db.pinSeen.findUnique({ where: { pinId_device: { pinId, device } }, select: { lastAt: true } });
+  if (!known && (await db.pinSeen.count({ where: { pinId, net } })) >= SEEN_PER_NET) return "net";
+  const rows = await db.$queryRaw<{ fresh: boolean }[]>`
+    INSERT INTO "PinSeen" ("pinId", "device", "net") VALUES (${pinId}, ${device}, ${net})
+    ON CONFLICT ("pinId", "device") DO UPDATE SET "views" = "PinSeen"."views" + 1, "lastAt" = now()
+      WHERE "PinSeen"."lastAt" < now() - make_interval(mins => ${SEEN_AGAIN_MIN})
+    RETURNING (xmax = 0) AS "fresh"`;
+  if (!rows.length) return "again";
+  const fresh = !!rows[0].fresh;
+  const counted = await db.$executeRaw`
+    UPDATE "HomePin" SET "shown" = "shown" + 1, "reach" = "reach" + ${fresh ? 1 : 0}
+    WHERE "id" = ${pinId} AND "shown" < "budget" AND "closedAt" IS NULL`;
+  return counted ? "counted" : "over";
+}
+
+// The hourly run: a pin used up, past its 7 days, or whose shot was deleted or made private is
+// closed; bought appearances not shown come back as points; when a whole purchase is closed, its
+// owner hears how it went (never in the quiet hours — then it waits for the morning).
+export async function closePins(now = new Date()) {
+  const open = await db.homePin.findMany({
+    where: { closedAt: null, startsAt: { lte: now } },
+    select: { id: true, userId: true, source: true, budget: true, shown: true, endsAt: true, angle: { select: { status: true, screening: true, moment: { select: { visibility: true, status: true } } } } },
+  });
+  let closed = 0;
+  for (const p of open) {
+    const gone = !p.angle || p.angle.status !== "READY" || p.angle.screening !== "allowed" || p.angle.moment.visibility !== "PUBLIC" || p.angle.moment.status !== "ACTIVE";
+    if (p.shown < p.budget && p.endsAt > now && !gone) continue;
+    await db.$transaction(async (tx) => {
+      const done = await tx.homePin.updateMany({ where: { id: p.id, closedAt: null }, data: { closedAt: now } });
+      if (!done.count) return;
+      const left = p.budget - p.shown;
+      if (p.source === "points" && left > 0) await tx.pointEntry.createMany({ data: [{ userId: p.userId, kind: "refund", points: left, ref: p.id }], skipDuplicates: true });
+      closed++;
+    });
+  }
+  if (quietNow(now)) return closed;
+  // Purchases whose pins are all closed in the last 2 days, not told yet.
+  const ended = await db.homePin.groupBy({ by: ["batch", "userId"], where: { closedAt: { gte: new Date(now.getTime() - 48 * 3600e3) }, batch: { not: null } }, _sum: { shown: true }, _min: { createdAt: true } });
+  if (!ended.length) return closed;
+  const zawmo = await systemUser();
+  for (const b of ended) {
+    if (await db.homePin.count({ where: { batch: b.batch, closedAt: null } })) continue;
+    const first = await db.homePin.findFirst({ where: { batch: b.batch }, orderBy: { createdAt: "asc" }, select: { angleId: true } });
+    await notify(
+      { userId: b.userId, actorId: zawmo.id, kind: "PIN_DONE", angleId: first?.angleId ?? undefined, count: b._sum.shown ?? 0 },
+      { key: `pin-done:${b.batch}`, where: { userId: b.userId, kind: "PIN_DONE", createdAt: { gte: b._min.createdAt ?? now } } },
+    );
+  }
+  return closed;
 }
 
 // ── 🏆 The week's photographer (Friday) ───────────────────────────────────────────────────────────
+// The most points earned in the 7 days (points taken back count against), with 5 public shots at
+// least; never a guest, Zawmo's own account or the team's.
 
 export async function pickWinner(now = new Date()) {
   const week = dayOf(now);
   if (await db.weeklyWinner.findUnique({ where: { week } })) return null;
   const since = new Date(now.getTime() - WEEK_MS);
-  const sums = await db.pointEntry.groupBy({ by: ["userId"], where: { points: { gt: 0 }, createdAt: { gte: since }, kind: { in: ["shot", "likes", "mission"] } }, _sum: { points: true }, orderBy: { _sum: { points: "desc" } }, take: 20 });
+  const sums = await db.pointEntry.groupBy({ by: ["userId"], where: { createdAt: { gte: since }, kind: { in: EARNED } }, _sum: { points: true }, orderBy: { _sum: { points: "desc" } }, take: 20 });
   for (const s of sums) {
-    const user = await db.user.findUnique({ where: { id: s.userId }, select: { isGuest: true, isSystem: true } });
-    if (!user || user.isGuest || user.isSystem) continue;
-    const shots = await db.pointEntry.count({ where: { userId: s.userId, kind: "shot", createdAt: { gte: since } } });
+    if ((s._sum.points ?? 0) <= 0) break;
+    const user = await db.user.findUnique({ where: { id: s.userId }, select: { isGuest: true, isSystem: true, isAdmin: true } });
+    if (!user || user.isGuest || user.isSystem || user.isAdmin) continue;
+    const shots = await db.angle.count({ where: { contributorId: s.userId, ...publicShot, uploadedAt: { gte: since } } });
     if (shots < WINNER_MIN_SHOTS) continue;
     const win = await db.weeklyWinner.create({ data: { week, userId: s.userId, points: s._sum.points ?? 0 } });
     const zawmo = await systemUser();
@@ -236,35 +387,26 @@ export async function pickWinner(now = new Date()) {
   return null;
 }
 
-// After 12 hours without a pick: their most liked public shot of the week is pinned for them.
+// After 12 hours without a pick: their most liked public shot of the week gets the 500 appearances,
+// and they are told («⭐ صورتك تحت أضواء زاومو هلّق»).
 export async function autoPickForWinners(now = new Date()) {
   const late = await db.weeklyWinner.findMany({ where: { pinId: null, createdAt: { lt: new Date(now.getTime() - WINNER_PICK_HOURS * 3600e3) } } });
   let pinned = 0;
   for (const w of late) {
     const since = new Date(w.createdAt.getTime() - WEEK_MS);
-    const shots = await db.angle.findMany({
-      where: { contributorId: w.userId, status: "READY", screening: "allowed", uploadedAt: { gte: since }, moment: { visibility: "PUBLIC", status: "ACTIVE" } },
-      select: { id: true, _count: { select: { reactions: true } } },
-    });
+    const shots = await db.angle.findMany({ where: { contributorId: w.userId, ...publicShot, uploadedAt: { gte: since } }, select: { id: true, _count: { select: { reactions: true } } } });
     const best = shots.sort((a, b) => b._count.reactions - a._count.reactions)[0];
     if (!best) {
-      await db.weeklyWinner.update({ where: { week: w.week }, data: { pinId: "-" } }); // nothing public to pin
+      await db.weeklyWinner.updateMany({ where: { week: w.week, pinId: null }, data: { pinId: "-" } }); // nothing public to show
       continue;
     }
-    await pinForWinner(w.userId, w.week, best.id, now).then(() => pinned++, () => {});
+    const done = await spotlightForWinner(w.userId, w.week, [best.id], now).catch(() => null);
+    if (!done) continue;
+    pinned++;
+    const zawmo = await systemUser();
+    await notify({ userId: w.userId, actorId: zawmo.id, kind: "PIN_LIVE", angleId: best.id }, { key: `pin-live:${w.week}`, where: { userId: w.userId, kind: "PIN_LIVE", angleId: best.id } });
   }
   return pinned;
-}
-
-// «📌 صورتك مثبّتة هلّق»: told once, when its turn comes.
-export async function tellLivePins(now = new Date()) {
-  const live = await db.homePin.findMany({ where: { startsAt: { lte: now }, endsAt: { gt: now } }, select: { id: true, userId: true, angleId: true } });
-  if (!live.length) return 0;
-  const zawmo = await systemUser();
-  for (const p of live) {
-    await notify({ userId: p.userId, actorId: zawmo.id, kind: "PIN_LIVE", angleId: p.angleId }, { key: `pin-live:${p.id}`, where: { userId: p.userId, kind: "PIN_LIVE", angleId: p.angleId, createdAt: { gte: new Date(now.getTime() - PIN_HOURS * 3600e3) } } });
-  }
-  return live.length;
 }
 
 // ── 👀 Milestones: «لقطتك وصلت 100 مشاهدة!» ──────────────────────────────────────────────────────
@@ -298,27 +440,36 @@ export async function tellMilestones(now = new Date()) {
   return told;
 }
 
-// The hourly run (cleanup cron): points first, then what people are told.
+// The hourly run (cleanup cron): points first (and taken back), then the spotlight, then what
+// people are told — nothing told in the quiet hours (it waits for the morning run).
 export async function goldenHourly(now = new Date()) {
   const safe = <T,>(name: string, p: Promise<T>) => p.catch((error) => (console.error(`golden ${name} failed`, error), -1 as const));
+  const quiet = quietNow(now);
   return {
     shots: await safe("shots", awardShots(now)),
     likes: await safe("likes", awardLikes(now)),
     mission: await safe("mission", awardMission(now)),
-    autoPinned: await safe("autopick", autoPickForWinners(now)),
-    pinsLive: quietNow(now) ? 0 : await safe("pins", tellLivePins(now)),
+    undone: await safe("undo", undoRemoved(now)),
+    pinsClosed: await safe("close", closePins(now)),
+    autoPinned: quiet ? 0 : await safe("autopick", autoPickForWinners(now)),
     milestones: await safe("milestones", tellMilestones(now)),
   };
 }
 
-// What a person sees of their own points (/points).
+// What a person sees of their own points (/points): the balance, the week, the lines, the mission,
+// their spotlight purchases of the last 2 weeks (each shot: shown of bought, people reached).
 export async function myPoints(user: User, now = new Date()) {
   const [balance, week, entries, mission, pins, win] = await Promise.all([
     balanceOf(user.id),
     weekPointsOf(user.id, now),
     db.pointEntry.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 30 }),
     currentMission(now),
-    db.homePin.findMany({ where: { userId: user.id, endsAt: { gt: now } }, orderBy: { startsAt: "asc" } }),
+    db.homePin.findMany({
+      where: { userId: user.id, createdAt: { gte: new Date(now.getTime() - 14 * 24 * 3600e3) } },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: { id: true, batch: true, source: true, budget: true, shown: true, reach: true, endsAt: true, closedAt: true, angleId: true, angle: { select: { moment: { select: { title: true } } } } },
+    }),
     db.weeklyWinner.findFirst({ where: { userId: user.id, pinId: null }, orderBy: { createdAt: "desc" } }),
   ]);
   return { balance, week, entries, mission, pins, freePin: win ? win.week : null };

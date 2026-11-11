@@ -1,8 +1,11 @@
-// Integration test for «خطة زاومو الذهبية» phase 0–1 (2026-11-10): the same photo sent twice is
-// refused before it goes up (and a nearly-same one), a failed upload never blocks a retry; points for
-// shots taper after ten a week, hearts count only from real members up to 20, 500 points pin a shot
-// for 24 h (one at a time, the next waits), the week's photographer needs five shots and gets a free
-// pin (picked for them after 12 h), the mission's words, milestones once per step and twice a week.
+// Integration test for «خطة زاومو الذهبية» — «⭐ تحت أضواء زاومو» (2026-11-10, «النقطة = ظهور»
+// 2026-11-12): the same photo sent twice is refused before it goes up (and a nearly-same one), a
+// failed upload never blocks a retry; points only for public shots, tapering after ten a week; hearts
+// only from real members of 3 days, 5 a week from one member to one person, up to 20 a shot; a shot
+// hidden takes its points back (and gets them again when public); points buy views (1 each) on 1–5
+// shots, split between them, never spent twice; a view counts once per device in 30 minutes, never
+// the owner's, never past what was bought, 10 devices a network; what isn't shown comes back; the
+// week's photographer (never the team) gets 500 free views, picked for them after 12 h.
 // Run: npx tsx tests/golden.integration.ts — every row it creates is removed.
 import "./env";
 import assert from "node:assert/strict";
@@ -11,18 +14,24 @@ import { hamming, dhashFromGrey } from "../src/lib/dhash";
 import { AngleError, prepareAngle } from "../src/server/angles";
 import { createMoment } from "../src/server/moments";
 import {
-  PIN_COST,
   PinError,
+  WINNER_BUDGET,
   answers,
   autoPickForWinners,
   awardLikes,
   awardShots,
   balanceOf,
-  currentPin,
+  closePins,
+  countSeen,
+  countedHearts,
+  livePins,
   missionWords,
+  pickPin,
   pickWinner,
-  pinWithPoints,
+  split,
+  spotlightWithPoints,
   taper,
+  undoRemoved,
 } from "../src/server/points";
 
 const TAG = "[goldentest]";
@@ -32,6 +41,7 @@ const check = async (name: string, fn: () => Promise<void> | void) => {
   out.push("PASS " + name);
 };
 const code = (c: string) => (e: unknown) => e instanceof AngleError && e.code === c;
+const pinErr = (c: string) => (e: unknown) => e instanceof PinError && e.code === c;
 // A fingerprint with `flip` of its first bits changed.
 const BASE = "f0f0f0f0f0f0f0f0";
 const flip = (bits: number) => {
@@ -39,16 +49,25 @@ const flip = (bits: number) => {
   for (let i = 0; i < bits; i++) big ^= BigInt(1) << BigInt(i);
   return big.toString(16).padStart(16, "0");
 };
+const DAY = 24 * 3600e3;
+// Noon in Mecca, `days` from now (outside the quiet hours).
+const noonIn = (days: number) => {
+  const d = new Date(Date.now() + days * DAY);
+  d.setUTCHours(9, 0, 0, 0);
+  return d;
+};
 
 async function main() {
-  const mk = (n: string, guest = false) => db.user.create({ data: { displayName: `${TAG} ${n}`, isGuest: guest } });
-  const [owner, other, fan, guest] = await Promise.all([mk("owner"), mk("other"), mk("fan"), mk("guest", true)]);
-  const ids = [owner.id, other.id, fan.id, guest.id];
+  const old = new Date(Date.now() - 10 * DAY);
+  const mk = (n: string, extra: { isGuest?: boolean; isAdmin?: boolean; createdAt?: Date } = {}) => db.user.create({ data: { displayName: `${TAG} ${n}`, isGuest: false, ...extra } });
+  const [owner, other, fan, guest, newbie, admin] = await Promise.all([mk("owner", { createdAt: old }), mk("other", { createdAt: old }), mk("fan", { createdAt: old }), mk("guest", { isGuest: true, createdAt: old }), mk("newbie"), mk("admin", { isAdmin: true, createdAt: old })]);
+  const ids = [owner.id, other.id, fan.id, guest.id, newbie.id, admin.id];
   try {
     const m = await createMoment(owner, { title: `${TAG} coffee` });
     await db.moment.update({ where: { id: m.id }, data: { visibility: "PUBLIC" } });
-    const ready = (data: { contributorId: string; dhash?: string; uploadedAt?: Date; status?: "READY" | "PROCESSING" }) =>
-      db.angle.create({ data: { momentId: m.id, mediaType: "PHOTO", status: data.status ?? "READY", screening: "allowed", mediaPath: `test/${TAG}-${Math.random()}.jpg`, contributorId: data.contributorId, dhash: data.dhash, uploadedAt: data.uploadedAt } });
+    const hidden = await createMoment(owner, { title: `${TAG} private` });
+    const ready = (data: { contributorId: string; dhash?: string; uploadedAt?: Date; status?: "READY" | "PROCESSING"; momentId?: string }) =>
+      db.angle.create({ data: { momentId: data.momentId ?? m.id, mediaType: "PHOTO", status: data.status ?? "READY", screening: "allowed", mediaPath: `test/${TAG}-${Math.random()}.jpg`, contributorId: data.contributorId, dhash: data.dhash, uploadedAt: data.uploadedAt } });
 
     await check("fingerprints: bits counted, grey → 16 hex digits", () => {
       assert.equal(hamming(BASE, flip(3)), 3);
@@ -74,51 +93,118 @@ async function main() {
       assert.ok(again.angleId);
     });
 
-    await db.angle.deleteMany({ where: { momentId: m.id } });
+    await db.angle.deleteMany({ where: { momentId: { in: [m.id, hidden.id] } } });
 
-    await check("points for shots: full for ten a week, then half, then a quarter", async () => {
+    await check("points for public shots only: full for ten a week, then half, then a quarter", async () => {
       assert.deepEqual([taper(1), taper(10), taper(11), taper(20), taper(21)], [10, 10, 5, 5, 3]);
       for (let i = 0; i < 12; i++) await ready({ contributorId: owner.id });
+      await ready({ contributorId: owner.id, momentId: hidden.id }); // a private moment: nothing
       await awardShots();
-      const lines = await db.pointEntry.findMany({ where: { userId: owner.id, kind: "shot" }, orderBy: { createdAt: "asc" } });
+      const lines = await db.pointEntry.findMany({ where: { userId: owner.id, kind: "shot" } });
       assert.equal(lines.length, 12);
       assert.equal(lines.reduce((s, l) => s + l.points, 0), 10 * 10 + 2 * 5);
       await awardShots(); // never twice
       assert.equal(await db.pointEntry.count({ where: { userId: owner.id, kind: "shot" } }), 12);
     });
 
-    await check("hearts: only real members' count, 2 each, never the owner's", async () => {
-      const shot = await db.angle.findFirstOrThrow({ where: { contributorId: owner.id } });
-      await db.reaction.createMany({ data: [{ angleId: shot.id, userId: fan.id, kind: "HEART" }, { angleId: shot.id, userId: guest.id, kind: "HEART" }, { angleId: shot.id, userId: owner.id, kind: "HEART" }] });
+    await check("hearts: real members of 3 days, 5 a week from one member to one person, 20 a shot at most", async () => {
+      const shots = await db.angle.findMany({ where: { contributorId: owner.id, momentId: m.id }, orderBy: { uploadedAt: "asc" } });
+      // fan hearts 7 of owner's shots: 5 count. guest, a 0-day account and the owner: none.
+      await db.reaction.createMany({ data: shots.slice(0, 7).map((s) => ({ angleId: s.id, userId: fan.id, kind: "HEART" as const })) });
+      await db.reaction.createMany({ data: [guest, newbie, owner].map((u) => ({ angleId: shots[0].id, userId: u.id, kind: "HEART" as const })) });
       await awardLikes();
-      const likes = await db.pointEntry.findUniqueOrThrow({ where: { userId_kind_ref: { userId: owner.id, kind: "likes", ref: shot.id } } });
-      assert.equal(likes.points, 2);
+      const lines = await db.pointEntry.findMany({ where: { userId: owner.id, kind: "likes" } });
+      assert.equal(lines.length, 5);
+      assert.ok(lines.every((l) => l.points === 2));
+      const t = (h: number) => new Date(Date.UTC(2026, 10, 1, h));
+      const many = Array.from({ length: 30 }, (_, i) => ({ giver: `g${i}`, owner: "o", at: t(i % 20) }));
+      assert.equal(countedHearts(many).length, 30, "different members: all count");
+      assert.equal(countedHearts(Array.from({ length: 8 }, (_, i) => ({ giver: "g", owner: "o", at: t(i) }))).length, 5);
     });
 
-    await check("500 points pin a shot for 24 h; not enough → refused; the next waits its turn", async () => {
-      const shot = await db.angle.findFirstOrThrow({ where: { contributorId: owner.id } });
-      await assert.rejects(pinWithPoints(owner, shot.id), (e) => e instanceof PinError && e.code === "not_enough");
-      await db.pointEntry.create({ data: { userId: owner.id, kind: "test", points: 1000, ref: "gift" } });
+    await check("a shot made private takes its points back, and gets them again when public", async () => {
       const before = await balanceOf(owner.id);
-      const first = await pinWithPoints(owner, shot.id);
-      const second = await pinWithPoints(owner, shot.id);
-      assert.equal(await balanceOf(owner.id), before - 2 * PIN_COST);
-      assert.equal(second.startsAt.getTime(), first.endsAt.getTime());
-      assert.equal((await currentPin())?.id, first.id);
-      await db.homePin.deleteMany({ where: { userId: owner.id } });
+      await db.moment.update({ where: { id: m.id }, data: { visibility: "FRIENDS" } });
+      await undoRemoved();
+      assert.equal(await balanceOf(owner.id), 0);
+      await undoRemoved(); // never twice
+      assert.equal(await balanceOf(owner.id), 0);
+      await db.moment.update({ where: { id: m.id }, data: { visibility: "PUBLIC" } });
+      await undoRemoved();
+      assert.equal(await balanceOf(owner.id), before);
     });
 
-    await check("the week's photographer: at least five shots, a free pin picked for them after 12 h", async () => {
-      // A big earner with too few shots is passed over.
+    const shots = await db.angle.findMany({ where: { contributorId: owner.id, momentId: m.id }, orderBy: { uploadedAt: "asc" }, take: 6 });
+
+    await check("points buy views: 100 at least, 1–5 shots, split between them, never spent twice", async () => {
+      assert.deepEqual(split(500, 3), [167, 167, 166]);
+      await assert.rejects(spotlightWithPoints(owner, [shots[0].id], 5000), pinErr("not_enough"));
+      await assert.rejects(spotlightWithPoints(owner, [shots[0].id], 50), pinErr("too_few"));
+      await assert.rejects(spotlightWithPoints(owner, shots.map((s) => s.id), 100), pinErr("too_many"));
+      await assert.rejects(spotlightWithPoints(other, [shots[0].id], 100), pinErr("not_found"), "only one's own");
+      await db.pointEntry.create({ data: { userId: owner.id, kind: "test", points: 1000 - (await balanceOf(owner.id)), ref: "gift" } });
+      // Two purchases of 600 at the same time with 1000: one goes through.
+      const both = await Promise.allSettled([spotlightWithPoints(owner, [shots[0].id], 600), spotlightWithPoints(owner, [shots[1].id], 600)]);
+      assert.equal(both.filter((b) => b.status === "fulfilled").length, 1);
+      assert.equal(await balanceOf(owner.id), 400);
+      await db.homePin.deleteMany({ where: { userId: owner.id } });
+      await db.pointEntry.deleteMany({ where: { userId: owner.id, kind: "pin" } });
+      const buy = await spotlightWithPoints(owner, [shots[0].id, shots[1].id, shots[2].id], 500);
+      const pins = await db.homePin.findMany({ where: { batch: buy.batch }, orderBy: { budget: "desc" } });
+      assert.deepEqual(pins.map((p) => p.budget), [167, 167, 166]);
+      assert.equal(await balanceOf(owner.id), 500);
+      assert.equal((await livePins()).length, 3);
+    });
+
+    await check("a view: once per device in 30 minutes, never the owner's, 10 devices a network, never past what was bought", async () => {
+      const pin = (await db.homePin.findFirstOrThrow({ where: { userId: owner.id }, orderBy: { budget: "asc" } }))!;
+      assert.equal(await countSeen(pin.id, "deviceaaaaaaaaaaaaaa", "net1", owner.id), "own");
+      assert.equal(await countSeen(pin.id, "deviceaaaaaaaaaaaaaa", "net1", null), "counted");
+      assert.equal(await countSeen(pin.id, "deviceaaaaaaaaaaaaaa", "net1", fan.id), "again");
+      // 30 minutes later the same device counts again (a view, not a new person).
+      await db.pinSeen.updateMany({ where: { pinId: pin.id }, data: { lastAt: new Date(Date.now() - 31 * 60e3) } });
+      assert.equal(await countSeen(pin.id, "deviceaaaaaaaaaaaaaa", "net1", null), "counted");
+      for (let i = 0; i < 9; i++) assert.equal(await countSeen(pin.id, `devicenet${i}aaaaaaaaaa`, "net1", null), "counted");
+      assert.equal(await countSeen(pin.id, "deviceoneextraaaaaaa", "net1", null), "net");
+      let after = await db.homePin.findUniqueOrThrow({ where: { id: pin.id } });
+      assert.equal(after.shown, 11);
+      assert.equal(after.reach, 10);
+      await db.homePin.update({ where: { id: pin.id }, data: { budget: 12 } });
+      assert.equal(await countSeen(pin.id, "devicelastaaaaaaaaaa", "net2", null), "counted");
+      assert.equal(await countSeen(pin.id, "devicepastaaaaaaaaaa", "net3", null), "over");
+      after = await db.homePin.findUniqueOrThrow({ where: { id: pin.id } });
+      assert.equal(after.shown, 12);
+      assert.ok(!(await livePins()).some((p) => p.id === pin.id), "used up: no longer shown");
+      // The more left to show, the likelier.
+      assert.equal(pickPin([{ budget: 10, shown: 10 }, { budget: 5, shown: 0 }], 0.1)?.budget, 5);
+      assert.equal(pickPin([{ budget: 1, shown: 1 }]), null);
+    });
+
+    await check("what wasn't shown comes back as points when it ends; the owner hears how it went", async () => {
+      const before = await balanceOf(owner.id);
+      const left = (await db.homePin.findMany({ where: { userId: owner.id } })).reduce((s, p) => s + p.budget - p.shown, 0);
+      await closePins(noonIn(8));
+      assert.equal(await db.homePin.count({ where: { userId: owner.id, closedAt: null } }), 0);
+      assert.equal(await balanceOf(owner.id), before + left);
+      await closePins(noonIn(8)); // never twice
+      assert.equal(await balanceOf(owner.id), before + left);
+      assert.equal(await db.notification.count({ where: { userId: owner.id, kind: "PIN_DONE" } }), 1);
+    });
+
+    await check("the week's photographer: 5 public shots, never the team; 500 free views picked for them after 12 h", async () => {
+      // An admin with more points and shots is passed over; so is a big earner with too few shots.
+      for (let i = 0; i < 6; i++) await ready({ contributorId: admin.id });
+      await db.pointEntry.create({ data: { userId: admin.id, kind: "shot", points: 5000, ref: "x" } });
       await db.pointEntry.create({ data: { userId: other.id, kind: "likes", points: 900, ref: "x" } });
-      const now = new Date(Date.now() + 60_000);
-      const win = await pickWinner(now);
+      const win = await pickWinner(new Date(Date.now() + 60_000));
       assert.equal(win?.userId, owner.id);
       assert.equal(await db.notification.count({ where: { userId: owner.id, kind: "WEEKLY_WINNER" } }), 1);
       await db.weeklyWinner.update({ where: { week: win!.week }, data: { createdAt: new Date(Date.now() - 13 * 3600e3) } });
       assert.equal(await autoPickForWinners(), 1);
-      const after = await db.weeklyWinner.findUniqueOrThrow({ where: { week: win!.week } });
-      assert.ok(after.pinId && after.pinId !== "-");
+      const free = await db.homePin.findMany({ where: { userId: owner.id, source: "winner" } });
+      assert.equal(free.reduce((s, p) => s + p.budget, 0), WINNER_BUDGET);
+      assert.equal(await db.notification.count({ where: { userId: owner.id, kind: "PIN_LIVE" } }), 1);
+      assert.equal(await autoPickForWinners(), 0, "once");
     });
 
     await check("the mission's words: what the picture shows, not «صور» or «حقيقية»", () => {
