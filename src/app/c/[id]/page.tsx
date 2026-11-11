@@ -58,6 +58,8 @@ export default async function CardPage({ params }: PageProps<"/c/[id]">) {
     creator: { "@type": "Person", name: card.angle.contributor.displayName },
     creditText: `${card.angle.contributor.displayName} / Zawmo`,
     copyrightNotice: `© ${card.angle.contributor.displayName}`,
+    // (license too, as on a photo's own page — Search Console «الحقل license غير مضمَّن», 11/11)
+    license: `${site}/terms`,
     acquireLicensePage: `${site}/terms`,
   };
   return (
