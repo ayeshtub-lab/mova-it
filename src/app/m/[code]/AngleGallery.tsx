@@ -188,6 +188,7 @@ export function AngleGallery({
   saveLabel,
   autoOpen = false,
   arrived = false,
+  onShown,
   onLeave,
   onBack,
 }: {
@@ -214,6 +215,7 @@ export function AngleGallery({
   // closing it leaves for that moment's page.
   autoOpen?: boolean;
   arrived?: boolean; // (chained) its first picture came up with the finger already: opens in place
+  onShown?: () => void; // (chained) its viewer is on screen: the one under it may close now
   onLeave?: () => void;
   // «⬆️ اللحظة اللي قبل»: back to the moment this one was carried on from, on the angle left there.
   onBack?: () => void;
@@ -301,6 +303,8 @@ export function AngleGallery({
     setCurrent(index);
     setOpened((n) => n + 1);
     dialogRef.current?.showModal();
+    // (two frames: painted, not just opened)
+    if (onShown) requestAnimationFrame(() => requestAnimationFrame(onShown));
     // Focus the close button, not the first control (the hidden video play/pause one).
     dialogRef.current?.querySelector<HTMLElement>("[data-close]")?.focus();
     requestAnimationFrame(() => goTo(index, false));
@@ -379,6 +383,7 @@ export function AngleGallery({
   const [enter, setEnter] = useState<"up" | "down">("up");
   // The chained viewer opens in place (no slide of its own): its picture already came up as the peek.
   const [slid, setSlid] = useState(false);
+  const shownRef = useRef<() => void>(() => {});
   // The peek gets its picture only now — the small copy straight from storage — and the full one
   // is fetched behind it: nothing at all for a viewer nobody takes further down.
   const warmNext = () => {
@@ -426,8 +431,12 @@ export function AngleGallery({
     await Promise.race([warm(next.angles[0]), wait(1000)]);
     history.replaceState(null, "", `/m/${next.code}`);
     setSlid(!!peek);
-    setChain(next);
-    setTimeout(() => {
+    // This viewer closes only once the next one is really on screen (2026-11-12: a fixed wait let the
+    // moment page show through for a second on a slow phone), or after a few seconds whatever happens.
+    let fallback = 0;
+    const handOver = () => {
+      if (!leaving.current) return;
+      clearTimeout(fallback);
       handingOver.current = true;
       dialogRef.current?.close();
       for (const el of [track, peek]) {
@@ -438,7 +447,10 @@ export function AngleGallery({
       }
       setGoing(false);
       leaving.current = false;
-    }, 250);
+    };
+    shownRef.current = handOver;
+    fallback = window.setTimeout(handOver, 4000);
+    setChain(next);
   }
 
   // ⬆️ back to the moment before: it comes down over this one, then this one closes (as going
@@ -1906,6 +1918,7 @@ export function AngleGallery({
             saveLabel={saveLabel}
             autoOpen
             arrived={slid}
+            onShown={() => shownRef.current()}
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             onLeave={() => window.location.assign(`/m/${chain.code}`)}
             onBack={comeBack}
