@@ -150,6 +150,16 @@ const compact = (n: number, locale: string) => (n ? new Intl.NumberFormat(locale
 // «⬇️ اللحظة الجاية»: a public moment's angles for a viewer already open (the next moment, carried
 // on to inside it — src/app/api/moments/[code]/viewer). Null when it can't be had.
 type Chain = { code: string; title: string; url: string; angles: GalleryAngle[]; next: NextMoment[] };
+// The next moment's first picture, fetched ahead so its viewer opens on it, not on black — only once
+// a finger starts taking the viewer there (or «⬇️» is tapped), so no bytes for those who never go.
+const warm = (a?: GalleryAngle) => {
+  const src = a?.mediaType === "VIDEO" ? a.thumbUrl : a?.mediaUrl;
+  if (!src) return Promise.resolve();
+  const img = new Image();
+  img.src = src;
+  return img.decode().catch(() => {});
+};
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 const fetchChain = (code: string) =>
   fetch(`/api/moments/${code}/viewer`)
     .then((r) => (r.ok ? (r.json() as Promise<Chain>) : null))
@@ -177,6 +187,7 @@ export function AngleGallery({
   cardLabel,
   saveLabel,
   autoOpen = false,
+  arrived = false,
   onLeave,
   onBack,
 }: {
@@ -202,6 +213,7 @@ export function AngleGallery({
   // The next moment carried on to inside the viewer: it opens at once on its first angle, and
   // closing it leaves for that moment's page.
   autoOpen?: boolean;
+  arrived?: boolean; // (chained) its first picture came up with the finger already: opens in place
   onLeave?: () => void;
   // «⬆️ اللحظة اللي قبل»: back to the moment this one was carried on from, on the angle left there.
   onBack?: () => void;
@@ -328,6 +340,8 @@ export function AngleGallery({
   const [hint, setHint] = useState(false);
   const touch = useRef<{ x: number; y: number; at: number; axis: "x" | "y" | null } | null>(null);
   const dragFrame = useRef(0);
+  // The next moment, under this one: it comes up with the finger, as on TikTok (2026-11-12).
+  const peekRef = useRef<HTMLDivElement>(null);
   const wheelAt = useRef(0);
   useEffect(() => {
     if (!opened || !continueTo?.next.length) return;
@@ -363,6 +377,20 @@ export function AngleGallery({
   const [going, setGoing] = useState(false);
   // Coming back from the next moment: this viewer comes down from above, not up from below.
   const [enter, setEnter] = useState<"up" | "down">("up");
+  // The chained viewer opens in place (no slide of its own): its picture already came up as the peek.
+  const [slid, setSlid] = useState(false);
+  // The peek gets its picture only now — the small copy straight from storage — and the full one
+  // is fetched behind it: nothing at all for a viewer nobody takes further down.
+  const warmNext = () => {
+    const img = peekRef.current?.querySelector("img");
+    if (!img || img.dataset.on) return;
+    img.dataset.on = "1";
+    void prefetched.current?.data.then((c) => {
+      const first = c?.angles[0];
+      img.src = first?.gridUrl ?? first?.thumbUrl ?? upcoming?.cover ?? "";
+      return warm(first);
+    });
+  };
   useEffect(() => {
     if (upcoming && prefetched.current?.code !== upcoming.code) prefetched.current = { code: upcoming.code, data: fetchChain(upcoming.code) };
   }, [upcoming]);
@@ -375,8 +403,17 @@ export function AngleGallery({
       const passed: string[] = JSON.parse(sessionStorage.getItem("zawmo:passed") ?? "[]");
       sessionStorage.setItem("zawmo:passed", JSON.stringify([...passed.filter((c) => c !== continueTo.code), continueTo.code].slice(-40)));
     } catch {}
+    // Like a feed: this moment goes on up and away, and the next one comes up under it from where
+    // the finger let go — both together, the same curve — while its shots are fetched (usually
+    // already are). Its own viewer then opens in place over the peek, and this one closes.
+    const track = trackRef.current;
+    const peek = peekRef.current;
+    warmNext();
+    for (const el of [track, peek]) if (el) el.style.transition = SLIDE;
+    if (track) track.style.transform = "translateY(-100%)";
+    if (peek) peek.style.transform = "translateY(0)";
     const ready = prefetched.current?.code === upcoming.code ? prefetched.current.data : fetchChain(upcoming.code);
-    const next = await Promise.race([ready, new Promise<null>((r) => setTimeout(() => r(null), 6000))]);
+    const [next] = await Promise.all([Promise.race([ready, new Promise<null>((r) => setTimeout(() => r(null), 6000))]), wait(SLIDE_MS)]);
     if (!next) {
       // Couldn't fetch it: its page, opened on its first shot (a full load).
       setGoing(false);
@@ -385,27 +422,23 @@ export function AngleGallery({
       window.location.assign(`/m/${upcoming.code}#angle-${upcoming.firstAngleId}`);
       return;
     }
-    // Like a feed: this moment slides up and away while the next one comes up from below (its
-    // viewer opens on top at once, sliding in); this viewer closes only once it is covered — no
-    // black gap in between.
-    const track = trackRef.current;
-    if (track) {
-      track.style.transition = SLIDE;
-      track.style.transform = "translateY(-100%)";
-    }
+    // Its first picture in hand (or a second at most), so its viewer opens on it, not on black.
+    await Promise.race([warm(next.angles[0]), wait(1000)]);
     history.replaceState(null, "", `/m/${next.code}`);
+    setSlid(!!peek);
     setChain(next);
     setTimeout(() => {
       handingOver.current = true;
       dialogRef.current?.close();
-      if (track) {
-        track.style.transition = "";
-        track.style.transform = "";
-        track.style.willChange = "";
+      for (const el of [track, peek]) {
+        if (!el) continue;
+        el.style.transition = "";
+        el.style.transform = "";
+        el.style.willChange = "";
       }
       setGoing(false);
       leaving.current = false;
-    }, SLIDE_MS + 60);
+    }, 250);
   }
 
   // ⬆️ back to the moment before: it comes down over this one, then this one closes (as going
@@ -1124,11 +1157,17 @@ export function AngleGallery({
             start.axis = Math.abs(dy) > Math.abs(dx) ? "y" : "x";
           }
           if (start.axis !== "y" || !((dy < 0 && upcoming) || (dy > 0 && onBack))) return;
-          // With the finger, one paint per frame.
+          if (dy < 0) warmNext();
+          // With the finger, one paint per frame: this shot, and the next moment coming up under it.
           cancelAnimationFrame(dragFrame.current);
           dragFrame.current = requestAnimationFrame(() => {
             track.style.transition = "none";
             track.style.transform = `translateY(${Math.round(dy)}px)`;
+            const peek = peekRef.current;
+            if (peek) {
+              peek.style.transition = "none";
+              peek.style.transform = `translateY(calc(100% + ${Math.round(Math.min(dy, 0))}px))`;
+            }
           });
         }}
         onTouchEnd={(event) => {
@@ -1148,9 +1187,11 @@ export function AngleGallery({
           // …and a clear swipe down: back to the moment before (when there is one).
           if (far && onBack && dy > 0) return void goBack();
           if (track) track.style.willChange = "";
-          if (track && track.style.transform) {
-            track.style.transition = "transform .3s cubic-bezier(.22,.61,.36,1)";
-            track.style.transform = "";
+          // Not far enough: both go back where they were.
+          for (const el of [track, peekRef.current]) {
+            if (!el || !el.style.transform) continue;
+            el.style.transition = "transform .3s cubic-bezier(.22,.61,.36,1)";
+            el.style.transform = "";
           }
         }}
         onWheel={(event) => {
@@ -1168,9 +1209,12 @@ export function AngleGallery({
           setSoundFor(null);
           if (window.location.hash.startsWith("#angle-")) history.replaceState(null, "", window.location.pathname + window.location.search);
         }}
-        className={`m-0 h-dvh max-h-none w-screen max-w-none bg-black p-0 text-white backdrop:bg-black ${enter === "down" ? "animate-[viewer-down_.45s_cubic-bezier(.22,.61,.36,1)]" : autoOpen ? "animate-[viewer-up_.45s_cubic-bezier(.22,.61,.36,1)]" : ""}`}
+        className={`m-0 h-dvh max-h-none w-screen max-w-none overflow-hidden bg-black p-0 text-white backdrop:bg-black ${enter === "down" ? "animate-[viewer-down_.45s_cubic-bezier(.22,.61,.36,1)]" : autoOpen && !arrived ? "animate-[viewer-up_.45s_cubic-bezier(.22,.61,.36,1)]" : ""}`}
       >
-        <div ref={trackRef} className="flex h-full snap-x snap-mandatory overflow-x-auto overscroll-contain [scrollbar-width:none]">
+        {/* Sideways only for the browser (2026-11-12, «بيروح للصورة من الجنب وبعدها بينزل»): a drag
+            that starts up or down is the finger's own — to the next moment — and never also slides
+            the angles sideways; one that starts sideways slides them, as before. */}
+        <div ref={trackRef} className="flex h-full snap-x snap-mandatory overflow-x-auto overscroll-contain [scrollbar-width:none] [touch-action:pan-x_pinch-zoom]">
           {angles.map((a) => {
             const like = likesOf(a.id);
             const isSaved = saved.has(a.id);
@@ -1587,6 +1631,13 @@ export function AngleGallery({
           </>
         )}
 
+        {upcoming && (
+          // The next moment, out of sight below until a finger (or «⬇️») brings it up.
+          <div ref={peekRef} aria-hidden="true" className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black [transform:translateY(100%)]">
+            {/* eslint-disable-next-line @next/next/no-img-element -- its small fixed cover */}
+            <img key={upcoming.code} alt="" decoding="async" className="size-full object-contain" />
+          </div>
+        )}
         {onBack && continueTo && (
           <button
             type="button"
@@ -1854,6 +1905,7 @@ export function AngleGallery({
             cardLabel={cardLabel}
             saveLabel={saveLabel}
             autoOpen
+            arrived={slid}
             // eslint-disable-next-line @next/next/no-location-assign-relative-destination
             onLeave={() => window.location.assign(`/m/${chain.code}`)}
             onBack={comeBack}
