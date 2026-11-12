@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { FILTERS, filterName } from "@/lib/filters";
 import { MomentDetails, type MomentDetailsLabels } from "@/app/MomentDetails";
+import { ShotNote, type ShotNoteLabels } from "@/app/ShotNote";
 
-export type ShotEditorLabels = {
+export type ShotEditorLabels = ShotNoteLabels & {
   title: string;
   filters: string;
   natural: string;
@@ -41,6 +42,7 @@ export function ShotEditor({
   placeName = null,
   onRemovePlace,
   moment,
+  angleId,
 }: {
   imageUrl: string | null;
   locale: string;
@@ -61,6 +63,8 @@ export function ShotEditor({
   onRemovePlace?: () => void;
   // The moment's title and description, for its creator.
   moment?: { code: string; title: string; description: string | null; labels: MomentDetailsLabels };
+  // «✍️ احكي عن صورتك»: the shot's owner's own words (src/app/ShotNote.tsx).
+  angleId?: string;
 }) {
   const [filter, setFilter] = useState(initialFilter);
   const [stamp, setStamp] = useState(initialStamp);
@@ -110,6 +114,8 @@ export function ShotEditor({
               <span className="min-w-0 truncate text-sm text-secondary">{moment.title} ✏️</span>
             </button>
           ))}
+
+        {angleId && <ShotNote key={angleId} angleId={angleId} labels={labels} />}
 
         <h3 className="text-sm font-extrabold">{labels.filters}</h3>
         <ul className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none]">

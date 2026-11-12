@@ -804,6 +804,7 @@
     "link": "The video's page"
   },
   "shotPage": {
+    "byOwner": "✍️ In {name}'s words",
     "by": "Shot by {name}",
     "photo": "photo",
     "video": "video",
@@ -848,6 +849,13 @@
     "photoWorking": "⏳ Turning the photo and its sound into a video… tap share again in a moment"
   },
   "editShot": {
+    "note": "Tell us about your photo",
+    "noteHint": "Optional: what happened, where, or what you make if this is your work. Shown under the photo and helps people find it on Google. No phone numbers or links.",
+    "notePlaceholder": "e.g. Hand-made crochet, finished in a week for my niece 🧶",
+    "noteSave": "Save words",
+    "noteSaved": "✓ Saved",
+    "noteBlocked": "We couldn't publish these words publicly — change them a little and try again.",
+    "noteFailed": "Couldn't save, try again.",
     "cover": {"open": "🖼️ Cover", "title": "Pick a cover", "hint": "Slide along the strip and pick the frame you like", "use": "Use this", "cancel": "Cancel", "failed": "The cover wasn't saved, try again."},
     "open": "✏️ Edit",
     "title": "✏️ Edit",

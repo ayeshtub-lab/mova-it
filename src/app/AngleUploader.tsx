@@ -971,6 +971,7 @@ export function AngleUploader({
                 }
               : undefined
           }
+          angleId={items[editing].angleId!}
           onClose={() => setEditing(null)}
         />
       )}

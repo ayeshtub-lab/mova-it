@@ -8,6 +8,7 @@ import { MediaType, PlaceSource, Presence } from "@/generated/prisma/enums";
 import type { User } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
 import { parseCaption } from "@/lib/caption";
+import { cleanNote } from "@/lib/shot-note";
 import { blobExists, viewUrl } from "@/server/media";
 import { ffmpeg, probeDuration } from "@/server/ffmpeg";
 import { screenAngle, screeningEnabled, screenText, type ShotContext } from "@/server/screening";
@@ -33,7 +34,7 @@ const VIDEO_TYPES: Record<string, string> = { "video/mp4": "mp4", "video/quickti
 
 export class AngleError extends Error {
   constructor(
-    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required" | "needs_title" | "story_owner" | "duplicate" | "too_close",
+    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required" | "needs_title" | "story_owner" | "duplicate" | "too_close" | "note_blocked",
     // duplicate / too_close: the moment where the twin already is
     public where?: { code: string; title: string },
   ) {
@@ -701,4 +702,25 @@ export async function repairBlackCovers(now = new Date()) {
   let repaired = 0;
   for (const v of videos) if (await repairBlackCover(v.id).catch((error) => (console.error("black cover repair failed", v.id, error), false))) repaired++;
   return { checked: videos.length, repaired };
+}
+
+// «✍️ احكي عن صورتك»: the owner's own words about their shot (or Zawmo's team fixing them). Read when the
+// «✏️ تعديل» sheet opens; a public shot's words pass Gemini's check first (fail-closed, like a moment's
+// description). Empty clears them.
+async function ownShot(user: User, angleId: string) {
+  const angle = await db.angle.findUnique({ where: { id: angleId }, select: { id: true, contributorId: true, note: true, moment: { select: { visibility: true } } } });
+  if (!angle || (angle.contributorId !== user.id && !staffOver(user, angle.moment))) throw new AngleError("not_found");
+  return angle;
+}
+
+export async function shotNote(user: User, angleId: string) {
+  return { note: (await ownShot(user, angleId)).note ?? "" };
+}
+
+export async function setShotNote(user: User, angleId: string, raw: unknown) {
+  const angle = await ownShot(user, angleId);
+  const note = cleanNote(raw);
+  if (note && note !== angle.note && angle.moment.visibility === "PUBLIC" && (await screenText(note)).result !== "allowed") throw new AngleError("note_blocked");
+  await db.angle.update({ where: { id: angle.id }, data: { note } });
+  return { note: note ?? "" };
 }

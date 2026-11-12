@@ -145,6 +145,7 @@ const shotSelect = {
   caption: true,
   scene: true,
   aiText: true,
+  note: true, // «✍️ احكي عن صورتك»: the owner's own words
   aiTitle: true,
   aiTextEn: true,
   aiTitleEn: true,

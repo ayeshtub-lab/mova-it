@@ -310,6 +310,10 @@ model Angle {
   // A warm line about the shot with a few #hashtags, written by the content check (Arabic):
   // the shot page's description, image alts, and a moment's description when it has none.
   aiText           String?
+  // «✍️ احكي عن صورتك» (his idea, 2026-11-12): the owner's own words about the shot, optional, up to
+  // 300 characters — no phone numbers or links (src/lib/shot-note.ts), checked by Gemini when public.
+  // Shown on the shot's page and said first to search engines.
+  note             String?
   // …and in English (the /en pages' description and image alts).
   aiTextEn         String?
   // The town the uploader's network is in (Vercel's guess from the connection, often coarse):

@@ -1754,6 +1754,7 @@ export function AngleGallery({
             hasCaption={!!captionOf(editFor)}
             placeName={placeOf(editFor)?.name ?? null}
             moment={momentEdit}
+            angleId={angles.find((y) => y.id === editFor)?.isMine ? editFor : undefined}
             onRemovePlace={() => removePlace(editFor)}
             onCaption={() => {
               setCaptionFor(editFor);

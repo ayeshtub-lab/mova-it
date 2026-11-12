@@ -41,8 +41,10 @@ function describe(shot: PublicShot, dict: Dictionary, locale: string) {
   // The line written for the shot first (Arabic), then where it is from — as plain words.
   // (Its library sound's words too — «مع تلاوة …»: what it is heard with, for search.)
   const heard = locale === "ar" ? soundSearch(shot.soundKey) : null;
-  if (shot.aiText) return plain(`${shot.aiText}${heard ? ` — ${heard.phrase}` : ""} — ${fill(t.from, { title: shot.moment.title })}`);
-  return plain(fill(t.description, {
+  // The owner's own words first («✍️ احكي عن صورتك»), on the Arabic page (they write in their language).
+  const own = locale === "ar" && shot.note ? `${shot.note} — ` : "";
+  if (shot.aiText) return plain(`${own}${shot.aiText}${heard ? ` — ${heard.phrase}` : ""} — ${fill(t.from, { title: shot.moment.title })}`);
+  return plain(own + fill(t.description, {
     label: shotLabel(shot, locale),
     kind: shot.mediaType === "VIDEO" ? t.video : t.photo,
     name: shot.contributor.displayName,
@@ -203,6 +205,13 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
                 {WEATHER_CREDIT.name}
               </a>
             </p>
+          )}
+          {/* «✍️ احكي عن صورتك»: what its owner wrote about it, in their words (src/lib/shot-note.ts). */}
+          {shot.note && (
+            <blockquote className="mt-1 flex flex-col gap-1 rounded-2xl border-s-4 border-secondary/50 bg-surface px-4 py-3">
+              <span className="text-xs font-bold text-muted">{fill(t.byOwner, { name: shot.contributor.displayName })}</span>
+              <p className="text-base leading-relaxed">{shot.note}</p>
+            </blockquote>
           )}
           {shot.aiText && <Description text={shot.aiText} className="mt-1 text-base" />}
           {/* What it's heard with, in words — the verse, the duaa, the birds (src/lib/sound-search.ts). */}
