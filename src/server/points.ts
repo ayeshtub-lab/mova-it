@@ -397,7 +397,7 @@ export async function livePins(now = new Date()) {
     where: { closedAt: null, startsAt: { lte: now }, endsAt: { gt: now }, angle: { status: "READY", screening: "allowed", moment: { visibility: "PUBLIC", status: "ACTIVE" } } },
     orderBy: { startsAt: "asc" },
     take: 30,
-    include: { angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, filter: true, moment: { select: { code: true, title: true } }, contributor: { select: { displayName: true } } } } },
+    include: { angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, filter: true, aiText: true, moment: { select: { code: true, title: true, description: true } }, contributor: { select: { displayName: true } } } } },
   });
   return pins.filter((p) => p.shown < p.budget);
 }

@@ -1,4 +1,6 @@
 import { inEnglish, localizeMoment } from "@/server/localize";
+import { SpotAside } from "@/app/SpotAside";
+import { hashtagsIn } from "@/lib/hashtags";
 import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { alternatesFor } from "@/i18n/alternates";
 import { SendToFriend } from "@/app/SendToFriend";
@@ -579,6 +581,8 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
             </div>
           )
         )}
+        {/* «⭐ تحت أضواء زاومو»: a shot in the spotlight, for people only (src/app/SpotAside.tsx). */}
+        {view.visibility === "PUBLIC" && <SpotAside tags={hashtagsIn(view.description)} notCode={view.code} labels={dict.homePin} />}
         {/* For weddings and parties: a card with the moment's QR code, for the guests' tables. */}
         {view.viewer.isCreator && view.kind !== "STORY" && view.kind !== "DAILY" && (
           <Link href={`/m/${view.code}/qr`} className="flex min-h-12 items-center justify-center rounded-full border border-line px-5 text-center text-sm font-bold hover:bg-surface">

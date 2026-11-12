@@ -1,4 +1,5 @@
 import { localizeShot } from "@/server/localize";
+import { SpotAside } from "@/app/SpotAside";
 import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { alternatesFor } from "@/i18n/alternates";
 import { SendToFriend } from "@/app/SendToFriend";
@@ -296,6 +297,8 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         <Link href={`/m/${shot.moment.code}`} className="self-center text-sm font-bold text-secondary underline-offset-4 hover:underline">
           {t.open}
         </Link>
+        {/* «⭐ تحت أضواء زاومو»: another shot in the spotlight, for people only (src/app/SpotAside.tsx). */}
+        <SpotAside tags={hashtagsIn(shot.aiText)} notAngle={shot.id} notCode={shot.moment.code} labels={dict.homePin} />
         {/* Zawmo's own accounts fix the title and line search engines show (src/lib/staff.ts). */}
         {viewer?.isAdmin && <StaffShotEdit id={shot.id} title={shot.arabic.title || title} text={shot.arabic.text} />}
         {/* «الدردشة»: this shot to a friend, as a card. */}

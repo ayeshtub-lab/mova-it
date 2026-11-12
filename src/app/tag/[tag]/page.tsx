@@ -1,4 +1,5 @@
 import { alternatesFor } from "@/i18n/alternates";
+import { SpotAside } from "@/app/SpotAside";
 import { GRID_SIZES, gridSrcSet, INDEXABLE } from "@/lib/indexable";
 import { clip, plain } from "@/lib/clip";
 import { tagPhrase } from "@/lib/tag-phrase";
@@ -145,6 +146,8 @@ export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
             </ul>
           </nav>
         )}
+        {/* «⭐ تحت أضواء زاومو»: a shot in the spotlight — one on this topic first — for people only. */}
+        <SpotAside tags={[tag]} labels={dict.homePin} />
       </main>
     </div>
   );

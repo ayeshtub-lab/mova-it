@@ -53,7 +53,8 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(`${inLocale(pathname, "en")}${search}`, request.url), 307);
   }
 
-  const source = request.method === "GET" && !request.cookies.has(SOURCE_COOKIE) ? sourceOf(request.nextUrl, request.headers.get("referer"), host) : null;
+  // (pages only: a first visit is a page — an /api/ call carries no cookie, so the CDN may keep it)
+  const source = request.method === "GET" && page && !request.cookies.has(SOURCE_COOKIE) ? sourceOf(request.nextUrl, request.headers.get("referer"), host) : null;
   // The page is told this is a first arrival (the cookie set below is already visible to it,
   // so it can't tell by the cookie): the ad landing page counts it (src/app/start/page.tsx).
   const forward = new Headers(request.headers);
@@ -79,7 +80,7 @@ export function proxy(request: NextRequest) {
     response.cookies.set(localeCookie, "en", { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   }
   // A member's invite link: kept (the first one followed) even when the source is already set.
-  const inviter = request.method === "GET" && !request.cookies.has(INVITE_COOKIE) ? inviterOf(request.nextUrl) : null;
+  const inviter = request.method === "GET" && page && !request.cookies.has(INVITE_COOKIE) ? inviterOf(request.nextUrl) : null;
   if (inviter) {
     response.cookies.set(INVITE_COOKIE, inviter, { maxAge: SOURCE_DAYS * 24 * 3600, httpOnly: true, sameSite: "lax", secure: host !== "localhost" && !host.startsWith("localhost:"), path: "/" });
   }

@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
 import type { Dictionary } from "@/i18n/server";
-import { publicCover } from "@/server/media";
-import { livePins, pickPin } from "@/server/points";
+import { pickPin } from "@/server/points";
+import { runningPins } from "@/server/spot-pins";
 import { SpotSeen } from "@/app/SpotSeen";
 
 // «⭐ تحت أضواء زاومو» under the home page's wheel («خطة زاومو الذهبية», his place for it,
@@ -11,25 +10,7 @@ import { SpotSeen } from "@/app/SpotSeen";
 // likelier — and counts it only once it was really on screen (src/app/SpotSeen.tsx). Read at most
 // every minute from the fixed public picture address (/i/…); nothing shows when nothing runs or
 // anything goes wrong — the home page never waits on it.
-const running = unstable_cache(
-  async () =>
-    Promise.all(
-      (await livePins()).map(async (p) => ({
-        id: p.id,
-        budget: p.budget,
-        shown: p.shown,
-        endsAt: p.endsAt.toISOString(),
-        source: p.source,
-        angleId: p.angle!.id,
-        code: p.angle!.moment.code,
-        title: p.angle!.moment.title,
-        by: p.angle!.contributor.displayName,
-        cover: await publicCover(p.angle!),
-      })),
-    ),
-  ["home-spotlight-1"],
-  { revalidate: 60 },
-);
+const running = runningPins;
 
 // (one for this view; one that ended within the cached minute is left out)
 async function choose() {
