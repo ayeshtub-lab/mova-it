@@ -1,3 +1,4 @@
+import { GIFT_SHOTS_BEFORE } from "@/server/points";
 import { alternatesFor } from "@/i18n/alternates";
 import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { signOut } from "@/app/actions/session";
@@ -76,12 +77,24 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
         </form>
       </div>
 
+      {/* A guest: keep the account with Google. Until the gift closes (24/11, src/server/points.ts),
+          the reason to do it now — 200 points — and that a photo can go on any public moment already
+          (2026-11-12: guests didn't know; none of them joined in three weeks). Counted as «join:home». */}
       {user.isGuest && google && (
-        <section id="save" className="flex scroll-mt-6 flex-col gap-3 rounded-3xl border border-secondary/30 bg-secondary-soft p-5">
-          <h2 className="text-lg font-extrabold">{dict.account.saveTitle}</h2>
-          <p className="text-sm leading-relaxed text-muted">{dict.account.saveHint}</p>
-          <GoogleButton label={dict.account.saveButton} returnTo="/" />
-        </section>
+        new Date() < GIFT_SHOTS_BEFORE ? (
+          <section id="save" className="flex scroll-mt-6 flex-col gap-3 rounded-3xl border-2 border-amber-300/70 bg-amber-50/60 p-5 dark:bg-amber-400/10">
+            <h2 className="text-lg font-extrabold">{dict.account.giftTitle}</h2>
+            <p className="text-sm leading-relaxed">{dict.account.giftHint}</p>
+            <GoogleButton label={dict.account.saveButton} returnTo="/points" place="home" />
+            <p className="text-sm font-semibold leading-relaxed text-muted">{dict.account.giftAdd}</p>
+          </section>
+        ) : (
+          <section id="save" className="flex scroll-mt-6 flex-col gap-3 rounded-3xl border border-secondary/30 bg-secondary-soft p-5">
+            <h2 className="text-lg font-extrabold">{dict.account.saveTitle}</h2>
+            <p className="text-sm leading-relaxed text-muted">{dict.account.saveHint}</p>
+            <GoogleButton label={dict.account.saveButton} returnTo="/" place="home" />
+          </section>
+        )
       )}
 
       {/* Zawmo's two doors, on top: watch what others shot, or start your own. */}

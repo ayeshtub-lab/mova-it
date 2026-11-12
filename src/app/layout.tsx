@@ -1,3 +1,4 @@
+import { GIFT_SHOTS_BEFORE } from "@/server/points";
 import { chatUnread } from "@/server/conversations";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -73,7 +74,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <GoogleAnalytics team={!!(user?.isAdmin || user?.verified)} />
         <InstallPrompt labels={dict.install} aboveNav={!!user} />
         {(!user || unnamedGuest(user)) && (
-          <SignInSheet labels={{ ...dict.signIn, or: dict.account.or, google: dict.account.google }} guestLabels={dict.guest} google={googleEnabled()} />
+          <SignInSheet labels={{ ...dict.signIn, or: dict.account.or, google: dict.account.google }} guestLabels={dict.guest} google={googleEnabled()} gift={new Date() < GIFT_SHOTS_BEFORE ? dict.account.giftLine : undefined} />
         )}
         {/* The website's footer (hidden inside the app: its links are on your own profile). */}
         <footer className={`site-footer px-4 py-6 text-center text-xs text-muted print:hidden ${user ? "pb-28 sm:pb-6" : ""}`}>

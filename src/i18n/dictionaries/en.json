@@ -525,6 +525,10 @@
     "saveTitle": "Keep your account 🔒",
     "saveHint": "You're a guest: if you sign out or switch phones, your moments are lost. Link Google and all your moments, photos and chats stay with you.",
     "saveButton": "Link with Google",
+    "giftTitle": "🎁 200 gift points for you",
+    "giftHint": "Sign in with Google and share 3 real photos in public moments before 24/11 to get 200 points: each point lets someone see your photo under Zawmo's spotlight ⭐. Everything you did as a guest stays with you.",
+    "giftAdd": "📸 No need to wait: you can already add your photo to any public moment. Open a moment and tap «＋».",
+    "giftLine": "🎁 Sign in with Google and share 3 photos before 24/11 to get 200 gift points ⭐",
     "failed": "Google sign-in didn't work. Please try again.",
     "official": "Official account"
   },

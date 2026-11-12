@@ -27,7 +27,8 @@ export function SignInButton({ label }: { label: string }) {
   );
 }
 
-export function SignInSheet({ labels, guestLabels, google }: { labels: SignInLabels; guestLabels: GuestLabels; google: boolean }) {
+// gift: one line on the 200-point gift while it is open (src/server/points.ts), above the Google button.
+export function SignInSheet({ labels, guestLabels, google, gift }: { labels: SignInLabels; guestLabels: GuestLabels; google: boolean; gift?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [asked, setAsked] = useState<{ reason: "header" | "like"; at: number } | null>(null);
   const path = usePathname();
@@ -62,6 +63,7 @@ export function SignInSheet({ labels, guestLabels, google }: { labels: SignInLab
         <p className="text-sm leading-relaxed text-muted">{like ? labels.likeText : labels.text}</p>
         {google && (
           <>
+            {gift && <p className="rounded-2xl bg-amber-50 px-3 py-2 text-sm font-bold leading-relaxed text-amber-900 dark:bg-amber-400/15 dark:text-amber-200">{gift}</p>}
             <GoogleButton label={labels.google} returnTo={path} />
             <p className="flex items-center gap-3 text-sm text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">{labels.or}</p>
           </>
