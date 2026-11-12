@@ -8,9 +8,11 @@ const MAX = 300;
 
 // «✍️ احكي عن صورتك» (2026-11-12), inside «✏️ تعديل»: folded to one line until tapped; the words are
 // read only then (one small request, nothing on the gallery's load) and saved on their own.
-export function ShotNote({ angleId, labels }: { angleId: string; labels: ShotNoteLabels }) {
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState<string | null>(null);
+// Fresh (a shot just uploaded, before «انشر»): open at once, nothing to read, and saved when the
+// finger leaves the box too — so words typed and then «انشر» aren't lost.
+export function ShotNote({ angleId, labels, fresh = false }: { angleId: string; labels: ShotNoteLabels; fresh?: boolean }) {
+  const [open, setOpen] = useState(fresh);
+  const [text, setText] = useState<string | null>(fresh ? "" : null);
   const [saved, setSaved] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "saved" | "blocked" | "failed">("idle");
 
@@ -31,6 +33,7 @@ export function ShotNote({ angleId, labels }: { angleId: string; labels: ShotNot
   }, [open, text, angleId]);
 
   async function save() {
+    if (state === "busy" || text === null || text === saved) return;
     setState("busy");
     const res = await fetch(`/api/angles/${angleId}/note`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ note: text ?? "" }) }).catch(() => null);
     if (res?.ok) {
@@ -62,6 +65,7 @@ export function ShotNote({ angleId, labels }: { angleId: string; labels: ShotNot
         maxLength={MAX}
         rows={3}
         placeholder={labels.notePlaceholder}
+        onBlur={fresh ? save : undefined}
         onChange={(e) => {
           setText(e.target.value);
           if (state !== "busy") setState("idle");

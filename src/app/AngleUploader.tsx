@@ -9,6 +9,7 @@ import { JoinCard, type JoinLabels, type JoinSuggestion } from "@/app/JoinCard";
 import { useEffect, useId, useRef, useState } from "react";
 import { CaptionEditor, type CaptionLabels } from "@/app/CaptionEditor";
 import { ShotEditor, type ShotEditorLabels } from "@/app/ShotEditor";
+import { ShotNote } from "@/app/ShotNote";
 import type { CaptionView } from "@/lib/caption";
 import { SoundPicker, type SoundLabels } from "@/app/SoundPicker";
 import { PlaceField, type PlaceOption } from "@/app/PlaceField";
@@ -782,6 +783,13 @@ export function AngleUploader({
                 )}
               </div>
             )}
+            {/* «✍️ احكي عن صورتك», right here before «انشر» (his meaning, 2026-11-12: «بعد رفعها وقبل
+                النشر»), open and empty — no request — and kept as soon as the finger leaves the box. */}
+            {items[current]?.status === "draft" && items[current].angleId && (
+              <div className="w-full max-w-md text-start">
+                <ShotNote key={items[current].angleId} angleId={items[current].angleId!} labels={editLabels} fresh />
+              </div>
+            )}
             {/* Several shots: each its own sound (tap one, then «🎵»), or the sound chosen first on all. */}
             {shown.length > 1 && drafts.length > 0 && (
               <div className="flex flex-col items-center gap-2">
@@ -971,7 +979,6 @@ export function AngleUploader({
                 }
               : undefined
           }
-          angleId={items[editing].angleId!}
           onClose={() => setEditing(null)}
         />
       )}
