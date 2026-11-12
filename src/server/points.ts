@@ -191,7 +191,7 @@ export async function giveGift(now = new Date(), only?: string[]) {
 }
 
 export async function awardFollow(only?: string[]) {
-  const zawmo = await systemUser();
+  const zawmo = await officialZawmo();
   const follows = await db.follow.findMany({ where: { followingId: zawmo.id, follower: { isGuest: false, isSystem: false, isAdmin: false }, ...(only ? { followerId: { in: only } } : {}) }, select: { followerId: true } });
   const following = new Set(follows.map((f) => f.followerId));
   // One read for everyone already paid, then a write only for the new ones (not one a follower an hour).
@@ -240,8 +240,18 @@ export async function myInvites(userId: string, now = new Date()) {
   return { joined, paid, giftOpen: now < GIFT_SHOTS_BEFORE };
 }
 
+// The Zawmo account people see and follow: the team's public «زاومو» profile (an admin account), not
+// the hidden system account that only signs Zawmo's own notifications (no one can follow it — found
+// 12/11: 11 followers on the first, 0 on the second). Falls back to the system account (tests, fresh DB).
+export async function officialZawmo() {
+  return (
+    (await db.user.findFirst({ where: { displayName: "زاومو", isAdmin: true, isSystem: false, isGuest: false }, orderBy: { createdAt: "asc" }, select: { id: true } })) ??
+    (await systemUser())
+  );
+}
+
 export const followsZawmo = async (userId: string) => {
-  const zawmo = await systemUser();
+  const zawmo = await officialZawmo();
   return { zawmoId: zawmo.id, following: (await db.follow.count({ where: { followerId: userId, followingId: zawmo.id } })) > 0 };
 };
 

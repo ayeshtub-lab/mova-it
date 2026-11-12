@@ -13,7 +13,6 @@ import { db } from "../src/lib/db";
 import { hamming, dhashFromGrey } from "../src/lib/dhash";
 import { AngleError, prepareAngle } from "../src/server/angles";
 import { createMoment } from "../src/server/moments";
-import { systemUser } from "../src/server/daily";
 import { inviteLink, inviterOf } from "../src/lib/source";
 import {
   FOLLOW_POINTS,
@@ -23,6 +22,7 @@ import {
   PinError,
   WINNER_BUDGET,
   awardFollow,
+  officialZawmo,
   giveGift,
   answers,
   autoPickForWinners,
@@ -228,7 +228,7 @@ async function main() {
     });
 
     await check("👤 following Zawmo: 50 once; dropped → taken back; again → given back, never twice", async () => {
-      const zawmo = await systemUser();
+      const zawmo = await officialZawmo();
       const before = await balanceOf(fan.id);
       await db.follow.create({ data: { followerId: fan.id, followingId: zawmo.id } });
       await awardFollow(ids);
