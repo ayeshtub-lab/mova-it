@@ -46,7 +46,7 @@ export const SEEN_PER_NET = 10;
 // someone; once that person — signed in with Google (a real account, not a guest a script can make)
 // — has 3 public shots that passed the check, the inviter gets 100, once per person, 10 a week at
 // most (the rest wait for the next week). The person invited gets the same as everyone (the gift
-// before 17/11, then their own shots).
+// before 24/11 — moved from 17/11 on his OK 12/11, so the first makers get it too — then their own shots).
 export const INVITE_POINTS = 100;
 export const INVITE_MIN_SHOTS = 3;
 export const INVITES_PER_WEEK = 10;
@@ -55,8 +55,8 @@ export const INVITES_PER_WEEK = 10;
 export const FOLLOW_POINTS = 50;
 export const GIFT_POINTS = 200;
 export const GIFT_MIN_SHOTS = 3;
-export const GIFT_SHOTS_BEFORE = new Date("2026-11-17T00:00:00+03:00");
-export const GIFT_UNTIL = new Date("2026-11-19T00:00:00+03:00");
+export const GIFT_SHOTS_BEFORE = new Date("2026-11-24T00:00:00+03:00");
+export const GIFT_UNTIL = new Date("2026-11-26T00:00:00+03:00");
 export const WINNER_MIN_SHOTS = 5;
 export const WINNER_PICK_HOURS = 12;
 const WEEK_MS = 7 * 24 * 3600e3;
