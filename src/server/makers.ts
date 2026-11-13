@@ -7,6 +7,7 @@ import { notify } from "@/server/notifications";
 import { resolvePlaceText, validPlaceId } from "@/server/places";
 import { systemUser } from "@/server/daily";
 import { pushNote } from "@/server/push";
+import { allow } from "@/server/rate-limit";
 
 async function tellAdmins(name: string) {
   const admins = await db.user.findMany({ where: { isAdmin: true, pushDevices: { some: {} } }, select: { id: true } });
@@ -25,7 +26,7 @@ export class MakerError extends Error {
 export const MAKER_ABOUT_MAX = 300;
 
 export async function myMaker(userId: string) {
-  return db.maker.findUnique({ where: { userId }, include: { moment: { select: { code: true } } } });
+  return db.maker.findUnique({ where: { userId }, include: { moment: { select: { code: true, _count: { select: { angles: { where: { status: "READY" } } } } } } } });
 }
 
 // The request (or its edit). A pending or turned-down request may be changed freely and goes (back)
@@ -49,7 +50,13 @@ export async function submitMaker(user: User, input: { name?: unknown; category?
   const city = cleanLine(input.city, MAKER_CITY_MAX);
   if (!city) throw new MakerError("invalid_city");
   const placeId = (await validPlaceId(input.placeId)) ?? (await resolvePlaceText(city));
-  const data = { name, category: input.category, city, placeId, ...contact, status: "PENDING" as const, reviewedAt: null };
+  // Its «🏪» moment from the first request (his 13/11: «ما في خيار رفع صور»): PRIVATE until he approves,
+  // so the maker shows their real work right away and he judges the work itself, not just words. A
+  // request from before this keeps no moment until its next save.
+  let momentId = existing?.momentId ?? null;
+  if (momentId) await db.moment.update({ where: { id: momentId }, data: { title: `🏪 ${name}`, placeId, placeName: placeId ? null : city } }).catch(() => (momentId = null));
+  if (!momentId) momentId = (await createMoment(user, { title: `🏪 ${name}`, placeName: city, placeId, visibility: "FRIENDS" })).id;
+  const data = { name, category: input.category, city, placeId, ...contact, momentId, status: "PENDING" as const, reviewedAt: null };
   const saved = await db.maker.upsert({ where: { userId: user.id }, create: { userId: user.id, ...data }, update: data });
   // He approves by hand, so he must know one is waiting: a push to the team (never blocks the request).
   if (existing?.status !== "PENDING") await tellAdmins(name).catch((error) => console.error("maker push failed", error));
@@ -60,7 +67,7 @@ export async function listMakers() {
   return db.maker.findMany({
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 200,
-    include: { user: { select: { id: true, displayName: true, email: true, createdAt: true, _count: { select: { angles: true } } } }, moment: { select: { code: true } } },
+    include: { user: { select: { id: true, displayName: true, email: true, createdAt: true, _count: { select: { angles: true } } } }, moment: { select: { code: true, _count: { select: { angles: { where: { status: "READY" } } } } } } },
   });
 }
 
@@ -71,16 +78,13 @@ export async function approveMaker(admin: User, userId: string) {
   const maker = await db.maker.findUnique({ where: { userId }, include: { user: true, moment: { select: { id: true } } } });
   if (!maker) throw new MakerError("not_found");
   let momentId = maker.moment?.id ?? null;
-  if (!momentId) {
-    const kind = MAKER_CATEGORIES[maker.category as keyof typeof MAKER_CATEGORIES];
-    const tag = kind ? kind.tags.slice(0, 2).map((t) => ` #${t}`).join("") : "";
-    const moment = await createMoment(maker.user, { title: `🏪 ${maker.name}`, placeName: maker.city, placeId: maker.placeId, visibility: "PUBLIC" });
-    // Zawmo's own words (the kind and its hashtag), not the member's: no text check needed. The name
-    // itself he read before approving.
-    const description = `${kind ? kind.label.replace(/^\S+\s/, "") : ""}${tag}`.trim();
-    if (description) await db.moment.update({ where: { id: moment.id }, data: { description } });
-    momentId = moment.id;
-  }
+  if (!momentId) momentId = (await createMoment(maker.user, { title: `🏪 ${maker.name}`, placeName: maker.city, placeId: maker.placeId, visibility: "FRIENDS" })).id;
+  // Now public, with Zawmo's own words (the kind and its hashtags), not the member's: no text check
+  // needed — the name and the photos he saw before approving.
+  const kind = MAKER_CATEGORIES[maker.category as keyof typeof MAKER_CATEGORIES];
+  const tag = kind ? kind.tags.slice(0, 2).map((t) => ` #${t}`).join("") : "";
+  const description = `${kind ? kind.label.replace(/^\S+\s/, "") : ""}${tag}`.trim() || null;
+  await db.moment.update({ where: { id: momentId }, data: { visibility: "PUBLIC", description, lastActivityAt: new Date() } });
   await db.maker.update({ where: { userId }, data: { status: "APPROVED", momentId, reviewedAt: new Date() } });
   const zawmo = await systemUser();
   await notify({ userId, actorId: zawmo.id, kind: "MAKER_APPROVED" }, { key: `maker:${userId}`, where: { userId, kind: "MAKER_APPROVED" } });
@@ -113,4 +117,21 @@ export async function revealWhatsapp(userId: string, counted = true) {
 // A tap on «راسلني» or on their page: counted too (the pilot's «did anyone reach out?»).
 export async function countContact(userId: string) {
   await db.maker.updateMany({ where: { userId, status: "APPROVED" }, data: { contactTaps: { increment: 1 } } });
+}
+
+// «📢 بلّغ كل الأعضاء» (his OK 13/11): one push, once ever, to every member with a phone that takes
+// pushes — he presses it himself, at a good hour (not at night). Returns how many were told, or null
+// when it was already sent.
+export async function announceMakers(admin: User) {
+  if (!admin.isAdmin) throw new MakerError("not_found");
+  if (!(await allow("makersAnnounce", "makers-2026-11"))) return null;
+  const members = await db.user.findMany({ where: { isGuest: false, isSystem: false, pushDevices: { some: {} } }, select: { id: true } });
+  let told = 0;
+  for (const m of members) {
+    await pushNote(m.id, (t) => ({ title: t.makersTitle, body: t.makersBody, url: "/maker", tag: "makers" })).then(
+      () => told++,
+      (error) => console.error("makers announce failed", error),
+    );
+  }
+  return told;
 }

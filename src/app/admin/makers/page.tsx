@@ -5,7 +5,7 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { MAKER_CATEGORIES } from "@/lib/maker";
-import { approveMaker, listMakers, rejectMaker } from "@/server/makers";
+import { announceMakers, approveMaker, listMakers, rejectMaker } from "@/server/makers";
 
 // «🏪 المشاريع» — admins only (his approval, no cap, 2026-11-10): every request, newest waiting first.
 // ✅ opens the project's «🏪» moment and tells its owner; ❌ turns it down (they may edit and resend).
@@ -30,6 +30,20 @@ async function decide(formData: FormData) {
   redirect(`/admin/makers?r=${r}`);
 }
 
+async function announce() {
+  "use server";
+  const admin = await getCurrentUser();
+  if (!admin?.isAdmin) notFound();
+  let r = "failed";
+  try {
+    const told = await announceMakers(admin);
+    r = told === null ? "announced-before" : `announced-${told}`;
+  } catch (error) {
+    console.error("makers announce failed", error);
+  }
+  redirect(`/admin/makers?r=${r}`);
+}
+
 const STATUS: Record<string, string> = { PENDING: "⏳ ينتظر", APPROVED: "✅ مفتوح", REJECTED: "❌ مرفوض" };
 const time = (d: Date) => new Intl.DateTimeFormat("ar", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Riyadh" }).format(d);
 
@@ -46,9 +60,16 @@ export default async function AdminMakers({ searchParams }: { searchParams: Prom
       <main dir="rtl" className="mx-auto flex w-full max-w-2xl flex-col gap-4 pb-16">
         <h1 className="text-2xl font-extrabold">🏪 المشاريع</h1>
         <p className="text-sm text-muted">
-          {makers.length} طلب · {waiting} ينتظر موافقتك. افحص: الاسم مناسب؟ الشغل من القائمة ومن إيده؟ الصفحة والرقم إله؟
+          {makers.length} طلب · {waiting} ينتظر موافقتك. افحص: الاسم مناسب؟ الشغل من القائمة ومن إيده؟ صوره حقيقية (افتح لحظته)؟ الصفحة والرقم إله؟ طلب بلا صور، لا توافق عليه.
         </p>
         {sp.r === "failed" && <p className="rounded-2xl bg-red-50 p-3 font-bold text-red-700">صار خطأ، جرّب كمان مرة.</p>}
+        {typeof sp.r === "string" && sp.r.startsWith("announced-") && (
+          <p className="rounded-2xl bg-secondary-soft p-3 font-bold">{sp.r === "announced-before" ? "📢 الإشعار انبعت قبل، وما بينبعت مرتين." : `📢 انبعت لـ${sp.r.slice(10)} عضو.`}</p>
+        )}
+        {/* Once, ever: a push to every member about «🏪 عندي مشروع» (he picks the hour — not at night). */}
+        <form action={announce}>
+          <button className="min-h-11 w-full rounded-full bg-amber-500 px-4 font-extrabold text-white">📢 بلّغ كل الأعضاء عن المشاريع (مرة وحدة بس، مش بالليل)</button>
+        </form>
         <ul className="flex flex-col gap-3">
           {makers.map((m) => (
             <li key={m.userId} className="flex flex-col gap-2 rounded-2xl bg-surface p-4 text-sm">
@@ -70,7 +91,7 @@ export default async function AdminMakers({ searchParams }: { searchParams: Prom
               <p className="text-xs text-muted">
                 طلب {time(m.createdAt)}
                 {m.reviewedAt ? ` · قرار ${time(m.reviewedAt)}` : ""}
-                {m.moment ? <> · <Link href={`/m/${m.moment.code}`} className="underline">لحظته</Link></> : null}
+                {m.moment ? <> · <Link href={`/m/${m.moment.code}`} className="font-bold underline">📸 لحظته ({m.moment._count.angles} صورة)</Link></> : " · ما في لحظة لسا"}
                 {m.contactTaps ? ` · 👋 ${m.contactTaps} تواصل` : ""}
               </p>
               {m.status !== "APPROVED" && (

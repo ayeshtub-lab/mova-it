@@ -57,11 +57,16 @@ async function main() {
       await submitMaker(maker, { name: `${TAG} حلويات`, category: "sweets", city: "بيت لحم", about: "كيك وكنافة، اطلب على 0599123456 أو www.x.com" });
       let m = await myMaker(maker.id);
       assert.equal(m?.status, "PENDING");
+      const own = await db.moment.findMany({ where: { creatorId: maker.id } });
+      assert.equal(own.length, 1, "its «🏪» moment opens with the request");
+      assert.equal(own[0].visibility, "FRIENDS", "private until approved");
       assert.equal(m?.whatsapp, null);
       assert.ok(m?.about && !/\d{5}/.test(m.about) && !m.about.includes("x.com"), m?.about ?? "");
       await submitMaker(maker, { name: `${TAG} حلويات أم أحمد`, category: "sweets", city: "بيت لحم", whatsapp: "0599123456" });
       m = await myMaker(maker.id);
       assert.equal(m?.name, `${TAG} حلويات أم أحمد`);
+      assert.equal((await db.moment.findMany({ where: { creatorId: maker.id } })).length, 1, "an edit keeps the same moment");
+      assert.equal((await db.moment.findUnique({ where: { id: m!.momentId! } }))?.title, `🏪 ${TAG} حلويات أم أحمد`);
       assert.equal(m?.whatsapp, "970599123456");
       assert.equal(await makerOfMoment("NOPE00"), null);
     });

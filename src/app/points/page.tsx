@@ -54,7 +54,7 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
   const shots = await db.angle.findMany({
     where: { contributorId: user.id, status: "READY", screening: "allowed", moment: { visibility: "PUBLIC", status: "ACTIVE" } },
     orderBy: { uploadedAt: "desc" },
-    take: 24,
+    take: 36,
     select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, moment: { select: { title: true } }, _count: { select: { reactions: true } } },
   });
   const covers = await Promise.all(shots.map((s) => coverOf(s)));
@@ -142,6 +142,8 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
                       <input type="checkbox" name="angleId" value={s.id} className="peer absolute start-2 top-2 z-10 size-5 accent-amber-500" />
                       {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL */}
                       {covers[i] && <img src={covers[i]!} alt={s.moment.title} loading="lazy" className="aspect-[3/4] w-full rounded-2xl object-cover ring-amber-400 ring-offset-2 peer-checked:ring-4" />}
+                      {/* (a video is marked: his 13/11 «الفيديوهات لازم تظهر مع الصور» — they were there, unmarked) */}
+                      {s.mediaType === "VIDEO" && <span className="pointer-events-none absolute end-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-extrabold text-white">▶︎</span>}
                       {/* (no «❤️ 0» under a shot nobody liked yet) */}
                       <span className="h-4 truncate text-xs text-muted">{s._count.reactions > 0 ? `❤️ ${n(s._count.reactions)}` : ""}</span>
                     </label>

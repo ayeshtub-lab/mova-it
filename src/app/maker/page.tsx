@@ -79,6 +79,17 @@ export default async function MakerPage({ searchParams }: { searchParams: Promis
         )}
 
         {maker?.status === "PENDING" && <p className="rounded-2xl bg-amber-50 p-4 font-bold leading-relaxed dark:bg-amber-400/10">{t.pending}</p>}
+        {/* Its «🏪» moment, private until approved: the maker's real work, for him to judge. */}
+        {maker && maker.status !== "APPROVED" && maker.moment && (
+          <section className="flex flex-col gap-2 rounded-3xl border-2 border-secondary/40 p-4">
+            <p className="font-extrabold">{t.photosTitle}</p>
+            <p className="text-sm leading-relaxed text-muted">{t.photosHint}</p>
+            <Link href={`/m/${maker.moment.code}`} className="flex min-h-12 items-center justify-center rounded-full bg-accent px-6 font-extrabold text-white shadow-sm">
+              {t.photosGo}
+            </Link>
+            <p className="text-center text-sm font-bold">{t.photosCount.replace("{n}", maker.moment._count.angles.toLocaleString("en"))}</p>
+          </section>
+        )}
         {maker?.status === "REJECTED" && <p className="rounded-2xl bg-surface p-4 font-bold leading-relaxed">{t.rejected}</p>}
         {approved && (
           <section className="flex flex-col gap-3 rounded-3xl border-2 border-secondary/40 bg-secondary-soft/40 p-4">
