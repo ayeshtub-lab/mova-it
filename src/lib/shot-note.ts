@@ -1,7 +1,8 @@
-// «✍️ احكي عن صورتك» (his idea, 2026-11-12): the owner's own words about a shot. Up to 300 characters,
+// «✍️ احكي عن صورتك» (his idea, 2026-11-12): the owner's own words about a shot. Up to 1000 characters,
 // one paragraph, and never a way to reach someone outside Zawmo — no links, emails or phone numbers
 // (a maker's contact is WhatsApp's button, not the text: spam stays out of the public pages).
-export const NOTE_MAX = 300;
+// «📝 حكايات الصور» (his OK 13/11): room for a real story — برك سليمان and its history — not just a line.
+export const NOTE_MAX = 1000;
 
 const LINK = /\b(?:https?:\/\/|www\.)\S+|\b[\w.-]+\.(?:com|net|org|me|ly|io|co|ps|il|jo|info|store|shop|link)(?:\/\S*)?\b/giu;
 const EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/gu;

@@ -19,10 +19,10 @@ test("no phone numbers, links, emails or @handles", () => {
   assert.equal(cleanNote("تابعوني @my.shop هناك"), "تابعوني هناك");
 });
 
-test("empty or not text → nothing; long → cut at 300 characters", () => {
+test("empty or not text → nothing; long → cut at NOTE_MAX (1000) characters", () => {
   assert.equal(cleanNote(""), null);
   assert.equal(cleanNote("   "), null);
   assert.equal(cleanNote("0599123456"), null);
   assert.equal(cleanNote(42), null);
-  assert.equal([...cleanNote("أ".repeat(400))!].length, NOTE_MAX);
+  assert.equal([...cleanNote("أ".repeat(1400))!].length, NOTE_MAX);
 });

@@ -21,6 +21,7 @@ export function galleryAngles(view: MomentView): GalleryAngle[] {
     contributorName: a.contributorName,
     aiText: a.aiText,
     aiTitle: a.aiTitle,
+    note: a.note, // «📝 حكايات الصور»
     contributorVerified: a.contributorVerified,
     profileId: a.profileId,
     contributorAvatar: a.contributorAvatar,

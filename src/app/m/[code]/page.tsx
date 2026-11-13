@@ -446,6 +446,32 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
           </Link>
         )}
 
+        {/* «📝 حكايات الصور» (his 13/11: a real photo with real knowledge is what brings clicks): what the
+            photographers wrote about their shots, in the page itself so search engines read it — a few
+            lines each, the whole story on the shot's own page. Public moments only. */}
+        {momentIndexable(view) && view.angles.some((a) => a.note) && (
+          <section aria-label={dict.viewer.storiesTitle} className="flex flex-col gap-3">
+            <h2 className="text-lg font-extrabold">{dict.viewer.storiesTitle}</h2>
+            <ul className="flex flex-col gap-3">
+              {view.angles
+                .filter((a) => a.note)
+                .slice(0, 8)
+                .map((a) => (
+                  <li key={a.id}>
+                    <Link href={`/m/${view.code}/a/${a.id}`} className="flex gap-3 rounded-2xl bg-surface p-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- the shot's small public picture */}
+                      {a.gridUrl && <img src={a.gridUrl} alt="" loading="lazy" className="size-16 shrink-0 rounded-xl object-cover" />}
+                      <span className="flex min-w-0 flex-col gap-1">
+                        <span className="text-xs font-bold text-muted">{fill(dict.viewer.storyBy, { name: a.contributorName })}</span>
+                        <span className="line-clamp-3 text-sm leading-relaxed">{a.note}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        )}
+
         {/* «🏷️ طماطم في الخضر»: the topic pages its shots are in (src/server/topics.ts) — public moments only. */}
         {/* (Arabic search pages: not on an English page.) */}
         {topics.length > 0 && locale === "ar" && (

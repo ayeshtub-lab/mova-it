@@ -197,6 +197,8 @@ export async function getMomentView(code: string, viewer: User | null) {
         stampAt: a.uploadedAt,
         contributorName: a.contributor.displayName,
         aiText: a.aiText,
+        // «📝 حكايات الصور»: its owner's own words, under it in the viewer (2 lines, «المزيد» for all).
+        note: a.note,
         // Its own name («فنجان قهوة بين الأشجار»), shown on it in the viewer (2026-10-17).
         aiTitle: a.aiTitle || null,
         aiTitleEn: a.aiTitleEn || null,

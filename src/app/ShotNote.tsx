@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-export type ShotNoteLabels = { note: string; noteHint: string; notePlaceholder: string; noteSave: string; noteSaved: string; noteBlocked: string; noteFailed: string };
+import { NOTE_MAX as MAX } from "@/lib/shot-note";
 
-const MAX = 300;
+export type ShotNoteLabels = { note: string; noteHint: string; notePlaceholder: string; noteSave: string; noteSaved: string; noteBlocked: string; noteFailed: string; noteIdeas: string; noteQuestions: string[] };
 
 // «✍️ احكي عن صورتك» (2026-11-12), inside «✏️ تعديل»: folded to one line until tapped; the words are
 // read only then (one small request, nothing on the gallery's load) and saved on their own.
@@ -15,6 +15,11 @@ export function ShotNote({ angleId, labels, fresh = false }: { angleId: string; 
   const [text, setText] = useState<string | null>(fresh ? "" : null);
   const [saved, setSaved] = useState("");
   const [state, setState] = useState<"idle" | "busy" | "saved" | "blocked" | "failed">("idle");
+  // «💡 شو أكتب؟» (13/11): questions that help someone who doesn't know what to write — the story of a
+  // place, how a dish is made, how a piece is crafted. Folded behind a small button: the box stays clean.
+  const [ideas, setIdeas] = useState(false);
+  // What to change, when the words were refused (from the check itself, in Arabic).
+  const [hint, setHint] = useState("");
 
   useEffect(() => {
     if (!open || text !== null) return;
@@ -43,8 +48,10 @@ export function ShotNote({ angleId, labels, fresh = false }: { angleId: string; 
       setState("saved");
       return;
     }
-    const error = res ? ((await res.json().catch(() => ({}))) as { error?: string }).error : null;
-    setState(error === "note_blocked" ? "blocked" : "failed");
+    const answer = res ? ((await res.json().catch(() => ({}))) as { error?: string; hint?: string }) : null;
+    // (only an Arabic sentence is shown: the check sometimes answers in English)
+    setHint(answer?.error === "note_blocked" && /[\u0600-\u06FF]/.test(answer.hint ?? "") ? answer.hint!.slice(0, 200) : "");
+    setState(answer?.error === "note_blocked" ? "blocked" : "failed");
   }
 
   if (!open)
@@ -59,11 +66,21 @@ export function ShotNote({ angleId, labels, fresh = false }: { angleId: string; 
     <div className="flex flex-col gap-2 rounded-2xl bg-surface p-3">
       <span className="font-bold">✍️ {labels.note}</span>
       <span className="text-xs text-muted">{labels.noteHint}</span>
+      <button type="button" onClick={() => setIdeas((v) => !v)} aria-expanded={ideas} className="w-fit rounded-full bg-background px-3 py-1 text-sm font-bold text-secondary">
+        {labels.noteIdeas}
+      </button>
+      {ideas && (
+        <ul className="flex list-none flex-col gap-1 rounded-2xl bg-background p-3 text-sm leading-relaxed">
+          {labels.noteQuestions.map((q) => (
+            <li key={q}>{q}</li>
+          ))}
+        </ul>
+      )}
       <textarea
         value={text ?? ""}
         disabled={text === null}
         maxLength={MAX}
-        rows={3}
+        rows={4}
         placeholder={labels.notePlaceholder}
         onBlur={fresh ? save : undefined}
         onChange={(e) => {
@@ -83,6 +100,7 @@ export function ShotNote({ angleId, labels, fresh = false }: { angleId: string; 
         {(state === "blocked" || state === "failed") && (
           <span role="alert" className="text-sm font-semibold text-accent-ink">
             {state === "blocked" ? labels.noteBlocked : labels.noteFailed}
+            {state === "blocked" && hint && <span className="mt-1 block font-bold">💡 {hint}</span>}
           </span>
         )}
       </div>

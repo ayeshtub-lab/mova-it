@@ -281,7 +281,14 @@ export async function screenAngle(angle: {
 }
 
 // A short text shown to everyone (a public moment's description): same rules, as text.
-export async function screenText(text: string): Promise<Verdict> {
+// «note»: a photographer's own words about their own shot (src/lib/shot-note.ts). His 13/11: a maker's
+// «حلويات الضيعة كلير دونات… التوصيل للطلبات فوق ١٠٠ شيكل» was refused as an ad — but a home maker telling
+// what they make, its price and delivery is exactly what we want there (contacts and links are already
+// stripped before this). Still blocked: insults, hate, sexual content, scams, forbidden goods, spam.
+const NOTE_RULES =
+  "This text is the photographer's OWN words about their OWN photo on a photo-sharing site. ALLOW ordinary descriptions, stories, history, recipes, and a small home business describing its own handmade products, prices, orders, delivery area and occasions (e.g. sweets, crochet, olive oil) — that is wanted, not spam. BLOCK only: insults or harassment of a person, hate, sexual content, scams or get-rich offers, drugs, weapons, tobacco, medicines or health/beauty claims (cures, whitening, slimming), gambling, political incitement, and meaningless keyword spam. When you block, write `reason` as ONE short sentence in Levantine Arabic telling the writer exactly which words to remove or change (e.g. «شيل كلمة … لأنها …»).";
+
+export async function screenText(text: string, kind: "general" | "note" = "general"): Promise<Verdict> {
   if (!screeningEnabled()) return { result: "error", reason: "screening off" };
   try {
     const res = await callGemini({
@@ -292,7 +299,7 @@ export async function screenText(text: string): Promise<Verdict> {
             role: "user",
             parts: [
               {
-                text: `${PROMPT}\n\nThe content is not an image but this short text (it may be Arabic, any dialect). Also BLOCK insults, harassment of a named person, and ads or spam links; allow ordinary words and hashtags.\n\nTEXT:\n"""${text.replace(/"""/g, "")}"""`,
+                text: `${PROMPT}\n\nThe content is not an image but this short text (it may be Arabic, any dialect). ${kind === "note" ? NOTE_RULES : "Also BLOCK insults, harassment of a named person, and ads or spam links; allow ordinary words and hashtags."}\n\nTEXT:\n"""${text.replace(/"""/g, "")}"""`,
               },
             ],
           },

@@ -6,7 +6,7 @@ import { limited } from "@/server/rate-limit";
 // «✍️ احكي عن صورتك»: the shot's owner reads (GET) and writes (POST { note }) their own words.
 const failure = (error: unknown) => {
   if (!(error instanceof AngleError)) throw error;
-  return NextResponse.json({ error: error.code }, { status: error.code === "not_found" ? 404 : 400 });
+  return NextResponse.json({ error: error.code, ...(error.hint ? { hint: error.hint } : {}) }, { status: error.code === "not_found" ? 404 : error.code === "note_failed" ? 503 : 400 });
 };
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {

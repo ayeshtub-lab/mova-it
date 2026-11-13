@@ -34,9 +34,11 @@ const VIDEO_TYPES: Record<string, string> = { "video/mp4": "mp4", "video/quickti
 
 export class AngleError extends Error {
   constructor(
-    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required" | "needs_title" | "story_owner" | "duplicate" | "too_close" | "note_blocked",
+    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required" | "needs_title" | "story_owner" | "duplicate" | "too_close" | "note_blocked" | "note_failed",
     // duplicate / too_close: the moment where the twin already is
     public where?: { code: string; title: string },
+    // note_blocked: what to change, in the writer's words (Gemini's short Arabic sentence)
+    public hint?: string,
   ) {
     super(code);
   }
@@ -720,7 +722,13 @@ export async function shotNote(user: User, angleId: string) {
 export async function setShotNote(user: User, angleId: string, raw: unknown) {
   const angle = await ownShot(user, angleId);
   const note = cleanNote(raw);
-  if (note && note !== angle.note && angle.moment.visibility === "PUBLIC" && (await screenText(note)).result !== "allowed") throw new AngleError("note_blocked");
+  if (note && note !== angle.note && angle.moment.visibility === "PUBLIC") {
+    // Fail-closed as before, but a check that couldn't run says «try again», not «refused»; and a refusal
+    // says what to change (his 13/11: «يعطي رسالة واضحة بازالة الكلمة»).
+    const verdict = await screenText(note, "note");
+    if (verdict.result === "blocked") throw new AngleError("note_blocked", undefined, verdict.reason || undefined);
+    if (verdict.result !== "allowed") throw new AngleError("note_failed");
+  }
   await db.angle.update({ where: { id: angle.id }, data: { note } });
   return { note: note ?? "" };
 }

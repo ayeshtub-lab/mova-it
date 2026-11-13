@@ -44,6 +44,7 @@ export type GalleryAngle = {
   stampAt: string; // when it was shared: the retro stamp's date and time
   contributorName: string;
   aiText?: string | null; // the line written for the shot (image alt text)
+  note?: string | null; // «📝 حكايات الصور»: its owner's own words
   aiTitle?: string | null; // its own name («فنجان قهوة بين الأشجار»), on it in the viewer
   contributorVerified?: boolean;
   contributorAvatar: string | null;
@@ -103,6 +104,7 @@ type Labels = {
   edit: ShotEditorLabels & { open: string; failed: string };
   branded: { make: string; working: string; share: string; failed: string; photoWorking: string; waitLabel: string; progress: string; ready: string; readySheet: string };
   repost: { note: string; ask: string; asked: string };
+  storyMore: string; // «… المزيد» under a shot's 2-line story
   caption: CaptionLabels;
   sounds: SoundLabels & { add: string; failed: string; mute: string; unmute: string; openSound: string };
   similar: { find: string; scanning: string; title: string; empty: string; close: string };
@@ -224,6 +226,8 @@ export function AngleGallery({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [current, setCurrent] = useState(0);
+  // «📝 حكايات الصور»: the shot whose story is open in full (2 lines otherwise).
+  const [openStory, setOpenStory] = useState<string | null>(null);
   // Bumped on every opening, so effects run even when it reopens on the same slide.
   const [opened, setOpened] = useState(0);
   const [deleting, setDeleting] = useState(false);
@@ -1313,6 +1317,24 @@ export function AngleGallery({
                     2026-10-17: people swiped not knowing what they were watching), then the row below. */}
                 <figcaption className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col gap-1.5 bg-gradient-to-t from-black/80 to-transparent p-4 pr-20 pt-14 text-sm font-bold">
                   {a.aiTitle && <p className="line-clamp-2 text-lg font-extrabold leading-snug [text-shadow:0_1px_6px_rgb(0_0_0/0.5)]">{a.aiTitle}</p>}
+                  {/* «📝 حكايات الصور» (his 13/11): its owner's story, in the caption band — never over the
+                      picture itself: 2 lines, a tap opens all of it (scrolls if long), a tap folds it. */}
+                  {a.note && (
+                    <button
+                      type="button"
+                      onClick={() => setOpenStory((s) => (s === a.id ? null : a.id))}
+                      aria-expanded={openStory === a.id}
+                      className={`pointer-events-auto text-start text-sm font-normal leading-relaxed [text-shadow:0_1px_4px_rgb(0_0_0/0.6)] ${openStory === a.id ? "max-h-[40vh] overflow-y-auto rounded-2xl bg-black/60 p-3" : "line-clamp-2"}`}
+                    >
+                      📝 {a.note}
+                      {openStory !== a.id && <span className="sr-only"> {labels.storyMore}</span>}
+                    </button>
+                  )}
+                  {a.note && openStory !== a.id && [...a.note].length > 90 && (
+                    <button type="button" onClick={() => setOpenStory(a.id)} className="pointer-events-auto w-fit text-xs font-extrabold text-white/90 underline underline-offset-4">
+                      {labels.storyMore}
+                    </button>
+                  )}
                   <p className="truncate text-xs font-bold text-white/85">🎬 {plain(share.title)}</p>
                   <div className="flex items-center gap-2">
                   {a.profileId ? (

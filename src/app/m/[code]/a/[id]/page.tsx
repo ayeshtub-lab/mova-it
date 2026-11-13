@@ -43,7 +43,8 @@ function describe(shot: PublicShot, dict: Dictionary, locale: string) {
   // (Its library sound's words too — «مع تلاوة …»: what it is heard with, for search.)
   const heard = locale === "ar" ? soundSearch(shot.soundKey) : null;
   // The owner's own words first («✍️ احكي عن صورتك»), on the Arabic page (they write in their language).
-  const own = locale === "ar" && shot.note ? `${shot.note} — ` : "";
+  // (Trimmed: a story may run to 1000 characters; the full text is on the page itself.)
+  const own = locale === "ar" && shot.note ? `${[...shot.note].length > 220 ? `${[...shot.note].slice(0, 217).join("").trim()}…` : shot.note} — ` : "";
   if (shot.aiText) return plain(`${own}${shot.aiText}${heard ? ` — ${heard.phrase}` : ""} — ${fill(t.from, { title: shot.moment.title })}`);
   return plain(own + fill(t.description, {
     label: shotLabel(shot, locale),
