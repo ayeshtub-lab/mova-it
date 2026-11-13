@@ -2,18 +2,25 @@
 // «اللي بينصنع أو بينزرع أو بينطبخ بإيد صاحبه ومتصوّر بجواله». Each kind carries the hashtags of the
 // pages where it belongs — its moment's description gets the first one, so the «🏪» moment sits with
 // sweets on the sweets pages, with flowers on the flowers pages (his «الأقرب أول»), never at random.
-// Not allowed, whatever the wording: cars, property, electronics, resale, medicine and supplements,
-// cosmetics claims, tobacco, finance, weapons, dating, politics — he turns those down by hand.
+// Not allowed, whatever the wording: cars, property, electronics, resale, medicine, supplements and
+// herbal «remedies», cosmetic claims (تبييض، تنحيف، تطويل الشعر), brand copies, tobacco, finance, weapons,
+// dating, politics; services shown on people (henna, make-up) — he turns those down by hand.
 export const MAKER_CATEGORIES = {
-  sweets: { label: "🍰 حلويات بيتية", tags: ["حلويات_منزلية", "حلويات", "كيك"] },
-  cooking: { label: "🍲 أكل بيتي", tags: ["أكل_بيتي", "طبخ", "أكلات_شعبية"] },
-  bakery: { label: "🥖 مخبوزات ومعجنات", tags: ["مخبوزات", "معجنات", "خبز"] },
-  crochet: { label: "🧶 كروشيه وصوف", tags: ["كروشيه", "صوف", "أشغال_يدوية"] },
-  sewing: { label: "🪡 تطريز وخياطة", tags: ["تطريز", "تطريز_فلسطيني", "خياطة"] },
-  crafts: { label: "🪵 خشب وفخار وأشغال يدوية", tags: ["أشغال_يدوية", "خشب", "فخار"] },
-  flowers: { label: "💐 ورد ومشاتل", tags: ["ورد", "زهور", "نباتات"] },
-  farm: { label: "🫒 زيت وعسل وخير الأرض", tags: ["زيت_زيتون", "عسل", "منتجات_بلدية"] },
-  art: { label: "🎨 رسم وفن", tags: ["رسم", "فن", "لوحات"] },
+  // In order of demand (research 13/11: home food leads in every Arab source, then occasions and brides;
+  // crafts lower). The first hashtag is the one its «🏪» moment carries.
+  sweets: { label: "🍰 حلويات بيتية", tags: ["حلويات_منزلية", "كيك_اعياد_ميلاد", "حلويات"] },
+  cooking: { label: "🍲 أكل بيتي", tags: ["اكل_بيتي", "طبخ_بيتي", "اكلات_منزلية"] },
+  bakery: { label: "🥖 مخبوزات ومعجنات", tags: ["مخبوزات_منزلية", "معجنات", "فطائر"] },
+  occasions: { label: "🎁 توزيعات وهدايا: مواليد، تخرّج، رمضان، بوكسات", tags: ["توزيعات_مواليد", "توزيعات", "بوكسات_هدايا"] },
+  bridal: { label: "💍 تجهيز عرايس: مسكات، صواني، إكسسوارات، توزيعات أعراس", tags: ["تجهيز_عرايس", "مسكات_عرايس", "صواني_عرايس"] },
+  mouneh: { label: "🫙 مونة وخير الأرض: زيت، زعتر، عسل، مكدوس، مربيات", tags: ["مونة", "زيت_زيتون_بلدي", "مكدوس"] },
+  crochet: { label: "🧶 كروشيه وصوف", tags: ["كروشيه", "شغل_كروشيه", "تريكو"] },
+  sewing: { label: "🪡 تطريز وخياطة", tags: ["تطريز", "تطريز_يدوي", "خياطة"] },
+  soap: { label: "🧼 صابون وشموع", tags: ["صابون_طبيعي", "شموع_معطرة", "صابون_يدوي"] },
+  jewelry: { label: "💎 إكسسوارات يدوية: خرز وريزن", tags: ["اكسسوارات_يدوية", "ريزن", "خرز"] },
+  crafts: { label: "🪵 خشب وفخار وديكور", tags: ["اشغال_يدوية", "فخار", "ديكور_يدوي"] },
+  flowers: { label: "💐 ورد ونباتات", tags: ["تنسيق_ورد", "بوكيه_ورد", "مشاتل"] },
+  art: { label: "🎨 رسم وخط عربي", tags: ["رسم", "لوحات_فنية", "خط_عربي"] },
 } as const;
 
 export type MakerCategory = keyof typeof MAKER_CATEGORIES;
