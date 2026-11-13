@@ -7,12 +7,14 @@
 // dating, politics; services shown on people (henna, make-up) — he turns those down by hand.
 export const MAKER_CATEGORIES = {
   // In order of demand (research 13/11: home food leads in every Arab source, then occasions and brides;
-  // crafts lower). The first hashtag is the one its «🏪» moment carries.
+  // crafts lower). Its «🏪» moment carries the first two hashtags. Palestine's own words first where
+  // they differ (his Trends 13/11: «توزيعات بيبي», «توزيعات عروس» +20%, and all three — بيبي، عروس، اعراس — «زيادة هائلة» in the last month; «توزيعات» alone is also stock
+  // dividends, so never the bare word).
   sweets: { label: "🍰 حلويات بيتية", tags: ["حلويات_منزلية", "كيك_اعياد_ميلاد", "حلويات"] },
   cooking: { label: "🍲 أكل بيتي", tags: ["اكل_بيتي", "طبخ_بيتي", "اكلات_منزلية"] },
   bakery: { label: "🥖 مخبوزات ومعجنات", tags: ["مخبوزات_منزلية", "معجنات", "فطائر"] },
-  occasions: { label: "🎁 توزيعات وهدايا: مواليد، تخرّج، رمضان، بوكسات", tags: ["توزيعات_مواليد", "توزيعات", "بوكسات_هدايا"] },
-  bridal: { label: "💍 تجهيز عرايس: مسكات، صواني، إكسسوارات، توزيعات أعراس", tags: ["تجهيز_عرايس", "مسكات_عرايس", "صواني_عرايس"] },
+  occasions: { label: "🎁 توزيعات وهدايا: مواليد، تخرّج، رمضان، بوكسات", tags: ["توزيعات_بيبي", "توزيعات_مواليد", "افكار_توزيعات"] },
+  bridal: { label: "💍 تجهيز عرايس: مسكات، صواني، إكسسوارات، توزيعات أعراس", tags: ["تجهيز_عرايس", "توزيعات_عروس", "توزيعات_اعراس"] },
   mouneh: { label: "🫙 مونة وخير الأرض: زيت، زعتر، عسل، مكدوس، مربيات", tags: ["مونة", "زيت_زيتون_بلدي", "مكدوس"] },
   crochet: { label: "🧶 كروشيه وصوف", tags: ["كروشيه", "شغل_كروشيه", "تريكو"] },
   sewing: { label: "🪡 تطريز وخياطة", tags: ["تطريز", "تطريز_يدوي", "خياطة"] },

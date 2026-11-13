@@ -64,7 +64,7 @@ export async function approveMaker(admin: User, userId: string) {
   let momentId = maker.moment?.id ?? null;
   if (!momentId) {
     const kind = MAKER_CATEGORIES[maker.category as keyof typeof MAKER_CATEGORIES];
-    const tag = kind ? ` #${kind.tags[0]}` : "";
+    const tag = kind ? kind.tags.slice(0, 2).map((t) => ` #${t}`).join("") : "";
     const moment = await createMoment(maker.user, { title: `🏪 ${maker.name}`, placeName: maker.city, placeId: maker.placeId, visibility: "PUBLIC" });
     // Zawmo's own words (the kind and its hashtag), not the member's: no text check needed. The name
     // itself he read before approving.
