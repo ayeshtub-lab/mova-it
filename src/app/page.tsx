@@ -126,6 +126,14 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
           <span className="shrink-0 text-sm text-amber-700 dark:text-amber-300">{dict.points.homeHintGo}</span>
         </Link>
       )}
+      {/* «🏪 جديد: عندك مشروع؟» (2026-11-13, his «ما في شي يبين للعضو»): one «new» card at a time — after
+          «⭐ نقاطي» was opened once, until /maker is opened once (cookies; nothing from the database). */}
+      {!user.isGuest && (await cookies()).has("zw_pts") && !(await cookies()).has("zw_mkr") && (
+        <Link href="/maker" className="flex items-center justify-between gap-3 rounded-3xl border-2 border-amber-300/70 bg-amber-50/60 p-4 font-bold dark:bg-amber-400/10">
+          <span>{dict.maker.homeHint}</span>
+          <span className="shrink-0 text-sm text-amber-700 dark:text-amber-300">{dict.maker.homeGo}</span>
+        </Link>
+      )}
       {/* «⭐ تحت أضواء زاومو» («خطة زاومو الذهبية», src/app/HomePin.tsx). */}
       <HomePin dict={dict} />
       {/* «زاوية الموسم» (2026-11-06): the season between its dates, pinned here — src/app/SeasonZone.tsx. */}

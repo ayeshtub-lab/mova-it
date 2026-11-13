@@ -51,3 +51,13 @@ export function PointsSeen() {
   }, []);
   return null;
 }
+
+// Opening «🏪 مشروعي» (/maker) once hides the home page's «🏪 جديد» card (src/app/page.tsx), for a year.
+export function MakerSeen() {
+  useEffect(() => {
+    try {
+      document.cookie = "zw_mkr=1; path=/; max-age=31536000; samesite=lax";
+    } catch {}
+  }, []);
+  return null;
+}

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { SiteHeader } from "@/app/SiteHeader";
 import { PlaceField } from "@/app/PlaceField";
 import { GoogleButton } from "@/app/GoogleButton";
+import { MakerSeen } from "@/app/points/InviteShare";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { MAKER_CATEGORIES, MAKER_NAME_MAX } from "@/lib/maker";
@@ -49,6 +50,7 @@ export default async function MakerPage({ searchParams }: { searchParams: Promis
     return (
       <div className="flex flex-1 flex-col px-4 sm:px-8">
         <SiteHeader locale={locale} dict={dict} />
+      <MakerSeen />
         <main className="mx-auto flex w-full max-w-xl flex-col gap-5 pb-16">
           <h1 className="text-2xl font-extrabold">{t.title}</h1>
           <p className="leading-relaxed">{t.intro}</p>
@@ -67,6 +69,7 @@ export default async function MakerPage({ searchParams }: { searchParams: Promis
   return (
     <div className="flex flex-1 flex-col px-4 sm:px-8">
       <SiteHeader locale={locale} dict={dict} />
+      <MakerSeen />
       <main className="mx-auto flex w-full max-w-xl flex-col gap-5 pb-16">
         <h1 className="text-2xl font-extrabold">{t.title}</h1>
         {r && (

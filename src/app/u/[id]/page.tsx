@@ -19,6 +19,7 @@ import { FollowButton } from "./FollowButton";
 import { NameEditor, type RenameState } from "./NameEditor";
 import { ProfileTabs } from "./ProfileTabs";
 import { MessageButton } from "./MessageButton";
+import { myMaker } from "@/server/makers";
 
 // What a member's page says about them to search engines: their public shots and where.
 function authorLine(name: string, author: Awaited<ReturnType<typeof publicAuthor>>, locale: string) {
@@ -62,7 +63,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
   const [viewer, locale] = await Promise.all([getCurrentUser(), getLocale()]);
   const profile = await getProfile(viewer, id);
   if (!profile) notFound();
-  const dict = await getDictionary(locale);
+  const [dict, maker] = await Promise.all([getDictionary(locale), myMaker(id)]);
   const t = dict.profile;
   const initial = [...profile.displayName][0] ?? "?";
   // Who they are, for search engines (a page with public shots only — see generateMetadata).
@@ -122,6 +123,12 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
             />
           ) : (
             <h1 className="text-2xl font-extrabold">{profile.displayName}</h1>
+          )}
+          {/* An approved project: its «🏪» moment, from its maker's page (visitors find their shop). */}
+          {maker?.status === "APPROVED" && maker.moment && (
+            <Link href={`/m/${maker.moment.code}`} className="rounded-full bg-amber-500 px-4 py-1.5 text-sm font-extrabold text-white">
+              🏪 {maker.name}
+            </Link>
           )}
           {profile.verified && (
             <p className="-mt-1 flex items-center gap-1.5 text-sm font-bold text-[#1463e0] dark:text-[#5aa9ff]">
@@ -198,9 +205,15 @@ export default async function ProfilePage({ params }: PageProps<"/u/[id]">) {
         />
         {/* «⭐ نقاطي» («خطة زاومو الذهبية», src/app/points). */}
         {profile.isMe && viewer && !viewer.isGuest && (
-          <Link href="/points" className="flex min-h-11 items-center justify-center self-center rounded-full bg-amber-100 px-5 text-sm font-extrabold text-amber-800 dark:bg-amber-400/15 dark:text-amber-300">
-            {dict.points.title}
-          </Link>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link href="/points" className="flex min-h-11 items-center justify-center rounded-full bg-amber-100 px-5 text-sm font-extrabold text-amber-800 dark:bg-amber-400/15 dark:text-amber-300">
+              {dict.points.title}
+            </Link>
+            {/* «🏪 عندي مشروع» (2026-11-13): where a member with a project starts, or reaches it. */}
+            <Link href="/maker" className="flex min-h-11 items-center justify-center rounded-full bg-amber-100 px-5 text-sm font-extrabold text-amber-800 dark:bg-amber-400/15 dark:text-amber-300">
+              {maker ? dict.maker.entryMine : dict.maker.entryTitle}
+            </Link>
+          </div>
         )}
         {profile.isMe && viewer && !viewer.isGuest && (
           <>
