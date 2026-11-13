@@ -46,7 +46,7 @@ async function toggleNotes() {
 export default async function PointsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getCurrentUser();
   if (!user || user.isGuest) redirect("/");
-  const [locale, mine, sp, zawmo, invites] = await Promise.all([getLocale(), myPoints(user), searchParams, followsZawmo(user.id), myInvites(user.id)]);
+  const [locale, mine, sp, zawmo, invites, maker] = await Promise.all([getLocale(), myPoints(user), searchParams, followsZawmo(user.id), myInvites(user.id), db.maker.findUnique({ where: { userId: user.id }, select: { status: true } })]);
   const dict = await getDictionary(locale);
   const t = dict.points;
   // The same digits as the words around them (10, 500) — as the inbox shows its numbers.
@@ -173,6 +173,15 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
           <InviteShare link={invite} message={t.inviteMessage} labels={{ share: t.inviteShare, copy: t.inviteCopy, copied: t.inviteCopied }} />
           <p dir="ltr" className="truncate text-center text-xs text-muted">{invite}</p>
           {invites.joined > 0 && <p className="text-sm font-bold text-secondary">{t.inviteStats.replace("{joined}", n(invites.joined)).replace("{paid}", n(invites.paid))}</p>}
+        </section>
+
+        {/* «🏪 عندي مشروع» (2026-11-13): makers ask here; their project page is /maker. */}
+        <section className="flex flex-col gap-2 rounded-3xl border-2 border-amber-300/70 bg-amber-50/60 p-4 dark:bg-amber-400/10">
+          <h2 className="text-lg font-extrabold">{dict.maker.entryTitle}</h2>
+          {!maker && <p className="text-sm leading-relaxed text-muted">{dict.maker.entryHint}</p>}
+          <Link href="/maker" className="flex min-h-12 items-center justify-center rounded-full bg-amber-500 px-6 font-extrabold text-white">
+            {maker ? dict.maker.entryMine : dict.maker.entryGo}
+          </Link>
         </section>
 
         <section className="flex flex-col gap-2 rounded-3xl bg-surface p-4">

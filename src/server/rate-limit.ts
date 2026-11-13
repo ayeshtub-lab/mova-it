@@ -30,6 +30,7 @@ export const LIMITS = {
   sound: [12, 3600], // «🎤 صوتك» added (each checked by Gemini, and AudD while it has credit)
   cardIdeas: [40, 3600], // «💌 بطاقة»: Gemini's lines for a picture (each picture asked once a week)
   card: [30, 3600], // a card made public (its words checked by Gemini)
+  makerContact: [30, 3600], // «🏪»: a tap on WhatsApp / page / message (the number is only sent then: slow any scraping)
   // Weather alerts (src/server/weather-alerts.ts): the count marks one as sent, so each is once per window.
   snowAlert: [1, 48 * 3600], // per governorate
   rainAlert: [1, 7 * 24 * 3600], // per governorate: not every rainy day of the winter

@@ -20,6 +20,8 @@ import { after } from "next/server";
 import { cache } from "react";
 import { AngleUploader } from "@/app/AngleUploader";
 import { Description } from "@/app/Description";
+import { MakerCard } from "./MakerCard";
+import { makerOfMoment } from "@/server/makers";
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
 import { JsonLd } from "@/app/JsonLd";
@@ -225,12 +227,14 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   // - their own shots here still waiting for «نشر» (they left before it): back in the publish sheet;
   // - the topic pages its shots are in («طماطم في الخضر») — linked below, for public moments;
   // - «⬇️ اللحظة الجاية»: where the viewer and the films strip carry on to (public moments only).
-  const [daily, montage, drafts, topics, next] = await Promise.all([
+  const [daily, montage, drafts, topics, next, maker] = await Promise.all([
     view.kind === "DAILY" ? dailyFor(view.id, user) : null,
     view.angleCount > 0 ? latestMontageFor(user, view.code) : null,
     myDrafts(user, view.id),
     momentIndexable(view) ? momentTopics(view.angles.map((a) => a.id)) : [],
     view.kind === "DAILY" ? [] : nextMoments(view.id).then((n) => inEnglish(n, locale)).catch(() => []),
+    // «🏪»: a maker's project moment (approved projects only; public moments only).
+    view.visibility === "PUBLIC" ? makerOfMoment(view.code).catch(() => null) : null,
   ]);
   // Then what depends on those: the vote, and «أجزاء» — the film in parts of up to 40 seconds,
   // for those who may see the video at all.
@@ -292,6 +296,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
             </p>
           )}
           {view.description && <Description text={view.description} className="text-lg" />}
+          {maker && <MakerCard maker={maker} viewerId={user?.id ?? null} labels={{ badge: dict.maker.badge, message: dict.maker.message, whatsappGo: dict.maker.whatsappGo, pageGo: dict.maker.pageGo }} />}
           {!daily && !story && <MomentHint text={dict.momentHint.text} close={dict.momentHint.close} />}
           {daily?.theme.tip && <p className="rounded-2xl bg-secondary-soft px-3 py-2 text-sm font-semibold text-secondary">🤍 {locale === "ar" ? daily.theme.tip.ar : daily.theme.tip.en}</p>}
           {(view.place || view.placeName) && (

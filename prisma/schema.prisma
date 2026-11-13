@@ -94,6 +94,7 @@ model User {
   pointEntries         PointEntry[]
   homePins             HomePin[]
   weeklyWins           WeeklyWinner[]
+  maker                Maker?
 
   @@index([invitedById])
 }
@@ -186,6 +187,7 @@ model Moment {
   montages     Montage[]
   likes        MomentLike[]
   reports      Report[]
+  maker        Maker?
   // An illustrative example (AI-made, for explaining Zawmo): opens by its link and on its
   // owner's profile, but is never listed with real people's moments (feeds, wheel, places,
   // search engines, «صوّر معك»).
@@ -640,6 +642,7 @@ enum NotificationKind {
   PIN_DONE // ⭐ your spotlight finished: seen N times (the number in `count`)
   POINTS_GIFT // 🎁 Zawmo's thank-you points (the number in `count`), once
   INVITE_JOINED // 📤 someone you invited joined and shared 3 public shots: +N points (`count`)
+  MAKER_APPROVED // 🏪 your project was approved: its «🏪» moment is open (from Zawmo, once)
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.
@@ -1049,4 +1052,38 @@ model WeeklyMission {
   week      String   @id // "2026-11-09" (the Monday)
   topics    Json // [{ query, words: [..] }]
   createdAt DateTime @default(now())
+}
+
+// «🏪 عندي مشروع» (his plan 2026-11-10, built 2026-11-13): a member who makes things with their own
+// hands — sweets, crochet, flowers, oil… (a closed list: src/lib/maker.ts) — and shows them with real
+// photos from their own phone. He approves each one by hand (no cap); on approval the project gets its
+// own public «🏪» moment, where its photos go. How people reach the maker (his 13/11: not everyone wants
+// WhatsApp): «💬 راسلني بزاومو» always (Zawmo's own messages, which also brings visitors to sign in);
+// WhatsApp if given — never in a page, sent only when someone taps it (counted in contactTaps); and/or
+// their own Facebook / Instagram / TikTok page (only those sites, nofollow).
+model Maker {
+  userId       String      @id
+  name         String
+  category     String // a key of MAKER_CATEGORIES (src/lib/maker.ts)
+  city         String // as typed («بيت لحم»); placeId when Zawmo knows the place
+  placeId      String?
+  whatsapp     String? // digits only, with the country code: 970599123456
+  pageUrl      String? // https://facebook.com/…, instagram.com/…, tiktok.com/@… only (cleanPageUrl)
+  about        String? // «عن شغلي»: no links or numbers (cleanNote)
+  status       MakerStatus @default(PENDING)
+  momentId     String?     @unique // its «🏪» moment, made on approval
+  contactTaps  Int         @default(0)
+  createdAt    DateTime    @default(now())
+  reviewedAt   DateTime?
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moment Moment? @relation(fields: [momentId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+}
+
+enum MakerStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
