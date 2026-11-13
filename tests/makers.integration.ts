@@ -9,6 +9,7 @@ import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { cleanPageUrl, cleanWhatsapp, isMakerCategory } from "../src/lib/maker";
+import { AngleError, prepareAngle } from "../src/server/angles";
 import { MakerError, approveMaker, countContact, makerOfMoment, myMaker, rejectMaker, revealWhatsapp, submitMaker } from "../src/server/makers";
 
 const TAG = "[makertest]";
@@ -83,6 +84,12 @@ async function main() {
       assert.equal(moments[0].title, `🏪 ${TAG} حلويات أم أحمد`);
       assert.ok(moments[0].description?.includes("#حلويات_منزلية"), moments[0].description ?? "");
       assert.equal(await db.notification.count({ where: { userId: maker.id, kind: "MAKER_APPROVED" } }), 1);
+    });
+
+    await check("only its maker adds to a «🏪» moment (his 13/11): anyone else is refused", async () => {
+      const code = (await myMaker(maker.id))!.moment!.code;
+      await assert.rejects(prepareAngle(other, { code, mediaType: "PHOTO" }), (e) => e instanceof AngleError && e.code === "shop_owner");
+      await assert.rejects(prepareAngle(guest, { code, mediaType: "PHOTO" }), (e) => e instanceof AngleError && e.code === "shop_owner");
     });
 
     await check("the card has no number; a tap reveals it and counts (not the maker's own)", async () => {

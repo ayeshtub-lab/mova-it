@@ -116,7 +116,8 @@ async function candidates(userId: string, angleId: string) {
         { capturedAt: { gte: new Date(at - VISUAL_WINDOW_MS), lte: new Date(at + VISUAL_WINDOW_MS) } },
         { capturedAt: null, uploadedAt: { gte: new Date(at - VISUAL_WINDOW_MS), lte: new Date(at + VISUAL_WINDOW_MS) } },
       ],
-      moment: { visibility: "PUBLIC", status: "ACTIVE", demo: false, kind: { notIn: ["DAILY", "STORY"] }, creator: { allowJoins: true, id: { notIn: blocked } } },
+      // (never into a maker's «🏪» moment: its owner's alone)
+      moment: { visibility: "PUBLIC", status: "ACTIVE", demo: false, kind: { notIn: ["DAILY", "STORY"] }, maker: { is: null }, creator: { allowJoins: true, id: { notIn: blocked } } },
     },
     select: {
       momentId: true, scene: true, seenText: true, placeId: true, networkPlaceId: true, capturedAt: true, uploadedAt: true,
@@ -223,11 +224,11 @@ export async function joinMoment(userId: string, angleId: string, code: string) 
   if (!angle || angle.contributorId !== userId || angle.contributor.isGuest) throw new JoinError("not_found");
   if (!["DRAFT", "READY"].includes(angle.status) || angle.screening !== "allowed" || angle.moment.kind === "DAILY" || angle.moment.kind === "STORY") throw new JoinError("not_found");
   // Only the moment that was offered, and only while it still takes joins.
-  const target = await db.moment.findUnique({ where: { code: code.toUpperCase() }, include: { creator: { select: { allowJoins: true } } } });
+  const target = await db.moment.findUnique({ where: { code: code.toUpperCase() }, include: { creator: { select: { allowJoins: true } }, maker: { select: { userId: true } } } });
   if (!target || target.id !== angle.joinOffer) throw new JoinError("not_suggested");
   const blocked = await blockedIdsFor(userId);
   const stillOpen =
-    target.visibility === "PUBLIC" && target.status === "ACTIVE" && target.kind !== "DAILY" && target.kind !== "STORY" && target.creator.allowJoins && !blocked.has(target.creatorId) &&
+    target.visibility === "PUBLIC" && target.status === "ACTIVE" && target.kind !== "DAILY" && target.kind !== "STORY" && !target.maker && target.creator.allowJoins && !blocked.has(target.creatorId) &&
     (await db.angle.count({ where: { momentId: target.id, contributorId: userId } })) === 0;
   if (!stillOpen) throw new JoinError("not_suggested");
   const source = await db.moment.findUniqueOrThrow({ where: { id: angle.momentId } });

@@ -185,6 +185,7 @@ export function AngleGallery({
   momentEdit,
   altBase = "",
   story = false,
+  noAdd = false,
   continueTo,
   cardLabel,
   saveLabel,
@@ -196,6 +197,7 @@ export function AngleGallery({
 }: {
   angles: GalleryAngle[];
   story?: boolean; // «مع الوقت»: each shot shows its day
+  noAdd?: boolean; // a maker's «🏪» moment seen by someone else: no «＋ ضيف زاويتك»
   locale: string;
   labels: Labels;
   canReact: boolean;
@@ -1502,10 +1504,14 @@ export function AngleGallery({
                   )}
                   {/* «＋ ضيف زاويتك» right on the shot (2026-10-17: in place of the lens 🔍 — people who
                       liked what they saw didn't find how to add theirs: out of the viewer, down the page). */}
-                  <button type="button" onClick={addAngle} aria-label={labels.addAngle} className={`${railButton} mt-2`}>
-                    <span aria-hidden="true" className="flex size-10 items-center justify-center rounded-full bg-accent text-2xl font-extrabold leading-none text-white">＋</span>
-                  </button>
-                  <span className={railCount}>{labels.addShort}</span>
+                  {!noAdd && (
+                    <>
+                      <button type="button" onClick={addAngle} aria-label={labels.addAngle} className={`${railButton} mt-2`}>
+                        <span aria-hidden="true" className="flex size-10 items-center justify-center rounded-full bg-accent text-2xl font-extrabold leading-none text-white">＋</span>
+                      </button>
+                      <span className={railCount}>{labels.addShort}</span>
+                    </>
+                  )}
                 </div>
               </figure>
             );

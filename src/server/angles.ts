@@ -34,7 +34,7 @@ const VIDEO_TYPES: Record<string, string> = { "video/mp4": "mp4", "video/quickti
 
 export class AngleError extends Error {
   constructor(
-    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required" | "needs_title" | "story_owner" | "duplicate" | "too_close" | "note_blocked" | "note_failed",
+    public code: "not_found" | "invalid_media" | "too_long" | "too_many" | "not_uploaded" | "forbidden" | "official_required" | "needs_title" | "story_owner" | "duplicate" | "too_close" | "note_blocked" | "note_failed" | "shop_owner",
     // duplicate / too_close: the moment where the twin already is
     public where?: { code: string; title: string },
     // note_blocked: what to change, in the writer's words (Gemini's short Arabic sentence)
@@ -119,6 +119,9 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
   // Gemini before it shows, and the team can hide it after.
   // A «مع الوقت» story is shot by its owner alone.
   if (moment.kind === "STORY" && moment.creatorId !== user.id) throw new AngleError("story_owner");
+  // A maker's «🏪» moment too (his 13/11): its owner alone shows their work there — a visitor who didn't
+  // see it was a project's must not mix their own shots in. (Customers' photos come later, approved.)
+  if (moment.creatorId !== user.id && (await db.maker.count({ where: { momentId: moment.id } }))) throw new AngleError("shop_owner");
 
   const mediaType = input.mediaType === "VIDEO" ? MediaType.VIDEO : input.mediaType === "PHOTO" ? MediaType.PHOTO : null;
   if (!mediaType) throw new AngleError("invalid_media");

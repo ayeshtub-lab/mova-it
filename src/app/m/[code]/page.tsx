@@ -417,6 +417,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               viewerId={user?.id ?? null}
               share={{ url: shareUrl, title: view.title }}
               story={story}
+              noAdd={!!maker && !view.viewer.isCreator}
               altBase={[plain(view.title), view.place?.name ?? view.placeName].filter(Boolean).join(" — ")}
               momentEdit={view.viewer.manage && view.kind !== "DAILY" ? { code: view.code, title: view.arabic.title, description: view.arabic.description, labels: dict.momentDetails } : undefined}
               continueTo={next.length ? { code: view.code, next, labels: dict.viewerContinue } : undefined}
@@ -529,10 +530,18 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         {/* "Add your angle", framed in the logo's red → yellow → blue. */}
         <div className="rounded-3xl bg-gradient-to-l from-brand-red via-moment to-brand-blue p-[2px] shadow-sm">
           <section id="join" data-nosnippet className="flex scroll-mt-4 flex-col gap-3 rounded-[calc(1.5rem-2px)] bg-background p-5">
-            <h2 className="text-xl font-extrabold">{story ? (view.viewer.isCreator ? dict.story.ctaOwner : dict.story.visitorTitle) : t.ctaTitle}</h2>
+            <h2 className="text-xl font-extrabold">{maker && !view.viewer.isCreator ? dict.maker.shopTitle : story ? (view.viewer.isCreator ? dict.story.ctaOwner : dict.story.visitorTitle) : t.ctaTitle}</h2>
             {story && view.viewer.isCreator && <p className="-mt-1 text-sm leading-relaxed text-muted">{dict.story.ctaOwnerHint}</p>}
             {/* A story is shot by its owner alone: everyone else is invited to start their own. */}
-            {story && !view.viewer.isCreator ? (
+            {/* A maker's «🏪» moment: their work alone — others reach them, or start their own project. */}
+            {maker && !view.viewer.isCreator ? (
+              <>
+                <p className="text-sm leading-relaxed text-muted">{fill(dict.maker.shopOnly, { name: maker.name })}</p>
+                <Link href="/maker" className="flex min-h-12 items-center justify-center rounded-full bg-amber-500 px-6 font-bold text-white">
+                  {dict.maker.shopOwn}
+                </Link>
+              </>
+            ) : story && !view.viewer.isCreator ? (
               <>
                 <p className="text-sm leading-relaxed text-muted">{fill(dict.story.visitorText, { name: view.creatorName ?? "" })}</p>
                 <Link href="/new?kind=story" className="flex min-h-12 items-center justify-center rounded-full bg-accent px-6 font-bold text-white">
