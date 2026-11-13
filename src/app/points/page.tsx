@@ -5,8 +5,8 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { db } from "@/lib/db";
-import { coverOf } from "@/server/media";
-import { MISSION_POINTS, PinError, SPOT_AMOUNTS, SPOT_MAX_SHOTS, SPOT_MIN, WINNER_BUDGET, followsZawmo, myInvites, myPoints, spotlightForWinner, spotlightWithPoints } from "@/server/points";
+import { coverOf, publicCover } from "@/server/media";
+import { FILM_PREFIX, myFilms, MISSION_POINTS, PinError, SPOT_AMOUNTS, SPOT_MAX_SHOTS, SPOT_MIN, WINNER_BUDGET, followsZawmo, myInvites, myPoints, spotlightForWinner, spotlightWithPoints } from "@/server/points";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { inviteLink } from "@/lib/source";
 import { InviteShare, PointsSeen } from "./InviteShare";
@@ -59,7 +59,14 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
   });
   const covers = await Promise.all(shots.map((s) => coverOf(s)));
   // (a small picture beside each spotlight line: shots of one moment share its title)
-  const pinCovers = new Map(await Promise.all(mine.pins.filter((p) => p.angle).map(async (p) => [p.id, await coverOf(p.angle!)] as const)));
+  const pinCovers = new Map(
+    await Promise.all(
+      mine.pins.filter((p) => p.angle || p.film?.angleIds[0]).map(async (p) => [p.id, p.angle ? await coverOf(p.angle) : await publicCover({ id: p.film!.angleIds[0] })] as const),
+    ),
+  );
+  // «🎬 فيلم اللحظة» (his 13/11): the made films of one's own public moments, offered beside the shots.
+  const films = await myFilms(user.id);
+  const filmCovers = await Promise.all(films.map((f) => (f.angleIds[0] ? publicCover({ id: f.angleIds[0] }) : null)));
   const canPay = mine.balance >= SPOT_MIN;
   const amounts = [...SPOT_AMOUNTS.filter((a) => a <= mine.balance), ...(canPay && !SPOT_AMOUNTS.includes(mine.balance) ? [mine.balance] : [])];
   const r = typeof sp.r === "string" ? sp.r : null;
@@ -112,7 +119,7 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
                         {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URL */}
                         {pinCovers.get(p.id) ? <img src={pinCovers.get(p.id)!} alt="" loading="lazy" className="size-11 shrink-0 rounded-lg object-cover" /> : <span className="size-11 shrink-0 rounded-lg bg-line" />}
                         <p className="flex min-w-0 flex-col">
-                          <span className="truncate font-bold">{p.angle?.moment.title ?? "—"}</span>
+                          <span className="truncate font-bold">{p.film ? `🎬 ${p.film.title || p.film.moment.title}` : (p.angle?.moment.title ?? "—")}</span>
                           <span className="text-muted">{t.statsLine.replace("{shown}", n(p.shown)).replace("{budget}", n(p.budget)).replace("{reach}", n(p.reach))}</span>
                         </p>
                       </div>
@@ -150,6 +157,24 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
                   </li>
                 ))}
               </ul>
+              {films.length > 0 && (
+                <>
+                  <h3 className="text-sm font-extrabold">{t.pickFilms}</h3>
+                  <ul className="grid grid-cols-3 gap-2">
+                    {films.map((f, i) => (
+                      <li key={f.id}>
+                        <label className="relative flex cursor-pointer flex-col gap-1">
+                          <input type="checkbox" name="angleId" value={`${FILM_PREFIX}${f.id}`} className="peer absolute start-2 top-2 z-10 size-5 accent-amber-500" />
+                          {/* eslint-disable-next-line @next/next/no-img-element -- the film's first shot, public address */}
+                          {filmCovers[i] ? <img src={filmCovers[i]!} alt={f.title || f.moment.title} loading="lazy" className="aspect-[9/16] w-full rounded-2xl object-cover ring-amber-400 ring-offset-2 peer-checked:ring-4" /> : <span className="aspect-[9/16] w-full rounded-2xl bg-line" />}
+                          <span className="pointer-events-none absolute end-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-xs font-extrabold text-white">🎬</span>
+                          <span className="truncate text-xs text-muted">{f.title || f.moment.title}</span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
               {!mine.freePin && (
                 <fieldset className="flex flex-col gap-2">
                   <legend className="mb-2 text-sm font-extrabold">{t.pickAmount}</legend>

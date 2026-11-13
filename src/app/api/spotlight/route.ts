@@ -8,7 +8,7 @@ export async function GET() {
   const now = Date.now();
   const pins = (await runningPins().catch(() => [])).filter((p) => new Date(p.endsAt).getTime() > now && p.shown < p.budget);
   return NextResponse.json(
-    { pins: pins.map(({ id, budget, shown, source, angleId, code, title, by, cover, tags }) => ({ id, left: Math.max(0, budget - shown), source, angleId, code, title, by, cover, tags })) },
+    { pins: pins.map(({ id, budget, shown, source, angleId, film, href, code, title, by, cover, tags }) => ({ id, left: Math.max(0, budget - shown), source, angleId, film, href, code, title, by, cover, tags })) },
     { headers: { "cache-control": "public, s-maxage=60, stale-while-revalidate=60", "x-robots-tag": "noindex" } },
   );
 }

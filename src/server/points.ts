@@ -350,16 +350,38 @@ async function pinnable(userId: string, angleId: string) {
 // 500 over 3 shots → 167, 167, 166.
 export const split = (amount: number, parts: number) => Array.from({ length: parts }, (_, i) => Math.floor(amount / parts) + (i < amount % parts ? 1 : 0));
 
-async function checkShots(userId: string, angleIds: string[]) {
-  const ids = [...new Set(angleIds)];
+// «🎬 فيلم اللحظة» (his 13/11: a maker's film says more than one photo): a film of a moment one owns,
+// made, with its address, the moment public. Picked as «film:<id>» next to shots' ids.
+export const FILM_PREFIX = "film:";
+const filmOk = { status: "READY" as const, videoUrl: { not: null }, moment: { visibility: "PUBLIC" as const, status: "ACTIVE" as const } };
+async function pinnableFilm(userId: string, filmId: string) {
+  const film = await db.montage.findUnique({ where: { id: filmId }, select: { id: true, status: true, videoUrl: true, moment: { select: { creatorId: true, visibility: true, status: true } } } });
+  if (!film || film.moment.creatorId !== userId) throw new PinError("not_found");
+  if (film.status !== "READY" || !film.videoUrl || film.moment.visibility !== "PUBLIC" || film.moment.status !== "ACTIVE") throw new PinError("not_public");
+  return film;
+}
+
+async function checkShots(userId: string, picked: string[]) {
+  const ids = [...new Set(picked)];
   if (!ids.length) throw new PinError("not_found");
   if (ids.length > SPOT_MAX_SHOTS) throw new PinError("too_many");
-  for (const id of ids) await pinnable(userId, id);
+  for (const id of ids) {
+    if (id.startsWith(FILM_PREFIX)) await pinnableFilm(userId, id.slice(FILM_PREFIX.length));
+    else await pinnable(userId, id);
+  }
   return ids;
 }
 
 const spotRows = (userId: string, ids: string[], amount: number, source: string, batch: string, now: Date) =>
-  split(amount, ids.length).map((budget, i) => ({ angleId: ids[i], userId, source, batch, budget, startsAt: now, endsAt: new Date(now.getTime() + SPOT_DAYS * 24 * 3600e3) }));
+  split(amount, ids.length).map((budget, i) => ({
+    ...(ids[i].startsWith(FILM_PREFIX) ? { filmId: ids[i].slice(FILM_PREFIX.length) } : { angleId: ids[i] }),
+    userId,
+    source,
+    batch,
+    budget,
+    startsAt: now,
+    endsAt: new Date(now.getTime() + SPOT_DAYS * 24 * 3600e3),
+  }));
 
 export async function spotlightWithPoints(user: User, angleIds: string[], amount: number, now = new Date()) {
   const ids = await checkShots(user.id, angleIds);
@@ -394,10 +416,13 @@ export async function spotlightForWinner(userId: string, week: string, angleIds:
 // What may be shown now: running, not used up, the shot still public.
 export async function livePins(now = new Date()) {
   const pins = await db.homePin.findMany({
-    where: { closedAt: null, startsAt: { lte: now }, endsAt: { gt: now }, angle: { status: "READY", screening: "allowed", moment: { visibility: "PUBLIC", status: "ACTIVE" } } },
+    where: { closedAt: null, startsAt: { lte: now }, endsAt: { gt: now }, OR: [{ angle: { status: "READY", screening: "allowed", moment: { visibility: "PUBLIC", status: "ACTIVE" } } }, { film: filmOk }] },
     orderBy: { startsAt: "asc" },
     take: 30,
-    include: { angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, filter: true, aiText: true, moment: { select: { code: true, title: true, description: true } }, contributor: { select: { displayName: true } } } } },
+    include: {
+      angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, filter: true, aiText: true, moment: { select: { code: true, title: true, description: true } }, contributor: { select: { displayName: true } } } },
+      film: { select: { id: true, part: true, title: true, angleIds: true, moment: { select: { code: true, title: true, description: true, creator: { select: { displayName: true } } } } } },
+    },
   });
   return pins.filter((p) => p.shown < p.budget);
 }
@@ -439,11 +464,23 @@ export async function countSeen(pinId: string, device: string, net: string, view
 export async function closePins(now = new Date()) {
   const open = await db.homePin.findMany({
     where: { closedAt: null, startsAt: { lte: now } },
-    select: { id: true, userId: true, source: true, budget: true, shown: true, endsAt: true, angle: { select: { status: true, screening: true, moment: { select: { visibility: true, status: true } } } } },
+    select: {
+      id: true,
+      userId: true,
+      source: true,
+      budget: true,
+      shown: true,
+      endsAt: true,
+      angle: { select: { status: true, screening: true, moment: { select: { visibility: true, status: true } } } },
+      film: { select: { status: true, videoUrl: true, moment: { select: { visibility: true, status: true } } } },
+    },
   });
   let closed = 0;
   for (const p of open) {
-    const gone = !p.angle || p.angle.status !== "READY" || p.angle.screening !== "allowed" || p.angle.moment.visibility !== "PUBLIC" || p.angle.moment.status !== "ACTIVE";
+    // (a film's pin: its film still made and its moment public; a shot's: the shot still up and public)
+    const gone = p.film
+      ? p.film.status !== "READY" || !p.film.videoUrl || p.film.moment.visibility !== "PUBLIC" || p.film.moment.status !== "ACTIVE"
+      : !p.angle || p.angle.status !== "READY" || p.angle.screening !== "allowed" || p.angle.moment.visibility !== "PUBLIC" || p.angle.moment.status !== "ACTIVE";
     if (p.shown < p.budget && p.endsAt > now && !gone) continue;
     await db.$transaction(async (tx) => {
       const done = await tx.homePin.updateMany({ where: { id: p.id, closedAt: null }, data: { closedAt: now } });
@@ -566,6 +603,16 @@ export async function goldenHourly(now = new Date()) {
 
 // What a person sees of their own points (/points): the balance, the week, the lines, the mission,
 // their spotlight purchases of the last 2 weeks (each shot: shown of bought, people reached).
+// «🎬»: the made films of one's own public moments, newest first — what /points offers beside shots.
+export async function myFilms(userId: string) {
+  return db.montage.findMany({
+    where: { ...filmOk, moment: { ...filmOk.moment, creatorId: userId } },
+    orderBy: { createdAt: "desc" },
+    take: 12,
+    select: { id: true, part: true, title: true, angleIds: true, moment: { select: { code: true, title: true } } },
+  });
+}
+
 export async function myPoints(user: User, now = new Date()) {
   const [balance, week, entries, mission, pins, win] = await Promise.all([
     balanceOf(user.id),
@@ -576,7 +623,7 @@ export async function myPoints(user: User, now = new Date()) {
       where: { userId: user.id, createdAt: { gte: new Date(now.getTime() - 14 * 24 * 3600e3) } },
       orderBy: { createdAt: "desc" },
       take: 20,
-      select: { id: true, batch: true, source: true, budget: true, shown: true, reach: true, endsAt: true, closedAt: true, angleId: true, angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, moment: { select: { title: true } } } } },
+      select: { id: true, batch: true, source: true, budget: true, shown: true, reach: true, endsAt: true, closedAt: true, angleId: true, angle: { select: { id: true, mediaType: true, mediaPath: true, thumbPath: true, smallPath: true, moment: { select: { title: true } } } }, film: { select: { title: true, angleIds: true, moment: { select: { title: true } } } } },
     }),
     db.weeklyWinner.findFirst({ where: { userId: user.id, pinId: null }, orderBy: { createdAt: "desc" } }),
   ]);

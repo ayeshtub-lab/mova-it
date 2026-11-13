@@ -25,9 +25,12 @@ export async function HomePin({ dict }: { dict: Dictionary }) {
   const t = dict.homePin;
   return (
     <SpotSeen pinId={pin.id}>
-      <Link href={`/m/${pin.code}#angle-${pin.angleId}`} className="group flex items-center gap-3 overflow-hidden rounded-3xl border-2 border-amber-300/70 bg-amber-50/60 p-2 dark:bg-amber-400/10">
-        {/* eslint-disable-next-line @next/next/no-img-element -- the shot's fixed public address */}
-        <img src={pin.cover} alt={pin.title} className="size-24 shrink-0 rounded-2xl object-cover transition-transform group-hover:scale-105" />
+      <Link href={pin.href} className="group flex items-center gap-3 overflow-hidden rounded-3xl border-2 border-amber-300/70 bg-amber-50/60 p-2 dark:bg-amber-400/10">
+        <span className="relative size-24 shrink-0 overflow-hidden rounded-2xl">
+          {/* eslint-disable-next-line @next/next/no-img-element -- the shot's fixed public address */}
+          <img src={pin.cover} alt={pin.title} className="size-full object-cover transition-transform group-hover:scale-105" />
+          {pin.film && <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-3xl text-white">▶︎</span>}
+        </span>
         <span className="flex min-w-0 flex-col gap-1">
           <span className="text-xs font-extrabold text-amber-700 dark:text-amber-300">{pin.source === "winner" ? t.winner : t.pinned}</span>
           <span className="truncate font-extrabold">{pin.title}</span>

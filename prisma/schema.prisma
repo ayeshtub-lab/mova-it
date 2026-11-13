@@ -601,6 +601,7 @@ model Montage {
   finishedAt  DateTime?
 
   moment Moment @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  pins   HomePin[]
 
   @@index([momentId])
 }
@@ -1007,8 +1008,12 @@ model HomePin {
   closedAt  DateTime?
   // A few shots bought together share one budget, split between them.
   batch     String?
+  // «🎬 فيلم اللحظة» (his 13/11): a moment's film in the spotlight instead of one shot — angleId is then
+  // empty. Its moment's owner only; the film's page is where the card leads.
+  filmId    String?
 
   angle Angle?    @relation(fields: [angleId], references: [id], onDelete: SetNull)
+  film  Montage?  @relation(fields: [filmId], references: [id], onDelete: SetNull)
   user  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   seen  PinSeen[]
 

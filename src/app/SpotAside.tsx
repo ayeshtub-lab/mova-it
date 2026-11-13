@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SpotSeen } from "@/app/SpotSeen";
 
-type Pin = { id: string; left: number; source: string; angleId: string; code: string; title: string; by: string; cover: string; tags: string[] };
+type Pin = { id: string; left: number; source: string; angleId: string; film?: boolean; href?: string; code: string; title: string; by: string; cover: string; tags: string[] };
 export type SpotAsideLabels = { winner: string; pinned: string; by: string };
 
 // «⭐ تحت أضواء زاومو» beyond the home page (his call 2026-11-12: «ناس بتيجي من لحظات مش على
@@ -50,9 +50,12 @@ export function SpotAside({ tags = [], notAngle, notCode, labels }: { tags?: str
     <div ref={box}>
       {pin && (
         <SpotSeen pinId={pin.id}>
-          <a href={`/m/${pin.code}#angle-${pin.angleId}`} rel="nofollow" className="group flex items-center gap-3 overflow-hidden rounded-3xl border-2 border-amber-300/70 bg-amber-50/60 p-2 dark:bg-amber-400/10">
-            {/* eslint-disable-next-line @next/next/no-img-element -- the shot's fixed public address */}
-            <img src={pin.cover} alt="" loading="lazy" className="size-24 shrink-0 rounded-2xl object-cover transition-transform group-hover:scale-105" />
+          <a href={pin.href ?? `/m/${pin.code}#angle-${pin.angleId}`} rel="nofollow" className="group flex items-center gap-3 overflow-hidden rounded-3xl border-2 border-amber-300/70 bg-amber-50/60 p-2 dark:bg-amber-400/10">
+            <span className="relative size-24 shrink-0 overflow-hidden rounded-2xl">
+              {/* eslint-disable-next-line @next/next/no-img-element -- the shot's fixed public address */}
+              <img src={pin.cover} alt="" loading="lazy" className="size-full object-cover transition-transform group-hover:scale-105" />
+              {pin.film && <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-3xl text-white">▶︎</span>}
+            </span>
             <span className="flex min-w-0 flex-col gap-1">
               <span className="text-xs font-extrabold text-amber-700 dark:text-amber-300">{pin.source === "winner" ? labels.winner : labels.pinned}</span>
               <span className="truncate font-extrabold">{pin.title}</span>
