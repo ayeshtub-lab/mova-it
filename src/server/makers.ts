@@ -6,6 +6,12 @@ import { createMoment } from "@/server/moments";
 import { notify } from "@/server/notifications";
 import { resolvePlaceText, validPlaceId } from "@/server/places";
 import { systemUser } from "@/server/daily";
+import { pushNote } from "@/server/push";
+
+async function tellAdmins(name: string) {
+  const admins = await db.user.findMany({ where: { isAdmin: true, pushDevices: { some: {} } }, select: { id: true } });
+  for (const a of admins) await pushNote(a.id, () => ({ title: "🏪 طلب مشروع جديد", body: `«${name}» بيستنى موافقتك`, url: "/admin/makers", tag: "maker" }));
+}
 
 // «🏪 عندي مشروع» (his plan 2026-11-10, built 2026-11-13): a member asks, he approves by hand, and the
 // project gets its own public «🏪» moment for its real photos. See the Maker model.
@@ -44,7 +50,10 @@ export async function submitMaker(user: User, input: { name?: unknown; category?
   if (!city) throw new MakerError("invalid_city");
   const placeId = (await validPlaceId(input.placeId)) ?? (await resolvePlaceText(city));
   const data = { name, category: input.category, city, placeId, ...contact, status: "PENDING" as const, reviewedAt: null };
-  return db.maker.upsert({ where: { userId: user.id }, create: { userId: user.id, ...data }, update: data });
+  const saved = await db.maker.upsert({ where: { userId: user.id }, create: { userId: user.id, ...data }, update: data });
+  // He approves by hand, so he must know one is waiting: a push to the team (never blocks the request).
+  if (existing?.status !== "PENDING") await tellAdmins(name).catch((error) => console.error("maker push failed", error));
+  return saved;
 }
 
 export async function listMakers() {

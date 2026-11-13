@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { SiteHeader } from "@/app/SiteHeader";
 import { PlaceField } from "@/app/PlaceField";
+import { GoogleButton } from "@/app/GoogleButton";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { MAKER_CATEGORIES, MAKER_NAME_MAX } from "@/lib/maker";
@@ -39,10 +40,26 @@ async function send(formData: FormData) {
 
 export default async function MakerPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const user = await getCurrentUser();
-  if (!user || user.isGuest) redirect("/");
-  const [locale, maker, sp] = await Promise.all([getLocale(), myMaker(user.id), searchParams]);
+  const locale = await getLocale();
   const dict = await getDictionary(locale);
   const t = dict.maker;
+  // The link he sends to makers he knows (zawmo.com/maker): most aren't members yet — they see what it
+  // is, then sign in with Google and come straight back here.
+  if (!user || user.isGuest) {
+    return (
+      <div className="flex flex-1 flex-col px-4 sm:px-8">
+        <SiteHeader locale={locale} dict={dict} />
+        <main className="mx-auto flex w-full max-w-xl flex-col gap-5 pb-16">
+          <h1 className="text-2xl font-extrabold">{t.title}</h1>
+          <p className="leading-relaxed">{t.intro}</p>
+          <p className="whitespace-pre-line rounded-2xl bg-surface p-4 text-sm font-semibold leading-loose">{t.rules}</p>
+          <p className="font-bold">{t.signInFirst}</p>
+          <GoogleButton label={dict.account.google} returnTo="/maker" />
+        </main>
+      </div>
+    );
+  }
+  const [maker, sp] = await Promise.all([myMaker(user.id), searchParams]);
   const r = typeof sp.r === "string" ? sp.r : null;
   const approved = maker?.status === "APPROVED";
   const field = "min-h-12 w-full rounded-2xl border border-line bg-background px-4 text-base";

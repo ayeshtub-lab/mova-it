@@ -25,6 +25,7 @@ export function MakerCard({ maker, labels, viewerId }: { maker: Maker; labels: M
     try {
       const res = await fetch("/api/conversations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ userId: maker.userId }) });
       if (res.ok) router.push(`/messages/${((await res.json()) as { id: string }).id}`);
+      else if (res.status === 401) askSignIn("header");
     } finally {
       setBusy(false);
     }
