@@ -70,7 +70,8 @@ async function main() {
   await check("a silent photo's sound fits what is in it", async () => {
     const pick = await fillPicker(false);
     const sea = await pick({ id: "a1", scene: "sea", aiText: "موج البحر #بحر" }, "رحلة", null);
-    assert.ok(/gull|wave|sea|water/i.test(sea!.en), sea!.en);
+    // (Since 2026-11-16 a verse about the sea fits it too.)
+    assert.ok(/gull|wave|sea|water|An-Nahl 14|Ar-Rahman 19/i.test(sea!.en), sea!.en);
     const fire = await pick({ id: "a2", scene: "other", aiText: "سهرة على نار الحطب" }, "سهرة", null);
     assert.ok(/fire/i.test(fire!.en), fire!.en);
     const wedding = await pick({ id: "a3", scene: "wedding", aiText: "زفة العريس #عرس" }, "عرس", null);
@@ -86,6 +87,26 @@ async function main() {
     for (const [i, words] of ["خراف بالمرعى #خراف", "قطيع ماعز", "ديك على السور", "بركة ضفادع بالليل", "حلويات بسبوسة"].entries()) {
       const s = await pick({ id: `n${i}`, scene: "other", aiText: words }, "لحظة", null);
       assert.ok(s && !/sheep|goat|rooster|pond|frog|cricket/i.test(s.en), `${words} → ${s?.en}`);
+    }
+  });
+  await check("never a sound with insects heard in it, under clouds or anything (his call, 2026-11-16)", async () => {
+    const pick = await fillPicker(false);
+    const texts = ["غيوم بيضاء في السماء الزرقاء #غيوم #سماء", "سحب فوق الجبل وقت الغروب", "شجر وطبيعة خضراء #طبيعة", "عصافير على الشجر بالحديقة", "ليل وقمر ونجوم"];
+    const seen = new Set<string>();
+    for (const [i, words] of texts.entries())
+      for (let k = 0; k < 12; k++) {
+        const s = await pick({ id: `c${i}`, scene: "sky", aiText: words }, "سما", null, `m${i}:${k}`);
+        assert.ok(s && !["n03", "n15"].includes(s.key), `${words} → ${s?.key}`);
+        if (i === 0) seen.add(s.key);
+      }
+    // The parts of one cloud moment don't all get the same sound.
+    assert.ok(seen.size >= 3, [...seen].join(","));
+  });
+  await check("a verse only where the pictures call for it, never the fallback", async () => {
+    const pick = await fillPicker(false);
+    for (let k = 0; k < 20; k++) {
+      const s = await pick({ id: "p", scene: "other", aiText: "حلويات بسبوسة على الصينية" }, "يوم عادي", null, `x${k}`);
+      assert.ok(s && s.cat !== "quran" && s.cat !== "nasheed", s?.en);
     }
   });
   await check("a moment of loss: nature only", async () => {

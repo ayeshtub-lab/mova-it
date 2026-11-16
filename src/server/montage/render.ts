@@ -409,7 +409,8 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
   const silentPhotos = ordered.filter((a) => a.mediaType !== "VIDEO" && !a.soundKey);
   const bedShot = { id: moment.id, scene: mostCommon(ordered.map((a) => a.scene)), aiText: (silentPhotos.length ? silentPhotos : ordered).map((a) => a.aiText ?? "").join(" ") };
   const picker = fill && !soundKey && !story ? await fillPicker(SOLEMN_WORDS.test(moment.title)) : null;
-  const partSound = picker ? await picker(bedShot, moment.title, null) : null;
+  // (Seeded by the part's own first shot too, so each part of a moment has its own sound.)
+  const partSound = picker ? await picker(bedShot, moment.title, null, `${moment.id}:${ordered[0]?.id ?? ""}`) : null;
   const times = shotTimes(ordered.filter((a) => a.mediaType !== "VIDEO").length, ordered.filter((a) => a.mediaType === "VIDEO").length, story, filmLimit(soundKey));
   const pieces: string[] = [];
   let made = 0;
