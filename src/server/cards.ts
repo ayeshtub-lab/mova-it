@@ -40,7 +40,21 @@ Write 11 lines in Arabic, warm and natural — Modern Standard Arabic or gentle 
 - 1 of kind "coffee": a line about coffee (قهوة، فنجان، هيل، قهوة الصبح) in the picture's mood — the kind people share with a morning coffee.
 Each line at most 90 characters, at most one emoji, no hashtags, no quotation marks. Write your own lines: never quote a famous poet's verse or a verse of the Quran or a hadith.
 
-Answer only with JSON: {"ideas":[{"kind":"morning","text":"…"}]}`;
+Then choose how the words look on THIS picture (his ask, 2026-11-17: «اللون المناسب… والمكان المناسب على الصورة»):
+- "place": "top", "center" or "bottom" — the calmest, emptiest part (sky, a wall, a plain table), never over a face or the main subject;
+- "color": the most beautiful readable colour for the words there, one of: white, cream, gold, rose, sky, black, navy (light colours on dark areas, black or navy on bright ones).
+
+Answer only with JSON: {"ideas":[{"kind":"morning","text":"…"}],"look":{"place":"top","color":"cream"}}`;
+
+// Where the words sit and their colour, as Gemini sees the picture (null: the editor's own guess).
+export type CardLook = { place: "top" | "center" | "bottom"; color: "white" | "cream" | "gold" | "rose" | "sky" | "black" | "navy" };
+const LOOK_PLACES = ["top", "center", "bottom"];
+const LOOK_COLORS = ["white", "cream", "gold", "rose", "sky", "black", "navy"];
+export function cardLookOf(raw: unknown): CardLook | null {
+  const look = (raw as { look?: { place?: unknown; color?: unknown } })?.look;
+  if (!look || !LOOK_PLACES.includes(look.place as string) || !LOOK_COLORS.includes(look.color as string)) return null;
+  return { place: look.place as CardLook["place"], color: look.color as CardLook["color"] };
+}
 
 export type CardIdea = { kind: CardKind; text: string };
 
@@ -67,14 +81,15 @@ export function cardIdeasOf(raw: unknown): CardIdea[] {
   return out.slice(0, 12);
 }
 
-async function askIdeas(angleId: string): Promise<CardIdea[]> {
-  if (!screeningEnabled()) return [];
+async function askIdeas(angleId: string): Promise<{ ideas: CardIdea[]; look: CardLook | null }> {
+  const none = { ideas: [], look: null };
+  if (!screeningEnabled()) return none;
   const shot = await publicShot(angleId);
   const path = shot && (shot.smallPath ?? (shot.mediaType === "PHOTO" ? shot.mediaPath : shot.thumbPath));
   const url = path ? await viewUrl(path) : null;
-  if (!url) return [];
+  if (!url) return none;
   const picture = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-  if (!picture.ok) return [];
+  if (!picture.ok) return none;
   const data = Buffer.from(await picture.arrayBuffer()).toString("base64");
   const res = await callGemini({
     purpose: "card",
@@ -87,14 +102,15 @@ async function askIdeas(angleId: string): Promise<CardIdea[]> {
   if (!res.ok) throw new Error(`card ideas ${res.status}: ${((await res.json().catch(() => null)) as { error?: { message?: string } } | null)?.error?.message ?? ""}`.slice(0, 300));
   const body = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
   const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "{}";
-  return cardIdeasOf(JSON.parse(text));
+  const parsed = JSON.parse(text);
+  return { ideas: cardIdeasOf(parsed), look: cardLookOf(parsed) };
 }
 
 // (Uncached, for trying the prompt.)
 export const cardIdeasNow = askIdeas;
 
 // Asked once per picture, kept a week (a fraction of a cent each time it is asked).
-export const cardIdeas = (angleId: string) => unstable_cache(() => askIdeas(angleId), ["card-ideas-2", angleId], { revalidate: 7 * 24 * 3600 })();
+export const cardIdeas = (angleId: string) => unstable_cache(() => askIdeas(angleId), ["card-ideas-3", angleId], { revalidate: 7 * 24 * 3600 })();
 
 // ── A public card ───────────────────────────────────────────────────────────────────────────────
 const JPEG = (b: Buffer) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;

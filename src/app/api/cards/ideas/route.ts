@@ -11,6 +11,6 @@ export async function GET(request: Request) {
   const user = await getCurrentUser();
   const slow = await limited("cardIdeas", request, user?.id);
   if (slow) return slow;
-  const ideas = await cardIdeas(shot).catch((error) => (console.error("card ideas failed", error), []));
-  return NextResponse.json({ ideas });
+  const { ideas, look } = await cardIdeas(shot).catch((error) => (console.error("card ideas failed", error), { ideas: [], look: null }));
+  return NextResponse.json({ ideas, look });
 }

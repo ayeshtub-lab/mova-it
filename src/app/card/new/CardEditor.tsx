@@ -28,6 +28,31 @@ import { prepareAngleFile } from "@/lib/media-client";
 
 type Labels = Dictionary["card"];
 type Idea = { kind: CardKind; text: string };
+type Look = { place: keyof typeof CARD_PLACES; color: CardColor };
+// The font that suits each kind of words (his ask, 2026-11-17: «الخط الاكثر جمال»): a Friday line or
+// a dua in Amiri's naskh, love in ruqaa, a wisdom in kufi… — until the member picks one themself.
+const FONT_OF: Record<CardKind, CardFont> = {
+  friday: "amiri",
+  ramadan: "amiri",
+  fitr: "amiri",
+  adha: "amiri",
+  mawlid: "amiri",
+  love: "ruqaa",
+  morning: "messiri",
+  evening: "messiri",
+  wisdom: "kufi",
+  coffee: "lemonada",
+  other: "cairo",
+};
+// Gemini's place and colour for the words (src/server/cards.ts), kept only where the picture's own
+// light there agrees: never light words on a bright patch, nor dark ones on a dark one.
+function lookFor(el: HTMLImageElement, look: Look): Partial<CardStyle> {
+  const y = CARD_PLACES[look.place];
+  const auto = autoLook(el, y);
+  const bright = auto.color === "black";
+  if (bright === lightColor(look.color)) return { y, ...auto };
+  return { y, color: look.color, frame: auto.frame, frameColor: lightColor(look.color) ? "black" : "white" };
+}
 type Tab = Exclude<CardKind, "other">;
 // The picture to write on: a public shot (its lines from Gemini, publishable), or one of a member's
 // own photos (`file`): it stays on the phone when the card is shared privately; published (his ask,
@@ -254,16 +279,26 @@ export function CardEditor({
   useEffect(() => {
     cardStep("opened");
     const el = new Image();
+    // (The picture and Gemini's look may come in either order.)
+    let look: Look | null = null;
+    const applyLook = () => {
+      if (!chosen.current && img.current && look) setStyle((s) => styleKey({ ...cardStyle(s), ...lookFor(img.current!, look!) }));
+    };
     el.onload = () => {
       img.current = el;
       if (!chosen.current) setStyle((s) => styleKey({ ...cardStyle(s), ...autoLook(el, cardStyle(s).y) }));
+      applyLook();
       setReady(true);
     };
     el.src = picture.image;
     if (!picture.shotId) return;
     fetch(`/api/cards/ideas?shot=${picture.shotId}`)
       .then((r) => (r.ok ? r.json() : { ideas: [] }))
-      .then((d: { ideas?: Idea[] }) => setIdeas(d.ideas ?? []))
+      .then((d: { ideas?: Idea[]; look?: Look | null }) => {
+        setIdeas(d.ideas ?? []);
+        look = d.look ?? null;
+        applyLook();
+      })
       .catch(() => setIdeas([]));
   }, [picture.image, picture.shotId]);
 
@@ -554,6 +589,7 @@ export function CardEditor({
                 onClick={() => {
                   setText(i.text);
                   setKind(i.kind);
+                  if (!chosen.current) set({ font: FONT_OF[i.kind] });
                   setEditing(false);
                 }}
                 className={`w-full rounded-2xl px-4 py-3 text-start text-base leading-relaxed ${text === i.text ? "bg-accent/15 ring-2 ring-accent" : "bg-surface"}`}

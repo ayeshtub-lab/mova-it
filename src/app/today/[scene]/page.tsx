@@ -11,37 +11,38 @@ import { SCENES } from "@/lib/scenes";
 import { isTodayScene, TODAY_INDEX_FROM, TODAY_SCENES, todayData, type TodayScene } from "@/server/today";
 
 // «صور غروب اليوم» and its sisters (src/server/today.ts): today's real shots of one sky phenomenon,
-// from everyone, then the latest days. Headings in the words people search. Arabic only — the
+// from everyone, then the latest days. Headings in the words people search («كأنها لك»: Google's own
+// suggestion for nearly every such search, 2026-11-17). Arabic only — the
 // English address is never offered to search.
 
 const WORDS: Record<TodayScene, { h1: string; title: string; description: string; none: string }> = {
   sunset: {
     h1: "صور غروب اليوم",
-    title: "صور غروب اليوم حقيقية — غروب الشمس من عيون الناس",
+    title: "صور غروب اليوم حقيقية كأنها لك — من عيون الناس",
     description: "صور غروب الشمس اليوم، حقيقية من الناس مش ذكاء اصطناعي: {line}",
     none: "لسا ما حدا نزّل غروب اليوم. هاي أحدث صور الغروب 👇",
   },
   sky: {
     h1: "صور القمر والسما الليلة",
-    title: "صور القمر الليلة وسما الليل حقيقية — من الناس",
+    title: "صور القمر الليلة وسما الليل حقيقية كأنها لك",
     description: "صور القمر الليلة والنجوم والغيوم بالليل، حقيقية من الناس مش ذكاء اصطناعي: {line}",
     none: "لسا ما حدا صوّر سما الليلة. هاي أحدث صور القمر والسما 👇",
   },
   rain: {
     h1: "صور مطر اليوم",
-    title: "صور مطر اليوم حقيقية — أجواء الشتا من الناس",
+    title: "صور مطر اليوم حقيقية كأنها لك — أجواء الشتا",
     description: "صور المطر اليوم وأجواء الشتا، حقيقية من الناس مش ذكاء اصطناعي: {line}",
     none: "ما في صور مطر من اليوم. هاي أحدث صور الشتا 👇",
   },
   snow: {
     h1: "صور ثلج اليوم",
-    title: "صور ثلج اليوم حقيقية — من الناس",
+    title: "صور ثلج اليوم حقيقية كأنها لك — من الناس",
     description: "صور الثلج اليوم، حقيقية من الناس مش ذكاء اصطناعي: {line}",
     none: "ما في صور ثلج من اليوم. هاي أحدث صور الثلج 👇",
   },
   sunrise: {
     h1: "صور شروق اليوم",
-    title: "صور شروق الشمس اليوم حقيقية — من الناس",
+    title: "صور شروق الشمس اليوم حقيقية كأنها لك",
     description: "صور شروق الشمس اليوم وأول الصبح، حقيقية من الناس مش ذكاء اصطناعي: {line}",
     none: "لسا ما حدا صوّر شروق اليوم. هاي أحدث صور الشروق 👇",
   },
