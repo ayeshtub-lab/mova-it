@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { headers } from "next/headers";
+import { after } from "next/server";
+import { NEW_VISIT_HEADER } from "@/lib/source";
+import { recordLanding } from "@/server/stats";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { SiteHeader } from "@/app/SiteHeader";
@@ -44,6 +48,10 @@ export default async function MakerPage({ searchParams }: { searchParams: Promis
   const locale = await getLocale();
   const dict = await getDictionary(locale);
   const t = dict.maker;
+  // Who came by the makers link (zawmo.com/maker?src=wa…, 2026-11-16): counted like every ad's landing
+  // (/admin/stats), so we know which link brought them.
+  const arrival = (await headers()).get(NEW_VISIT_HEADER);
+  if (arrival) after(() => recordLanding(arrival.slice(0, 40)).catch((error) => console.error("landing count failed", error)));
   // The link he sends to makers he knows (zawmo.com/maker): most aren't members yet — they see what it
   // is, then sign in with Google and come straight back here.
   if (!user || user.isGuest) {

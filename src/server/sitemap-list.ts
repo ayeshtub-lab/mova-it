@@ -2,6 +2,7 @@ import { sitemapParts } from "@/server/montage/parts";
 import { CARDS_PUBLIC, cardImage } from "@/lib/card-styles";
 import { sitemapCards } from "@/server/cards";
 import { sitemapSeasons } from "@/server/seasons";
+import { sitemapToday } from "@/server/today";
 import type { MetadataRoute } from "next";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { EN_INDEXED, enIndexable, inLocale } from "@/i18n/config";
@@ -42,7 +43,7 @@ function oneSpelling<T extends { tag: string; count: number; updatedAt: Date }>(
 
 export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
   const base = `https://${CANONICAL_HOST}`;
-  const [{ moments, places }, shots, tags, sounds, events, topics, authors, parts, cards, seasons] = await Promise.all([
+  const [{ moments, places }, shots, tags, sounds, events, topics, authors, parts, cards, seasons, today] = await Promise.all([
     sitemapEntries(),
     sitemapShots(),
     sitemapTags(undefined, 1),
@@ -53,6 +54,7 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
     sitemapParts(),
     CARDS_PUBLIC ? sitemapCards() : [],
     sitemapSeasons(),
+    sitemapToday(),
   ]);
   const ordinals = shotOrdinals(shots);
   // A moment lists its shots' pictures too (newest first; Google reads up to 1000 a page).
@@ -68,6 +70,8 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/films`, changeFrequency: "daily", priority: 0.8 },
     // «زاوية الموسم» (src/server/seasons.ts): a season's lasting page, from 3 moments.
     ...seasons.map((s) => ({ url: `${base}/season/${s.slug}`, lastModified: s.updatedAt, changeFrequency: "daily" as const, priority: 0.8 })),
+    // «صور غروب اليوم»… (src/server/today.ts): today's real shots of a sky phenomenon, from 3 in the week.
+    ...today.map((d) => ({ url: `${base}/today/${d.scene}`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.8 })),
     { url: `${base}/guide/house`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${base}/guide/plant`, changeFrequency: "monthly", priority: 0.8 },
     ...places.filter((p) => p.shots >= 3).map((p) => ({ url: `${base}/p/${encodeURIComponent(p.slug)}`, lastModified: p.updatedAt, changeFrequency: "daily" as const, priority: 0.8 })),

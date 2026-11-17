@@ -22,6 +22,8 @@ import { AngleUploader } from "@/app/AngleUploader";
 import { Description } from "@/app/Description";
 import { MakerCard } from "./MakerCard";
 import { makerOfMoment } from "@/server/makers";
+// (Once per request: the metadata and the page both ask.)
+const makerFor = cache((code: string) => makerOfMoment(code).catch(() => null));
 import { GoogleButton } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
 import { JsonLd } from "@/app/JsonLd";
@@ -96,7 +98,9 @@ export async function generateMetadata({ params }: PageProps<"/m/[code]">): Prom
   const head = (words: string[]) => `${words.length ? `${name}: ${words.join(" و")}` : name}${whose}`;
   const fits = [shown, shown.slice(0, 1), []].map(head).find((h) => [...h].length <= 60) ?? head([]);
   const title = `${fits} · ${dict.meta.brand}`;
-  const description = momentDescription(view, dict, locale);
+  // A maker's «🏪» moment (2026-11-16): what they say of their work leads, not «7 زوايا · شخص واحد».
+  const maker = view.visibility === "PUBLIC" && locale === "ar" ? await makerFor(view.code) : null;
+  const description = maker?.about ? clip(`${plain(maker.name)} — ${maker.categoryLabel}${maker.city ? ` في ${maker.city}` : ""}. ${plain(maker.about)}`) : momentDescription(view, dict, locale);
   return {
     title,
     description,
@@ -234,7 +238,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
     momentIndexable(view) ? momentTopics(view.angles.map((a) => a.id)) : [],
     view.kind === "DAILY" ? [] : nextMoments(view.id).then((n) => inEnglish(n, locale)).catch(() => []),
     // «🏪»: a maker's project moment (approved projects only; public moments only).
-    view.visibility === "PUBLIC" ? makerOfMoment(view.code).catch(() => null) : null,
+    view.visibility === "PUBLIC" ? makerFor(view.code) : null,
   ]);
   // Then what depends on those: the vote, and «أجزاء» — the film in parts of up to 40 seconds,
   // for those who may see the video at all.

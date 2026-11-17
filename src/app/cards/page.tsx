@@ -19,16 +19,25 @@ const INDEX_FROM = 12;
 // One kind's page (an occasion's above all, empty until its days) is open to search only with cards
 // of its own — a page of nothing is thin content to Google (2026-10-24).
 const KIND_INDEX_FROM = 6;
+// The kinds people search for in their own words (Google's suggestions, 2026-11-17: «صور جمعة
+// مباركة مع دعاء», «صور صباح الخير مع دعاء», «صور مساء الخير»): title and description in them.
+const SEARCHED: Partial<Record<string, { title: string; description: string }>> = {
+  friday: { title: "صور جمعة مباركة مع دعاء — بطاقات على صور حقيقية", description: "صور جمعة مباركة مع دعاء والصلاة على النبي، على صور حقيقية من الناس، جاهزة لترسلها لأحبابك أو تكتب كلامك." },
+  morning: { title: "صور صباح الخير مع دعاء — بطاقات على صور حقيقية", description: "صور صباح الخير جديدة مع دعاء الصباح، على صور حقيقية من الناس مش ذكاء اصطناعي، جاهزة للإرسال أو اكتب كلامك." },
+  evening: { title: "صور مساء الخير — بطاقات على صور حقيقية", description: "صور مساء الخير مع دعاء، على صور حقيقية من الناس، جاهزة لترسلها للغاليين أو تكتب كلامك." },
+};
 
 export async function generateMetadata({ searchParams }: PageProps<"/cards">): Promise<Metadata> {
-  const dict = await getDictionary(await getLocale());
+  const locale = await getLocale();
+  const dict = await getDictionary(locale);
   const raw = (await searchParams).kind;
   const kind = isCardKind(raw) ? raw : null;
   const kindName = kind ? dict.card.kinds[kind].replace(/^\S+\s/, "") : null;
-  const title = kindName ? `بطاقات ${kindName} على صور حقيقية` : dict.card.galleryTitle.replace(/^\S+\s/, "");
+  const searched = kind && locale === "ar" ? SEARCHED[kind] : undefined;
+  const title = searched ? searched.title : kindName ? `بطاقات ${kindName} على صور حقيقية` : dict.card.galleryTitle.replace(/^\S+\s/, "");
   return {
     title: `${title} · ${dict.meta.brand}`,
-    description: dict.card.galleryMeta,
+    description: searched?.description ?? dict.card.galleryMeta,
     alternates: { canonical: kind ? `/cards?kind=${kind}` : "/cards" },
     robots:
       CARDS_PUBLIC && (await countCards()) >= INDEX_FROM && (!kind || (await countCards(kind)) >= KIND_INDEX_FROM) ? INDEXABLE : { index: false, follow: CARDS_PUBLIC },

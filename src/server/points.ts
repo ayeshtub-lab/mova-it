@@ -261,7 +261,10 @@ export const followsZawmo = async (userId: string) => {
 // its hashtags) carry the search's words answers it.
 
 // Words that say nothing about what is in the picture.
-const FILLER = new Set(["صور", "صورة", "صوره", "حقيقية", "حقيقي", "حقيقيه", "جميلة", "جميل", "رائعة", "خلفيات", "خلفية", "في", "من", "على", "مع", "و", "ال", "hd", "photos", "photo", "pictures", "real", "zawmo", "زاومو"]);
+const FILLER = new Set(["صور", "صورة", "صوره", "حقيقية", "حقيقي", "حقيقيه", "جميلة", "جميل", "رائعة", "خلفيات", "خلفية", "في", "من", "على", "مع", "و", "ال", "hd", "photos", "photo", "pictures", "real", "zawmo", "زاومو", "كأنها", "كانها", "لك", "بنترست"]);
+// Searches no photo can answer (2026-11-16: the first mission asked for «بطاقات صباح الخير», with
+// none to have): a card, a wallpaper, a drawing or a cartoon is made, not shot.
+const NOT_A_PHOTO = /بطاق|خلفي|كرتون|رسم|متحرك|تلوين|\b(?:cards?|wallpapers?|gif|png|logo|clipart)\b/i;
 
 export const missionWords = (query: string) =>
   normalizeTag(query)
@@ -293,7 +296,7 @@ export async function makeMission(now = new Date()) {
   for (const t of terms) {
     const words = missionWords(t.query);
     const key = [...words].sort().join(" ");
-    if (!words.length || words.length > 3 || seenWords.has(key) || t.impressions < 10) continue;
+    if (!words.length || words.length > 3 || seenWords.has(key) || t.impressions < 10 || NOT_A_PHOTO.test(t.query)) continue;
     const have = texts.filter((x) => answers(x, words)).length;
     if (have >= 25) continue; // already plenty of these
     seenWords.add(key);
