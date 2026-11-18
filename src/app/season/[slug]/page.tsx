@@ -85,6 +85,14 @@ export default async function SeasonPage({ params }: PageProps<"/season/[slug]">
             <span aria-hidden="true">{season.emoji}</span> {h}
           </h1>
           {intro && <p className="text-sm leading-relaxed">{intro}</p>}
+          {/* Winter's own «today» pages (2026-11-18): its rain and snow, newest first. */}
+          {season.slug === "winter" && locale === "ar" && (
+            <nav aria-label="صور اليوم" className="mt-1 flex flex-wrap gap-2">
+              <Link href="/today/rain" className="rounded-full bg-surface px-3 py-1.5 text-sm font-bold">🌧️ صور مطر اليوم</Link>
+              <Link href="/today/snow" className="rounded-full bg-surface px-3 py-1.5 text-sm font-bold">❄️ صور ثلج اليوم</Link>
+              <Link href="/today/sky" className="rounded-full bg-surface px-3 py-1.5 text-sm font-bold">🌙 صور القمر والسما الليلة</Link>
+            </nav>
+          )}
         </header>
         {/* For members (his idea, 2026-11-06): add a shot to one of the season's moments first —
             one moment growing with many people's angles is a stronger page than many single shots,

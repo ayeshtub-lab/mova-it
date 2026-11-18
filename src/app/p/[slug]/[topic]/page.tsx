@@ -30,7 +30,10 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]/[topic]"
   const dict = await getDictionary(locale);
   const t = dict.topic;
   const words = { topic: data.words, place: data.placeName };
-  const title = fill(t.metaTitle, words);
+  // «صور {topic} حقيقية»: a topic that already says «صور» or «حقيقية» (#صور_فنجان_قهوة) gave «صور صور
+  // فنجان قهوة حقيقية» in Google Images (seen 2026-11-18) — said once each.
+  const bare = data.words.replace(/^(?:صور|صوره|صورة)\s+/, "").replace(/\s+(?:حقيقية|حقيقيه|حقيقي)$/, "");
+  const title = fill(t.metaTitle, { ...words, topic: bare });
   const lines = data.shots.map((s) => s.line).filter((l): l is string => !!l).slice(0, 2).join(" · ");
   const description = clip(fill(t.metaDescription, { ...words, shots: plural(locale, dict.plurals.eventShots, data.shotIds.length), people: plural(locale, dict.plurals.eventPeople, data.people), lines }));
   const image = data.shots[0] ? `https://${CANONICAL_HOST}/i/${data.shots[0].id}.jpg` : undefined;

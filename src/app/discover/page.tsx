@@ -18,6 +18,7 @@ import { SCENES, type Scene } from "@/lib/scenes";
 import { DiscoverFeed } from "./DiscoverFeed";
 import { MomentCards } from "./MomentCards";
 import { findMoments, findPeople, type MomentCard, type PersonCard } from "@/server/moment-search";
+import { TodayChips } from "@/app/TodayChips";
 
 export const metadata = { title: "اكتشف · زاومو", robots: { index: false } };
 
@@ -119,6 +120,7 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
 
       {/* «📂 مواضيع بزاومو» (2026-11-04): the collection pages (src/lib/tag-hub.ts) one tap away —
           people see what Zawmo holds, and search engines find those pages linked from here. */}
+      <TodayChips locale={locale} />
       {topics.length > 0 && (
         <section aria-label={t.topicsTitle} className="flex flex-col gap-2">
           <h2 className="text-lg font-extrabold">{t.topicsTitle}</h2>

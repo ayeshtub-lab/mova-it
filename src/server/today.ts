@@ -15,6 +15,10 @@ export const isTodayScene = (v: unknown): v is TodayScene => isPhenomenon(v) && 
 // Shots of the last week a page needs before it is shown to search.
 export const TODAY_INDEX_FROM = 3;
 const DAYS = 7;
+// Rain and snow come in spells, with dry weeks between (his question, 2026-11-17: the 5–7/11 rain —
+// 16 shots, 5 of them videos — fell out of a week's window and the page closed to search). A month
+// for them, so the page stays open and indexed for the next rain; every shot keeps its own date.
+const DAYS_OF: Partial<Record<TodayScene, number>> = { rain: 30, snow: 30 };
 const TAKE = 48;
 // The scene Gemini picks is one word, and the weather is the hour's, not the picture's: a street
 // in the rain is often «nature» on a dry hour. Its own line says it («قطرات المطر على الزجاج»), so
@@ -27,14 +31,14 @@ const SAYS: Record<TodayScene, RegExp> = {
   sky: /القمر|قمر|النجوم|نجوم/,
 };
 const OUTDOOR = new Set(["nature", "street", "sea", "sky", "sunset", "sunrise", "rain", "snow", "other"]);
-const isOf = (scene: TodayScene, a: { scene: string | null; weather: string | null; aiText: string | null }) =>
+export const isOf = (scene: TodayScene, a: { scene: string | null; weather: string | null; aiText: string | null }) =>
   phenomenonOf(a.scene, a.weather) === scene || ((a.scene === null || OUTDOOR.has(a.scene)) && SAYS[scene].test(a.aiText ?? ""));
 
 export type TodayShot = { id: string; code: string; momentTitle: string; line: string | null; name: string; place: string | null; day: string; video: boolean };
 export type TodayData = { scene: TodayScene; today: string; shots: TodayShot[]; todayCount: number; people: number; latest: string | null };
 
 export async function computeToday(scene: TodayScene, now = new Date()): Promise<TodayData> {
-  const since = new Date(now.getTime() - DAYS * 24 * 60 * 60 * 1000);
+  const since = new Date(now.getTime() - (DAYS_OF[scene] ?? DAYS) * 24 * 60 * 60 * 1000);
   const rows = await db.angle.findMany({
     where: {
       status: "READY",
@@ -57,7 +61,7 @@ export async function computeToday(scene: TodayScene, now = new Date()): Promise
       moment: { select: { code: true, title: true } },
     },
     orderBy: { uploadedAt: "desc" },
-    take: 400,
+    take: 1500,
   });
   const today = eventDay(now);
   const shots = rows
@@ -88,6 +92,16 @@ export async function computeToday(scene: TodayScene, now = new Date()): Promise
 
 // Half an hour: «اليوم» stays today's, and the database is asked at most twice an hour a page.
 export const todayData = (scene: TodayScene) => unstable_cache(() => computeToday(scene), ["today-1", scene], { revalidate: 1800 })();
+
+// The «today» page a shot belongs to (its own page links there), or null.
+export const todaySceneOf = (a: { scene: string | null; weather: string | null; aiText: string | null }) => TODAY_SCENES.find((s) => isOf(s, a)) ?? null;
+export const TODAY_LINK: Record<TodayScene, string> = {
+  sunset: "🌅 كل صور غروب اليوم",
+  sky: "🌙 صور القمر والسما الليلة",
+  rain: "🌧️ صور مطر اليوم",
+  snow: "❄️ صور ثلج اليوم",
+  sunrise: "🌄 صور شروق اليوم",
+};
 
 // For the sitemap (itself cached; asked directly, as the other sitemap lists are): the pages worth a visit now.
 export async function sitemapToday() {

@@ -17,6 +17,7 @@ import { imageRights, plain } from "@/lib/clip";
 import { hashtagsIn } from "@/lib/hashtags";
 import { isHubTag } from "@/lib/tag-hub";
 import { tagFamily } from "@/server/tag-hub";
+import { TODAY_LINK, todaySceneOf } from "@/server/today";
 import { tagPhrase } from "@/lib/tag-phrase";
 import { soundSearch } from "@/lib/sound-search";
 import { filterCss } from "@/lib/filters";
@@ -92,6 +93,8 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   // (By its family's main page — src/lib/tag-twins.ts — the one Google is told to show.)
   const firstHub = locale === "ar" ? (hashtagsIn(shot.aiText).find(isHubTag) ?? null) : null;
   const hubTag = firstHub ? (await tagFamily(firstHub)).main : null;
+  // A sunset, the moon, rain…: the page of today's such shots from everyone (src/server/today.ts).
+  const today = locale === "ar" ? todaySceneOf(shot) : null;
   // A video's page is its watch page: the video the one thing on it (Google, «Is on a watch page?
   // No — the video is supplementary content», 2026-10-22, after 16/10 put 12 covers under it). So
   // under a video, a few plain links; under a photo, the covers as before.
@@ -230,6 +233,11 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         {hubTag && (
           <Link href={`/tag/${encodeURIComponent(hubTag)}`} className="flex min-h-12 items-center justify-center rounded-full border-2 border-secondary/40 px-6 text-center font-bold text-secondary">
             {fill(t.allOfTag, { phrase: tagPhrase(hubTag, locale) })}
+          </Link>
+        )}
+        {today && (
+          <Link href={`/today/${today}`} className="flex min-h-12 items-center justify-center rounded-full border-2 border-secondary/40 px-6 text-center font-bold text-secondary">
+            {TODAY_LINK[today]}
           </Link>
         )}
         {/* «⬇️ نزّل الصورة» (2026-11-08): what an image-search visitor came for — the marked copy,
