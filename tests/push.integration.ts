@@ -46,6 +46,12 @@ async function main() {
       const reply = pushMessage({ kind: "REPLY", actorName: "Karim", momentTitle: "Sunset", comment: "x".repeat(200), url: "/m/X" }, "en");
       assert.equal(reply.title, "↩️ Karim replied to your comment");
       assert.equal(reply.body.length, 140, "long comments are cut");
+      const inMoment = pushMessage({ kind: "COMMENT", actorName: "ليان", momentTitle: "عرس أحمد", ownShot: false, comment: "مبروك", url: "/m/X" }, "ar");
+      assert.equal(inMoment.title, "💬 ليان علّق بلحظتك «عرس أحمد»");
+      assert.equal(inMoment.body, "مبروك");
+      assert.equal(pushMessage({ kind: "COMMENT", actorName: "ليان", momentTitle: "عرس أحمد", ownShot: true, comment: "مبروك", url: "/m/X" }, "ar").title, "💬 ليان علّق على لقطتك");
+      const heart = pushMessage({ kind: "COMMENT_LIKE", actorName: "ليان", momentTitle: "عرس أحمد", ownShot: false, comment: "مبروك", url: "/m/X" }, "ar");
+      assert.deepEqual([heart.title, heart.body], ["❤️ ليان حبّ تعليقك", "مبروك"]);
       assert.equal(pushMessage({ kind: "FOLLOW", actorName: "ليان", momentTitle: null, comment: null, url: "/u/1" }, "ar").body, "افتح زاومو");
     });
 

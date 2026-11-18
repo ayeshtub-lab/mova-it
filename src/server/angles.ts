@@ -15,7 +15,7 @@ import { screenAngle, screeningEnabled, screenText, type ShotContext } from "@/s
 import { deleteFromStream } from "@/server/stream";
 import { searchesForGemini } from "@/server/search-console";
 import { regionOf } from "@/server/english-place";
-import { SAME_PHOTO_BITS, TOO_CLOSE_BITS, hamming, isDhash } from "@/lib/dhash";
+import { hamming, isDhash, twinVerdict } from "@/lib/dhash";
 
 export const MAX_VIDEO_SECONDS = 40;
 // A little slack: containers round durations, and a 40.3 s clip is still "40 seconds".
@@ -90,20 +90,23 @@ async function placeFor(input: PrepareAngleInput, momentPlaceId: string | null, 
   return {};
 }
 
-// A shot of the person's own (any moment, any time) or anyone's in this moment whose fingerprint is
-// within TOO_CLOSE_BITS of the new one — the closest. Only shots that went up (an upload that failed
+// A shot of the person's own (any moment, any time) or anyone's in this moment whose fingerprint
+// makes it a twin of the new one (twinVerdict) — the closest. Only shots that went up (an upload that failed
 // half-way must not stop the same photo being tried again).
 async function nearTwin(userId: string, momentId: string, mediaType: MediaType, dhash: string) {
   const rows = await db.angle.findMany({
     where: { dhash: { not: null }, mediaType, status: { in: ["READY", "DRAFT", "HIDDEN"] }, OR: [{ contributorId: userId }, { momentId }] },
-    select: { dhash: true, moment: { select: { code: true, title: true } } },
+    select: { dhash: true, scene: true, momentId: true, moment: { select: { code: true, title: true } } },
     take: 3000,
   });
-  let best: { bits: number; code: string; title: string } | null = null;
+  // The closest one that counts (src/lib/dhash.ts twinVerdict: plain skies never, other moments
+  // only the very same photo).
+  let best: { bits: number; verdict: "duplicate" | "too_close"; code: string; title: string } | null = null;
   for (const r of rows) {
     if (!isDhash(r.dhash)) continue; // «-»: an older shot whose picture couldn't be read
     const bits = hamming(dhash, r.dhash);
-    if (bits <= TOO_CLOSE_BITS && (!best || bits < best.bits)) best = { bits, code: r.moment.code, title: r.moment.title };
+    const verdict = twinVerdict(bits, r.momentId === momentId, r.scene);
+    if (verdict && (!best || bits < best.bits)) best = { bits, verdict, code: r.moment.code, title: r.moment.title };
   }
   return best;
 }
@@ -155,7 +158,7 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
   const dhash = isDhash(input.dhash) ? input.dhash : null;
   if (dhash) {
     const twin = await nearTwin(user.id, moment.id, mediaType, dhash);
-    if (twin) throw new AngleError(twin.bits <= SAME_PHOTO_BITS ? "duplicate" : "too_close", { code: twin.code, title: twin.title });
+    if (twin) throw new AngleError(twin.verdict, { code: twin.code, title: twin.title });
   }
 
   const capturedAt = captureDate(input.capturedAt);

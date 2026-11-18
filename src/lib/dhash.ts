@@ -71,4 +71,21 @@ export function hamming(a: string, b: string) {
 // The same photo (re-saved, resized, renamed) stays within a few bits; a burst of the same view a
 // little more; a real new angle or zoom far more.
 export const SAME_PHOTO_BITS = 6;
-export const TOO_CLOSE_BITS = 10;
+export const TOO_CLOSE_BITS = 8;
+
+// Plain pictures — the moon on a dark sky, a sunset, the sea — have almost no detail for 64 bits to
+// tell apart: different moon photos of one person came out «0f0f0f0f…», 6 to 9 bits from each other,
+// and were refused as «the same photo» (his note 2026-11-18, «بيرفض صور مش متشابهة»; measured on
+// the real shots). So for those the fingerprint says little: only the exact same fingerprint in the
+// same moment (the very photo sent twice) is refused.
+export const PLAIN_SCENES: readonly string[] = ["sky", "sunset", "sunrise", "sea", "rain", "snow"];
+// Another moment of the person's own is a match only for the very same photo sent again (≤ 4 bits:
+// re-saved or resized); «too close» is a matter of one moment only, where a burst of the same
+// view adds nothing.
+const OTHER_MOMENT_BITS = 4;
+
+export function twinVerdict(bits: number, sameMoment: boolean, twinScene: string | null): "duplicate" | "too_close" | null {
+  if (twinScene && PLAIN_SCENES.includes(twinScene)) return sameMoment && bits === 0 ? "duplicate" : null;
+  if (!sameMoment) return bits <= OTHER_MOMENT_BITS ? "duplicate" : null;
+  return bits <= SAME_PHOTO_BITS ? "duplicate" : bits <= TOO_CLOSE_BITS ? "too_close" : null;
+}

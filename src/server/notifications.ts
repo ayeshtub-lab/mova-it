@@ -22,9 +22,9 @@ export async function notify(event: Event, once?: { key: string; where: Prisma.N
     if (event.userId === event.actorId) return;
     if ((await blockedIdsFor(event.userId)).has(event.actorId)) return;
     // A heart or a follow taken back and given again tells only once.
-    if (event.kind === "LIKE" || event.kind === "FOLLOW" || event.kind === "CARD_LIKE") {
+    if (event.kind === "LIKE" || event.kind === "FOLLOW" || event.kind === "CARD_LIKE" || event.kind === "COMMENT_LIKE") {
       const told = await db.notification.findFirst({
-        where: { userId: event.userId, actorId: event.actorId, kind: event.kind, angleId: event.angleId ?? null, cardId: event.cardId ?? null },
+        where: { userId: event.userId, actorId: event.actorId, kind: event.kind, angleId: event.angleId ?? null, cardId: event.cardId ?? null, commentId: event.commentId ?? null },
         select: { id: true },
       });
       if (told) return;

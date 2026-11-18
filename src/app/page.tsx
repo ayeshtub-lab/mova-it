@@ -20,6 +20,7 @@ import { SiteHeader } from "@/app/SiteHeader";
 import type { User } from "@/generated/prisma/client";
 import type { Locale } from "@/i18n/config";
 import { getDictionary, getLocale, type Dictionary } from "@/i18n/server";
+import { PushAsk } from "@/app/PushAsk";
 import { getCurrentUser } from "@/lib/session";
 import { isInAppBrowser } from "@/lib/inapp";
 import { cookies, headers } from "next/headers";
@@ -77,6 +78,11 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
           </button>
         </form>
       </div>
+
+      {/* «🔔 بدك نخبرك…» where every member passes (his note 2026-11-18: comments found only by chance —
+          12 of 19 members active this month never turned notifications on; it was asked only on a
+          moment of their own and in «الوارد»). Draws nothing once on, «مش هلأ» puts it away 2 weeks. */}
+      <PushAsk labels={dict.push} locale={locale} />
 
       {/* A guest: keep the account with Google. Until the gift closes (24/11, src/server/points.ts),
           the reason to do it now — 200 points — and that a photo can go on any public moment already

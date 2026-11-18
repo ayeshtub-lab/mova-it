@@ -644,6 +644,7 @@ enum NotificationKind {
   POINTS_GIFT // 🎁 Zawmo's thank-you points (the number in `count`), once
   INVITE_JOINED // 📤 someone you invited joined and shared 3 public shots: +N points (`count`)
   MAKER_APPROVED // 🏪 your project was approved: its «🏪» moment is open (from Zawmo, once)
+  COMMENT_LIKE // a heart on your comment (2026-11-18), once per person and comment
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.

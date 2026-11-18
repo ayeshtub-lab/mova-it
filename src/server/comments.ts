@@ -90,6 +90,12 @@ export async function addComment(user: User, angleId: string, raw: unknown, rawP
   // once when they are the one answered).
   if (parentAuthor) await notify({ userId: parentAuthor, actorId: user.id, kind: "REPLY", angleId, commentId: comment.id });
   if (angle.contributorId !== parentAuthor) await notify({ userId: angle.contributorId, actorId: user.id, kind: "COMMENT", angleId, commentId: comment.id });
+  // …and the moment's own creator, of a comment on someone else's shot in it (his note 2026-11-18:
+  // members found comments by chance — 31 of 54 comments in a month were on another's shot in
+  // their moment, and they were told nothing). Not «لحظة اليوم» (Zawmo's own).
+  const creator = angle.moment.creatorId;
+  if (angle.moment.kind !== "DAILY" && creator !== angle.contributorId && creator !== parentAuthor)
+    await notify({ userId: creator, actorId: user.id, kind: "COMMENT", angleId, commentId: comment.id });
   return toView(comment, user, angle.moment);
 }
 
@@ -109,7 +115,10 @@ export async function setCommentLike(user: User, commentId: string, liked: unkno
   if (typeof liked !== "boolean") throw new CommentError("invalid");
   const comment = await db.comment.findUnique({ where: { id: commentId }, select: { angleId: true, userId: true } });
   if (!comment || !(await visibleAngle(user, comment.angleId)) || (await blockedIdsFor(user.id)).has(comment.userId)) throw new CommentError("not_found");
-  if (liked) await db.commentLike.createMany({ data: [{ commentId, userId: user.id }], skipDuplicates: true });
-  else await db.commentLike.deleteMany({ where: { commentId, userId: user.id } });
+  if (liked) {
+    const made = await db.commentLike.createMany({ data: [{ commentId, userId: user.id }], skipDuplicates: true });
+    // «❤️ فلان حبّ تعليقك» (his OK 2026-11-18): once per person and comment (notify skips one's own).
+    if (made.count) await notify({ userId: comment.userId, actorId: user.id, kind: "COMMENT_LIKE", angleId: comment.angleId, commentId });
+  } else await db.commentLike.deleteMany({ where: { commentId, userId: user.id } });
   return { likes: await db.commentLike.count({ where: { commentId } }), liked };
 }

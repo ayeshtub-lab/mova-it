@@ -82,6 +82,30 @@ async function main() {
       await assert.rejects(listComments(null, angle.id), CommentError);
       await db.moment.update({ where: { id: m.id }, data: { kind: "EVERYDAY" } });
     });
+
+    await check("a comment on someone else's shot tells the moment's creator too, once (2026-11-18)", async () => {
+      const theirs = await db.angle.create({ data: { momentId: m.id, contributorId: friend.id, mediaType: "PHOTO", status: "READY", screening: "allowed" } });
+      const c = await addComment(other, theirs.id, "nice one");
+      const told = await db.notification.findMany({ where: { commentId: c.id }, select: { userId: true, kind: true } });
+      assert.deepEqual(told.map((n) => n.userId).sort(), [friend.id, owner.id].sort(), "the shot's owner and the moment's creator");
+      assert.ok(told.every((n) => n.kind === "COMMENT"));
+      // The creator commenting there tells only the shot's owner; the creator's own shot, one notice.
+      const mine = await addComment(owner, theirs.id, "thanks");
+      assert.deepEqual((await db.notification.findMany({ where: { commentId: mine.id } })).map((n) => n.userId), [friend.id]);
+      const onOwn = await addComment(other, angle.id, "on the creator's own");
+      assert.equal(await db.notification.count({ where: { commentId: onOwn.id } }), 1);
+    });
+
+    await check("a heart on a comment tells its writer once; one's own heart tells no one", async () => {
+      const c = await addComment(friend, angle.id, "love it");
+      await setCommentLike(other, c.id, true);
+      await setCommentLike(other, c.id, false);
+      await setCommentLike(other, c.id, true);
+      const told = await db.notification.findMany({ where: { commentId: c.id, kind: "COMMENT_LIKE" } });
+      assert.deepEqual(told.map((n) => [n.userId, n.actorId]), [[friend.id, other.id]], "once, however often taken back and given again");
+      await setCommentLike(friend, c.id, true);
+      assert.equal(await db.notification.count({ where: { commentId: c.id, kind: "COMMENT_LIKE" } }), 1);
+    });
   } finally {
     await db.moment.deleteMany({ where: { creatorId: { in: ids } } });
     await db.user.deleteMany({ where: { id: { in: ids } } });
