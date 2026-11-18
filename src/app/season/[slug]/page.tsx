@@ -28,7 +28,8 @@ export async function generateMetadata({ params }: PageProps<"/season/[slug]">):
   const [dict, data] = await Promise.all([getDictionary(locale), seasonMoments(season)]);
   const h = heading(season, locale);
   // Its number of pictures in front, as for a place's topic (2026-11-18).
-  const metaTitle = locale === "ar" && data.shots ? `${h} — ${data.shots} صورة من الناس | زاومو` : dict.season.metaTitle.replace("{heading}", h);
+  // «كأنها لك» after a heading that is a search for pictures («صور أجواء الشتاء الحقيقية»), as people add it.
+  const metaTitle = locale === "ar" && data.shots ? `${h}${/^صور/.test(h) && !h.includes("كأنها") ? " كأنها لك" : ""} — ${data.shots} صورة | زاومو` : dict.season.metaTitle.replace("{heading}", h);
   const titles = [...new Set(data.moments.map((m) => title(m, locale)))].slice(0, 4);
   const description = clip(dict.season.metaDescription.replace("{heading}", h).replace("{titles}", titles.join(locale === "ar" ? "، " : ", ")));
   const cover = data.moments.find((m) => m.coverUrl)?.coverUrl?.replace("-small.jpg", ".jpg");
