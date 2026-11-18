@@ -33,7 +33,9 @@ export async function generateMetadata({ params }: PageProps<"/p/[slug]/[topic]"
   // «صور {topic} حقيقية»: a topic that already says «صور» or «حقيقية» (#صور_فنجان_قهوة) gave «صور صور
   // فنجان قهوة حقيقية» in Google Images (seen 2026-11-18) — said once each.
   const bare = data.words.replace(/^(?:صور|صوره|صورة)\s+/, "").replace(/\s+(?:حقيقية|حقيقيه|حقيقي)$/, "");
-  const title = fill(t.metaTitle, { ...words, topic: bare });
+  // With its number first («17 صورة خيار حقيقية في الخضر»), as the boards that lead these searches
+  // do («أفكار11 … غروب الشمس», Pinterest, read 2026-11-18): a number catches the eye in a list.
+  const title = locale === "ar" ? `${data.shotIds.length} صورة ${bare} حقيقية في ${data.placeName} — من الناس | زاومو` : fill(t.metaTitle, { ...words, topic: bare });
   const lines = data.shots.map((s) => s.line).filter((l): l is string => !!l).slice(0, 2).join(" · ");
   const description = clip(fill(t.metaDescription, { ...words, shots: plural(locale, dict.plurals.eventShots, data.shotIds.length), people: plural(locale, dict.plurals.eventPeople, data.people), lines }));
   const image = data.shots[0] ? `https://${CANONICAL_HOST}/i/${data.shots[0].id}.jpg` : undefined;

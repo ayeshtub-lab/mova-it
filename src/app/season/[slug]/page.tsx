@@ -11,6 +11,7 @@ import { CANONICAL_HOST } from "@/lib/hosts";
 import { GRID_SIZES, gridSrcSet, INDEXABLE } from "@/lib/indexable";
 import { getCurrentUser } from "@/lib/session";
 import { INDEX_FROM, seasonBySlug, seasonMoments } from "@/server/seasons";
+import { todayData } from "@/server/today";
 
 // «زاوية الموسم»'s own page (src/server/seasons.ts): every public moment of the season in one place,
 // under a heading in the words people search («صور شتاء حقيقية»), with a short line of its real
@@ -26,7 +27,8 @@ export async function generateMetadata({ params }: PageProps<"/season/[slug]">):
   const locale = await getLocale();
   const [dict, data] = await Promise.all([getDictionary(locale), seasonMoments(season)]);
   const h = heading(season, locale);
-  const metaTitle = dict.season.metaTitle.replace("{heading}", h);
+  // Its number of pictures in front, as for a place's topic (2026-11-18).
+  const metaTitle = locale === "ar" && data.shots ? `${h} — ${data.shots} صورة من الناس | زاومو` : dict.season.metaTitle.replace("{heading}", h);
   const titles = [...new Set(data.moments.map((m) => title(m, locale)))].slice(0, 4);
   const description = clip(dict.season.metaDescription.replace("{heading}", h).replace("{titles}", titles.join(locale === "ar" ? "، " : ", ")));
   const cover = data.moments.find((m) => m.coverUrl)?.coverUrl?.replace("-small.jpg", ".jpg");
@@ -45,6 +47,16 @@ export default async function SeasonPage({ params }: PageProps<"/season/[slug]">
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
   const [dict, data] = await Promise.all([getDictionary(locale), seasonMoments(season)]);
   const t = dict.season;
+  // Winter's newest real pictures themselves, before the moments (the experts' read, 2026-11-18:
+  // a visitor from «صور اجواء الشتاء» came for pictures and met moment covers). Its rain and snow of
+  // the month (src/server/today.ts, the same half-hour cache), newest first.
+  const latest =
+    season.slug === "winter" && locale === "ar"
+      ? (await Promise.all([todayData("rain"), todayData("snow")].map((p) => p.catch(() => null))))
+          .flatMap((d) => d?.shots ?? [])
+          .sort((x, y) => (x.day === y.day ? 0 : x.day < y.day ? 1 : -1))
+          .slice(0, 12)
+      : [];
   const h = heading(season, locale);
   const date = data.latest ? new Intl.DateTimeFormat(locale === "ar" ? "ar-EG-u-nu-latn" : "en-GB", { day: "numeric", month: "long", year: "numeric" }).format(new Date(data.latest)) : null;
   const intro = data.moments.length
@@ -98,6 +110,30 @@ export default async function SeasonPage({ params }: PageProps<"/season/[slug]">
             one moment growing with many people's angles is a stronger page than many single shots,
             and it is Zawmo's «من كل الزوايا» — or start a new one. The same covers as the grid
             below (already loaded), so nothing heavier. Its place: the home zone's button lands here. */}
+        {latest.length >= 4 && (
+          <section aria-label="أحدث صور الشتا" className="flex flex-col gap-2">
+            <h2 className="text-lg font-extrabold">🌧️ أحدث صور المطر والشتا</h2>
+            <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {latest.map((p, i) => {
+                const cover = `/i/${p.id}-small.jpg`;
+                return (
+                  <li key={p.id}>
+                    <Link href={`/m/${p.code}/a/${p.id}`} className="group relative block aspect-[3/4] overflow-hidden rounded-2xl bg-surface">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- the shot's lasting picture (/i/ID-small.jpg) */}
+                      <img src={cover} srcSet={gridSrcSet(cover)} sizes={GRID_SIZES} alt={plain(`${h} — ${p.line ?? p.momentTitle}`)} loading={i < 2 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined} className="size-full object-cover transition-transform group-hover:scale-105" />
+                      {p.video && <span className="absolute end-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-xs text-white">▶︎</span>}
+                      <span className="absolute inset-x-0 bottom-0 flex flex-col bg-gradient-to-t from-black/75 to-transparent p-2 pt-8 text-white">
+                        <span className="truncate text-sm font-bold">{p.place ?? p.momentTitle}</span>
+                        <span className="truncate text-xs text-white/80">📸 {p.name}</span>
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+            <Link href="/today/rain" className="self-center py-1 text-sm font-bold text-secondary underline-offset-4 hover:underline">كل صور المطر ←</Link>
+          </section>
+        )}
         {user && (
           <section id="add" aria-label={t.addTitle} className="flex scroll-mt-4 flex-col gap-2 rounded-3xl bg-surface p-4">
             {offer.length > 0 ? (

@@ -9,7 +9,7 @@ import { CONTACT_EMAIL } from "@/lib/site";
 // (the automatic check, «صوّر معك», montages, places, account deletion…). Update this page
 // (and UPDATED) whenever those change. Read with the privacy page (/privacy).
 
-const UPDATED = { ar: "٢٨ سبتمبر ٢٠٢٦", en: "September 28, 2026" };
+const UPDATED = { ar: "١٨ نوفمبر ٢٠٢٦", en: "November 18, 2026" };
 
 type Section = { title: string; items: string[] };
 
@@ -32,7 +32,8 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
         title: "لقطاتك ملكك",
         items: [
           "الصور والفيديوهات والكتابة التي تضيفها تبقى ملكك.",
-          "عندما تنشرها، تسمح لزاومو بحفظها وعرضها لمن اخترتهم، وبتجهيزها لذلك: تصغيرها، وتحويل الفيديو لجودات تناسب كل جهاز، وفحصها تلقائيًا، واستخدامها في فيديو اللحظة (المونتاج)، ومقارنتها بلقطات قريبة لاقتراح «صوّر معك». لا نستخدمها لأي غرض آخر، ولا نبيعها.",
+          "عندما تنشرها، تسمح لزاومو بحفظها وعرضها لمن اخترتهم، وبتجهيزها لذلك: تصغيرها، وتحويل الفيديو لجودات تناسب كل جهاز، وفحصها تلقائيًا، واستخدامها في فيديو اللحظة (المونتاج)، ومقارنتها بلقطات قريبة لاقتراح «صوّر معك». لا نستخدمها لأي غرض آخر غير ما ذُكر هنا، ولا نبيعها.",
+          "تنزيل اللقطات العامة (من ١٨ نوفمبر ٢٠٢٦): عندما تنشر لقطة عامة، تسمح أيضًا لزوار زاومو بتنزيلها لاستخدام شخصي غير تجاري، مثل حالة واتساب أو قصة على إنستغرام. النسخة المنزّلة تحمل علامة زاومو الصغيرة. لا يحق لأحد بيعها أو استخدامها في إعلان تجاري. وإذا لم ترغب بذلك للقطة ما، اجعلها «للأصحاب» أو احذفها، فتختفي من التنزيل فورًا.",
           "«🎤 صوتك»: الصوت الذي تسجّله أو ترفعه يبقى ملكك. إذا جعلته «للكل» تسمح لكل مستخدمي زاومو بوضعه على لقطاتهم داخل زاومو، مع ذكر اسمك؛ وإذا جعلته «خاص» تستعمله أنت وحدك. في الحالتين يُفحص قبل استعماله (حقوق النشر والكلام المسيء)، لأن من يشاهد لقطاتك يسمعه، وتستطيع تغيير اختيارك أو سحبه في أي وقت.",
           "تستطيع حذف أي لقطة في أي وقت، فتُحذف ملفاتها، ويُعاد صنع فيديو اللحظة بدونها.",
         ],
@@ -127,7 +128,8 @@ const CONTENT: Record<"ar" | "en", { title: string; intro: string; updated: stri
         title: "Your shots are yours",
         items: [
           "The photos, videos and writing you add stay yours.",
-          "When you publish them, you allow Zawmo to store them and show them to the people you chose, and to prepare them for that: making small copies, converting videos to qualities that suit each device, checking them automatically, using them in the moment's video (montage), and comparing them with nearby shots to suggest “Shoot together”. We use them for nothing else, and never sell them.",
+          "When you publish them, you allow Zawmo to store them and show them to the people you chose, and to prepare them for that: making small copies, converting videos to qualities that suit each device, checking them automatically, using them in the moment's video (montage), and comparing them with nearby shots to suggest “Shoot together”. We use them for nothing beyond what is said here, and never sell them.",
+          "Downloading public shots (from November 18, 2026): when you publish a shot publicly, you also allow Zawmo's visitors to download it for personal, non-commercial use, such as a WhatsApp status or an Instagram story. The downloaded copy carries Zawmo's small mark. No one may sell it or use it in a commercial advertisement. If you don't want that for a shot, make it “friends only” or delete it, and it can no longer be downloaded.",
           "You can delete any shot at any time; its files are deleted and the moment's video is remade without it.",
         ],
       },

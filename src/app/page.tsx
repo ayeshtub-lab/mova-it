@@ -135,6 +135,16 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
           <span className="shrink-0 text-sm text-amber-700 dark:text-amber-300">{dict.maker.homeGo}</span>
         </Link>
       )}
+      {/* The terms changed (2026-11-18, his OK): members are told here for a month, as the terms
+          promise («ننبّهك داخل الموقع إذا كان التغيير مهمًا»). */}
+      {locale === "ar" && Date.now() < Date.parse("2026-12-18T00:00:00Z") && (
+        <p className="rounded-2xl bg-surface px-4 py-3 text-sm leading-relaxed">
+          📝 حدّثنا الشروط: صورك العامة صار الزوار يقدروا ينزّلوها لحالة أو ستوري، وعليها علامة زاومو. ما بدك لصورة؟ خليها «للأصحاب» أو احذفها.{" "}
+          <Link href="/terms" className="font-bold text-secondary underline underline-offset-2">
+            الشروط
+          </Link>
+        </p>
+      )}
       {/* «⭐ تحت أضواء زاومو» («خطة زاومو الذهبية», src/app/HomePin.tsx). */}
       <HomePin dict={dict} />
       {/* «زاوية الموسم» (2026-11-06): the season between its dates, pinned here — src/app/SeasonZone.tsx. */}

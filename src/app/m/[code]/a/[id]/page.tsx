@@ -188,6 +188,28 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
             />
           )}
         </div>
+        {/* «⬇️ نزّل الصورة» (2026-11-08): what an image-search visitor came for — the marked copy,
+            so the saved picture leads back here (src/app/SaveFile.tsx). This page is public shots only.
+            Right under the picture since 2026-11-18 (the experts' read: it was the 9th thing on the
+            page, after the hashtags — the one thing such a visitor wants, buried). */}
+        {!isVideo && (
+          <SaveFile
+            kind="shot"
+            id={shot.id}
+            name={`zawmo-${shot.moment.code}`}
+            labels={{ save: t.save, saving: t.saving, failed: t.saveFailed, bridge: fill(dict.card.bridge, { name: shot.contributor.displayName }), bridgeButton: dict.card.bridgeButton }}
+          />
+        )}
+        {/* What a visitor may do with it (the terms since 2026-11-18: personal use, with Zawmo's mark) —
+            the answer to «بدون حقوق» people search for. */}
+        {!isVideo && locale === "ar" && (
+          <p className="-mt-2 text-center text-xs text-muted">
+            ✅ مسموح تحطها حالة أو ستوري، والنسخة عليها علامة زاومو ·{" "}
+            <Link href="/terms" className="underline underline-offset-2">
+              الشروط
+            </Link>
+          </p>
+        )}
         <header className="flex flex-col gap-1">
           <h1 className="text-2xl font-extrabold leading-snug">{title}</h1>
           <p className="text-sm text-muted">
@@ -239,16 +261,6 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
           <Link href={`/today/${today}`} className="flex min-h-12 items-center justify-center rounded-full border-2 border-secondary/40 px-6 text-center font-bold text-secondary">
             {TODAY_LINK[today]}
           </Link>
-        )}
-        {/* «⬇️ نزّل الصورة» (2026-11-08): what an image-search visitor came for — the marked copy,
-            so the saved picture leads back here (src/app/SaveFile.tsx). This page is public shots only. */}
-        {!isVideo && (
-          <SaveFile
-            kind="shot"
-            id={shot.id}
-            name={`zawmo-${shot.moment.code}`}
-            labels={{ save: t.save, saving: t.saving, failed: t.saveFailed, bridge: fill(dict.card.bridge, { name: shot.contributor.displayName }), bridgeButton: dict.card.bridgeButton }}
-          />
         )}
         {/* «▶︎ شوفها كلها»: the moment's viewer, on this shot — sideways its other angles, down the
             next moment (src/app/m/[code]/AngleGallery.tsx). */}
