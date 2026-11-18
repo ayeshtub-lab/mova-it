@@ -5,6 +5,7 @@ import { remindDaily, SUMMARY_WEEKDAY, weeklySummary } from "@/server/nudges";
 import { sendWeatherAlerts } from "@/server/weather-alerts";
 import { saveSearchTerms, seoWeekly } from "@/server/search-console";
 import { sitemapList } from "@/server/sitemap-list";
+import { tellTermsUpdate } from "@/server/terms-notice";
 
 export const maxDuration = 120;
 
@@ -30,8 +31,10 @@ export async function GET(request: Request) {
   const mission = monday ? await makeMission().then((m) => (m ? 1 : 0), (error) => (console.error("mission failed", error), -1)) : 0;
   // …and what Search Console says of the sitemap and of a sample of pages (src/server/search-console.ts).
   const seo = monday ? await seoSample().then(seoWeekly).then((r) => (r ? r.sample : "off"), (error) => (console.error("seo weekly failed", error), "failed")) : null;
-  console.log("reminders", { stories, daily, winner, summaries, weather, searches, mission, seo });
-  return NextResponse.json({ stories, daily, winner, summaries, weather, searches, mission, seo });
+  // «📝 حدّثنا الشروط», once per member (src/server/terms-notice.ts; nothing after 18/12).
+  const terms = await tellTermsUpdate().catch((error) => (console.error("terms notice failed", error), -1));
+  console.log("reminders", { stories, daily, winner, summaries, weather, searches, mission, seo, terms });
+  return NextResponse.json({ stories, daily, winner, summaries, weather, searches, mission, seo, terms });
 }
 
 // The pages the weekly check inspects: the home page, then the newest moments, film parts, shots
