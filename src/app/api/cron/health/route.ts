@@ -4,9 +4,14 @@ import { db } from "@/lib/db";
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { pushNote } from "@/server/push";
 import { allow } from "@/server/rate-limit";
+import { recentServerErrors } from "@/server/error-watch";
 import { smokeChecks, type Check } from "@/server/smoke";
 
 export const maxDuration = 120;
+// Alert from this many server errors in an hour (one now and then is Sentry's business), and a
+// home page slower than this.
+const SERVER_ERRORS_ALERT = 10;
+const SLOW_HOME_MS = 10_000;
 
 // Every 30 minutes (vercel.json), from Vercel itself — so it runs whether or not anyone's
 // computer is on: the site's vital signs as people and crawlers see them (src/server/smoke.ts),
@@ -27,9 +32,16 @@ export async function GET(request: Request) {
     const stuck = await db.montage.groupBy({ by: ["momentId"], where: { createdAt: { gte: since }, OR: [{ status: "FAILED", NOT: { error: { startsWith: "partial " } } }, { status: { in: ["QUEUED", "RENDERING"] }, createdAt: { lt: new Date(Date.now() - 30 * 60_000) } }] }, _count: { _all: true } });
     const worst = stuck.sort((a, b) => b._count._all - a._count._all)[0];
     checks.push({ name: "films", ok: !worst || worst._count._all < 5, detail: worst ? `${worst._count._all} failed tries for one moment in 24 h` : "fine", ms: Date.now() - t0 });
+    // Errors pages and API routes threw since the last runs (src/server/error-watch.ts): a stall
+    // between two runs leaves its mark here.
+    const errors = await recentServerErrors();
+    checks.push({ name: "server errors", ok: errors < SERVER_ERRORS_ALERT, detail: `${errors} in the last hour`, ms: 0 });
   } catch (error) {
     checks.push({ name: "database", ok: false, detail: String(error).slice(0, 200), ms: Date.now() - t0 });
   }
+  // A home page that answers, but slowly (a stall on its way).
+  const home = checks.find((c) => c.name === "home");
+  if (home?.ok && home.ms > SLOW_HOME_MS) checks.push({ name: "slow", ok: false, detail: `home took ${home.ms} ms`, ms: home.ms });
 
   const failed = checks.filter((c) => !c.ok);
   let told = 0;

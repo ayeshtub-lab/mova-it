@@ -23,5 +23,11 @@ export async function register() {
   }
 }
 
-// Errors thrown while rendering server components and route handlers.
-export const onRequestError = Sentry.captureRequestError;
+// Errors thrown while rendering server components and route handlers: to Sentry, and counted
+// for the health guard (src/server/error-watch.ts) — Node only, the database isn't reached from edge.
+export const onRequestError: typeof Sentry.captureRequestError = (...args) => {
+  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.NODE_ENV === "production") {
+    import("@/server/error-watch").then((m) => m.countServerError()).catch(() => {});
+  }
+  return Sentry.captureRequestError(...args);
+};
