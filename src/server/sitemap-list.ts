@@ -30,6 +30,8 @@ import { sitemapAuthors, sitemapEntries, sitemapShots, sitemapSoundKeys, sitemap
 // still listed under its moment, for Google Images).
 const EN_IN_SITEMAP = false;
 const PHOTO_PAGES_IN_SITEMAP = false;
+// The English map of its own (2026-11-20, his OK): its 200 strongest pages, measured apart.
+const EN_SITEMAP_SIZE = 200;
 
 // One page per family (src/lib/tag-twins.ts): «خيرات_الارض» and «خيرات_الأرض», or #قهوة and
 // #صور_قهوة_حقيقية («صور قهوة حقيقية» both) — the main one, the one the others point to, listed
@@ -41,7 +43,8 @@ function oneSpelling<T extends { tag: string; count: number; updatedAt: Date }>(
     .map((t) => ({ ...t, updatedAt: new Date(Math.max(...fams.get(t.tag)!.members.map((m) => tags.find((x) => x.tag === m)!.updatedAt.getTime()))) }));
 }
 
-export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
+// lang "en": only the English pages, the strongest EN_SITEMAP_SIZE (src/app/sitemap-en.xml).
+export async function sitemapList(lang: "ar" | "en" = "ar"): Promise<MetadataRoute.Sitemap> {
   const base = `https://${CANONICAL_HOST}`;
   const [{ moments, places }, shots, tags, sounds, events, topics, authors, parts, cards, seasons, today] = await Promise.all([
     sitemapEntries(),
@@ -131,7 +134,7 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
   // Zawmo in English (2026-10-21): once the English pages are open to Google (EN_INDEXED), each of
   // phase 1's pages that has its English words gets its /en address too, both tied together
   // (hreflang), its videos under their English names.
-  if (!EN_INDEXED || !EN_IN_SITEMAP) return list;
+  if (!EN_INDEXED || (lang === "ar" && !EN_IN_SITEMAP)) return lang === "en" ? [] : list;
   const englishTitle = new Map<string, string | null>([
     [base, "Zawmo"],
     ...moments.map((m) => [`${base}/m/${m.code}`, m.titleEn] as const),
@@ -150,6 +153,10 @@ export async function sitemapList(): Promise<MetadataRoute.Sitemap> {
       url: enUrl,
       videos: entry.videos?.map((v) => ({ ...v, title, description: `${title} — a real video from people on Zawmo` })),
     });
+  }
+  if (lang === "en") {
+    const time = (e: MetadataRoute.Sitemap[number]) => (e.lastModified ? new Date(e.lastModified).getTime() : 0);
+    return english.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || time(b) - time(a)).slice(0, EN_SITEMAP_SIZE);
   }
   return [...list, ...english];
 }

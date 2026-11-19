@@ -5,6 +5,7 @@ import "./env";
 import assert from "node:assert/strict";
 import { db } from "../src/lib/db";
 import { GET } from "../src/app/sitemap.xml/route";
+import { GET as GET_EN } from "../src/app/sitemap-en.xml/route";
 import { sitemapProblems } from "../src/lib/seo-spec";
 
 const TAG = "[smtest]";
@@ -17,7 +18,7 @@ const check = async (name: string, fn: () => Promise<void>) => {
 async function main() {
   const owner = await db.user.create({ data: { displayName: `${TAG} owner`, isGuest: false } });
   try {
-    const m = await db.moment.create({ data: { code: `SM${Math.random().toString(36).slice(2, 6).toUpperCase()}`, title: `${TAG} قهوة & «حلويات» <صباح>`, named: true, visibility: "PUBLIC", status: "ACTIVE", creatorId: owner.id } });
+    const m = await db.moment.create({ data: { code: `SM${Math.random().toString(36).slice(2, 6).toUpperCase()}`, title: `${TAG} قهوة & «حلويات» <صباح>`, titleEn: `${TAG} coffee & sweets`, named: true, visibility: "PUBLIC", status: "ACTIVE", creatorId: owner.id } });
     const shot = (mediaType: "PHOTO" | "VIDEO") =>
       db.angle.create({ data: { momentId: m.id, contributorId: owner.id, mediaType, status: "READY", screening: "allowed", mediaPath: `m/${m.id}/x.${mediaType === "VIDEO" ? "mp4" : "jpg"}`, thumbPath: mediaType === "VIDEO" ? `m/${m.id}/x-poster.jpg` : null, durationSec: mediaType === "VIDEO" ? 12.4 : null, aiTitle: `${TAG} ${"عنوان طويل جدا ".repeat(10)}` } });
     const photo = await shot("PHOTO");
@@ -41,6 +42,19 @@ async function main() {
       assert.ok(!xml.includes(`/a/${photo.id}<`), "the photo's own page is left out");
       assert.ok(xml.includes(`/i/${photo.id}.jpg`), "the photo's picture is still under its moment");
       assert.ok(!xml.includes(`/en/m/${m.code}`), "no English copies");
+    });
+
+    // The English map of its own (2026-11-20): English addresses only, each tied to its Arabic twin,
+    // 200 at most, to the same schemas.
+    await check("the English map lists English pages only, with hreflang, to spec", async () => {
+      const res = await GET_EN();
+      assert.equal(res.status, 200);
+      const xml = await res.text();
+      const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((x) => x[1]);
+      assert.ok(locs.length > 0 && locs.length <= 200, `${locs.length} pages`);
+      assert.ok(locs.every((u) => /^https:\/\/[^/]+\/en(\/|$)/.test(u)), "English addresses only");
+      assert.ok(xml.includes('hreflang="ar"'), "tied to the Arabic pages");
+      assert.deepEqual(sitemapProblems(xml), []);
     });
   } finally {
     await db.moment.deleteMany({ where: { creatorId: owner.id } });

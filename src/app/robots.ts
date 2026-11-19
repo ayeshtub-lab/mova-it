@@ -15,7 +15,8 @@ export default function robots(): MetadataRoute.Robots {
       // WhatsApp) and Meta-ExternalFetcher (a person's own request) are other names and stay open.
       { userAgent: "meta-externalagent", disallow: "/" },
     ],
-    sitemap: `https://${CANONICAL_HOST}/sitemap.xml`,
+    // The Arabic map, and the English one apart (2026-11-20).
+    sitemap: [`https://${CANONICAL_HOST}/sitemap.xml`, `https://${CANONICAL_HOST}/sitemap-en.xml`],
     host: CANONICAL_HOST,
   };
 }

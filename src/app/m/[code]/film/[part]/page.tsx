@@ -35,12 +35,20 @@ const load = cache(async (code: string, raw: string) => {
 
 const fill = (template: string, values: Record<string, string>) => template.replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
 
+// «فيديو» first in the search title (2026-11-20, his OK): a measured test on the 10 film pages
+// Google showed most in web results (21/10–19/11: 120 impressions, 4 clicks); the other ~60 are the
+// control. People search «صور»; a film found in web results says what it is. Read ~4/12.
+const VIDEO_TITLE_TEST = new Set(["EUHHZF/1", "QAF4H6/6", "EUHHZF/8", "6JBGQU/3", "59T4CU/2", "59T4CU/6", "TU692F/3", "YFRX77/1", "JF7PVN/4", "92JKVX/1"]);
+const videoTitle = (code: string, part: number, title: string, locale: string) =>
+  locale === "ar" && VIDEO_TITLE_TEST.has(`${code}/${part}`) && !/فيديو/.test(title) ? `فيديو ${title}` : title;
+
 export async function generateMetadata({ params }: PageProps<"/m/[code]/film/[part]">): Promise<Metadata> {
   const { code, part } = await params;
   const found = await load(code, part);
   if (!found) return {};
-  const dict = await getDictionary(await getLocale());
-  const title = plain(found.film.title);
+  const locale = await getLocale();
+  const dict = await getDictionary(locale);
+  const title = videoTitle(found.view.code, found.film.part, plain(found.film.title), locale);
   const where = found.view.place?.name ?? found.view.placeName;
   const description = fill(dict.filmPart.description, { title, where: where ? ` ${dict.moment.metaIn} ${where}` : "" });
   return {
