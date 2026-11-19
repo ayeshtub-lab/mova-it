@@ -153,7 +153,7 @@ export async function listDiscover(viewer: User | null) {
 }
 
 // Public moments whose description carries #tag, newest activity first; cover = the
-// first angle that passed the check. Same rules as «اكتشف».
+// first angle that carries the tag (else the first that passed the check). Same rules as «اكتشف».
 // Open to everyone (visitors too): every link in a description or a shot's line leads here.
 // `also`: its twins (src/lib/tag-twins.ts) — a family's main page lists their moments too.
 export async function listTag(viewer: User | null, rawTag: string, also: string[] = []) {
@@ -185,16 +185,22 @@ export async function listTag(viewer: User | null, rawTag: string, also: string[
   });
   const tagged = await db.angle.findMany({
     where: { ...shown, momentId: { in: moments.map((m) => m.id) }, OR: tags.map((t) => ({ aiText: { contains: `#${t}`, mode: "insensitive" as const } })) },
-    select: { momentId: true, aiText: true },
+    orderBy: [{ capturedAt: "asc" }, { uploadedAt: "asc" }],
+    select: { id: true, momentId: true, aiText: true, smallPath: true, mediaType: true, thumbPath: true, mediaPath: true },
   });
   const has = (text: string | null) => hashtagsIn(text).some((t) => tags.includes(t));
-  const inShots = new Set(tagged.filter((a) => has(a.aiText)).map((a) => a.momentId));
+  // Each moment's earliest shot that carries the tag itself — its cover here (2026-11-20: #قهوة
+  // showed carrots and a wood fire, the moments' first shots); the moment's first shot only when
+  // the tag is in its description alone.
+  const firstTagged = new Map<string, (typeof tagged)[number]>();
+  for (const a of tagged) if (has(a.aiText) && !firstTagged.has(a.momentId)) firstTagged.set(a.momentId, a);
+  const inShots = new Set(firstTagged.keys());
   // "contains" also matches #tagger for #tag: keep exact tags only.
   return Promise.all(
     moments
       .filter((m) => has(m.description) || inShots.has(m.id))
       .map(async (m) => {
-        const a = m.angles[0];
+        const a = firstTagged.get(m.id) ?? m.angles[0];
         return {
           code: m.code,
           title: plain(m.title),

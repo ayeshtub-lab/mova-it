@@ -673,6 +673,8 @@
     "hub": "{shots} in {moments}, taken by {people} on Zawmo with their phones — real photos from real lives.",
     "hubFrom": "Among them: {titles}.",
     "hubLatest": "Newest photo added on {date}.",
+    "hubMetaTitle": "{phrase} — {shots} from real people | Zawmo",
+    "hubMetaDescription": "{phrase}: {shots}, taken by {people} with their phones, not AI. Free to save for your status and stories.",
     "related": "Related topics",
     "allOf": "📸 كل {phrase} على زاومو ←"
   },

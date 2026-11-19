@@ -30,13 +30,21 @@ const INDEX_FROM = 3;
 export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Promise<Metadata> {
   const tag = decodeURIComponent((await params).tag);
   const [locale, moments, fam] = await Promise.all([getLocale(), visitorList(tag), family(tag)]);
+  const hub = locale === "ar" && isHubTag(tag) ? await tagHub(tag, fam.also) : null;
   const dict = await getDictionary(locale);
   // (Words as people type them: «صور_قهوة_حقيقية» → «صور قهوة حقيقية», nothing said twice —
   // src/lib/tag-phrase.ts; and each moment's title once.)
   const phrase = tagPhrase(tag, locale);
-  const title = dict.tag.metaTitle.replace("{phrase}", phrase);
   const titles = [...new Set(moments.map((m) => plain(m.title)))].slice(0, 4);
-  const description = clip(dict.tag.metaDescription.replace("{phrase}", phrase).replace("{titles}", titles.join(locale === "ar" ? "، " : ", ")));
+  // A collection page (the 10 of src/lib/tag-hub.ts, 2026-11-20): its real count and «كأنها لك»
+  // in the title, as on the sunset and place pages — seen 2.5K times in two weeks, clicked 6.
+  const shots = hub && hub.shots >= 3 ? plural(locale, dict.plurals.eventShots, hub.shots) : null;
+  const title = shots ? dict.tag.hubMetaTitle.replace("{phrase}", phrase).replace("{shots}", shots) : dict.tag.metaTitle.replace("{phrase}", phrase);
+  const description = clip(
+    shots && hub
+      ? dict.tag.hubMetaDescription.replace("{shots}", shots).replace("{phrase}", phrase).replace("{bare}", locale === "ar" ? phrase.replace(/^صور[ةه]?\s+/, "") : "").replace("{people}", plural(locale, dict.plurals.people, hub.people))
+      : dict.tag.metaDescription.replace("{phrase}", phrase).replace("{titles}", titles.join(locale === "ar" ? "، " : ", ")),
+  );
   return {
     title,
     description,
@@ -92,7 +100,6 @@ export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
             <p dir="auto" className="text-sm font-bold text-muted">
               {t.title.replace("{tag}", tag)}
             </p>
-            {intro && <p className="text-sm leading-relaxed">{intro}</p>}
           </header>
         ) : (
           <header>
@@ -130,6 +137,8 @@ export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
         ) : (
           <p className="rounded-3xl bg-surface p-6 text-center text-muted">{t.empty}</p>
         )}
+        {/* The page's numbers under its pictures (2026-11-20): the first photos stay on the first screen. */}
+        {intro && <p className="text-sm leading-relaxed">{intro}</p>}
         {/* Nearby topics (found in the same moments, each with a page of its own): after the
             pictures, so a visitor — and a search engine — goes on from coffee to sweets. */}
         {!!hub?.related.length && (
