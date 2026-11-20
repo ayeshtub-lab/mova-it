@@ -322,7 +322,7 @@ export type FilmPart = Awaited<ReturnType<typeof filmParts>>[number];
 // old page to lead on: to its one shot's page, or to the moment. Null: never such a part.
 export async function retiredPart(code: string, part: number) {
   const m = await db.montage.findFirst({
-    where: { part, status: "FAILED", error: { in: ["single", "too-few"] }, moment: { code, visibility: "PUBLIC", status: "ACTIVE" } },
+    where: { part, status: "FAILED", error: { in: ["single", "too-few", "quran-pages"] }, moment: { code, visibility: "PUBLIC", status: "ACTIVE" } },
     orderBy: { createdAt: "desc" },
     select: { error: true, angleIds: true },
   });
