@@ -14,6 +14,7 @@ import { viewCounts } from "@/server/profile";
 import { reactionsFor, savedFor } from "@/server/reactions";
 import { screenText } from "@/server/screening";
 import { isNew } from "@/lib/site";
+import { isPeopleKey } from "@/lib/sounds";
 
 // No 0/O, 1/I/L: codes get read aloud and typed from screenshots.
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -114,6 +115,15 @@ export async function joinMoment(code: string, user: User) {
 
 // "Give to get": until a viewer adds an angle of their own, they see only the first
 // angle; the rest come back as a count, with no ids or media for the locked ones.
+// «📖 سور من القرآن» (src/server/quran-recite.ts): the names of the recitations on these shots — no
+// query when none of them has a member's sound («u…»).
+async function recitations(keys: (string | null)[]) {
+  const people = [...new Set(keys.filter((k): k is string => isPeopleKey(k)))];
+  if (!people.length) return new Map<string, string>();
+  const rows = await db.userSound.findMany({ where: { key: { in: people }, category: "quran", status: "public" }, select: { key: true, name: true } });
+  return new Map(rows.map((r) => [r.key, r.name]));
+}
+
 export async function getMomentView(code: string, viewer: User | null) {
   const moment = await findViewable(code, viewer);
   if (!moment) return null;
@@ -146,13 +156,14 @@ export async function getMomentView(code: string, viewer: User | null) {
   const visibleIds = visible.map((a) => a.id);
   // Views and likes are shown to everyone.
   const contributorIds = [...new Set(visible.map((a) => a.contributorId))];
-  const [reactions, comments, views, saved, follows, places] = await Promise.all([
+  const [reactions, comments, views, saved, follows, places, recited] = await Promise.all([
     reactionsFor(visibleIds, viewer),
     commentCounts(visibleIds),
     viewCounts(visibleIds),
     savedFor(visibleIds, viewer),
     viewer ? db.follow.findMany({ where: { followerId: viewer.id, followingId: { in: contributorIds } }, select: { followingId: true } }) : [],
     placeViews([moment.placeId, ...visible.map((a) => a.placeId)]),
+    recitations(visible.map((a) => a.soundKey)),
   ]);
   const following = new Set(follows.map((f) => f.followingId));
   const everyone = moment.visibility === Visibility.PUBLIC && moment.status === "ACTIVE" && moment.kind !== "DAILY" && !moment.demo;
@@ -186,6 +197,7 @@ export async function getMomentView(code: string, viewer: User | null) {
         mediaType: a.mediaType,
         presence: a.presence,
         soundKey: a.soundKey,
+        recitation: (a.soundKey && recited.get(a.soundKey)) ?? null,
         muteOriginal: a.muteOriginal,
         lyrics: a.lyrics,
         filter: a.filter,

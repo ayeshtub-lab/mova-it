@@ -38,6 +38,8 @@ export type GalleryAngle = {
   soundKey: string | null;
   muteOriginal: boolean;
   lyrics: boolean; // «📝» its sound's words on it
+  // «📖 سور من القرآن»: its recitation's own name («البقرة ٢٥٤ · العفاسي») — heard once, like the library's verses.
+  recitation?: string | null;
   filter: string | null;
   stamp: boolean;
   takenAt: string;
@@ -293,6 +295,13 @@ export function AngleGallery({
   const byId = new Map(angles.map((a) => [a.id, a]));
   const likesOf = (id: string): Likes => likes.get(id) ?? byId.get(id)?.likes ?? { count: 0, liked: false };
   const soundOf = (id: string) => sounds.get(id) ?? { key: byId.get(id)?.soundKey ?? null, mute: byId.get(id)?.muteOriginal ?? false, lyrics: byId.get(id)?.lyrics ?? true };
+  // The name shown for a shot's sound: its recitation's own, while it is the one on it.
+  const recitationOf = (id: string, key: string | null | undefined) => (key && byId.get(id)?.soundKey === key ? (byId.get(id)?.recitation ?? null) : null);
+  const soundLabel = (id: string) => {
+    const key = soundOf(id)?.key;
+    const sound = soundByKey(key);
+    return sound ? (recitationOf(id, key) ?? soundName(sound, locale)) : "";
+  };
   // Writing on shots: as the server sent it, or as its owner just changed it here.
   const [captions, setCaptions] = useState(() => new Map<string, CaptionView | null>());
   const [captionFor, setCaptionFor] = useState<string | null>(null);
@@ -547,7 +556,7 @@ export function AngleGallery({
     // Muted, the sound plays on silently, so its words («📝») stay in time.
     audio.muted = muted;
     const src = soundFile(s.key);
-    audio.loop = !isQuran(soundByKey(s.key)); // a verse is heard once
+    audio.loop = !isQuran(soundByKey(s.key)) && !(angle?.recitation && angle.soundKey === s.key); // a verse is heard once
     if (!audio.src.endsWith(src)) audio.src = src;
     audio.play().catch(() => {});
   }, [current, opened, sounds, muted, angles]);
@@ -1358,7 +1367,7 @@ export function AngleGallery({
                   {soundByKey(soundOf(a.id)?.key) && (
                     <Link href={`/sound/${soundOf(a.id)!.key}`} className="pointer-events-auto flex min-w-0 items-center gap-1 truncate rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">
                       <span aria-hidden="true">🎵</span>
-                      <span className="truncate">{soundName(soundByKey(soundOf(a.id)!.key)!, locale)}</span>
+                      <span className="truncate">{soundLabel(a.id)}</span>
                     </Link>
                   )}
                   {placeOf(a.id) && (
@@ -1490,7 +1499,7 @@ export function AngleGallery({
                   {soundByKey(soundOf(a.id)?.key) ? (
                     <Link
                       href={`/sound/${soundOf(a.id)!.key}`}
-                      aria-label={labels.sounds.openSound.replace("{name}", soundName(soundByKey(soundOf(a.id)!.key)!, locale))}
+                      aria-label={labels.sounds.openSound.replace("{name}", soundLabel(a.id))}
                       className="mt-2 flex size-12 items-center justify-center rounded-full border-[6px] border-neutral-800 bg-gradient-to-br from-brand-red via-moment to-brand-blue shadow-lg motion-safe:animate-[spin_4s_linear_infinite]"
                     >
                       <span aria-hidden="true" className="text-sm">🎵</span>
@@ -1835,7 +1844,7 @@ export function AngleGallery({
             initialFilter={lookOf(editFor).filter}
             initialStamp={lookOf(editFor).stamp}
             stampPreview={stampText(new Date(angles.find((y) => y.id === editFor)!.stampAt), locale)}
-            soundName={soundByKey(soundOf(editFor).key) ? soundName(soundByKey(soundOf(editFor).key)!, locale) : null}
+            soundName={soundByKey(soundOf(editFor).key) ? soundLabel(editFor) : null}
             busy={savingSound}
             onSave={(filter, stamp) => saveLook(editFor, filter, stamp)}
             onSound={() => {
