@@ -83,7 +83,8 @@ const GRADE = "eq=contrast=1.06:saturation=1.12:brightness=0.01";
 const AUTO_SOUND = "d01";
 const AUTO_SOUND_SOLEMN = "n15";
 const BED_CROSSFADE = 1.5;
-const SOLEMN_WORDS = /رحم|عزاء|وفاة|فقيد|شهيد|اللهم|دعاء|قرآن|جنازة|تعزية|إنا لله/;
+// («القران» without its hamza and «مصحف» too: music went under a moment of Quran pages, 20/11.)
+const SOLEMN_WORDS = /رحم|عزاء|وفاة|فقيد|شهيد|اللهم|دعاء|قر[آا]ن|مصحف|جنازة|تعزية|إنا لله/;
 
 // ffmpeg-static has no ffprobe, so read what we need from `ffmpeg -i`'s banner.
 async function probe(file: string) {

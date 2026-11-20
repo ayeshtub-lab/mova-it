@@ -5,6 +5,10 @@
 // phrase said in many verses («الذين آمنوا») never decides.
 
 export type Verse = { surah: number; ayah: number; text: string };
+
+// A moment about the Quran or the mushaf, however «القرآن» is typed (with its hamza or without —
+// «سورة من القران الكريم» was not known for one, and a calm music went under its pages, 20/11).
+export const isQuranTitle = (title: string) => /قر[آا]ن|مصحف/.test(title);
 export type Timing = { ayah: number; start: number; end: number }; // milliseconds in the surah's file
 
 // The letters only, written one way.

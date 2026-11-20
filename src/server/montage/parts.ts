@@ -1,5 +1,6 @@
 import type { Montage } from "@/generated/prisma/client";
 import { db } from "@/lib/db";
+import { isQuranTitle } from "@/lib/quran-match";
 import { isQuran } from "@/lib/sounds";
 import { notify } from "@/server/notifications";
 import { systemUser } from "@/server/daily";
@@ -179,6 +180,13 @@ async function partTitle(momentTitle: string, part: number, shotIds: string[], k
 export async function duePart(momentId: string, now = new Date()) {
   const moment = await db.moment.findUnique({ where: { id: momentId }, select: { id: true, title: true, kind: true, status: true } });
   if (!moment || moment.kind === "STORY" || moment.kind === "DAILY" || moment.status !== "ACTIVE") return null;
+  // «📖 سور من القرآن» (his 20/11): pages of the mushaf never go into parts — each page has its own
+  // recitation (src/server/quran-recite.ts), too long for a 40-second part, and a part's one sound
+  // under them was music. Parts made before are retired; the mushaf's own film comes later.
+  if (isQuranTitle(moment.title)) {
+    await db.montage.updateMany({ where: { momentId, part: { not: null }, status: "READY" }, data: { status: "FAILED", error: "quran-pages" } });
+    return null;
+  }
   const parts = (await db.montage.findMany({ where: { momentId, part: { not: null } }, orderBy: { createdAt: "desc" } })).filter(alive);
   if (parts.some((p) => p.status !== "READY")) return null; // one is being made
   const latest = new Map<number, Montage>();

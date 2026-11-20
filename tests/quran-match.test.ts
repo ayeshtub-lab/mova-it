@@ -2,7 +2,7 @@
 // verses that fit in 40 seconds. Run: npx tsx --test tests/quran-match.test.ts
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { namedSurah, normalizeArabic, plainName, startVerse, verseRange, versesWithin } from "../src/lib/quran-match";
+import { isQuranTitle, namedSurah, normalizeArabic, plainName, startVerse, verseRange, versesWithin } from "../src/lib/quran-match";
 
 // A few verses as the text source writes them (Tanzil's «simple-clean»).
 const VERSES = [
@@ -24,6 +24,13 @@ test("the letters are compared one way, whatever the marks and the hamza", () =>
   assert.equal(normalizeArabic("الظالمون( ٢٥٤)"), "الظالمون");
   assert.equal(plainName("سُورَةُ البَقَرَةِ"), "سورة البقرة");
   assert.equal(plainName("سُورَةُ ٱلِ عِمۡرَانَ"), "سورة آل عمران");
+});
+
+test("a moment about the Quran, with the hamza or without", () => {
+  assert.ok(isQuranTitle("سورة من القران الكريم كانها لك"));
+  assert.ok(isQuranTitle("آيات من القرآن"));
+  assert.ok(isQuranTitle("صفحات من المصحف"));
+  assert.ok(!isQuranTitle("قهوة الصبح"));
 });
 
 test("the surah its story names — the longest name, never a shorter one inside it", () => {
