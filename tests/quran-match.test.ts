@@ -23,6 +23,7 @@ test("the letters are compared one way, whatever the marks and the hamza", () =>
   assert.equal(normalizeArabic("إِنَّ ٱللَّهَ"), "ان الله");
   assert.equal(normalizeArabic("الظالمون( ٢٥٤)"), "الظالمون");
   assert.equal(plainName("سُورَةُ البَقَرَةِ"), "سورة البقرة");
+  assert.equal(plainName("سُورَةُ ٱلِ عِمۡرَانَ"), "سورة آل عمران");
 });
 
 test("the surah its story names — the longest name, never a shorter one inside it", () => {

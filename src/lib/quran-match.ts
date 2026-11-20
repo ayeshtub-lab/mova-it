@@ -23,7 +23,7 @@ export function normalizeArabic(text: string) {
 }
 
 // A surah's name as people write it: «سُورَةُ البَقَرَةِ» → «سورة البقرة».
-export const plainName = (name: string) => name.replace(/[ً-ٰٟۖ-ۭـ]/g, "").replace(/ٱ/g, "ا").replace(/\s+/g, " ").trim();
+export const plainName = (name: string) => name.replace(/[ً-ٰٟۖ-ۭـ]/g, "").replace(/ٱ/g, "ا").replace(/\s+/g, " ").trim().replace(/ ال عمران$/, " آل عمران");
 
 const letters = (text: string) => normalizeArabic(text).replace(/ /g, "");
 
