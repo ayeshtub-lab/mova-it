@@ -29,6 +29,7 @@ const READ = 123; // Alafasy, Hafs — MP3Quran's verse timings
 const AUDIO = (surah: number) => `https://cdn.mp3quran.net/audio/mishary-alafasy/r1/${String(surah).padStart(3, "0")}.mp3`;
 const TIMINGS = (surah: number) => `https://www.mp3quran.net/api/v3/ayat_timing?surah=${surah}&read=${READ}`;
 const READER = "العفاسي";
+const QURAN_WORDS = /قر[آا]ن|مصحف|سور[ةه]/;
 
 type Quran = { verses: Verse[]; names: { surah: number; name: string }[] };
 let quran: Promise<Quran> | null = null;
@@ -121,11 +122,13 @@ export async function reciteFromNote(angleId: string, host: string): Promise<Rec
   try {
     const angle = await db.angle.findUnique({
       where: { id: angleId },
-      select: { id: true, mediaType: true, note: true, soundKey: true, contributorId: true, contributor: { select: { isAdmin: true } } },
+      select: { id: true, mediaType: true, note: true, soundKey: true, contributorId: true, contributor: { select: { isAdmin: true } }, moment: { select: { title: true } } },
     });
     // Zawmo's own accounts only, for now: a verse put wrong is not a typo.
     if (!angle || angle.mediaType !== "PHOTO" || !angle.contributor.isAdmin || !angle.note) return "skipped";
-    if (!/سور[ةه]/.test(angle.note)) return "not_quran";
+    // A page of the Quran: its moment is about it («سورة من القران الكريم»), or its story names a
+    // surah — so a verse quoted in an everyday photo's story never brings a recitation.
+    if (!QURAN_WORDS.test(angle.moment.title) && !/سور[ةه]/.test(angle.note)) return "not_quran";
     const mine = await db.userSound.findUnique({ where: { angleId: angle.id }, select: { id: true, key: true, name: true, path: true, status: true } });
     // A sound its owner picked — or their taking the recitation off — stays.
     if (mine ? angle.soundKey !== mine.key : !!angle.soundKey) return "skipped";
