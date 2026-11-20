@@ -23,6 +23,8 @@ async function main() {
       db.angle.create({ data: { momentId: m.id, contributorId: owner.id, mediaType, status: "READY", screening: "allowed", mediaPath: `m/${m.id}/x.${mediaType === "VIDEO" ? "mp4" : "jpg"}`, thumbPath: mediaType === "VIDEO" ? `m/${m.id}/x-poster.jpg` : null, durationSec: mediaType === "VIDEO" ? 12.4 : null, aiTitle: `${TAG} ${"عنوان طويل جدا ".repeat(10)}` } });
     const photo = await shot("PHOTO");
     const video = await shot("VIDEO");
+    const story = await shot("PHOTO");
+    await db.angle.update({ where: { id: story.id }, data: { note: "صورة قهوة الصبح من بلكونة البيت قبل الشغل" } });
 
     await check("the sitemap the site writes meets Google's schemas, a video and odd characters included", async () => {
       const res = await GET();
@@ -42,6 +44,8 @@ async function main() {
       assert.ok(!xml.includes(`/a/${photo.id}<`), "the photo's own page is left out");
       assert.ok(xml.includes(`/i/${photo.id}.jpg`), "the photo's picture is still under its moment");
       assert.ok(!xml.includes(`/en/m/${m.code}`), "no English copies");
+      // …but a photo with its owner's story keeps its own page in the map (20/11).
+      assert.ok(xml.includes(`/a/${story.id}<`), "a photo with a story is listed");
     });
 
     // The English map of its own (2026-11-20): English addresses only, each tied to its Arabic twin,

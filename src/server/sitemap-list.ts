@@ -114,9 +114,11 @@ export async function sitemapList(lang: "ar" | "en" = "ar"): Promise<MetadataRou
       };
     }),
     // A photo's own page too (its picture, who shot it, where): found from the map, not only
-    // through its moment.
+    // through its moment. Back for a photo with its owner's story («📝 حكايات الصور», his OK
+    // 20/11): not «one picture and a line» but words of its own — and out of the map, Google
+    // knew none of 12–19/11's photo pages a week on (the moment's page re-read every few weeks).
     ...shots
-      .filter((s) => PHOTO_PAGES_IN_SITEMAP && s.mediaType === "PHOTO")
+      .filter((s) => s.mediaType === "PHOTO" && (PHOTO_PAGES_IN_SITEMAP || !!s.note?.trim()))
       .map((s) => ({ url: `${base}${shotPath(s)}`, lastModified: s.uploadedAt, changeFrequency: "monthly" as const, priority: 0.4, images: [`${base}/i/${s.id}.jpg`] })),
     // Who shot them: a member's page with their public shots (E-E-A-T).
     ...authors.map((a) => ({ url: `${base}/u/${a.id}`, lastModified: a.updatedAt, changeFrequency: "weekly" as const, priority: 0.5 })),
