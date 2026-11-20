@@ -21,6 +21,9 @@ export async function tagFamily(rawTag: string) {
   return new Map(await families()).get(tag) ?? { main: tag, members: [tag] };
 }
 
+// How many of its photos a collection page shows (small copies, loaded as the visitor scrolls).
+const HUB_PHOTOS = 36;
+
 async function compute(rawTag: string, also: string[]) {
   const tag = normalizeTag(rawTag);
   if (!/^[\p{L}\p{N}_]{1,40}$/u.test(tag)) return null;
@@ -40,7 +43,7 @@ async function compute(rawTag: string, also: string[]) {
     },
     orderBy: { lastActivityAt: "desc" },
     take: 200,
-    select: { description: true, angles: { where: shown, orderBy: { uploadedAt: "asc" }, select: { id: true, contributorId: true, uploadedAt: true, aiText: true } } },
+    select: { code: true, description: true, angles: { where: shown, orderBy: { uploadedAt: "asc" }, select: { id: true, contributorId: true, uploadedAt: true, aiText: true, aiTitle: true, mediaType: true } } },
   });
   // "contains" also matches #tagger for #tag: exact tags only.
   const has = (text: string | null) => hashtagsIn(text).some((t) => tags.includes(t));
@@ -53,6 +56,9 @@ async function compute(rawTag: string, also: string[]) {
   let shots = 0;
   let latest = 0;
   const beside = new Map<string, number>();
+  // The topic's own photos, newest first (2026-11-20, the 18/11 experts' meeting): what a visitor
+  // from «صور قهوة حقيقية» came for — the photos themselves, not 13 moment covers.
+  const photos: { id: string; code: string; alt: string; by: string; at: number }[] = [];
   for (const m of mine) {
     // Only the pictures of this topic: all of a moment's when its description carries the tag,
     // else those whose own line does (a «روقان» moment of sky photos isn't 40 coffee photos).
@@ -61,6 +67,7 @@ async function compute(rawTag: string, also: string[]) {
     shots += ofTopic.length;
     for (const a of ofTopic.slice(-2)) if (covers.length < 6) covers.push(a.id);
     for (const a of ofTopic) {
+      if (a.mediaType === "PHOTO") photos.push({ id: a.id, code: m.code, alt: a.aiTitle ?? "", by: a.contributorId, at: a.uploadedAt.getTime() });
       people.add(a.contributorId);
       latest = Math.max(latest, a.uploadedAt.getTime());
     }
@@ -90,10 +97,14 @@ async function compute(rawTag: string, also: string[]) {
     latest: latest ? new Date(latest).toISOString() : null,
     related,
     covers,
+    photos: photos
+      .sort((a, b) => b.at - a.at)
+      .slice(0, HUB_PHOTOS)
+      .map(({ id, code, alt, by }) => ({ id, code, alt, by })),
   };
 }
 
-export const tagHub = (tag: string, also: string[] = []) => unstable_cache(() => compute(tag, also), ["tag-hub-4", normalizeTag(tag), ...also.map(normalizeTag)], { revalidate: 3600 })();
+export const tagHub = (tag: string, also: string[] = []) => unstable_cache(() => compute(tag, also), ["tag-hub-5", normalizeTag(tag), ...also.map(normalizeTag)], { revalidate: 3600 })();
 
 // «📂 مواضيع بزاومو» on /discover: each collection page as a card — its words, how many pictures,
 // and a cover of its own (never the same picture on two cards). The most pictures first.

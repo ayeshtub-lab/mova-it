@@ -14,6 +14,7 @@ import { listTag } from "@/server/discover";
 import { inEnglish } from "@/server/localize";
 import { isHubTag } from "@/lib/tag-hub";
 import { normalizeTag } from "@/lib/hashtags";
+import { blockedIdsFor } from "@/server/moderation";
 import { tagFamily, tagHub } from "@/server/tag-hub";
 
 // What a visitor sees (and a search engine): the same list for everyone not signed in.
@@ -69,6 +70,11 @@ export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
     hubbed ? tagHub(tag, fam.also) : null,
   ]);
   const t = dict.tag;
+  // Its photos first (src/server/tag-hub.ts) — none from someone either side blocked.
+  const blocked = user && hub?.photos.length ? new Set(await blockedIdsFor(user.id)) : null;
+  const allowed = (hub?.photos ?? []).filter((p) => !blocked?.has(p.by));
+  // Full rows of three (no photo left alone on the last row).
+  const photos = allowed.slice(0, allowed.length - (allowed.length % 3));
   // A collection page (src/lib/tag-hub.ts): its heading in the words people search («صور قهوة
   // حقيقية», as the search title already says), the hashtag kept small under it, and two short
   // lines made of the page's own numbers — the pictures stay first on the screen.
@@ -115,6 +121,22 @@ export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
             {t.allOf.replace("{phrase}", tagPhrase(fam.main, locale))}
           </Link>
         )}
+        {/* A collection page shows the topic's photos themselves first, three to a row (2026-11-20,
+            the experts' meeting: a visitor from «صور قهوة حقيقية» found 13 moment covers, not the
+            247 coffee photos the title promised); each opens its own page, with «⬇️ نزّل الصورة». */}
+        {photos.length >= 3 && (
+          <ul className="grid grid-cols-3 gap-1 sm:gap-2">
+            {photos.map((p, i) => (
+              <li key={p.id}>
+                <Link href={`/m/${p.code}/a/${p.id}`} className="group block aspect-square overflow-hidden rounded-xl bg-surface">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- the site's own lasting picture address */}
+                  <img src={`/i/${p.id}-small.jpg`} sizes="(min-width: 640px) 240px, 33vw" srcSet={gridSrcSet(`/i/${p.id}-small.jpg`)} alt={plain(p.alt || `${tagPhrase(tag, locale)} ${i + 1}`)} loading={i < 3 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined} className="size-full object-cover transition-transform group-hover:scale-105" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {photos.length >= 3 && moments.length > 0 && <h2 className="text-lg font-extrabold">{t.hubMoments}</h2>}
         {moments.length ? (
           <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {moments.map((m, i) => (
@@ -122,7 +144,7 @@ export default async function TagPage({ params }: PageProps<"/tag/[tag]">) {
                 <Link href={`/m/${m.code}`} className="group relative block aspect-[3/4] overflow-hidden rounded-2xl bg-surface">
                   {m.coverUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs
-                    <img src={m.coverUrl} srcSet={gridSrcSet(m.coverUrl)} sizes={GRID_SIZES} alt={plain(`${m.title} — #${tag}`)} loading={i < 2 ? "eager" : "lazy"} fetchPriority={i === 0 ? "high" : undefined} className="size-full object-cover transition-transform group-hover:scale-105" />
+                    <img src={m.coverUrl} srcSet={gridSrcSet(m.coverUrl)} sizes={GRID_SIZES} alt={plain(`${m.title} — #${tag}`)} loading={!photos.length && i < 2 ? "eager" : "lazy"} fetchPriority={!photos.length && i === 0 ? "high" : undefined} className="size-full object-cover transition-transform group-hover:scale-105" />
                   ) : (
                     <span aria-hidden="true" className="block size-full bg-gradient-to-br from-brand-red/55 via-moment/45 to-brand-blue/55" />
                   )}
