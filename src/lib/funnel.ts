@@ -1,7 +1,11 @@
 // Google Analytics' «key events» (2026-11-01): joined, published a shot, sent a card — so its reports
 // say which source brings members, not only visitors. Only where GA runs (the live site, not for the
 // team: src/app/GoogleAnalytics.tsx); nothing personal is sent, only the step.
-export function track(event: "sign_up" | "publish_shot" | "card_sent" | "save_shot" | "save_card", params?: Record<string, string>) {
+// (2026-11-22) «sign_up» with Google is no longer sent on the tap: only for a real new member, by
+// the GA snippet (src/app/GoogleAnalytics.tsx); the tap is «sign_in_start». (A guest's name form
+// still sends «sign_up» {method: name} — that always makes a new guest.) «share_shot»: a photo or
+// video shared from the viewer.
+export function track(event: "sign_up" | "sign_in_start" | "publish_shot" | "card_sent" | "save_shot" | "save_card" | "share_shot", params?: Record<string, string>) {
   try {
     (window as Window & { gtag?: (...args: unknown[]) => void }).gtag?.("event", event, params);
   } catch {}

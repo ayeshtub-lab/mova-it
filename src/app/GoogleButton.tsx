@@ -27,7 +27,7 @@ export function GoogleButton({ label, returnTo, place }: { label: string; return
       href={`/auth/google?returnTo=${encodeURIComponent(returnTo)}`}
       rel="nofollow"
       onClick={() => {
-        track("sign_up", { method: "google" });
+        track("sign_in_start", { method: "google" }); // «sign_up» only once a member is made (src/app/GoogleAnalytics.tsx)
         if (!place) return;
         joinStep(place, "started");
         joinStep(place, "joined");

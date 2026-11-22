@@ -12,6 +12,15 @@ const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const ISSUERS = new Set(["https://accounts.google.com", "accounts.google.com"]);
 
 export const OAUTH_COOKIE = "mova_oauth";
+// Read by the Google Analytics snippet (src/app/GoogleAnalytics.tsx) to send «sign_up» once.
+export const JOINED_COOKIE = "zw_joined";
+
+// Did this sign-in make a member (accountForGoogle below): a guest joined with their own row, or a
+// new account was just made — not a member signing back in.
+export function newMember(before: Pick<User, "id" | "isGuest" | "googleSub"> | null, after: Pick<User, "id" | "createdAt">, now = Date.now()) {
+  if (before?.isGuest && !before.googleSub && after.id === before.id) return true;
+  return now - after.createdAt.getTime() < 2 * 60_000;
+}
 
 export const googleEnabled = () => !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 

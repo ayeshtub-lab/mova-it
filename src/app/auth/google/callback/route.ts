@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getLocale } from "@/i18n/server";
 import { endSession, getCurrentUser, startSessionFor, visitPlace, visitInviter, visitSource } from "@/lib/session";
 import { siteOrigin } from "@/lib/site";
-import { accountForGoogle, exchangeCode, googleEnabled, OAUTH_COOKIE, safeReturnTo, type Attempt } from "@/server/google";
+import { accountForGoogle, exchangeCode, googleEnabled, JOINED_COOKIE, newMember, OAUTH_COOKIE, safeReturnTo, type Attempt } from "@/server/google";
 
 // Step 2: Google sends the browser back here with ?code&state.
 export async function GET(request: Request) {
@@ -24,10 +24,12 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}${back}`);
   }
 
+  let joined = false;
   try {
     const profile = await exchangeCode(code, attempt, `${origin}/auth/google/callback`);
     const current = await getCurrentUser();
     const user = await accountForGoogle(current, profile, await getLocale(), await visitSource(), await visitPlace(), await visitInviter());
+    joined = newMember(current, user);
     if (user.id !== current?.id) {
       if (current) await endSession();
       await startSessionFor(user.id);
@@ -37,5 +39,8 @@ export async function GET(request: Request) {
     const [path, hash] = back.split("#");
     return NextResponse.redirect(`${origin}${path}${path.includes("?") ? "&" : "?"}signin=failed${hash ? `#${hash}` : ""}`);
   }
-  return NextResponse.redirect(`${origin}${back}`);
+  const response = NextResponse.redirect(`${origin}${back}`);
+  // Google Analytics' «sign_up», once, only for someone who just became a member (src/app/GoogleAnalytics.tsx).
+  if (joined) response.cookies.set(JOINED_COOKIE, "1", { maxAge: 300, path: "/", sameSite: "lax" });
+  return response;
 }

@@ -840,6 +840,9 @@ export function AngleGallery({
       }
     }
     fetch(`/api/angles/${a.id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
+    // …and in Google Analytics too (2026-11-22), beside the visits the shared link brings
+    // («?src=share-…» → campaign source, src/app/GoogleAnalytics.tsx).
+    track("share_shot", { kind: a.mediaType === "VIDEO" ? "video" : "photo" });
     // A photo goes out as a picture with the Zawmo mark (ready since it opened) — for a story or
     // a status — with the link beside it; the plain link when the phone can't share files. A
     // photo with a sound goes out as a short video carrying it: while that is still being made,
@@ -941,6 +944,7 @@ export function AngleGallery({
 
   async function shareBranded(id: string, file: File) {
     fetch(`/api/angles/${id}/share`, { method: "POST", keepalive: true }).catch(() => {}); // counted for «trending»
+    track("share_shot", { kind: "video" });
     if (navigator.canShare?.({ files: [file] })) {
       await shareFile(file, tagged(share.url, "share-video"));
       return;
