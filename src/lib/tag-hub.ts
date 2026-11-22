@@ -14,6 +14,10 @@ export const HUB_TAGS = new Set(
     "قهوة_الصباح",
     "روقان",
     "حلويات",
+    // (2026-11-22) the page #حلويات names as its original (tag-twins: the twin that says «صور …
+    // حقيقية» wins), so Google was sent to the old layout — found on a visitor's-eye tour. Like
+    // قهوة → صور_قهوة_حقيقية, both twins are hubs now.
+    "صور_حلويات_حقيقية",
     "حلويات_منزلية",
     "صور_نباتات_خضراء",
     "صور_زرع",
