@@ -69,11 +69,11 @@ export function GuestForm({ labels, next, track = false, place, inputId = "displ
       <p className="text-xs text-muted">
         {labels.consent.split(/(\{terms\}|\{privacy\})/).map((part, i) =>
           part === "{terms}" ? (
-            <Link key={i} href="/terms" className="underline underline-offset-2">
+            <Link prefetch={false} key={i} href="/terms" className="underline underline-offset-2">
               {labels.terms}
             </Link>
           ) : part === "{privacy}" ? (
-            <Link key={i} href="/privacy" className="underline underline-offset-2">
+            <Link prefetch={false} key={i} href="/privacy" className="underline underline-offset-2">
               {labels.privacy}
             </Link>
           ) : (

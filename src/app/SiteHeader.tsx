@@ -18,13 +18,13 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
 
   return (
     <header className="mx-auto flex w-full max-w-3xl items-center justify-between py-5">
-      <Link href="/" aria-label={locale === "ar" ? "زاومو — الرئيسية" : "Zawmo — home"}>
+      <Link prefetch={false} href="/" aria-label={locale === "ar" ? "زاومو — الرئيسية" : "Zawmo — home"}>
         <Logo locale={locale} compact />
       </Link>
       {/* (never squeezed: the language button must stay on screen whatever is beside it) */}
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         {/* Search moments by name, from every page («اكتشف ← لحظات»). */}
-        <Link
+        <Link prefetch={false}
           href="/discover?tab=moments&focus=1"
           aria-label={dict.momentCards.searchLabel}
           title={dict.momentCards.searchLabel}
@@ -36,7 +36,7 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
         </Link>
         {/* «💌 بطاقات» (2026-10-23): the ready cards, on every page, phones too. */}
         {CARDS_PUBLIC && (
-          <Link
+          <Link prefetch={false}
             href="/cards"
             aria-label={dict.card.galleryTitle}
             title={dict.card.galleryTitle}
@@ -47,7 +47,7 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
         )}
         {/* On phones these live in the bottom bar. */}
         {user && !user.isGuest && (
-          <Link
+          <Link prefetch={false}
             href="/discover"
             aria-label={dict.nav.discover}
             title={dict.nav.discover}
@@ -60,7 +60,7 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
         )}
         {user && (
           <span className="hidden sm:flex gap-2">
-            <Link
+            <Link prefetch={false}
               href="/messages"
               aria-label="الرسائل"
               title="الرسائل"
@@ -75,7 +75,7 @@ export async function SiteHeader({ locale, dict }: { locale: Locale; dict: Dicti
         {/* «الوارد» is a 🔔, on phones too: it keeps the bottom bar's ＋ in the middle. */}
         {user && <InboxLink unread={unread} label={unread ? dict.inbox.openUnread.replace("{n}", String(unread)) : dict.inbox.open} />}
         {user && !user.isGuest && (
-          <Link
+          <Link prefetch={false}
             href={`/u/${user.id}`}
             aria-label={dict.profile.mine}
             title={dict.profile.mine}

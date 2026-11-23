@@ -78,15 +78,15 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         )}
         {/* The website's footer (hidden inside the app: its links are on your own profile). */}
         <footer className={`site-footer px-4 py-6 text-center text-xs text-muted print:hidden ${user ? "pb-28 sm:pb-6" : ""}`}>
-          <Link href="/album" className="font-bold underline-offset-4 hover:underline">
+          <Link prefetch={false} href="/album" className="font-bold underline-offset-4 hover:underline">
             {dict.footer.album}
           </Link>
           <span className="mx-2" aria-hidden>·</span>
-          <Link href="/privacy" className="underline-offset-4 hover:underline">
+          <Link prefetch={false} href="/privacy" className="underline-offset-4 hover:underline">
             {dict.footer.privacy}
           </Link>
           <span className="mx-2" aria-hidden>·</span>
-          <Link href="/terms" className="underline-offset-4 hover:underline">
+          <Link prefetch={false} href="/terms" className="underline-offset-4 hover:underline">
             {dict.footer.terms}
           </Link>
           <span className="mx-2" aria-hidden>·</span>

@@ -7,7 +7,7 @@ export function Description({ text, className = "" }: { text: string; className?
     <p dir="auto" className={`whitespace-pre-line break-words leading-relaxed ${className}`}>
       {splitHashtags(text).map((part, i) =>
         "tag" in part ? (
-          <Link key={i} href={`/tag/${encodeURIComponent(part.tag)}`} className="font-bold text-secondary hover:underline">
+          <Link prefetch={false} key={i} href={`/tag/${encodeURIComponent(part.tag)}`} className="font-bold text-secondary hover:underline">
             #{part.tag}
           </Link>
         ) : (
