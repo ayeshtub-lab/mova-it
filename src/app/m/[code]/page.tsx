@@ -426,6 +426,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               momentEdit={view.viewer.manage && view.kind !== "DAILY" ? { code: view.code, title: view.arabic.title, description: view.arabic.description, labels: dict.momentDetails } : undefined}
               continueTo={next.length ? { code: view.code, next, labels: dict.viewerContinue } : undefined}
               cardLabel={CARDS_PUBLIC && view.visibility === "PUBLIC" && view.kind !== "DAILY" ? dict.card.button : undefined}
+              statusLabel={dict.card.storyButton}
               saveLabel={view.visibility === "PUBLIC" ? dict.shotPage.save : undefined}
             />
             {Array.from({ length: Math.min(view.lockedCount, 5) }, (_, i) => (

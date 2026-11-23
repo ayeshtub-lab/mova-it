@@ -2,6 +2,7 @@
 
 import { askSignIn } from "@/app/SignInSheet";
 import { plain } from "@/lib/clip";
+import { isStatusPilot } from "@/lib/status-pilot";
 import { ShareSheet } from "@/app/ShareSheet";
 import { download, progressText, shareFile } from "@/lib/share-file";
 import Link from "next/link";
@@ -190,6 +191,7 @@ export function AngleGallery({
   noAdd = false,
   continueTo,
   cardLabel,
+  statusLabel,
   saveLabel,
   autoOpen = false,
   arrived = false,
@@ -215,6 +217,8 @@ export function AngleGallery({
   continueTo?: { code: string; next: NextMoment[]; labels: { next: string; done: string; hint: string; back: string } };
   // «💌 اعملها بطاقة» on the rail (2026-10-23): given for a public moment only (a card is of a public shot).
   cardLabel?: string;
+  // «📲 اعملها حالة» on the rail (2026-11-23 pilot, src/lib/status-pilot.ts).
+  statusLabel?: string;
   // «⬇️ نزّلها» on the rail (2026-11-08): a public moment's photo saved as its marked copy.
   saveLabel?: string;
   // The next moment carried on to inside the viewer: it opens at once on its first angle, and
@@ -1494,6 +1498,12 @@ export function AngleGallery({
                       <span aria-hidden="true">⬇️</span>
                     </button>
                   )}
+                  {/* «📲 اعملها حالة» (the 2026-11-23 pilot): only on the pilot accounts' photos. */}
+                  {cardLabel && statusLabel && a.mediaType === "PHOTO" && a.profileId && isStatusPilot(a.profileId) && (
+                    <Link href={`/card/new?shot=${a.id}&story=1`} rel="nofollow" aria-label={statusLabel} className={`${railButton} text-3xl`}>
+                      <span aria-hidden="true">📲</span>
+                    </Link>
+                  )}
                   {cardLabel && a.mediaType === "PHOTO" && (
                     <Link href={`/card/new?shot=${a.id}`} aria-label={cardLabel} className={`${railButton} text-3xl`}>
                       <span aria-hidden="true">💌</span>
@@ -1956,6 +1966,7 @@ export function AngleGallery({
             altBase={chain.title}
             continueTo={continueTo ? { code: chain.code, next: chain.next, labels: continueTo.labels } : undefined}
             cardLabel={cardLabel}
+            statusLabel={statusLabel}
             saveLabel={saveLabel}
             autoOpen
             arrived={slid}
