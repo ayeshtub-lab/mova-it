@@ -275,6 +275,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
             a status or story, with a small zawmo.com mark. Only on the pilot accounts' photos. */}
         {!isVideo && isStatusPilot(shot.contributorId) && (
           <Link
+            prefetch={false}
             href={`/card/new?shot=${shot.id}&story=1`}
             rel="nofollow"
             data-nosnippet
@@ -287,6 +288,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
             link — its page stays a page for the video. */}
         {CARDS_PUBLIC && (
           <Link
+            prefetch={false}
             href={`/card/new?shot=${shot.id}`}
             className={isVideo ? "self-center text-sm font-bold text-secondary underline-offset-4 hover:underline" : "flex min-h-12 items-center justify-center rounded-full bg-surface px-6 font-extrabold"}
           >

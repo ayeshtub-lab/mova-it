@@ -1358,7 +1358,7 @@ export function AngleGallery({
                   <div className="flex items-center gap-2">
                   {a.profileId ? (
                     <>
-                      <Link href={`/u/${a.profileId}`} className="pointer-events-auto truncate underline-offset-4 hover:underline">
+                      <Link prefetch={false} href={`/u/${a.profileId}`} className="pointer-events-auto truncate underline-offset-4 hover:underline">
                         {a.contributorName}
                       </Link>
                       {a.contributorVerified && <VerifiedBadge label={labels.verified.badge} />}
@@ -1373,13 +1373,13 @@ export function AngleGallery({
                     </>
                   )}
                   {soundByKey(soundOf(a.id)?.key) && (
-                    <Link href={`/sound/${soundOf(a.id)!.key}`} className="pointer-events-auto flex min-w-0 items-center gap-1 truncate rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">
+                    <Link prefetch={false} href={`/sound/${soundOf(a.id)!.key}`} className="pointer-events-auto flex min-w-0 items-center gap-1 truncate rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">
                       <span aria-hidden="true">🎵</span>
                       <span className="truncate">{soundLabel(a.id)}</span>
                     </Link>
                   )}
                   {placeOf(a.id) && (
-                    <Link href={`/p/${encodeURIComponent(placeOf(a.id)!.slug)}`} className="pointer-events-auto flex min-w-0 shrink items-center gap-1 truncate rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">
+                    <Link prefetch={false} href={`/p/${encodeURIComponent(placeOf(a.id)!.slug)}`} className="pointer-events-auto flex min-w-0 shrink items-center gap-1 truncate rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold">
                       <span aria-hidden="true">📍</span>
                       <span className="truncate">{placeOf(a.id)!.name}</span>
                       {a.placeVerified && (
@@ -1405,7 +1405,7 @@ export function AngleGallery({
                   {/* The contributor: their page, and ＋ to follow them right here. */}
                   <div className="relative mb-3">
                     {a.profileId ? (
-                      <Link href={`/u/${a.profileId}`} aria-label={labels.profile.replace("{name}", a.contributorName)} className="block rounded-full border-2 border-white">
+                      <Link prefetch={false} href={`/u/${a.profileId}`} aria-label={labels.profile.replace("{name}", a.contributorName)} className="block rounded-full border-2 border-white">
                         {a.contributorAvatar ? (
                           // eslint-disable-next-line @next/next/no-img-element -- profile photo
                           <img src={a.contributorAvatar} alt="" referrerPolicy="no-referrer" loading="lazy" className="size-12 rounded-full object-cover" />
@@ -1498,20 +1498,23 @@ export function AngleGallery({
                       <span aria-hidden="true">⬇️</span>
                     </button>
                   )}
+                  {/* (2026-11-23) The viewer's links are not preloaded (prefetch={false}). Each slide's 💌, sound
+                      and profile links were fetched as they came on screen: 6.7K /card/new requests a week
+                      with hardly any cards made (Vercel CDN Requests). */}
                   {/* «📲 اعملها حالة» (the 2026-11-23 pilot): only on the pilot accounts' photos. */}
                   {cardLabel && statusLabel && a.mediaType === "PHOTO" && a.profileId && isStatusPilot(a.profileId) && (
-                    <Link href={`/card/new?shot=${a.id}&story=1`} rel="nofollow" aria-label={statusLabel} className={`${railButton} text-3xl`}>
+                    <Link prefetch={false} href={`/card/new?shot=${a.id}&story=1`} rel="nofollow" aria-label={statusLabel} className={`${railButton} text-3xl`}>
                       <span aria-hidden="true">📲</span>
                     </Link>
                   )}
                   {cardLabel && a.mediaType === "PHOTO" && (
-                    <Link href={`/card/new?shot=${a.id}`} aria-label={cardLabel} className={`${railButton} text-3xl`}>
+                    <Link prefetch={false} href={`/card/new?shot=${a.id}`} aria-label={cardLabel} className={`${railButton} text-3xl`}>
                       <span aria-hidden="true">💌</span>
                     </Link>
                   )}
                   {/* The sound disc, TikTok-style: spins, and opens the sound's page. */}
                   {soundByKey(soundOf(a.id)?.key) ? (
-                    <Link
+                    <Link prefetch={false}
                       href={`/sound/${soundOf(a.id)!.key}`}
                       aria-label={labels.sounds.openSound.replace("{name}", soundLabel(a.id))}
                       className="mt-2 flex size-12 items-center justify-center rounded-full border-[6px] border-neutral-800 bg-gradient-to-br from-brand-red via-moment to-brand-blue shadow-lg motion-safe:animate-[spin_4s_linear_infinite]"
@@ -1915,7 +1918,7 @@ export function AngleGallery({
                 <ul className="grid grid-cols-3 gap-1.5">
                   {similar.shots.map((s) => (
                     <li key={s.id} className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-surface">
-                      <Link href={`/m/${s.momentCode}#angle-${s.id}`} className="block size-full">
+                      <Link prefetch={false} href={`/m/${s.momentCode}#angle-${s.id}`} className="block size-full">
                         {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed URLs */}
                         {s.coverUrl && <img src={s.coverUrl} alt={s.title} loading="lazy" className="size-full object-cover" />}
                         {s.video && (
