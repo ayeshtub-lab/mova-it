@@ -23,7 +23,7 @@ import {
 } from "@/lib/card-styles";
 import type { Dictionary } from "@/i18n/server";
 import { CardBridge } from "@/app/cards/CardBridge";
-import { cardStep } from "@/lib/funnel";
+import { cardStep, track } from "@/lib/funnel";
 import { prepareAngleFile } from "@/lib/media-client";
 
 type Labels = Dictionary["card"];
@@ -143,9 +143,12 @@ const YELLOW = "#ffbf1f";
 // Zawmo's mark, bottom left: the Z (two strokes and the dot, as in src/app/Logo.tsx) with a light
 // halo so it shows on any picture, «zawmo» in the logo's red to blue, «.com» in white; the
 // photographer's credit small above.
-function drawMark(ctx: CanvasRenderingContext2D, H: number, family: string, credit: string | null) {
+// `lift`: how far above the bottom edge. A status needs it raised (250 px), because WhatsApp's
+// reply bar and Instagram's covers the bottom of a story.
+function drawMark(ctx: CanvasRenderingContext2D, H: number, family: string, credit: string | null, lift = 0) {
   const s = 0.46; // the logo's 100-unit box → 46 px
   const x0 = 24;
+  H -= lift;
   const y0 = H - 24 - 100 * s;
   const strokes: [string, string][] = [
     ["M16 18h56L36 54", RED],
@@ -233,6 +236,7 @@ export function CardEditor({
   labels,
   onOtherPicture,
   edit,
+  story = false,
 }: {
   picture: CardPicture;
   fonts: Record<CardFont, string>;
@@ -244,6 +248,10 @@ export function CardEditor({
   // «✏️ عدّلها» (2026-10-25): a published card of one's own, opened with its words and look; saved
   // over the same card (same address).
   edit?: { id: string; text: string; kind: CardKind; style: string };
+  // «📲 اعملها حالة» (the 2026-11-23 pilot, src/lib/status-pilot.ts). The picture is 9:16, words are
+  // optional, and it is shared from the phone only (never published). It is counted as status_*,
+  // not as a card.
+  story?: boolean;
 }) {
   const router = useRouter();
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -277,7 +285,8 @@ export function CardEditor({
   // The picture (same address as the page, or the phone's own, so the canvas may be saved), then
   // Gemini's lines for a public shot.
   useEffect(() => {
-    cardStep("opened");
+    if (story) track("status_open");
+    else cardStep("opened");
     const el = new Image();
     // (The picture and Gemini's look may come in either order.)
     let look: Look | null = null;
@@ -300,7 +309,7 @@ export function CardEditor({
         applyLook();
       })
       .catch(() => setIdeas([]));
-  }, [picture.image, picture.shotId]);
+  }, [picture.image, picture.shotId, story]);
 
   useEffect(() => {
     const pic = img.current;
@@ -313,7 +322,7 @@ export function CardEditor({
     (async () => {
       await document.fonts.load(`${look.weight} 64px ${family}`).catch(() => null);
       if (cancelled) return;
-      const ratio = Math.min(4 / 3, Math.max(1, pic.naturalHeight / pic.naturalWidth));
+      const ratio = story ? 16 / 9 : Math.min(4 / 3, Math.max(1, pic.naturalHeight / pic.naturalWidth));
       const H = Math.round(W * ratio);
       el.width = W;
       el.height = H;
@@ -392,7 +401,7 @@ export function CardEditor({
       }
       // The mark in the corner (his ask, 2026-10-24: clear, in the logo's colours, not in the way):
       // the Z of the logo and «zawmo.com», and above them, small, whose picture it is.
-      drawMark(ctx, H, fonts.cairo, picture.by ? `📷 ${labels.photoBy.replace("{name}", picture.by)}` : null);
+      drawMark(ctx, H, fonts.cairo, picture.by ? `📷 ${labels.photoBy.replace("{name}", picture.by)}` : null, story ? 250 : 0);
       // The finished card as a JPEG, ready before any tap: a phone opens its share sheet only
       // straight from the tap (iPhone refuses it after waiting for the picture). Made once the
       // card stops changing (not on every step of a drag).
@@ -411,7 +420,7 @@ export function CardEditor({
       cancelled = true;
       clearTimeout(save);
     };
-  }, [ready, text, style, fonts, labels.photoBy, picture.by]);
+  }, [ready, text, style, fonts, labels.photoBy, picture.by, story]);
 
   // Dragging the words: a finger on them moves them (and doesn't scroll the page); elsewhere on the
   // picture the page scrolls as usual.
@@ -463,9 +472,11 @@ export function CardEditor({
       setError(labels.errors.generic);
       return;
     }
-    const file = new File([blob], "zawmo-card.jpg", { type: "image/jpeg" });
+    const name = story ? "zawmo-status.jpg" : "zawmo-card.jpg";
+    const file = new File([blob], name, { type: "image/jpeg" });
     const shared = () => {
-      cardStep("shared");
+      if (story) track("status_saved", { words: text.trim() ? "yes" : "no" });
+      else cardStep("shared");
       setSent(true);
       try {
         localStorage.setItem(SENT_KEY, String(sentSoFar() + 1));
@@ -477,7 +488,7 @@ export function CardEditor({
     }
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "zawmo-card.jpg";
+    a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     shared();
@@ -742,8 +753,8 @@ export function CardEditor({
         <canvas
           ref={canvas}
           width={W}
-          height={Math.round((W * 4) / 3)}
-          className="h-auto w-full select-none rounded-3xl bg-black shadow-md"
+          height={Math.round(story ? (W * 16) / 9 : (W * 4) / 3)}
+          className={`h-auto select-none rounded-3xl bg-black shadow-md ${story ? "mx-auto w-full max-w-xs" : "w-full"}`}
           aria-label={text || labels.title}
           onPointerDown={(e) => {
             if (!onWords(e.clientX, e.clientY)) return;
@@ -793,14 +804,14 @@ export function CardEditor({
         ) : (
           <>
             <button type="button" onClick={sharePrivately} disabled={!ready} className="min-h-12 rounded-full bg-accent px-6 font-extrabold text-white shadow-sm disabled:opacity-50">
-              {labels.sharePrivate}
+              {story ? labels.storyShare : labels.sharePrivate}
             </button>
-            <p className="text-center text-xs text-muted">{picture.shotId ? labels.sharePrivateHint : labels.ownNote}</p>
+            <p className="text-center text-xs text-muted">{story ? labels.storyShareHint : picture.shotId ? labels.sharePrivateHint : labels.ownNote}</p>
           </>
         )}
-        {sent && (picture.shotId ? <CardBridge text={labels.bridge.replace("{name}", picture.by ?? "")} button={labels.bridgeButton} /> : <CardBridge text={labels.bridgeOwn} button={labels.bridgeButton} />)}
+        {sent && !story && (picture.shotId ? <CardBridge text={labels.bridge.replace("{name}", picture.by ?? "")} button={labels.bridgeButton} /> : <CardBridge text={labels.bridgeOwn} button={labels.bridgeButton} />)}
         {/* Publishing is open to everyone (2026-10-26), visitors too; on one's own photo, members. */}
-        {(picture.shotId || picture.file) && (
+        {!story && (picture.shotId || picture.file) && (
           <>
             <button type="button" onClick={publish} disabled={!ready || busy || !text.trim()} className="min-h-12 rounded-full bg-surface px-6 font-extrabold disabled:opacity-50">
               {busy ? (picture.shotId ? labels.publishing : labels.publishingPhoto) : edit ? labels.saveEdit : labels.publish}

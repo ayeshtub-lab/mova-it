@@ -9,6 +9,7 @@ import { cardKindsNow, isCardKind } from "@/lib/card-styles";
 import { SCENES } from "@/lib/scenes";
 import { cardPictures, ownCard } from "@/server/cards";
 import { publicShot } from "@/server/seo";
+import { isStatusPilot } from "@/lib/status-pilot";
 import { CardEditor } from "./CardEditor";
 import { CardStart } from "./CardStart";
 
@@ -36,8 +37,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function NewCardPage({ searchParams }: PageProps<"/card/new">) {
-  const { shot: id, card: cardId } = await searchParams;
+  const { shot: id, card: cardId, story: storyParam } = await searchParams;
   const shot = typeof id === "string" ? await publicShot(id) : null;
+  // «📲 اعملها حالة»: only on the pilot's photos (src/lib/status-pilot.ts). Anything else is the
+  // usual card.
+  const story = storyParam === "1" && !!shot && shot.mediaType !== "VIDEO" && isStatusPilot(shot.contributorId);
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
   // «✏️ عدّلها»: one's own published card on this picture (anyone else's: a new card instead).
   const own = user && shot && typeof cardId === "string" ? await ownCard(user, cardId).catch(() => null) : null;
@@ -52,8 +56,8 @@ export default async function NewCardPage({ searchParams }: PageProps<"/card/new
       <SiteHeader locale={locale} dict={dict} />
       <main className="mx-auto flex w-full max-w-xl flex-col gap-4 pb-16">
         <header className="flex flex-col gap-1">
-          <h1 className="text-2xl font-extrabold">{shot ? t.title : t.chooseTitle}</h1>
-          <p className="text-sm text-muted">{shot ? t.intro : t.chooseIntro}</p>
+          <h1 className="text-2xl font-extrabold">{story ? t.storyTitle : shot ? t.title : t.chooseTitle}</h1>
+          <p className="text-sm text-muted">{story ? t.storyIntro : shot ? t.intro : t.chooseIntro}</p>
         </header>
         {/* The fonts, so the browser has them before the canvas draws. */}
         <span aria-hidden="true" className="sr-only">
@@ -69,9 +73,10 @@ export default async function NewCardPage({ searchParams }: PageProps<"/card/new
             fonts={fontFamilies}
             kinds={kinds}
             member={member}
-            signIn={!member && googleEnabled() ? <GoogleButton label={t.signIn} returnTo={`/card/new?shot=${shot.id}`} /> : null}
+            signIn={!member && googleEnabled() ? <GoogleButton label={t.signIn} returnTo={`/card/new?shot=${shot.id}${story ? "&story=1" : ""}`} /> : null}
             labels={t}
-            edit={edit}
+            edit={story ? undefined : edit}
+            story={story}
           />
         ) : (
           <CardStart

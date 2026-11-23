@@ -5,7 +5,9 @@
 // the GA snippet (src/app/GoogleAnalytics.tsx); the tap is «sign_in_start». (A guest's name form
 // still sends «sign_up» {method: name} — that always makes a new guest.) «share_shot»: a photo or
 // video shared from the viewer.
-export function track(event: "sign_up" | "sign_in_start" | "publish_shot" | "card_sent" | "save_shot" | "save_card" | "share_shot", params?: Record<string, string>) {
+// (2026-11-23) «status_open» / «status_saved»: the «📲 اعملها حالة» pilot
+// (src/lib/status-pilot.ts). These are kept apart from the cards' own steps.
+export function track(event: "sign_up" | "sign_in_start" | "publish_shot" | "card_sent" | "save_shot" | "save_card" | "share_shot" | "status_open" | "status_saved", params?: Record<string, string>) {
   try {
     (window as Window & { gtag?: (...args: unknown[]) => void }).gtag?.("event", event, params);
   } catch {}

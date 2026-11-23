@@ -1,6 +1,7 @@
 import { localizeShot } from "@/server/localize";
 import { SpotAside } from "@/app/SpotAside";
 import { CARDS_PUBLIC } from "@/lib/card-styles";
+import { isStatusPilot } from "@/lib/status-pilot";
 import { alternatesFor } from "@/i18n/alternates";
 import { SendToFriend } from "@/app/SendToFriend";
 import { StaffShotEdit } from "@/app/StaffEdit";
@@ -270,6 +271,18 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         >
           {t.watchAll}
         </Link>
+        {/* «📲 اعملها حالة» (the 2026-11-23 pilot, src/lib/status-pilot.ts): this photo upright for
+            a status or story, with a small zawmo.com mark. Only on the pilot accounts' photos. */}
+        {!isVideo && isStatusPilot(shot.contributorId) && (
+          <Link
+            href={`/card/new?shot=${shot.id}&story=1`}
+            rel="nofollow"
+            data-nosnippet
+            className="flex min-h-12 items-center justify-center rounded-full border-2 border-accent px-6 font-extrabold text-accent"
+          >
+            {dict.card.storyButton}
+          </Link>
+        )}
         {/* «💌 اعملها بطاقة» (2026-10-23): words on this picture, to send. Under a video only a small
             link — its page stays a page for the video. */}
         {CARDS_PUBLIC && (
