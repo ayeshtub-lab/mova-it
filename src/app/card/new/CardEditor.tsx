@@ -236,7 +236,7 @@ export function CardEditor({
   labels,
   onOtherPicture,
   edit,
-  story = false,
+  story: startStory = false,
 }: {
   picture: CardPicture;
   fonts: Record<CardFont, string>;
@@ -251,8 +251,16 @@ export function CardEditor({
   // «📲 اعملها حالة» (the 2026-11-23 pilot, src/lib/status-pilot.ts). The picture is 9:16, words are
   // optional, and it is shared from the phone only (never published). It is counted as status_*,
   // not as a card.
+  // (2026-11-24, his «2») It is a choice for every picture, «💌 بطاقة | 📲 ستوري», above the
+  // picture. This prop only says which one it opens on.
   story?: boolean;
 }) {
+  const [story, setStory] = useState(startStory);
+  const pickStory = (on: boolean) => {
+    if (on === story) return;
+    setStory(on);
+    if (on) track("status_open", { from: "switch" });
+  };
   const router = useRouter();
   const canvas = useRef<HTMLCanvasElement>(null);
   const img = useRef<HTMLImageElement | null>(null);
@@ -285,7 +293,7 @@ export function CardEditor({
   // The picture (same address as the page, or the phone's own, so the canvas may be saved), then
   // Gemini's lines for a public shot.
   useEffect(() => {
-    if (story) track("status_open");
+    if (startStory) track("status_open");
     else cardStep("opened");
     const el = new Image();
     // (The picture and Gemini's look may come in either order.)
@@ -309,7 +317,9 @@ export function CardEditor({
         applyLook();
       })
       .catch(() => setIdeas([]));
-  }, [picture.image, picture.shotId, story]);
+    // (Once, on opening: switching the format doesn't load the picture again.)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picture.image, picture.shotId]);
 
   useEffect(() => {
     const pic = img.current;
@@ -749,6 +759,23 @@ export function CardEditor({
   return (
     <div className="flex flex-col gap-4">
       {edit && <p className="rounded-2xl bg-moment/15 px-4 py-2 text-center text-sm font-bold">{labels.editing}</p>}
+      {/* «💌 بطاقة | 📲 ستوري»: the format. A published card is a card, so there is no switch while editing one. */}
+      {!edit && (
+        <div role="radiogroup" className="flex gap-2 self-center rounded-full bg-surface p-1">
+          {([false, true] as const).map((on) => (
+            <button
+              key={String(on)}
+              type="button"
+              role="radio"
+              aria-checked={story === on}
+              onClick={() => pickStory(on)}
+              className={`min-h-10 rounded-full px-4 text-sm font-extrabold ${story === on ? "bg-accent text-white" : ""}`}
+            >
+              {on ? labels.formatStory : labels.formatCard}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="flex flex-col gap-1">
         <canvas
           ref={canvas}

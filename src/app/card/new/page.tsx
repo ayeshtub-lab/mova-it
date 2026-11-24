@@ -9,7 +9,6 @@ import { cardKindsNow, isCardKind } from "@/lib/card-styles";
 import { SCENES } from "@/lib/scenes";
 import { cardPictures, ownCard } from "@/server/cards";
 import { publicShot } from "@/server/seo";
-import { isStatusPilot } from "@/lib/status-pilot";
 import { CardEditor } from "./CardEditor";
 import { CardStart } from "./CardStart";
 
@@ -39,9 +38,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function NewCardPage({ searchParams }: PageProps<"/card/new">) {
   const { shot: id, card: cardId, story: storyParam } = await searchParams;
   const shot = typeof id === "string" ? await publicShot(id) : null;
-  // «📲 اعملها حالة»: only on the pilot's photos (src/lib/status-pilot.ts). Anything else is the
-  // usual card.
-  const story = storyParam === "1" && !!shot && shot.mediaType !== "VIDEO" && isStatusPilot(shot.contributorId);
+  // «📲 اعملها حالة»: opens on the story format. Since 2026-11-24 any photo may be made a story (the
+  // switch in CardEditor). The button on photo pages is still only on the pilot accounts' photos
+  // (src/lib/status-pilot.ts).
+  const story = storyParam === "1" && !!shot && shot.mediaType !== "VIDEO";
   const [user, locale] = await Promise.all([getCurrentUser(), getLocale()]);
   // «✏️ عدّلها»: one's own published card on this picture (anyone else's: a new card instead).
   const own = user && shot && typeof cardId === "string" ? await ownCard(user, cardId).catch(() => null) : null;
