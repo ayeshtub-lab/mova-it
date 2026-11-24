@@ -2,6 +2,7 @@ import { localizeShot } from "@/server/localize";
 import { SpotAside } from "@/app/SpotAside";
 import { CARDS_PUBLIC } from "@/lib/card-styles";
 import { isStatusPilot } from "@/lib/status-pilot";
+import { videoTestText, videoTestTitle, videoTestTopic } from "@/lib/video-test";
 import { alternatesFor } from "@/i18n/alternates";
 import { SendToFriend } from "@/app/SendToFriend";
 import { StaffShotEdit } from "@/app/StaffEdit";
@@ -56,13 +57,22 @@ function describe(shot: PublicShot, dict: Dictionary, locale: string) {
   }));
 }
 
+// «🎬 فيديو للحالة والمونتاج» (the 2026-11-24 test, src/lib/video-test.ts): a title, a text and a
+// download button for 15 videos, on the Arabic page.
+function videoTest(shot: PublicShot, locale: string) {
+  const topic = locale === "ar" && shot.mediaType === "VIDEO" ? videoTestTopic(shot.id) : null;
+  if (!topic) return null;
+  return { title: videoTestTitle(topic), text: videoTestText({ topic, what: plain(shot.aiTitle || shot.moment.title), seconds: shot.durationSec, by: shot.contributor.displayName }) };
+}
+
 export async function generateMetadata({ params }: PageProps<"/m/[code]/a/[id]">): Promise<Metadata> {
   const shot = await loadShot((await params).id);
   if (!shot) return {};
   const locale = await getLocale();
   const dict = await getDictionary(locale);
-  const title = shotTitle(shot, locale, await shotOrdinal(shot));
-  const description = describe(shot, dict, locale);
+  const test = videoTest(shot, locale);
+  const title = test?.title ?? shotTitle(shot, locale, await shotOrdinal(shot));
+  const description = test?.text ?? describe(shot, dict, locale);
   const image = `/i/${shot.id}.jpg`;
   return {
     title: title.endsWith(dict.meta.brand) ? title : `${title} · ${dict.meta.brand}`,
@@ -83,7 +93,8 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
   const t = dict.shotPage;
   // Its own title, the same in the page's heading, the video's name and the tab — what the video
   // shows, never a place (his call, 2026-10-21).
-  const title = shotTitle(shot, locale, await shotOrdinal(shot));
+  const test = videoTest(shot, locale);
+  const title = test?.title ?? shotTitle(shot, locale, await shotOrdinal(shot));
   const isVideo = shot.mediaType === "VIDEO";
   const where = shot.place ? placeName(shot.place) : null;
   const at = shot.capturedAt ?? shot.uploadedAt;
@@ -110,7 +121,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
     "@id": `${url}#media`,
     url,
     name: title,
-    description: describe(shot, dict, locale),
+    description: test?.text ?? describe(shot, dict, locale),
     inLanguage: locale,
     ...(shot.aiText || sound ? { keywords: [...new Set([...hashtagsIn(shot.aiText), ...(sound?.tags ?? [])])].map((k) => k.replace(/_/g, " ")).join(", ") } : {}),
     // Who shot it, and their page (a guest has none).
@@ -201,6 +212,22 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
             labels={{ save: t.save, saving: t.saving, failed: t.saveFailed, bridge: fill(dict.card.bridge, { name: shot.contributor.displayName }), bridgeButton: dict.card.bridgeButton }}
           />
         )}
+        {test && (
+          <>
+            <SaveFile
+              kind="video"
+              id={shot.id}
+              name={`zawmo-${shot.moment.code}`}
+              labels={{ save: "⬇️ حمّل الفيديو للحالة والمونتاج", saving: "⏳ عم نجهّز الفيديو بختم زاومو…", failed: t.saveFailed, bridge: fill(dict.card.bridge, { name: shot.contributor.displayName }), bridgeButton: dict.card.bridgeButton }}
+            />
+            <p className="-mt-2 text-center text-xs text-muted">
+              ✅ مسموح تحطه حالة أو ستوري أو بمونتاج إلك، والنسخة عليها علامة زاومو ·{" "}
+              <Link href="/terms" prefetch={false} className="underline underline-offset-2">
+                الشروط
+              </Link>
+            </p>
+          </>
+        )}
         {/* What a visitor may do with it (the terms since 2026-11-18: personal use, with Zawmo's mark) —
             the answer to «بدون حقوق» people search for. */}
         {!isVideo && locale === "ar" && (
@@ -213,6 +240,7 @@ export default async function ShotPage({ params }: PageProps<"/m/[code]/a/[id]">
         )}
         <header className="flex flex-col gap-1">
           <h1 className="text-2xl font-extrabold leading-snug">{title}</h1>
+          {test && <p className="text-sm leading-relaxed">{test.text}</p>}
           <p className="text-sm text-muted">
             {fill(t.by, { name: shot.contributor.displayName })}
             {where && shot.place && (

@@ -18,7 +18,9 @@ export function SaveFile({
   name,
   labels,
 }: {
-  kind: "shot" | "card";
+  // (2026-11-24) «video»: a video's copy with Zawmo's mark (src/server/branded.ts), for the
+  // «🎬 فيديو للحالة والمونتاج» test (src/lib/video-test.ts).
+  kind: "shot" | "card" | "video";
   id: string;
   src?: string; // a card's picture (a photo's marked copy is asked for when tapped)
   name: string;
@@ -31,8 +33,8 @@ export function SaveFile({
     setState("busy");
     try {
       let url = src ?? null;
-      if (kind === "shot") {
-        const res = await fetch(`/api/angles/${id}/marked`, { method: "POST" });
+      if (kind === "shot" || kind === "video") {
+        const res = await fetch(`/api/angles/${id}/${kind === "video" ? "branded" : "marked"}`, { method: "POST" });
         url = res.ok ? ((await res.json()) as { url?: string }).url ?? null : null;
       }
       if (!url) throw new Error("no url");
@@ -46,7 +48,7 @@ export function SaveFile({
       link.click();
       link.remove();
       setTimeout(() => URL.revokeObjectURL(href), 30_000);
-      track(kind === "shot" ? "save_shot" : "save_card");
+      track(kind === "video" ? "video_download" : kind === "shot" ? "save_shot" : "save_card");
       setState("done");
     } catch {
       setState("failed");
