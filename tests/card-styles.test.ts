@@ -2,7 +2,7 @@
 // tilt; older cards' three-part key still read and accepted; the occasions first in their days.
 // Run: npx tsx tests/card-styles.test.ts
 import assert from "node:assert/strict";
-import { DEFAULT_CARD_STYLE, cardImage, cardKindsNow, cardStyle, isCardStyle, occasionsNow, styleKey } from "../src/lib/card-styles";
+import { DEFAULT_CARD_STYLE, cardImage, cardLang, cardKindsNow, cardStyle, isCardStyle, occasionsNow, styleKey } from "../src/lib/card-styles";
 
 let n = 0;
 const check = (name: string, fn: () => void) => {
@@ -41,6 +41,12 @@ check("an edited card's picture gets a new address (2026-10-26: phones kept the 
   assert.equal(cardImage({ id: "cabc123", imagePath: "cards/cabc123.jpg" }), "/i/card-cabc123.jpg");
   assert.equal(cardImage({ id: "cabc123", imagePath: "cards/cabc123-mh2x9k.jpg" }), "/i/card-cabc123.jpg?v=mh2x9k");
   assert.equal(cardImage({ id: "cabc123" }), "/i/card-cabc123.jpg");
+});
+
+check("a card's language from its words (2026-11-24, English cards)", () => {
+  assert.equal(cardLang("جمعة مباركة 🌙"), "ar");
+  assert.equal(cardLang("Jumma Mubarak! May your Friday be blessed 🕊️"), "en");
+  assert.equal(cardLang("Good morning يا أحلى ناس"), "ar", "any Arabic: the Arabic page");
 });
 
 console.log(`${n} checks`);

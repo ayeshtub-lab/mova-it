@@ -6,7 +6,7 @@ import { SiteHeader } from "@/app/SiteHeader";
 import { getDictionary, getLocale } from "@/i18n/server";
 import { clip } from "@/lib/clip";
 import { CANONICAL_HOST } from "@/lib/hosts";
-import { CARDS_PUBLIC, cardImage } from "@/lib/card-styles";
+import { CARDS_PUBLIC, cardImage, cardLang } from "@/lib/card-styles";
 import { INDEXABLE } from "@/lib/indexable";
 import { cardLikes, listCards, publicCard } from "@/server/cards";
 import type { CardKind } from "@/lib/card-styles";
@@ -29,7 +29,8 @@ export async function generateMetadata({ params }: PageProps<"/c/[id]">): Promis
   return {
     title: `${title} · ${dict.meta.brand}`,
     description: clip(`${card.text}. ${dict.card.galleryMeta}`),
-    alternates: { canonical: `/c/${card.id}` },
+    // An English card's own page is /en/c/ID (2026-11-24); an Arabic one's is /c/ID.
+    alternates: { canonical: cardLang(card.text) === "en" ? `/en/c/${card.id}` : `/c/${card.id}` },
     robots: CARDS_PUBLIC ? INDEXABLE : { index: false, follow: false },
     openGraph: { title, type: "website", siteName: dict.meta.brand, images: [{ url: image, alt: card.text }] },
     twitter: { card: "summary_large_image", title, images: [image] },
@@ -44,7 +45,7 @@ export default async function CardPage({ params }: PageProps<"/c/[id]">) {
   const t = dict.card;
   const mine = !!user && (user.id === card.creator.id || user.isAdmin);
   // «💌 بطاقات تانية متلها»: the same kind, most sent first — more to send, and links between cards.
-  const [more, likes] = await Promise.all([listCards(card.kind as CardKind, 6, card.id), cardLikes(card.id, user)]);
+  const [more, likes] = await Promise.all([listCards(card.kind as CardKind, 6, card.id, cardLang(card.text)), cardLikes(card.id, user)]);
   const site = `https://${CANONICAL_HOST}`;
   const image = `${site}${cardImage(card)}`;
   const structured = {

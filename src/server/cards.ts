@@ -1,7 +1,7 @@
 import { del, put } from "@vercel/blob";
 import { unstable_cache } from "next/cache";
 import sharp from "sharp";
-import { CARD_TEXT_MAX, isCardKind, isCardStyle, type CardKind } from "@/lib/card-styles";
+import { cardLang, CARD_TEXT_MAX, isCardKind, isCardStyle, type CardKind } from "@/lib/card-styles";
 import { db } from "@/lib/db";
 import { isScene, type Scene } from "@/lib/scenes";
 import type { User } from "@/generated/prisma/client";
@@ -209,24 +209,26 @@ export async function publicCard(id: string) {
   });
 }
 
-export async function listCards(kind: CardKind | null, take = 60, exclude?: string) {
-  return db.card.findMany({
+// (2026-11-24) Each language's page shows its own cards (src/lib/card-styles.ts cardLang).
+export async function listCards(kind: CardKind | null, take = 60, exclude?: string, lang: "ar" | "en" = "ar") {
+  const rows = await db.card.findMany({
     where: { ...shownCard(), ...(kind ? { kind } : {}), ...(exclude ? { id: { not: exclude } } : {}) },
     orderBy: [{ shares: "desc" }, { createdAt: "desc" }],
-    take,
+    take: take * 4,
     select: { id: true, text: true, kind: true, imagePath: true },
   });
+  return rows.filter((c) => cardLang(c.text) === lang).slice(0, take);
 }
 
 // For the sitemap (2026-10-23): once there are enough cards for /cards to be worth a visit (12), the
 // page and the cards that were sent on at least once — the strongest first, so a young site's
 // crawl goes to them, not to every card.
 export const CARDS_IN_SITEMAP_FROM = 12;
-export async function sitemapCards() {
-  if ((await countCards()) < CARDS_IN_SITEMAP_FROM) return [];
+export async function sitemapCards(lang: "ar" | "en" = "ar") {
+  if ((await countCards(undefined, lang)) < CARDS_IN_SITEMAP_FROM) return [];
   // Every public card since 2026-11-06 (only the ones sent on before: 32 of 60), so Google finds
   // each card's own page — its picture now shows in Google Images from there only (src/app/i).
-  return db.card.findMany({ where: shownCard(), orderBy: [{ shares: "desc" }, { createdAt: "desc" }], take: 500, select: { id: true, createdAt: true, imagePath: true } });
+  return db.card.findMany({ where: shownCard(), orderBy: [{ shares: "desc" }, { createdAt: "desc" }], take: 1000, select: { id: true, createdAt: true, imagePath: true, text: true } }).then((rows) => rows.filter((c) => cardLang(c.text) === lang).slice(0, 500));
 }
 
 // «💌 اعمل بطاقة» without a picture yet (2026-10-24): public photos to pick from — 60, varied (one
@@ -267,8 +269,10 @@ export const homeCard = unstable_cache(
   { revalidate: 300 },
 );
 
-export async function countCards(kind?: CardKind) {
-  return db.card.count({ where: { ...shownCard(), ...(kind ? { kind } : {}) } });
+export async function countCards(kind?: CardKind, lang?: "ar" | "en") {
+  const where = { ...shownCard(), ...(kind ? { kind } : {}) };
+  if (!lang) return db.card.count({ where });
+  return (await db.card.findMany({ where, select: { text: true } })).filter((c) => cardLang(c.text) === lang).length;
 }
 
 // The steps at which a card's maker hears how far it went («🎉 بطاقتك انبعتت 10 مرات»), once each.

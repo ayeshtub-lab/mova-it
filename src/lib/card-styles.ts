@@ -150,3 +150,6 @@ export function cardImage(card: { id: string; imagePath?: string | null }, small
   const v = /-([a-z0-9]+)\.jpg$/.exec(card.imagePath ?? "")?.[1];
   return `/i/card-${card.id}${small ? "-small" : ""}.jpg${v ? `?v=${v}` : ""}`;
 }
+
+// A card's language, from its words (2026-11-24, English cards): Arabic letters → ar, else en.
+export const cardLang = (text: string): "ar" | "en" => (/[؀-ۿ]/.test(text) ? "ar" : "en");

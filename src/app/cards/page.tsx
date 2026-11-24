@@ -26,6 +26,14 @@ const SEARCHED: Partial<Record<string, { title: string; description: string }>> 
   morning: { title: "صور صباح الخير مع دعاء — بطاقات على صور حقيقية", description: "صور صباح الخير جديدة مع دعاء الصباح، على صور حقيقية من الناس مش ذكاء اصطناعي، جاهزة للإرسال أو اكتب كلامك." },
   evening: { title: "صور مساء الخير — بطاقات على صور حقيقية", description: "صور مساء الخير مع دعاء، على صور حقيقية من الناس، جاهزة لترسلها للغاليين أو تكتب كلامك." },
 };
+// The English page's own titles (2026-11-24): what English speakers search for: «good morning images
+// with quotes», «jumma mubarak images», «good morning coffee images».
+const SEARCHED_EN: Partial<Record<string, { title: string; description: string }>> = {
+  friday: { title: "Jumma Mubarak images — blessed Friday cards on real photos", description: "Jumma Mubarak images and blessed Friday wishes on real photos taken by people, ready to send on WhatsApp or post as your status." },
+  morning: { title: "Good morning images with quotes — on real photos", description: "Good morning images with quotes on real photos, not stock or AI: coffee, flowers, nature. Ready to send, or write your own words." },
+  evening: { title: "Good night images with quotes — on real photos", description: "Good night and good evening images with gentle quotes, on real photos from people. Ready to send to the ones you love." },
+  coffee: { title: "Good morning coffee images — real coffee photos with quotes", description: "Good morning coffee images: real cups of coffee photographed by people, with warm quotes, ready to send." },
+};
 
 export async function generateMetadata({ searchParams }: PageProps<"/cards">): Promise<Metadata> {
   const locale = await getLocale();
@@ -33,14 +41,17 @@ export async function generateMetadata({ searchParams }: PageProps<"/cards">): P
   const raw = (await searchParams).kind;
   const kind = isCardKind(raw) ? raw : null;
   const kindName = kind ? dict.card.kinds[kind].replace(/^\S+\s/, "") : null;
-  const searched = kind && locale === "ar" ? SEARCHED[kind] : undefined;
-  const title = searched ? searched.title : kindName ? `بطاقات ${kindName} على صور حقيقية` : dict.card.galleryTitle.replace(/^\S+\s/, "");
+  const en = locale === "en";
+  const lang = en ? "en" : "ar";
+  const searched = kind ? (en ? SEARCHED_EN[kind] : SEARCHED[kind]) : undefined;
+  const title = searched ? searched.title : kindName ? (en ? `${kindName} cards on real photos` : `بطاقات ${kindName} على صور حقيقية`) : dict.card.galleryTitle.replace(/^\S+\s/, "");
   return {
     title: `${title} · ${dict.meta.brand}`,
     description: searched?.description ?? dict.card.galleryMeta,
-    alternates: { canonical: kind ? `/cards?kind=${kind}` : "/cards" },
+    // (2026-11-24) The English gallery is a page of its own, with its own cards.
+    alternates: { canonical: `${en ? "/en" : ""}${kind ? `/cards?kind=${kind}` : "/cards"}` },
     robots:
-      CARDS_PUBLIC && (await countCards()) >= INDEX_FROM && (!kind || (await countCards(kind)) >= KIND_INDEX_FROM) ? INDEXABLE : { index: false, follow: CARDS_PUBLIC },
+      CARDS_PUBLIC && (await countCards(undefined, lang)) >= INDEX_FROM && (!kind || (await countCards(kind, lang)) >= KIND_INDEX_FROM) ? INDEXABLE : { index: false, follow: CARDS_PUBLIC },
   };
 }
 
@@ -52,7 +63,7 @@ export default async function CardsPage({ searchParams }: PageProps<"/cards">) {
   const t = dict.card;
   const arrival = (await headers()).get(NEW_VISIT_HEADER);
   if (arrival) after(() => recordLanding(arrival.slice(0, 40)).catch((error) => console.error("landing count failed", error)));
-  const cards = await listCards(kind);
+  const cards = await listCards(kind, 60, undefined, locale === "en" ? "en" : "ar");
   const kinds = cardKindsNow();
   const lead = kinds.findIndex((k) => !isOccasion(k));
   const season = kinds.slice(0, Math.max(0, lead));
