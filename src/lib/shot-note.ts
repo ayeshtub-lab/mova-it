@@ -23,3 +23,13 @@ export function cleanNote(raw: unknown): string | null {
   if (!text) return null;
   return [...text].slice(0, NOTE_MAX).join("").trim() || null;
 }
+
+// «⭐ نقاط الحكاية» (his OK, 2026-11-24): a story of 25 words or more earns points
+// (src/server/points.ts awardStories). Shots with such a story got into Google far more often (GSC,
+// 24/11), and short ones never did. A word is a run of letters or digits; emoji and punctuation
+// alone don't count.
+export const STORY_MIN_WORDS = 25;
+export const STORY_POINTS = 20;
+export const storyWords = (note: string | null | undefined) => (note ?? "").split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+// The same story twice is one story: compared without spaces, punctuation and Arabic diacritics.
+export const storyKey = (note: string) => note.replace(/[ً-ٰٟ]/g, "").replace(/[^\p{L}\p{N}]+/gu, "").toLowerCase();

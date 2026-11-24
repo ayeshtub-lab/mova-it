@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 
-import { NOTE_MAX as MAX } from "@/lib/shot-note";
+import { NOTE_MAX as MAX, STORY_MIN_WORDS, STORY_POINTS, storyWords } from "@/lib/shot-note";
 
-export type ShotNoteLabels = { note: string; noteHint: string; notePlaceholder: string; noteSave: string; noteSaved: string; noteBlocked: string; noteFailed: string; noteIdeas: string; noteQuestions: string[] };
+const fill = (s: string | undefined, n = 0) => (s ?? "").replace("{n}", String(n)).replace("{min}", String(STORY_MIN_WORDS)).replace("{p}", String(STORY_POINTS));
+
+export type ShotNoteLabels = { note: string; noteHint: string; notePlaceholder: string; noteSave: string; noteSaved: string; noteBlocked: string; noteFailed: string; noteIdeas: string; noteQuestions: string[]; noteWords?: string; notePoints?: string; notePointsDone?: string };
 
 // «✍️ احكي عن صورتك» (2026-11-12), inside «✏️ تعديل»: folded to one line until tapped; the words are
 // read only then (one small request, nothing on the gallery's load) and saved on their own.
@@ -66,6 +68,11 @@ export function ShotNote({ angleId, labels, fresh = false }: { angleId: string; 
     <div className="flex flex-col gap-2 rounded-2xl bg-surface p-3">
       <span className="font-bold">✍️ {labels.note}</span>
       <span className="text-xs text-muted">{labels.noteHint}</span>
+      {labels.notePoints && (
+        <span className={`text-xs font-bold ${storyWords(text) >= STORY_MIN_WORDS ? "text-secondary" : "text-accent-ink"}`}>
+          {fill(storyWords(text) >= STORY_MIN_WORDS ? labels.notePointsDone : labels.notePoints)}
+        </span>
+      )}
       <button type="button" onClick={() => setIdeas((v) => !v)} aria-expanded={ideas} className="w-fit rounded-full bg-background px-3 py-1 text-sm font-bold text-secondary">
         {labels.noteIdeas}
       </button>
@@ -93,9 +100,8 @@ export function ShotNote({ angleId, labels, fresh = false }: { angleId: string; 
         <button type="button" onClick={save} disabled={state === "busy" || text === null || text === saved} className="min-h-10 rounded-full bg-secondary px-4 text-sm font-bold text-white disabled:opacity-60 dark:text-background">
           {labels.noteSave}
         </button>
-        <span className="text-xs text-muted">
-          {[...(text ?? "")].length}/{MAX}
-        </span>
+        {/* «⭐ نقاط الحكاية» (2026-11-24): the words counted as they are typed, toward the 25 that earn points. */}
+        <span className="text-xs text-muted">{labels.noteWords ? fill(labels.noteWords, storyWords(text)) : `${[...(text ?? "")].length}/${MAX}`}</span>
         {state === "saved" && <span className="text-sm text-secondary">{labels.noteSaved}</span>}
         {(state === "blocked" || state === "failed") && (
           <span role="alert" className="text-sm font-semibold text-accent-ink">

@@ -14,6 +14,7 @@ import { hamming, dhashFromGrey } from "../src/lib/dhash";
 import { AngleError, prepareAngle } from "../src/server/angles";
 import { createMoment } from "../src/server/moments";
 import { inviteLink, inviterOf } from "../src/lib/source";
+import { storyKey, storyWords } from "../src/lib/shot-note";
 import {
   FOLLOW_POINTS,
   GIFT_POINTS,
@@ -28,6 +29,9 @@ import {
   autoPickForWinners,
   awardLikes,
   awardShots,
+  awardStories,
+  STORIES_PER_WEEK,
+  STORY_POINTS,
   balanceOf,
   closePins,
   countSeen,
@@ -140,6 +144,37 @@ async function main() {
       assert.equal(await balanceOf(owner.id), 0);
       await db.moment.update({ where: { id: m.id }, data: { visibility: "PUBLIC" } });
       await undoRemoved();
+      assert.equal(await balanceOf(owner.id), before);
+    });
+
+    await check("stories: 25 words or more earn 20 once, 5 a week, the same words once, taken back when shortened", async () => {
+      assert.equal(storyWords("صباح الخير ☕ !!"), 2);
+      assert.equal(storyKey("قهوةُ الصباح، حلوة!"), storyKey("قهوة الصباح حلوة"));
+      const story = (n: number) => Array.from({ length: 30 }, (_, i) => `كلمة${n}_${i}`).join(" ");
+      const own = await db.angle.findMany({ where: { contributorId: owner.id, momentId: m.id }, orderBy: { uploadedAt: "asc" }, take: 9 });
+      await db.angle.update({ where: { id: own[0].id }, data: { note: story(0) } });
+      await db.angle.update({ where: { id: own[1].id }, data: { note: story(0) } }); // the same words: no
+      await db.angle.update({ where: { id: own[2].id }, data: { note: "قصة قصيرة من عشر كلمات بس ما بتكفي للنقاط هون" } }); // short: no
+      for (let i = 3; i < 9; i++) await db.angle.update({ where: { id: own[i].id }, data: { note: story(i) } });
+      const before = await balanceOf(owner.id);
+      await awardStories();
+      const lines = await db.pointEntry.findMany({ where: { userId: owner.id, kind: "story" } });
+      assert.equal(lines.length, STORIES_PER_WEEK, "5 a week");
+      assert.ok(lines.every((l) => l.points === STORY_POINTS));
+      assert.ok(!lines.some((l) => l.ref === own[1].id || l.ref === own[2].id));
+      await awardStories(); // never twice
+      assert.equal(await db.pointEntry.count({ where: { userId: owner.id, kind: "story" } }), STORIES_PER_WEEK);
+      assert.equal(await balanceOf(owner.id), before + STORIES_PER_WEEK * STORY_POINTS);
+      await db.angle.update({ where: { id: own[0].id }, data: { note: "قصرت الحكاية" } });
+      await undoRemoved();
+      assert.equal(await balanceOf(owner.id), before + (STORIES_PER_WEEK - 1) * STORY_POINTS, "shortened: taken back");
+      await db.angle.update({ where: { id: own[0].id }, data: { note: story(0) } });
+      await undoRemoved();
+      assert.equal(await balanceOf(owner.id), before + STORIES_PER_WEEK * STORY_POINTS, "long again: given back");
+      // (as it was, for the checks below)
+      const storyLines = await db.pointEntry.findMany({ where: { userId: owner.id, kind: "story" }, select: { id: true } });
+      await db.pointEntry.deleteMany({ where: { OR: [{ id: { in: storyLines.map((l) => l.id) } }, { kind: "undo", ref: { in: storyLines.map((l) => l.id) } }] } });
+      await db.angle.updateMany({ where: { contributorId: owner.id }, data: { note: null } });
       assert.equal(await balanceOf(owner.id), before);
     });
 

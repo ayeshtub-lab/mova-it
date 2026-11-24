@@ -10,6 +10,7 @@ import { FILM_PREFIX, myFilms, MISSION_POINTS, PinError, SPOT_AMOUNTS, SPOT_MAX_
 import { CANONICAL_HOST } from "@/lib/hosts";
 import { inviteLink } from "@/lib/source";
 import { InviteShare, PointsSeen } from "./InviteShare";
+import { STORY_MIN_WORDS, STORY_POINTS } from "@/lib/shot-note";
 
 // «⭐ نقاطي» («خطة زاومو الذهبية», 2026-11-10; «النقطة = ظهور», 2026-11-12): the person's points
 // (and why), how points are earned, the week's Google mission, putting 1–5 of their public shots in
@@ -71,7 +72,7 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
   const amounts = [...SPOT_AMOUNTS.filter((a) => a <= mine.balance), ...(canPay && !SPOT_AMOUNTS.includes(mine.balance) ? [mine.balance] : [])];
   const r = typeof sp.r === "string" ? sp.r : null;
   const invite = inviteLink(`https://${CANONICAL_HOST}`, user.id);
-  const kinds: Record<string, string> = { shot: t.kindShot, likes: t.kindLikes, mission: t.kindMission, winner: t.kindWinner, pin: t.kindPin, refund: t.kindRefund, undo: t.kindUndo, gift: t.kindGift, follow: t.kindFollow, unfollow: t.kindUnfollow, invite: t.kindInvite };
+  const kinds: Record<string, string> = { shot: t.kindShot, likes: t.kindLikes, mission: t.kindMission, story: t.kindStory, winner: t.kindWinner, pin: t.kindPin, refund: t.kindRefund, undo: t.kindUndo, gift: t.kindGift, follow: t.kindFollow, unfollow: t.kindUnfollow, invite: t.kindInvite };
   const offer = !!mine.freePin || canPay;
   // The spotlight purchases of the last 2 weeks, one card each (its shots, views of bought).
   const batches = [...Map.groupBy(mine.pins, (p) => p.batch ?? p.id).values()];
@@ -217,6 +218,7 @@ export default async function PointsPage({ searchParams }: { searchParams: Promi
             <li>{t.earnShot}</li>
             <li>{t.earnLikes}</li>
             <li>{t.earnMission}</li>
+            <li>{t.earnStory.replace("{min}", String(STORY_MIN_WORDS)).replace("{p}", String(STORY_POINTS))}</li>
             <li>{t.earnInvite}</li>
             {/* «👤 تابع زاومو»: 50 once (src/server/points.ts awardFollow) — the follow button is on its page. */}
             <li className="flex flex-wrap items-center justify-between gap-2">

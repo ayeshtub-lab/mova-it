@@ -1,5 +1,7 @@
 import type { User } from "@/generated/prisma/client";
 import { normalizeTag } from "@/lib/hashtags";
+import { STORY_MIN_WORDS, STORY_POINTS, storyKey, storyWords } from "@/lib/shot-note";
+export { STORY_POINTS };
 import { db } from "@/lib/db";
 import { notify } from "@/server/notifications";
 import { systemUser } from "@/server/daily";
@@ -81,7 +83,47 @@ export async function balanceOf(userId: string) {
 export async function weekPointsOf(userId: string, now = new Date()) {
   return (await db.pointEntry.aggregate({ where: { userId, kind: { in: EARNED }, createdAt: { gte: new Date(now.getTime() - WEEK_MS) } }, _sum: { points: true } }))._sum.points ?? 0;
 }
-const EARNED = ["shot", "likes", "mission", "undo"];
+const EARNED = ["shot", "likes", "mission", "story", "undo"];
+
+// «⭐ نقاط الحكاية» (his OK, 2026-11-24): a story of STORY_MIN_WORDS words or more on one's own
+// public shot earns STORY_POINTS, once per shot, and only for the first STORIES_PER_WEEK of a week.
+// The same words on another shot don't count again. The story was checked when it was saved
+// (src/server/angles.ts setShotNote). It is taken back within 30 days if the shot stops being public
+// or the story gets shorter than the minimum (undoRemoved).
+export const STORIES_PER_WEEK = 5;
+
+export async function awardStories(now = new Date()) {
+  const shots = await db.angle.findMany({
+    where: { ...publicShot, note: { not: null }, contributor: earner },
+    select: { id: true, contributorId: true, note: true },
+    orderBy: { uploadedAt: "asc" },
+    take: 2000,
+  });
+  const long = shots.filter((s) => storyWords(s.note) >= STORY_MIN_WORDS);
+  if (!long.length) return 0;
+  const paid = await db.pointEntry.findMany({ where: { kind: "story", userId: { in: [...new Set(long.map((s) => s.contributorId))] } }, select: { userId: true, ref: true, createdAt: true } });
+  const paidRefs = new Set(paid.map((p) => p.ref));
+  // The words already paid for, per person (their shots' current stories).
+  const paidNotes = new Map<string, Set<string>>();
+  for (const s of shots) if (paidRefs.has(s.id)) (paidNotes.get(s.contributorId) ?? paidNotes.set(s.contributorId, new Set()).get(s.contributorId)!).add(storyKey(s.note!));
+  const weekCount = new Map<string, number>();
+  for (const p of paid) if (p.createdAt.getTime() > now.getTime() - WEEK_MS) weekCount.set(p.userId, (weekCount.get(p.userId) ?? 0) + 1);
+  let given = 0;
+  for (const s of long) {
+    if (paidRefs.has(s.id)) continue;
+    if ((weekCount.get(s.contributorId) ?? 0) >= STORIES_PER_WEEK) continue;
+    const key = storyKey(s.note!);
+    const mine = paidNotes.get(s.contributorId) ?? paidNotes.set(s.contributorId, new Set()).get(s.contributorId)!;
+    if (mine.has(key)) continue;
+    const made = await db.pointEntry.createMany({ data: [{ userId: s.contributorId, kind: "story", points: STORY_POINTS, ref: s.id }], skipDuplicates: true });
+    if (made.count) {
+      given += made.count;
+      mine.add(key);
+      weekCount.set(s.contributorId, (weekCount.get(s.contributorId) ?? 0) + 1);
+    }
+  }
+  return given;
+}
 
 // Public shots that went up and passed the check in the last 8 days, not yet counted.
 export async function awardShots(now = new Date()) {
@@ -153,15 +195,18 @@ export async function awardLikes(now = new Date()) {
 // line per line it cancels) — and given again if it is public again. (Upload, collect, delete,
 // upload again pays nothing.)
 export async function undoRemoved(now = new Date()) {
-  const lines = await db.pointEntry.findMany({ where: { kind: { in: ["shot", "likes", "mission"] }, createdAt: { gte: new Date(now.getTime() - UNDO_DAYS * 24 * 3600e3) } }, select: { id: true, userId: true, points: true, ref: true } });
+  const lines = await db.pointEntry.findMany({ where: { kind: { in: ["shot", "likes", "mission", "story"] }, createdAt: { gte: new Date(now.getTime() - UNDO_DAYS * 24 * 3600e3) } }, select: { id: true, userId: true, points: true, ref: true, kind: true } });
   if (!lines.length) return 0;
-  const live = new Set((await db.angle.findMany({ where: { id: { in: [...new Set(lines.map((l) => l.ref))] }, ...publicShot }, select: { id: true } })).map((a) => a.id));
+  const shotsNow = await db.angle.findMany({ where: { id: { in: [...new Set(lines.map((l) => l.ref))] }, ...publicShot }, select: { id: true, note: true } });
+  const live = new Set(shotsNow.map((a) => a.id));
+  // A story's points also need the story still long enough.
+  const storyLive = new Set(shotsNow.filter((a) => storyWords(a.note) >= STORY_MIN_WORDS).map((a) => a.id));
   const undone = await db.pointEntry.findMany({ where: { kind: "undo", ref: { in: lines.map((l) => l.id) } }, select: { id: true, ref: true, points: true } });
   const undoOf = new Map(undone.map((u) => [u.ref, u]));
   let changed = 0;
   for (const l of lines) {
     const u = undoOf.get(l.id);
-    if (!live.has(l.ref)) {
+    if (!(l.kind === "story" ? storyLive : live).has(l.ref)) {
       if (!u) changed += (await db.pointEntry.createMany({ data: [{ userId: l.userId, kind: "undo", points: -l.points, ref: l.id }], skipDuplicates: true })).count;
       else if (u.points !== -l.points) changed += (await db.pointEntry.updateMany({ where: { id: u.id }, data: { points: -l.points } })).count;
     } else if (u) {
@@ -594,6 +639,7 @@ export async function goldenHourly(now = new Date()) {
     shots: await safe("shots", awardShots(now)),
     likes: await safe("likes", awardLikes(now)),
     mission: await safe("mission", awardMission(now)),
+    stories: await safe("stories", awardStories(now)),
     undone: await safe("undo", undoRemoved(now)),
     follow: await safe("follow", awardFollow()),
     invites: quiet ? 0 : await safe("invites", awardInvites(now)),
