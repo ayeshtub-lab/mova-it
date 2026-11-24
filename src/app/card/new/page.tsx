@@ -77,6 +77,7 @@ export default async function NewCardPage({ searchParams }: PageProps<"/card/new
             labels={t}
             edit={story ? undefined : edit}
             story={story}
+            lang={locale === "en" ? "en" : "ar"}
           />
         ) : (
           <CardStart

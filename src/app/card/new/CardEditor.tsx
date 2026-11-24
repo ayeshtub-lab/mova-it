@@ -237,6 +237,7 @@ export function CardEditor({
   onOtherPicture,
   edit,
   story: startStory = false,
+  lang = "ar",
 }: {
   picture: CardPicture;
   fonts: Record<CardFont, string>;
@@ -254,6 +255,8 @@ export function CardEditor({
   // (2026-11-24, his «2») It is a choice for every picture, «💌 بطاقة | 📲 ستوري», above the
   // picture. This prop only says which one it opens on.
   story?: boolean;
+  // The page's language: Gemini's lines in it (2026-11-24).
+  lang?: "ar" | "en";
 }) {
   const [story, setStory] = useState(startStory);
   const pickStory = (on: boolean) => {
@@ -309,7 +312,7 @@ export function CardEditor({
     };
     el.src = picture.image;
     if (!picture.shotId) return;
-    fetch(`/api/cards/ideas?shot=${picture.shotId}`)
+    fetch(`/api/cards/ideas?shot=${picture.shotId}${lang === "en" ? "&lang=en" : ""}`)
       .then((r) => (r.ok ? r.json() : { ideas: [] }))
       .then((d: { ideas?: Idea[]; look?: Look | null }) => {
         setIdeas(d.ideas ?? []);

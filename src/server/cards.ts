@@ -46,6 +46,21 @@ Then choose how the words look on THIS picture (his ask, 2026-11-17: «اللو�
 
 Answer only with JSON: {"ideas":[{"kind":"morning","text":"…"}],"look":{"place":"top","color":"cream"}}`;
 
+// The English page's lines (his idea, 2026-11-24: «ليش جيمناي ما يكتب بطاقات بالانجليزي»). English
+// speakers search «good morning images with quotes», «good morning coffee images», and — many of them
+// Muslims in India, Pakistan, the UK — «jumma mubarak images / status / dua». Their own lines, in their
+// own way: the same kinds and the same look, never a translation of the Arabic ones.
+export const IDEAS_PROMPT_EN = IDEAS_PROMPT.slice(0, IDEAS_PROMPT.indexOf("Look at the picture first.")).replace("real photos from Palestine and the Arab world", "real photos from Palestine and the Arab world (this is its English page)").replace("on WhatsApp", "on WhatsApp, Instagram or Facebook") + `Look at the picture first. Every line must fit what is actually in it (the moon, coffee, flowers, the sea, rain, bread, a sunset…) — say that thing or its feeling, so the words and the picture belong together. For example coffee in the morning → "Good morning — may your coffee be strong and your day be gentle ☕".
+
+Write 11 lines in English, warm and natural, the way people really post them (simple words; many readers speak English as a second language):
+- 3 of kind "morning" (Good morning…, Rise and shine…),
+- 3 of kind "evening" (Good evening…, Good night…, Sweet dreams…),
+- 2 of kind "love": gentle and romantic, clean — nothing sexual, nothing vulgar,
+- 1 of kind "wisdom": a short wise saying fitting the picture,
+- 1 of kind "friday": a Friday greeting for Muslims, starting with "Jumma Mubarak" (a blessed Friday), gentle and fitting the picture,
+- 1 of kind "coffee": a line about coffee in the picture's mood.
+` + IDEAS_PROMPT.slice(IDEAS_PROMPT.indexOf("Each line at most 90 characters"));
+
 // Where the words sit and their colour, as Gemini sees the picture (null: the editor's own guess).
 export type CardLook = { place: "top" | "center" | "bottom"; color: "white" | "cream" | "gold" | "rose" | "sky" | "black" | "navy" };
 const LOOK_PLACES = ["top", "center", "bottom"];
@@ -81,7 +96,7 @@ export function cardIdeasOf(raw: unknown): CardIdea[] {
   return out.slice(0, 12);
 }
 
-async function askIdeas(angleId: string): Promise<{ ideas: CardIdea[]; look: CardLook | null }> {
+async function askIdeas(angleId: string, lang: "ar" | "en" = "ar"): Promise<{ ideas: CardIdea[]; look: CardLook | null }> {
   const none = { ideas: [], look: null };
   if (!screeningEnabled()) return none;
   const shot = await publicShot(angleId);
@@ -95,7 +110,7 @@ async function askIdeas(angleId: string): Promise<{ ideas: CardIdea[]; look: Car
     purpose: "card",
     timeoutMs: 30_000,
     body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: IDEAS_PROMPT }, { inline_data: { mime_type: "image/jpeg", data } }] }],
+      contents: [{ role: "user", parts: [{ text: lang === "en" ? IDEAS_PROMPT_EN : IDEAS_PROMPT }, { inline_data: { mime_type: "image/jpeg", data } }] }],
       generationConfig: { temperature: 0.9, responseMimeType: "application/json" },
     }),
   });
@@ -110,7 +125,9 @@ async function askIdeas(angleId: string): Promise<{ ideas: CardIdea[]; look: Car
 export const cardIdeasNow = askIdeas;
 
 // Asked once per picture, kept a week (a fraction of a cent each time it is asked).
-export const cardIdeas = (angleId: string) => unstable_cache(() => askIdeas(angleId), ["card-ideas-3", angleId], { revalidate: 7 * 24 * 3600 })();
+// (The Arabic lines keep their key; the English ones have their own.)
+export const cardIdeas = (angleId: string, lang: "ar" | "en" = "ar") =>
+  unstable_cache(() => askIdeas(angleId, lang), lang === "en" ? ["card-ideas-en-1", angleId] : ["card-ideas-3", angleId], { revalidate: 7 * 24 * 3600 })();
 
 // ── A public card ───────────────────────────────────────────────────────────────────────────────
 const JPEG = (b: Buffer) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
