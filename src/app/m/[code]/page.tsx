@@ -344,6 +344,17 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
         {/* Someone with a shot here: offer notifications now (hearts on it are what bring them back). */}
         {user && view.angles.some((a) => a.isMine) && <PushAsk labels={dict.push} locale={locale} />}
 
+        {/* «🔒 لحظتك خاصة» (2026-11-25, members' note): every moment a guest made since 1/10 (6 of 6) was
+            private: a guest can't post for everyone, and didn't notice. Said plainly on their own moment,
+            with Google one tap away; once signed in, the box below makes it public. */}
+        {view.viewer.isCreator && user?.isGuest && view.visibility !== "PUBLIC" && googleEnabled() && (
+          <section className="flex flex-col gap-3 rounded-3xl border-2 border-amber-300/70 bg-amber-50/70 p-5 dark:bg-amber-400/10">
+            <p className="font-extrabold">{dict.visibility.guestPrivateTitle}</p>
+            <p className="text-sm leading-relaxed">{dict.visibility.guestPrivateText}</p>
+            <GoogleButton label={dict.account.google} returnTo={`/m/${view.code}`} place="moment" />
+          </section>
+        )}
+
         {/* After the first angle: invite the creator to share it with everyone. */}
         {view.viewer.isCreator && user && !user.isGuest && view.visibility !== "PUBLIC" && view.angleCount > 0 && (
           <form action={changeVisibility} className="flex flex-col gap-3 rounded-3xl bg-secondary-soft p-5 sm:flex-row sm:items-center">

@@ -121,7 +121,8 @@ export default async function NewMomentPage({ searchParams }: PageProps<"/new">)
         <Fold folded={!!sharedCount} summary={dict.create.sharedNewMoment}>
           {/* «/new?kind=story»: straight to «مع الوقت» (from a story's «ابدأ قصتك»). */}
           <CreateMomentForm
-            labels={dict.create}
+            // (2026-11-25) A guest is told before they start that their moment will be private.
+            labels={user.isGuest ? { ...dict.create, guestNote: dict.visibility.guestNewNote } : dict.create}
             canPublic={!user.isGuest}
             initialKind={kind === "story" ? "STORY" : "EVERYDAY"}
             // «/new?title=عرس أحمد»: from a search that found nothing — make that moment.

@@ -12,7 +12,7 @@ import { getDictionary, getLocale } from "@/i18n/server";
 import { getCurrentUser } from "@/lib/session";
 import { listTag } from "@/server/discover";
 import { inEnglish } from "@/server/localize";
-import { isHubTag } from "@/lib/tag-hub";
+import { isHubTag, numberFirst } from "@/lib/tag-hub";
 import { normalizeTag } from "@/lib/hashtags";
 import { blockedIdsFor } from "@/server/moderation";
 import { tagFamily, tagHub } from "@/server/tag-hub";
@@ -40,7 +40,13 @@ export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Pro
   // A collection page (the 10 of src/lib/tag-hub.ts, 2026-11-20): its real count and «كأنها لك»
   // in the title, as on the sunset and place pages — seen 2.5K times in two weeks, clicked 6.
   const shots = hub && hub.shots >= 3 ? plural(locale, dict.plurals.eventShots, hub.shots) : null;
-  const title = shots ? dict.tag.hubMetaTitle.replace("{phrase}", phrase).replace("{shots}", shots) : dict.tag.metaTitle.replace("{phrase}", phrase);
+  // (2026-11-25) Phase 2's number-first half (src/lib/tag-hub.ts NUMBER_FIRST).
+  const bareWords = locale === "ar" ? phrase.replace(/^صور[ةه]?s+/, "") : phrase;
+  const title = shots
+    ? numberFirst(tag)
+      ? `${shots} ${bareWords} كأنها لك من الناس | ${dict.meta.brand}`
+      : dict.tag.hubMetaTitle.replace("{phrase}", phrase).replace("{shots}", shots)
+    : dict.tag.metaTitle.replace("{phrase}", phrase);
   const description = clip(
     shots && hub
       ? dict.tag.hubMetaDescription.replace("{shots}", shots).replace("{phrase}", phrase).replace("{bare}", locale === "ar" ? phrase.replace(/^صور[ةه]?\s+/, "") : "").replace("{people}", plural(locale, dict.plurals.people, hub.people))

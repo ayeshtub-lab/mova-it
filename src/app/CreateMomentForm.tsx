@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState, type ReactNode } from "react";
 import { createMomentAction } from "@/app/actions/moments";
 import { PlaceField, type PlaceOption } from "@/app/PlaceField";
@@ -9,6 +10,9 @@ type Labels = {
   kindMomentHint: string;
   kindStory: string;
   kindStoryHint: string;
+  kindMaker?: string;
+  kindMakerHint?: string;
+  guestNote?: string;
   storyPlaceholder: string;
   storyTitleLabel: string;
   title: string;
@@ -65,7 +69,7 @@ export function CreateMomentForm({
 
   return (
     <form action={action} className="flex flex-col gap-3">
-      <div role="radiogroup" className="grid grid-cols-2 gap-2">
+      <div role="radiogroup" className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {(
           [
             ["EVERYDAY", labels.kindMoment, labels.kindMomentHint],
@@ -78,7 +82,16 @@ export function CreateMomentForm({
             <span className="text-xs leading-snug text-muted">{hint}</span>
           </label>
         ))}
+        {/* «🏪 مشروعي» (his idea, 2026-11-25): someone with a home project finds the makers' page right
+            where they start a moment, not hidden elsewhere. A door, not a third kind of moment. */}
+        {labels.kindMaker && (
+          <Link href="/maker" prefetch={false} className="col-span-2 flex flex-col gap-0.5 rounded-2xl border border-amber-300/70 bg-amber-50/60 p-3 sm:col-span-1 dark:bg-amber-400/10">
+            <span className="font-extrabold">{labels.kindMaker}</span>
+            <span className="text-xs leading-snug text-muted">{labels.kindMakerHint}</span>
+          </Link>
+        )}
       </div>
+      {labels.guestNote && <p className="rounded-2xl bg-amber-50/70 px-3 py-2 text-xs font-bold leading-relaxed dark:bg-amber-400/10">{labels.guestNote}</p>}
       <label className="flex flex-col gap-1.5 text-sm font-bold">
         <span>
           {kind === "STORY" ? labels.storyTitleLabel : labels.titleLabel} <span className="font-normal text-muted">{labels.titleOptional}</span>

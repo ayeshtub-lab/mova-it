@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { GoogleButton } from "@/app/GoogleButton";
+import { GoogleButton, GoogleG } from "@/app/GoogleButton";
 import { GuestForm } from "@/app/GuestForm";
 
 export type SignInLabels = { button: string; title: string; text: string; likeTitle: string; likeText: string; or: string; google: string; close: string };
@@ -14,14 +14,15 @@ type GuestLabels = Parameters<typeof GuestForm>[0]["labels"];
 // words are drawn on the first tap only, so no page carries them for search engines to read.
 export const askSignIn = (reason: "header" | "like" = "header") => window.dispatchEvent(new CustomEvent("zawmo:sign-in", { detail: { reason } }));
 
+// (2026-11-25, members' note: «زر الدخول مش واضح») Google's «G» on it, white like Google's own buttons.
 export function SignInButton({ label }: { label: string }) {
   return (
     <button
       type="button"
       onClick={() => askSignIn()}
-      className="flex min-h-11 items-center gap-1 rounded-full bg-accent px-3.5 text-sm font-extrabold text-white transition-transform hover:scale-105"
+      className="flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-white px-3.5 text-sm font-extrabold text-[#1f1f1f] shadow-sm transition-transform hover:scale-105"
     >
-      <span aria-hidden="true">👤</span>
+      <GoogleG className="size-4" />
       {label}
     </button>
   );

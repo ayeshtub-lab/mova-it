@@ -196,7 +196,7 @@
     "kindMoment": "📸 A moment",
     "kindMomentHint": "Happening now, everyone adds their angle",
     "kindStory": "🌱 Over time",
-    "kindStoryHint": "Something you follow for days and weeks: a plant, a house, a project",
+    "kindStoryHint": "Something you follow for days and weeks: a plant, a house, a project", "kindMaker": "🏪 My project", "kindMakerHint": "Home food, crochet, sweets… show your work",
     "storyPlaceholder": "e.g. My basil plant, our new house",
     "storyTitleLabel": "What will you follow over time?",
     "untitled": "New moment",
@@ -627,7 +627,7 @@
     "LINK": "🔗 Link only",
     "makePublic": "Make it public 🌍",
     "makeFriends": "Back to friends",
-    "nudgeTitle": "Make it public? 🌍",
+    "nudgeTitle": "Make it public? 🌍", "guestPrivateTitle": "🔒 Your moment is private", "guestPrivateText": "Visitors and Google can't see your photos here, only your friends and anyone with the link. Want everyone to see it? Sign in with Google in a second (everything you made stays yours), then tap «Make it public».", "guestNewNote": "🔒 As a guest, your moment is private: visitors and Google can't see it. Want it public? Sign in with Google first.",
     "nudgeText": "It'll show in Discover for everyone on Zawmo, and every photo is checked automatically first.",
     "publicBadge": "🌍 Public moment",
     "publicGuest": "This is a public moment: link your Google account to add your angle."

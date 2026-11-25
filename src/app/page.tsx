@@ -211,6 +211,13 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
               </li>
             )}
           </ul>
+          {/* (2026-11-25, members' note: «زر التسجيل بجوجل بعيد») One tap from Google right under the
+              words; the full start box («أو جرّب كضيف») stays further down. */}
+          {google && (
+            <div className="self-center sm:self-start">
+              <GoogleButton label={dict.account.google} returnTo="/" place="home" />
+            </div>
+          )}
         </div>
       </section>
 
