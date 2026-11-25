@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: PageProps<"/tag/[tag]">): Pro
   // in the title, as on the sunset and place pages — seen 2.5K times in two weeks, clicked 6.
   const shots = hub && hub.shots >= 3 ? plural(locale, dict.plurals.eventShots, hub.shots) : null;
   // (2026-11-25) Phase 2's number-first half (src/lib/tag-hub.ts NUMBER_FIRST).
-  const bareWords = locale === "ar" ? phrase.replace(/^صور[ةه]?s+/, "") : phrase;
+  const bareWords = locale === "ar" ? phrase.replace(/^صور[ةه]?\s+/, "") : phrase;
   const title = shots
     ? numberFirst(tag)
       ? `${shots} ${bareWords} كأنها لك من الناس | ${dict.meta.brand}`
