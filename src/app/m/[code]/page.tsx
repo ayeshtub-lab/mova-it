@@ -299,9 +299,7 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               {storyDates.length > 0 && <> · {fill(dict.story.since, { date: dayFormat(locale, true).format(new Date(Math.min(...storyDates))) })}</>}
             </p>
           )}
-          {view.description && <Description text={view.description} className="text-lg" />}
           {maker && <MakerCard maker={maker} viewerId={user?.id ?? null} labels={{ badge: dict.maker.badge, message: dict.maker.message, whatsappGo: dict.maker.whatsappGo, pageGo: dict.maker.pageGo }} />}
-          {!daily && !story && <MomentHint text={dict.momentHint.text} close={dict.momentHint.close} />}
           {daily?.theme.tip && <p className="rounded-2xl bg-secondary-soft px-3 py-2 text-sm font-semibold text-secondary">🤍 {locale === "ar" ? daily.theme.tip.ar : daily.theme.tip.en}</p>}
           {(view.place || view.placeName) && (
             <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">
@@ -324,12 +322,6 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               .filter(Boolean)
               .join(" · ")}
           </p>
-          {/* «بدأها X» only when the sentence below doesn't already name them (2026-10-31: the same
-              name twice in two lines; the sentence stays — it is what search engines show). */}
-          {view.creatorName && !(!daily && summary && people.includes(view.creatorName)) && <p className="text-sm text-muted">{fill(t.by, { name: view.creatorName })}</p>}
-          {/* What this moment is, in one sentence of its own (search engines show it rather than the
-              invitations every moment shares). */}
-          {!daily && summary && <p className="text-sm leading-relaxed text-muted">{summary}</p>}
           {/* Zawmo's own accounts fix someone else's public moment (its owner edits inside «تعديل»). */}
           {/* The creator's own, in plain sight (it also stays inside a shot's «تعديل»). */}
           {view.viewer.isCreator && !daily && <CreatorMomentEdit code={view.code} title={view.arabic.title} description={view.arabic.description} labels={dict.momentDetails} open={dict.momentDetails.open} />}
@@ -437,6 +429,23 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
               />
             ))}
           </div>
+        )}
+
+        {/* «الصور أول شي» (his OK, 2026-11-25): a visitor from Google came for pictures, and the first
+            screen was all words: the first photo of the grid sat at 1006 px on a phone. Now the title, the
+            place and the counts, the wheel and the photos come first; the words about the moment follow
+            here, all of them still on the page. */}
+        {(view.description || (!daily && !story) || view.creatorName || (!daily && summary)) && (
+          <section className="flex flex-col gap-2">
+            {view.description && <Description text={view.description} className="text-lg" />}
+            {!daily && !story && <MomentHint text={dict.momentHint.text} close={dict.momentHint.close} />}
+            {/* «بدأها X» only when the sentence below doesn't already name them (2026-10-31: the same
+                name twice in two lines; the sentence stays — it is what search engines show). */}
+            {view.creatorName && !(!daily && summary && people.includes(view.creatorName)) && <p className="text-sm text-muted">{fill(t.by, { name: view.creatorName })}</p>}
+            {/* What this moment is, in one sentence of its own (search engines show it rather than the
+                invitations every moment shares). */}
+            {!daily && summary && <p className="text-sm leading-relaxed text-muted">{summary}</p>}
+          </section>
         )}
 
         {/* The moment's videos, under its shots (2026-10-16: people come for the pictures first;
