@@ -123,6 +123,16 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
           </Link>
         </div>
         <p className="text-center text-sm font-bold text-muted">{dict.home.doorsLine}</p>
+        {/* «🏪 مشروعي» (his ask, 2026-11-25: «واضح وبمكان ما يشوه الرئيسية»): a slim third door under
+            the two, always there, in the same quiet style as the cards strip. */}
+        <Link href="/maker" prefetch={false} className="flex items-center gap-3 rounded-2xl bg-gradient-to-l from-amber-200/50 to-moment/20 px-4 py-2.5 transition-transform active:scale-[0.98] dark:from-amber-400/15">
+          <span aria-hidden="true" className="text-2xl">🏪</span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="text-sm font-extrabold leading-tight">{dict.maker.homeStrip}</span>
+            <span className="truncate text-xs text-muted">{dict.maker.homeStripHint}</span>
+          </span>
+          <span aria-hidden="true" className="text-sm font-bold text-amber-700 dark:text-amber-300">{locale === "ar" ? "←" : "→"}</span>
+        </Link>
       </section>
 
       {/* «🎁 جديد: نقاطك» — for a signed-in member until they open «⭐ نقاطي» once (a cookie it sets;
@@ -133,14 +143,8 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
           <span className="shrink-0 text-sm text-amber-700 dark:text-amber-300">{dict.points.homeHintGo}</span>
         </Link>
       )}
-      {/* «🏪 جديد: عندك مشروع؟» (2026-11-13, his «ما في شي يبين للعضو»): one «new» card at a time — after
-          «⭐ نقاطي» was opened once, until /maker is opened once (cookies; nothing from the database). */}
-      {!user.isGuest && (await cookies()).has("zw_pts") && !(await cookies()).has("zw_mkr") && (
-        <Link href="/maker" className="flex items-center justify-between gap-3 rounded-3xl border-2 border-amber-300/70 bg-amber-50/60 p-4 font-bold dark:bg-amber-400/10">
-          <span>{dict.maker.homeHint}</span>
-          <span className="shrink-0 text-sm text-amber-700 dark:text-amber-300">{dict.maker.homeGo}</span>
-        </Link>
-      )}
+      {/* (The one-time «🏪 جديد: عندك مشروع؟» card of 2026-11-13 gave way, 2026-11-25, to the slim strip
+          under the two doors, which is always there.) */}
       {/* «⭐ تحت أضواء زاومو» («خطة زاومو الذهبية», src/app/HomePin.tsx). */}
       <HomePin dict={dict} />
       {/* «زاوية الموسم» (2026-11-06): the season between its dates, pinned here — src/app/SeasonZone.tsx. */}
@@ -210,6 +214,12 @@ async function VisitorHome({ dict, google, inAppHint }: { dict: Dictionary; goog
                 </Link>
               </li>
             )}
+            {/* «🏪 اعرض مشروعك» (2026-11-25): the makers' page for a visitor, as a chip beside the cards. */}
+            <li>
+              <Link href="/maker" prefetch={false} className="block rounded-full bg-amber-400/90 px-3 py-1.5 text-sm font-bold text-amber-950">
+                {dict.maker.makerPillar}
+              </Link>
+            </li>
           </ul>
           {/* (2026-11-25, members' note: «زر التسجيل بجوجل بعيد») One tap from Google right under the
               words; the full start box («أو جرّب كضيف») stays further down. */}
