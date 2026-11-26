@@ -158,10 +158,12 @@ export async function sitemapList(lang: "ar" | "en" = "ar"): Promise<MetadataRou
   }
   if (lang === "en") {
     // The English cards (2026-11-24, src/server/auto-cards.ts): their gallery and each card's page.
+    // (2026-11-26) Added on top of the 200 strongest pages, not inside them: the first day they were
+    // all cut off by the limit.
     const enCards = CARDS_PUBLIC ? await sitemapCards("en") : [];
-    if (enCards.length) english.push({ url: `${base}/en/cards`, changeFrequency: "daily", priority: 0.6 }, ...enCards.map((c) => ({ url: `${base}/en/c/${c.id}`, lastModified: c.createdAt, changeFrequency: "monthly" as const, priority: 0.5, images: [`${base}${cardImage(c)}`] })));
+    const cards: MetadataRoute.Sitemap = enCards.length ? [{ url: `${base}/en/cards`, changeFrequency: "daily", priority: 0.6 }, ...enCards.map((c) => ({ url: `${base}/en/c/${c.id}`, lastModified: c.createdAt, changeFrequency: "monthly" as const, priority: 0.5, images: [`${base}${cardImage(c)}`] }))] : [];
     const time = (e: MetadataRoute.Sitemap[number]) => (e.lastModified ? new Date(e.lastModified).getTime() : 0);
-    return english.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || time(b) - time(a)).slice(0, EN_SITEMAP_SIZE);
+    return [...english.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || time(b) - time(a)).slice(0, EN_SITEMAP_SIZE), ...cards];
   }
   return [...list, ...english];
 }
