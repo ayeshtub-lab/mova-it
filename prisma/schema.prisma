@@ -646,6 +646,7 @@ enum NotificationKind {
   MAKER_APPROVED // 🏪 your project was approved: its «🏪» moment is open (from Zawmo, once)
   COMMENT_LIKE // a heart on your comment (2026-11-18), once per person and comment
   TERMS_UPDATED // 📝 the terms changed: told once in «الوارد» and on the phone (from Zawmo)
+  MOMENTS_TIDIED // 🗂️ Zawmo put your photos on the moments of their topics, with thank-you points (`count`), once
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.

@@ -53,9 +53,10 @@ export function pushMessage(e: PushEvent, locale: string) {
   const t = (locale === "en" ? en : ar).push;
   const fill = (s: string) => s.replace("{name}", e.actorName).replace("{n}", String(e.count ?? ""));
   // A heart from Zawmo itself says so: «⭐ زاومو حبّ لقطتك!»
-  const title = e.kind === "LIKE" && e.actorVerified ? t.likeOfficial : fill({ LIKE: t.like, FOLLOW: t.follow, COMMENT: t.comment, REPLY: t.reply, NEW_ANGLE: t.newAngle, JOINED: t.joined, STORY_REMINDER: t.storyReminder, VIDEO_READY: t.videoReady, PICKED: t.picked, DRAFT_WAITING: t.draftWaiting, SHOT_READY: t.shotReady, FILM_PART: t.filmPart, CARD_LIKE: t.cardLike, CARD_SENT: t.cardSent, MILESTONE: t.milestone, WEEKLY_WINNER: t.weeklyWinner, PIN_LIVE: t.pinLive, PIN_DONE: t.pinDone, POINTS_GIFT: t.pointsGift, INVITE_JOINED: t.inviteJoined, MAKER_APPROVED: t.makerApproved, COMMENT_LIKE: t.commentLike, TERMS_UPDATED: t.termsUpdated }[e.kind]);
+  const title = e.kind === "LIKE" && e.actorVerified ? t.likeOfficial : fill({ LIKE: t.like, FOLLOW: t.follow, COMMENT: t.comment, REPLY: t.reply, NEW_ANGLE: t.newAngle, JOINED: t.joined, STORY_REMINDER: t.storyReminder, VIDEO_READY: t.videoReady, PICKED: t.picked, DRAFT_WAITING: t.draftWaiting, SHOT_READY: t.shotReady, FILM_PART: t.filmPart, CARD_LIKE: t.cardLike, CARD_SENT: t.cardSent, MILESTONE: t.milestone, WEEKLY_WINNER: t.weeklyWinner, PIN_LIVE: t.pinLive, PIN_DONE: t.pinDone, POINTS_GIFT: t.pointsGift, INVITE_JOINED: t.inviteJoined, MAKER_APPROVED: t.makerApproved, COMMENT_LIKE: t.commentLike, TERMS_UPDATED: t.termsUpdated, MOMENTS_TIDIED: t.momentsTidied }[e.kind]);
   if (e.kind === "WEEKLY_WINNER") return { title, body: t.weeklyWinnerBody };
   if (e.kind === "TERMS_UPDATED") return { title, body: t.termsUpdatedBody };
+  if (e.kind === "MOMENTS_TIDIED") return { title, body: t.momentsTidiedBody };
   // A video made with your shot in it — or, for the moment's creator, from everyone's.
   if (e.kind === "FILM_PART") {
     const words = (e.ownShot ? t.filmPartBody : t.filmPartOwnerBody).replace("{title}", e.momentTitle ?? "");
