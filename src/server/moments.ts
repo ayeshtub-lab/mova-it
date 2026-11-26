@@ -99,6 +99,8 @@ async function findViewable(code: string, viewer: User | null) {
   const moment = await db.moment.findUnique({ where: { code: code.toUpperCase() } });
   if (!moment) return null;
   if (moment.status === "HIDDEN" && moment.creatorId !== viewer?.id) return null;
+  // «📸 ضيف صورك»: a holding moment is never a page (its owner is sent to /add — the moment's page).
+  if (moment.inbox) return null;
   return moment;
 }
 

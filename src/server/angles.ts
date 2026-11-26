@@ -118,6 +118,8 @@ export async function prepareAngle(user: User, input: PrepareAngleInput, ipCount
   const code = typeof input.code === "string" ? input.code.toUpperCase() : "";
   const moment = await db.moment.findUnique({ where: { code } });
   if (!moment || moment.status === "HIDDEN") throw new AngleError("not_found");
+  // «📸 ضيف صورك»: a person's holding moment takes their own photos only.
+  if (moment.inbox && moment.creatorId !== user.id) throw new AngleError("not_found");
   // Visitors (guests) may add to public moments too (2026-10-26): every shot is checked by
   // Gemini before it shows, and the team can hide it after.
   // A «مع الوقت» story is shot by its owner alone.
@@ -597,10 +599,12 @@ export async function screenForPublic(momentId: string) {
 // «نشر»: the owner publishes a checked draft — from now on it shows in the moment. A moment
 // started without a name gets its name here, from its creator: nothing goes up unnamed.
 export async function publishAngle(user: User, angleId: string, title?: unknown) {
-  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { named: true, creatorId: true, kind: true, description: true } } } });
+  const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: { select: { named: true, creatorId: true, kind: true, description: true, inbox: true } } } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
   if (angle.status === "READY") return angle; // a retry
   if (angle.status !== "DRAFT" && angle.status !== "PROCESSING") throw new AngleError("forbidden");
+  // A photo waiting in «📸 ضيف صورك» goes up only through its sorting (src/server/sort.ts).
+  if (angle.moment.inbox) throw new AngleError("forbidden");
   const naming = !angle.moment.named && angle.moment.creatorId === user.id;
   const name = naming && typeof title === "string" ? title.replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim().slice(0, 80) : "";
   if (naming && !name) throw new AngleError("needs_title");
@@ -627,7 +631,7 @@ export function momentLine(aiText: string) {
 }
 
 // A checked draft goes up: shown in the moment, the moment named and described if it wasn't.
-async function goLive(angle: { id: string; momentId: string; aiText: string | null; moment: { description: string | null; kind: string } }, naming?: string) {
+export async function goLive(angle: { id: string; momentId: string; aiText: string | null; moment: { description: string | null; kind: string } }, naming?: string) {
   const now = new Date();
   // A moment without a description takes the first shot's line (with its #hashtags), so
   // nothing goes up undescribed; the creator may change it. ("" = they cleared it: left so.)

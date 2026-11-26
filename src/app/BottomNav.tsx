@@ -42,7 +42,7 @@ export function BottomNav({ labels, meHref, chatUnread = 0 }: { labels: Labels; 
         {item("/messages", "الدردشة", svg("M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM8 11h.01M12 11h.01M16 11h.01"), path === "/messages" || path.startsWith("/messages/"), chatUnread)}
         <div className="flex justify-center">
           <Link
-            href="/new"
+            href="/add"
             aria-label={labels.create}
             className="-mt-7 flex size-15 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-lg ring-4 ring-brand-blue/35 transition-transform active:scale-95"
           >

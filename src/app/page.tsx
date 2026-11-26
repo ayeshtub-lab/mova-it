@@ -114,8 +114,8 @@ async function SignedInHome({ user, locale, dict, google }: { user: User; locale
               <span className="text-xs opacity-90">{dict.home.doorDiscoverHint}</span>
             </span>
           </Link>
-          <Link href="/new" className="flex min-h-28 flex-col justify-between gap-2 rounded-3xl bg-gradient-to-br from-brand-red to-[#8e3a8f] p-4 text-white shadow-md transition-transform active:scale-[0.98] sm:hover:scale-[1.01]">
-            <span aria-hidden="true" className="text-3xl">＋</span>
+          <Link href="/add" className="flex min-h-28 flex-col justify-between gap-2 rounded-3xl bg-gradient-to-br from-brand-red to-[#8e3a8f] p-4 text-white shadow-md transition-transform active:scale-[0.98] sm:hover:scale-[1.01]">
+            <span aria-hidden="true" className="text-3xl">📸</span>
             <span className="flex flex-col">
               <span className="text-lg font-extrabold leading-tight">{dict.home.doorCreate}</span>
               <span className="text-xs opacity-90">{dict.home.doorCreateHint}</span>

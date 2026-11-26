@@ -10,6 +10,7 @@ export async function momentsToAddTo(user: User, take = 12) {
     where: {
       status: "ACTIVE",
       kind: { not: "DAILY" },
+      inbox: false, // («📸 ضيف صورك»'s holding moment is not a moment to pick)
       OR: [{ creatorId: user.id }, { kind: { not: "STORY" }, maker: { is: null }, participants: { some: { userId: user.id } } }],
     },
     orderBy: { lastActivityAt: "desc" },

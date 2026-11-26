@@ -45,6 +45,8 @@ type Labels = {
   join: JoinLabels;
   draft: string;
   publish: string;
+  // «📸 ضيف صورك» (src/app/add): «✨ رتّب صوري ({n})» instead of «نشر».
+  sortCta?: string;
   publishing: string;
   searching: string;
   waitUpload: string;
@@ -154,8 +156,11 @@ export function AngleUploader({
   placeGuess = null,
   needsName = false,
   initialDrafts = [],
+  sortHref,
 }: {
   code: string;
+  // «📸 ضيف صورك»: the photos are not published here — Zawmo sorts them first (this page).
+  sortHref?: string;
   needsName?: boolean; // the viewer started this moment without a name: asked for before «نشر»
   labels: Labels;
   afterUpload?: React.ReactNode;
@@ -897,6 +902,16 @@ export function AngleUploader({
           </div>
           {/* «نشر», always in sight at the bottom (like WhatsApp's send). */}
           <footer className="flex flex-col gap-1.5 border-t border-line bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            {sortHref ? (
+              <button
+                type="button"
+                onClick={() => router.push(sortHref)}
+                disabled={busy || saving || drafts.length === 0}
+                className="min-h-14 w-full rounded-full bg-accent px-6 text-lg font-extrabold text-white shadow-md transition-opacity disabled:opacity-50"
+              >
+                {busy ? labels.waitUpload : (labels.sortCta ?? labels.publish).replace("{n}", drafts.length > 1 ? `(${drafts.length})` : "")}
+              </button>
+            ) : (
             <button
               type="button"
               onClick={publishAll}
@@ -909,12 +924,13 @@ export function AngleUploader({
                   ? labels.waitUpload
                   : labels.publish.replace("{n}", drafts.length + onTheWay.length > 1 ? `(${drafts.length + onTheWay.length})` : "")}
             </button>
+            )}
             {publishFailed && (
               <p role="alert" className="text-sm font-semibold text-accent-ink">
                 {labels.publishFailed}
               </p>
             )}
-            {onTheWay.length > 0 && !publishing && <p className="text-center text-xs text-muted">{labels.publishEarlyHint}</p>}
+            {onTheWay.length > 0 && !publishing && !sortHref && <p className="text-center text-xs text-muted">{labels.publishEarlyHint}</p>}
           </footer>
           {leaving && (
             <div className="absolute inset-0 z-10 flex items-end justify-center bg-black/50 p-4" onClick={() => setLeaving(false)}>
@@ -922,8 +938,8 @@ export function AngleUploader({
                 <h3 className="text-lg font-extrabold">{busy ? labels.waitUpload : labels.leaveTitle}</h3>
                 <p className="text-sm leading-relaxed text-muted">{busy ? labels.leaveBusy : labels.leaveText}</p>
                 {!busy && (
-                  <button type="button" onClick={publishAll} disabled={publishing || saving || missingName} className="min-h-12 rounded-full bg-accent px-6 font-extrabold text-white disabled:opacity-50">
-                    {labels.publish.replace("{n}", drafts.length > 1 ? `(${drafts.length})` : "")}
+                  <button type="button" onClick={sortHref ? () => router.push(sortHref) : publishAll} disabled={publishing || saving || missingName} className="min-h-12 rounded-full bg-accent px-6 font-extrabold text-white disabled:opacity-50">
+                    {(sortHref && labels.sortCta ? labels.sortCta : labels.publish).replace("{n}", drafts.length > 1 ? `(${drafts.length})` : "")}
                   </button>
                 )}
                 <button

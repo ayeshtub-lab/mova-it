@@ -192,6 +192,10 @@ model Moment {
   // owner's profile, but is never listed with real people's moments (feeds, wheel, places,
   // search engines, «صوّر معك»).
   demo         Boolean        @default(false)
+  // «📸 ضيف صورك» (2026-11-26): its creator's holding place — photos wait here as drafts, seen by
+  // no one else, until Zawmo puts each on the moment of its topic (src/server/sort.ts). Never listed,
+  // never published from; one per person, gone once empty.
+  inbox        Boolean        @default(false)
 
   @@index([lastActivityAt])
   @@index([creatorId])

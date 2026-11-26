@@ -14,7 +14,8 @@ import { shotWords } from "@/lib/shot-words";
 import { soundSearch } from "@/lib/sound-search";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { cache } from "react";
@@ -206,7 +207,11 @@ export default async function MomentPage({ params, searchParams }: PageProps<"/m
   const { code } = await params;
   const signinFailed = (await searchParams).signin === "failed";
   const [view, locale, user] = await Promise.all([loadMoment(code), getLocale(), getCurrentUser()]);
-  if (!view) notFound();
+  if (!view) {
+    // Its owner's «📸 ضيف صورك» holding moment (a «صورك لسا ما انتشرت» reminder links here).
+    if (user && (await db.moment.count({ where: { code: code.toUpperCase(), creatorId: user.id, inbox: true } }))) redirect("/add/sort");
+    notFound();
+  }
   const dict = await getDictionary(locale);
   const t = dict.moment;
   const shareUrl = `${await siteOrigin()}/m/${view.code}`;
