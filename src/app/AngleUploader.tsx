@@ -35,7 +35,10 @@ type Labels = {
   done: string;
   tooManyHint?: string;
   newMoment?: string;
-  errors: { unsupported: string; not_ready: string; too_long: string; too_many: string; failed: string; blocked: string; official_required: string; duplicate?: string; too_close?: string };
+  errors: { unsupported: string; not_ready: string; too_long: string; too_many: string; failed: string; blocked: string; official_required: string; duplicate?: string; too_close?: string; not_own?: string };
+  // 🎵 Recorded music heard on a video (2026-11-27): its own sound was turned off — why, and a sound instead.
+  musicNote?: string;
+  musicPick?: string;
   // The same photo again / one nearly the same (src/lib/dhash.ts): said in full under the shots.
   twinHint?: { duplicate: string; too_close: string; see: string };
   longNotice: string;
@@ -86,6 +89,7 @@ type ItemState = {
   isVideo?: boolean;
   soundKey?: string | null;
   muteOriginal?: boolean;
+  music?: boolean; // 🎵 recorded music heard on it: its own sound is off (the server's call)
   lyrics?: boolean;
   preview?: string; // local picture of the shot, for the edit sheet
   video?: string; // a video's own file on this phone, for «🖼️ الغلاف»
@@ -472,7 +476,8 @@ export function AngleUploader({
       const timing = { prepareMs: preparedAt - started, sendMs: clock() - preparedAt, bytes: prepared.file.size };
       const result = await postJson(`/api/angles/${angleId}/complete`, { ...(prepared.trim ? { trim: true } : {}), timing });
       // Hidden by the automatic content check: it never shows up.
-      if (result.status === "HIDDEN") return update(index, { status: "error", error: "blocked" });
+      // (A video not shot by its uploader — another account's mark, a TV channel — is not taken either.)
+      if (result.status === "HIDDEN") return update(index, { status: "error", error: result.reason === "not_own" ? "not_own" : "blocked" });
       // «نشر» was pressed while it was on its way: the server has just published it.
       if (result.status === "READY") {
         update(index, { status: "done", angleId, suggestion: null });
@@ -489,6 +494,7 @@ export function AngleUploader({
         isVideo: prepared.mediaType === "VIDEO",
         video: prepared.mediaType === "VIDEO" ? URL.createObjectURL(prepared.file) : undefined,
         soundKey: null,
+        ...(result.music === true ? { music: true, muteOriginal: true } : {}),
         preview,
         // The retro stamp: now, on this phone's clock (not the file's own date).
         stampAt: new Date().toISOString(),
@@ -765,6 +771,17 @@ export function AngleUploader({
               <button type="button" onClick={() => sendFirstSeconds(current)} className="min-h-11 rounded-full bg-accent px-4 text-sm font-bold text-white">
                 {labels.longAction}
               </button>
+            )}
+            {/* 🎵 Recorded music was heard on it: told why its sound is off, and offered one of Zawmo's. */}
+            {items[current]?.status === "draft" && items[current].music && labels.musicNote && (
+              <div role="status" className="flex flex-col gap-2 rounded-2xl bg-amber-100 p-3 text-sm leading-relaxed text-amber-950 dark:bg-amber-400/15 dark:text-amber-100">
+                <p>{labels.musicNote}</p>
+                {!items[current].soundKey && labels.musicPick && (
+                  <button type="button" onClick={() => setPicking(current)} className="min-h-10 self-start rounded-full bg-amber-500 px-4 text-sm font-bold text-white">
+                    {labels.musicPick}
+                  </button>
+                )}
+              </div>
             )}
             {items[current]?.status === "draft" && items[current].angleId && (
               <div className="flex flex-wrap justify-center gap-2">

@@ -39,7 +39,8 @@ export async function inboxFor(user: User) {
   throw new Error("code_exhausted");
 }
 
-export type SortShot = { id: string; preview: string | null; isVideo: boolean; title: string | null };
+// music: recorded music was heard on it — it goes up silent (src/server/screening.ts).
+export type SortShot = { id: string; preview: string | null; isVideo: boolean; title: string | null; music: boolean };
 export type SortGroup = {
   key: string; // what the result form sends for each photo
   kind: "new" | "own" | "public";
@@ -51,7 +52,7 @@ export type SortGroup = {
 };
 export type SortPlan = { inbox: string | null; waiting: number; blocked: number; groups: SortGroup[] };
 
-type Draft = { id: string; aiTitle: string | null; scene: string | null; capturedAt: Date | null; uploadedAt: Date; placeId: string | null; mediaType: string; smallPath: string | null; thumbPath: string | null; mediaPath: string | null };
+type Draft = { id: string; aiTitle: string | null; scene: string | null; capturedAt: Date | null; uploadedAt: Date; placeId: string | null; mediaType: string; smallPath: string | null; thumbPath: string | null; mediaPath: string | null; musicNote: string | null };
 
 // Many photos of one place within a few hours, of more than one topic: an outing, one moment.
 function events(drafts: Draft[]) {
@@ -99,14 +100,14 @@ export async function sortPlan(user: User, visibility: "PUBLIC" | "FRIENDS"): Pr
   const all = await db.angle.findMany({
     where: { momentId: inbox.id, contributorId: user.id },
     orderBy: { uploadedAt: "asc" },
-    select: { id: true, status: true, screening: true, aiTitle: true, scene: true, capturedAt: true, uploadedAt: true, placeId: true, mediaType: true, smallPath: true, thumbPath: true, mediaPath: true },
+    select: { id: true, status: true, screening: true, aiTitle: true, scene: true, capturedAt: true, uploadedAt: true, placeId: true, mediaType: true, smallPath: true, thumbPath: true, mediaPath: true, musicNote: true },
   });
   const drafts = all.filter((a) => a.status === "DRAFT");
   const waiting = all.filter((a) => a.status === "PROCESSING").length;
   const blocked = all.filter((a) => a.status === "HIDDEN").length;
   if (!drafts.length) return { inbox: inbox.code, waiting, blocked, groups: [] };
 
-  const view = async (d: Draft): Promise<SortShot> => ({ id: d.id, isVideo: d.mediaType === "VIDEO", title: d.aiTitle, preview: await viewUrl(d.smallPath ?? d.thumbPath ?? (d.mediaType === "PHOTO" ? d.mediaPath : null)) });
+  const view = async (d: Draft): Promise<SortShot> => ({ id: d.id, isVideo: d.mediaType === "VIDEO", music: !!d.musicNote, title: d.aiTitle, preview: await viewUrl(d.smallPath ?? d.thumbPath ?? (d.mediaType === "PHOTO" ? d.mediaPath : null)) });
   const groups: SortGroup[] = [];
   const left = new Set(drafts.map((d) => d.id));
 

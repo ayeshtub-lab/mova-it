@@ -17,7 +17,7 @@ export class SoundError extends Error {
 }
 
 export async function setAngleSound(user: User, angleId: string, rawKey: unknown, rawMute: unknown, rawLyrics?: unknown) {
-  const angle = await db.angle.findUnique({ where: { id: angleId }, select: { contributorId: true, mediaType: true } });
+  const angle = await db.angle.findUnique({ where: { id: angleId }, select: { contributorId: true, mediaType: true, musicNote: true } });
   if (!angle) throw new SoundError("not_found");
   if (angle.contributorId !== user.id) throw new SoundError("forbidden");
   // (A member's sound with the list a curator put it in: in «قرآن» it is solemn, like the library's.)
@@ -25,7 +25,10 @@ export async function setAngleSound(user: User, angleId: string, rawKey: unknown
   if (rawKey !== null && !sound) throw new SoundError("invalid");
   // A people's sound: while live, and shared — or the owner's own «🔒 خاص» one.
   if (sound && isPeopleKey(sound.key) && !(await usableSound(user.id, sound.key))) throw new SoundError("invalid");
-  const muteOriginal = angle.mediaType === "VIDEO" && !!sound && (isSolemn(sound) || rawMute === true);
+  // Its own sound off: under a verse always, else as its owner chose with a library sound (taking the
+  // sound away brings its own back) — and always when recorded music was heard on it (2026-11-27:
+  // its rights are others', src/server/screening.ts).
+  const muteOriginal = angle.mediaType === "VIDEO" && (!!angle.musicNote || (!!sound && (isSolemn(sound) || rawMute === true)));
   // «📝» its words on the shot: on unless turned off.
   const lyrics = rawLyrics !== false;
   await db.angle.update({ where: { id: angleId }, data: { soundKey: sound?.key ?? null, muteOriginal, lyrics } });

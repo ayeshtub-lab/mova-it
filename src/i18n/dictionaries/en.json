@@ -107,7 +107,7 @@
     "uploading": "Uploading {pct}%",
     "done": "Published ✓",
     "draft": "Ready — tap “Publish”",
-    "publish": "🚀 Publish {n}",
+    "publish": "🚀 Publish {n}", "musicNote": "🎵 This video has recorded music or lyrics with someone else's rights, so we turned its sound off. Publish it silent, or pick a sound from Zawmo's library.", "musicPick": "🎵 Pick a library sound",
     "publishing": "Publishing…",
     "composeTitle": "Your new angle",
     "composeMany": "Your new angles ({n})",
@@ -143,7 +143,7 @@
       "too_close": "Very close to one of yours",
       "too_many": "100 photos here already",
       "failed": "Upload failed. Please try again.",
-      "blocked": "This shot doesn't meet Zawmo's rules and won't be shown.",
+      "blocked": "This shot doesn't meet Zawmo's rules and won't be shown.", "not_own": "🎬 This video isn't yours (it carries another account's or a channel's mark). Zawmo is for what you film yourself 🤍",
       "official_required": "Public moments need a Google account. Link yours first."
     },
     "gallery": "Pick from gallery",

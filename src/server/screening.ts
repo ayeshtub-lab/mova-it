@@ -55,7 +55,7 @@ function reportGemini(where: "screening" | "text" | "lens", detail: string) {
 
 export type Verdict =
   // repost: clearly not shot by the person uploading it (why, in a few words) — see DESCRIBE.
-  | { result: "allowed"; scene?: Scene; seen?: string; title?: string; seoTitle?: string; text?: string; seoTitleEn?: string; textEn?: string; captions?: string[]; repost?: string }
+  | { result: "allowed"; scene?: Scene; seen?: string; title?: string; seoTitle?: string; text?: string; seoTitleEn?: string; textEn?: string; captions?: string[]; repost?: string; music?: string }
   | { result: "blocked"; category: string; reason: string }
   | { result: "error"; reason: string };
 
@@ -77,6 +77,8 @@ Also, like a lens: copy any clearly readable name shown (a shop or restaurant si
 
 Also suggest a name for this moment in Arabic, 2 to 4 words, the way the person who shot it would title it for friends (for example «عنب الدالية», «غروب على البحر», «عشاء العيلة»). Plain words only: no emoji, no hashtags, no quotation marks.
 
+Name things only as surely as you can see them: when two similar things can't be told apart in the picture (coffee or tea in glass cups, a lemon or a lime, a cat or a small dog far away), use the general word («مشروب ساخن», «حمضيات», «حيوان أليف») — never guess the specific one.
+
 Answer only with JSON: {"verdict":"allow"|"block","category":"none"|"sexual"|"minor_safety"|"violence"|"hate"|"self_harm"|"drugs","reason":"short English reason","scene":"<one of the scenes>","text":"<visible names, or empty>","landmark":"<landmark or venue, or empty>","title":"<the suggested Arabic name>"}`;
 
 // Pictures only (not text): a line about the shot, for search engines and for a moment left
@@ -89,7 +91,7 @@ Answer only with JSON: {"verdict":"allow"|"block","category":"none"|"sexual"|"mi
 // «عم نفحص» take 15 s for a photo and up to 31 s for a video (Sentry «slow upload»).
 const SEO = `
 
-Now write for search engines (Google Images and Google Video), as a senior SEO lead would. Google ranks a picture by the words around it, so name what is IN it, in the words people type to find such a picture. Every word must be true of what is seen.
+Now write for search engines (Google Images and Google Video), as a senior SEO lead would. Google ranks a picture by the words around it, so name what is IN it, in the words people type to find such a picture. Every word must be true of what is seen — and when two similar things can't be told apart (coffee or tea, a lemon or a lime), use the general word («مشروب ساخن», «حمضيات»), never a guess.
 
 "seo_title": Arabic, 4 to 9 words — the main subject first, then its setting, general and wide: the words people search with across the whole Arab world («صور قهوة حقيقية», «صور حلويات حقيقية», «صور خضار»), never narrowed to one town. NO place name in the title — no village, city, governorate or country (2026-10-21: not one search came with a place in it) — unless the place itself is what the picture is of, a famous landmark people search by name (كنيسة المهد، المسجد الأقصى، قبة الصخرة، البحر الميت). For example «فنجان قهوة عربية بين أشجار الزيتون», «زفة العريس على الأكتاف في عرس فلسطيني», «حبات طماطم حمراء طازجة في الحقل». The place belongs in the description, once. Never the year or a date in the title (they belong in the description). No emoji, hashtags, quotation marks or app name.
 
@@ -111,9 +113,57 @@ Add to the same JSON: "captions":["<line>","<line>","<line>"]`;
 
 const REPOST = `
 
-Also judge where it comes from: was it clearly NOT shot by the person uploading it? Say so only on clear signs — a watermark or logo of another app with an account name (TikTok, Instagram, Snapchat, YouTube, Likee, a CapCut template), a TV channel logo or broadcast graphics, a scene from a film, series, music video, cartoon or advertisement, or a screen captured or filmed (a phone status bar, another app's buttons and comments, a TV or monitor filmed as the subject). NOT a repost: an ordinary phone photo or video, one with the person's own text, stickers or filters, a photo of an old printed family photo, people in front of a TV where the screen is not the subject. When unsure, it is not a repost.
+Also judge where it comes from: was it clearly NOT shot by the person uploading it? Say so only on clear signs — a watermark or logo of another app with an account name (TikTok, Instagram, Snapchat, YouTube, Likee, a CapCut template), a TV channel logo or broadcast graphics, a scene from a film, series, music video, cartoon or advertisement, or a screen captured or filmed (a phone status bar, another app's buttons and comments, a TV or monitor filmed as the subject). NOT a repost: an ordinary phone photo or video, one with the person's own text, stickers or filters, a photo of an old printed family photo, people in front of a TV where the screen is not the subject. When unsure, it is not a repost. A watermark or handle that is clearly the uploader's OWN name (their name below, or a handle made from it, e.g. «Zaina Ayesh» → @zainaayesh24) is NOT a repost.
 
 Add to the same JSON: "repost":"" when it is not a repost, else a short English reason naming the sign (for example "TikTok watermark @name").`;
+
+// The video's own sound, attached (2026-11-27, his ask): recorded music has rights that belong to
+// others — on Zawmo it goes up only muted. The Quran and people really there are always fine.
+const MUSIC = `
+
+THE SOUND: the video's own sound is attached as audio. Is a RECORDED song, music track or nasheed playing in it — from a phone, speaker, radio or TV, or added in an editing app (CapCut, TikTok, InShot)? NOT that: natural and street sounds, wind, rain, animals, people talking, people who are there singing, chanting, clapping, drumming or ululating live (a wedding, a gathering), a recitation of the Holy Quran or the call to prayer (always fine), silence. When unsure, it is not.
+
+Add to the same JSON: "music":"" when not, else a short English reason (for example "pop song with lyrics", "recorded nasheed", "background music track").`;
+
+// The sound alone (videos already up, checked once — 2026-11-27): the reason when recorded music
+// is heard, "" when not, null when it couldn't be checked.
+export async function musicInVideo(mediaPath: string | null): Promise<string | null> {
+  const url = await viewUrl(mediaPath);
+  return url ? musicAt(url) : null;
+}
+
+// (By its address: a public video's lasting one, zawmo.com/v/ID.mp4, works from anywhere.)
+export async function musicAt(url: string): Promise<string | null> {
+  const audio = await videoAudio(url);
+  if (!audio) return "";
+  const res = await callGemini({
+    purpose: "music-check",
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: `You check the sound of a short video on Zawmo, a family photo and video app.${MUSIC}
+
+Answer only with JSON: {"music":"<reason or empty>"}` }, { inline_data: { mime_type: "audio/mp3", data: audio } }] }],
+      generationConfig: { temperature: 0, responseMimeType: "application/json" },
+    }),
+  });
+  if (!res.ok) return null;
+  const body = (await res.json().catch(() => null)) as { candidates?: { content?: { parts?: { text?: string }[] } }[] } | null;
+  try {
+    const music = (JSON.parse(body?.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "{}") as { music?: unknown }).music;
+    return typeof music === "string" ? musicReason(music) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Gemini sometimes answers «no» / «none» for «nothing heard».
+const musicReason = (value: unknown) => {
+  const t = typeof value === "string" ? value.trim().slice(0, 160) : "";
+  return /^(no|none|false|null|n\/a|-)?$/i.test(t) ? "" : t;
+};
+
+const uploaderLine = (c?: ShotContext) => (c?.uploader ? `
+
+The uploader's name on Zawmo: «${c.uploader.replace(/[«»"]/g, "")}».` : "");
 
 // The whole look (a second look, a moment made public, the words written after an upload)…
 const DESCRIBE = SEO + CAPTIONS + REPOST;
@@ -171,8 +221,24 @@ async function videoFrames(url: string, durationSec: number | null) {
   }
 }
 
+// A video's own sound for Gemini to hear (2026-11-27): its first 40 seconds, mono, small (≈160 KB).
+// Null when it has none (ffmpeg finds no audio) or it can't be read — then nothing is judged.
+export async function videoAudio(url: string) {
+  const dir = await mkdtemp(join(tmpdir(), "mova-sound-"));
+  try {
+    const out = join(dir, "a.mp3");
+    await ffmpeg(["-t", "40", "-i", url, "-vn", "-ac", "1", "-ar", "16000", "-b:a", "32k", "-f", "mp3", out], 30_000);
+    const bytes = await readFile(out);
+    return bytes.length > 2000 ? bytes.toString("base64") : null;
+  } catch {
+    return null;
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+}
+
 // What the app knows for sure about the shot, given to Gemini for its title and description.
-export type ShotContext = { moment?: string | null; place?: string | null; placeEn?: string | null; year?: number | null; searches?: string[] };
+export type ShotContext = { moment?: string | null; place?: string | null; placeEn?: string | null; year?: number | null; searches?: string[]; uploader?: string | null };
 const contextLine = (c?: ShotContext) => {
   const known = [c?.moment && `the moment's name: «${c.moment}»`, c?.place && `the place: ${c.place}${c.placeEn ? ` (in English: ${c.placeEn})` : ""}`, c?.year && `taken in ${c.year}`].filter(Boolean);
   const facts = known.length ? `\n\nKnown for sure about this shot (use them): ${known.join("; ")}.` : "";
@@ -196,12 +262,13 @@ const mediaLine = (video?: boolean) =>
 // `quick`: the check a person waits for after an upload — no words for search engines, and
 // Gemini thinking little («low»; the model's own default is «medium»: a safety call doesn't need
 // more, Google's guide 2026). Should Gemini ever refuse that setting, asked again without it.
-export async function askGemini(imagesBase64: string[], context?: ShotContext, video?: boolean, quick = false): Promise<Verdict> {
+// `audio`: a video's own sound (mp3, base64), judged for recorded music (MUSIC).
+export async function askGemini(imagesBase64: string[], context?: ShotContext, video?: boolean, quick = false, audio?: string | null): Promise<Verdict> {
   const ask = (thinkLittle: boolean) =>
     callGemini({
       purpose: "screening",
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: PROMPT + (quick ? QUICK : DESCRIBE) + (quick ? "" : contextLine(context)) + mediaLine(video) }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } }))] }],
+        contents: [{ role: "user", parts: [{ text: PROMPT + (quick ? QUICK : DESCRIBE) + (audio ? MUSIC : "") + (quick ? "" : contextLine(context)) + uploaderLine(context) + mediaLine(video) }, ...imagesBase64.map((data) => ({ inline_data: { mime_type: "image/jpeg", data } })), ...(audio ? [{ inline_data: { mime_type: "audio/mp3", data: audio } }] : [])] }],
         generationConfig: { temperature: 0, responseMimeType: "application/json", ...(thinkLittle ? { thinkingConfig: { thinkingLevel: "low" } } : {}) },
       }),
     });
@@ -230,7 +297,7 @@ export async function askGemini(imagesBase64: string[], context?: ShotContext, v
 
   const text = candidate?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
   try {
-    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string; seo_title?: unknown; description?: unknown; hashtags?: unknown; captions?: unknown; repost?: unknown; seo_title_en?: unknown; description_en?: unknown };
+    const parsed = JSON.parse(text) as { verdict?: string; category?: string; reason?: string; scene?: string; text?: string; landmark?: string; title?: string; seo_title?: unknown; description?: unknown; hashtags?: unknown; captions?: unknown; repost?: unknown; seo_title_en?: unknown; description_en?: unknown; music?: unknown };
     if (parsed.verdict === "block") {
       return { result: "blocked", category: String(parsed.category ?? "other").slice(0, 40), reason: String(parsed.reason ?? "").slice(0, 300) };
     }
@@ -245,7 +312,8 @@ export async function askGemini(imagesBase64: string[], context?: ShotContext, v
       const textEn = englishLine(parsed.description_en, 300);
       const captions = captionIdeasOf(parsed.captions);
       const repost = typeof parsed.repost === "string" ? parsed.repost.trim().slice(0, 160) : "";
-      return { result: "allowed", ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}), ...(seoTitle ? { seoTitle } : {}), ...(described ? { text: described } : {}), ...(seoTitleEn ? { seoTitleEn } : {}), ...(textEn ? { textEn } : {}), ...(captions.length ? { captions } : {}), ...(repost ? { repost } : {}) };
+      const music = audio ? musicReason(parsed.music) : "";
+      return { result: "allowed", ...(music ? { music } : {}), ...(isScene(parsed.scene) ? { scene: parsed.scene } : {}), ...(seen ? { seen } : {}), ...(title ? { title } : {}), ...(seoTitle ? { seoTitle } : {}), ...(described ? { text: described } : {}), ...(seoTitleEn ? { seoTitleEn } : {}), ...(textEn ? { textEn } : {}), ...(captions.length ? { captions } : {}), ...(repost ? { repost } : {}) };
     }
   } catch {}
   return { result: "error", reason: `unreadable answer: ${text.slice(0, 200)}` };
@@ -260,19 +328,26 @@ export async function screenAngle(angle: {
   const started = Date.now();
   try {
     const images: string[] = [];
+    let audio: string | null = null;
     if (angle.mediaType === "PHOTO") {
       const url = await viewUrl(angle.mediaPath);
       if (!url) return { result: "error", reason: "no media" };
       images.push(await jpegBase64(url));
     } else {
       const [videoUrl, posterUrl] = await Promise.all([viewUrl(angle.mediaPath), viewUrl(angle.thumbPath)]);
-      if (posterUrl) images.push(await jpegBase64(posterUrl));
-      if (videoUrl) images.push(...(await videoFrames(videoUrl, angle.durationSec).catch(() => [])));
+      const [poster, frames, sound] = await Promise.all([
+        posterUrl ? jpegBase64(posterUrl) : null,
+        videoUrl ? videoFrames(videoUrl, angle.durationSec).catch(() => []) : [],
+        videoUrl ? videoAudio(videoUrl) : null,
+      ]);
+      if (poster) images.push(poster);
+      images.push(...frames);
       if (!images.length) return { result: "error", reason: "no frames" };
+      audio = sound;
     }
     // Where the check's time goes (2026-10-29): the pictures, then Gemini.
     const pictured = Date.now();
-    const verdict = await askGemini(images, context, angle.mediaType !== "PHOTO", quick);
+    const verdict = await askGemini(images, context, angle.mediaType !== "PHOTO", quick, audio);
     console.log("screen timing", JSON.stringify({ kind: angle.mediaType, quick, picturesMs: pictured - started, geminiMs: Date.now() - pictured, result: verdict.result }));
     return verdict;
   } catch (error) {

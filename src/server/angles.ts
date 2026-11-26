@@ -318,7 +318,7 @@ export async function completeAngle(user: User, angleId: string, options: { trim
   const angle = await db.angle.findUnique({ where: { id: angleId }, include: { moment: true } });
   if (!angle || angle.contributorId !== user.id) throw new AngleError("not_found");
   // Already done (a retry): report what happened the first time.
-  if (angle.status === "DRAFT" || angle.status === "READY" || (angle.status === "HIDDEN" && angle.screening === "blocked")) return Object.assign(angle, { titleSuggestion: null as string | null, captionIdeas: [] as string[], wentLive: false });
+  if (angle.status === "DRAFT" || angle.status === "READY" || (angle.status === "HIDDEN" && (angle.screening === "blocked" || angle.screening === "repost"))) return Object.assign(angle, { titleSuggestion: null as string | null, captionIdeas: [] as string[], wentLive: false });
   if (angle.status !== "PROCESSING") throw new AngleError("forbidden");
 
   const needed = [angle.mediaPath, angle.thumbPath].filter((p): p is string => !!p);
@@ -354,7 +354,7 @@ export async function completeAngle(user: User, angleId: string, options: { trim
   // seen only by its owner and the moment's creator (src/server/moments.ts) until the
   // recheck every 10 minutes clears it (recheckUnscreened). Ordinary shots — a snake, a tree —
   // were refused as «against the rules» only because the check failed.
-  const verdict = screeningEnabled() ? await screenWithRetry(angle) : null;
+  const verdict = screeningEnabled() ? await screenWithRetry(angle, user.displayName) : null;
   if (verdict?.result === "error") console.error("screening failed", angle.id, verdict.reason);
   const blocked = verdict?.result === "blocked";
 
@@ -368,12 +368,19 @@ export async function completeAngle(user: User, angleId: string, options: { trim
   // and an admin looks at it (screening «repost»). Never an official account's (✓): Zawmo's own
   // promos and ads are ours to post.
   const repost = verdict?.result === "allowed" && verdict.repost && !user.verified ? verdict.repost : null;
+  // A VIDEO clearly not shot by its uploader (another account's TikTok mark, a TV channel, a film)
+  // is not taken at all (his 27/11: «ما يقبلها») — a photo still waits for an admin, as before.
+  const notOwn = !!repost && angle.mediaType === MediaType.VIDEO;
+  // 🎵 Recorded music in a video's own sound (his 27/11): its rights are others', so its own sound
+  // goes off now; its owner is told, and may put a sound from Zawmo's library on it instead.
+  const music = verdict?.result === "allowed" && angle.mediaType === MediaType.VIDEO && !user.verified ? (verdict.music ?? null) : null;
   const saved = await db.$transaction(async (tx) => {
     const done = await tx.angle.update({
       where: { id: angle.id },
       data: {
         // Fine → a draft only its owner sees, until they press «نشر» (after «صوّر معك» looked).
-        status: blocked ? "HIDDEN" : "DRAFT",
+        status: blocked || notOwn ? "HIDDEN" : "DRAFT",
+        ...(music ? { musicNote: music, muteOriginal: true } : {}),
         expiresAt: null, // shots are kept until their owner deletes them
         screening: repost ? "repost" : (verdict?.result ?? null),
         durationSec: angle.durationSec,
@@ -394,6 +401,7 @@ export async function completeAngle(user: User, angleId: string, options: { trim
     return done;
   });
   // «نشر» was pressed while it was being checked: up now (the route tells its owner).
+  if (notOwn) return Object.assign(saved, { titleSuggestion: null as string | null, captionIdeas: [] as string[], wentLive: false, notOwn: true });
   if (!blocked && saved.autoPublish) {
     const moment = await db.moment.findUniqueOrThrow({ where: { id: saved.momentId }, select: { description: true, kind: true } });
     const live = await goLive({ ...saved, moment });
@@ -470,8 +478,9 @@ export async function shotContext(angle: { momentId: string; placeId: string | n
 const SCREEN_RETRY_MS = [2000, 5000];
 // The quick check (src/server/screening.ts QUICK): the words for search engines come after
 // (describeShot), so the person waits only for the check itself.
-async function screenWithRetry(angle: Parameters<typeof screenAngle>[0] & Parameters<typeof shotContext>[0]) {
-  const context = await shotContext(angle).catch(() => undefined);
+async function screenWithRetry(angle: Parameters<typeof screenAngle>[0] & Parameters<typeof shotContext>[0], uploader?: string | null) {
+  // (Its uploader's name: a watermark of their own account is not someone else's — 2026-11-27.)
+  const context = { ...(await shotContext(angle).catch(() => undefined)), uploader: uploader ?? null };
   let verdict = await screenAngle(angle, context, true);
   for (const wait of SCREEN_RETRY_MS) {
     if (verdict.result !== "error") break;

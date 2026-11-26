@@ -94,6 +94,7 @@ export default async function SortPage({ searchParams }: PageProps<"/add/sort">)
               </p>
             )}
             {plan.blocked > 0 && <p className="text-xs text-muted">{t.blocked.replace("{n}", shots(plan.blocked))}</p>}
+            {plan.groups.some((g) => g.shots.some((s) => s.music)) && <p className="rounded-2xl bg-amber-100 p-3 text-xs leading-relaxed text-amber-950 dark:bg-amber-400/15 dark:text-amber-100">{dict.upload.musicNote}</p>}
             {/* For everyone or friends only: friends-only photos never go to a public moment. */}
             <input type="hidden" name="visibility" value={visibility} />
             <div className="flex flex-col gap-1">
@@ -133,7 +134,7 @@ export default async function SortPage({ searchParams }: PageProps<"/add/sort">)
                           // eslint-disable-next-line @next/next/no-img-element -- the owner's own draft, on a short-lived link
                           <img src={s.preview} alt={s.title ?? ""} loading="lazy" className="size-full object-cover" />
                         )}
-                        {s.isVideo && <span className="absolute bottom-1 start-1 rounded-full bg-black/60 px-1.5 text-xs text-white">🎬</span>}
+                        {s.isVideo && <span className="absolute bottom-1 start-1 rounded-full bg-black/60 px-1.5 text-xs text-white">{s.music ? "🎬 🔇" : "🎬"}</span>}
                       </div>
                       <label className="sr-only" htmlFor={`a_${s.id}`}>
                         {t.move}

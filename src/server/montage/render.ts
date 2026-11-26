@@ -246,7 +246,8 @@ async function joinInRuns(segments: string[], durations: number[], t: number, ki
   return { segments: runs.map((r) => r.segment), durations: runs.map((r) => r.seconds), kinds: between };
 }
 
-async function videoSegment(input: string, overlay: string, out: string, filter: string | null, caption?: CaptionFile, max = VIDEO_MAX_SECONDS) {
+// `silent`: its own sound is off (its owner's choice, or recorded music on it — 2026-11-27).
+async function videoSegment(input: string, overlay: string, out: string, filter: string | null, caption?: CaptionFile, max = VIDEO_MAX_SECONDS, silent = false) {
   const { duration, hasAudio } = await probe(input);
   const seconds = Math.min(duration || max, max);
   await ffmpeg([
@@ -255,7 +256,7 @@ async function videoSegment(input: string, overlay: string, out: string, filter:
     "-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=44100:cl=stereo",
     ...captionInput(caption),
     "-filter_complex", `${withCaption(`[0:v]${COVER}${look(filter)}`, caption, 3)}[b];[b][1:v]overlay=0:0[v]`,
-    "-map", "[v]", "-map", hasAudio ? "0:a:0" : "2:a", ...PIECE, "-shortest", out,
+    "-map", "[v]", "-map", hasAudio && !silent ? "0:a:0" : "2:a", ...PIECE, "-shortest", out,
   ]);
   return seconds;
 }
@@ -469,7 +470,7 @@ export async function buildMontageVideo({ moment, angles: ordered, participants,
     }
     let seconds =
       angle.mediaType === "VIDEO"
-        ? await videoSegment(input, overlay, out, angle.filter, caption, plan ? plan[i] : times.video)
+        ? await videoSegment(input, overlay, out, angle.filter, caption, plan ? plan[i] : times.video, angle.muteOriginal)
         : await photoSegment(input, overlay, out, angle.filter, caption, plan ? plan[i] : times.photo, story && (plan ? plan[i] : times.photo) < STORY_MOVES_FROM ? null : i);
     let segment = out;
     const shotSoundFile = shotSound ? await soundAt(shotSound) : null;
@@ -738,7 +739,7 @@ export async function buildBrandedShot(
     "-f", "lavfi", "-t", String(seconds), "-i", "anullsrc=r=44100:cl=stereo",
     ...captionInput(caption),
     "-filter_complex", `${withCaption(base, caption, 3)}[b2];[b2][1:v]overlay=0:0[v]`,
-    "-map", "[v]", "-map", hasAudio ? "0:a:0" : "2:a", ...PIECE, "-t", String(seconds), body,
+    "-map", "[v]", "-map", hasAudio && !shot.muteOriginal ? "0:a:0" : "2:a", ...PIECE, "-t", String(seconds), body,
   ], 240_000);
 
   // The sound its owner put on it, as everywhere else on Zawmo (a verse whole, the clip's own

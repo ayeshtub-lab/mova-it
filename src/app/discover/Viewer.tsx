@@ -114,7 +114,7 @@ export function Viewer({
     const sound = soundByKey(item.soundKey);
     root.querySelectorAll("video").forEach((v) => {
       if (Number(v.dataset.index) !== active) return v.pause();
-      v.muted = muted || (!!sound && item.muteOriginal);
+      v.muted = muted || item.muteOriginal;
       v.volume = sound ? 0.35 : 1;
       if (paused) v.pause();
       else v.play().catch(() => {});

@@ -547,7 +547,7 @@ export function AngleGallery({
     const s = angle ? (sounds.get(angle.id) ?? { key: angle.soundKey, mute: angle.muteOriginal, lyrics: angle.lyrics }) : null;
     const video = slides()[current]?.querySelector("video");
     if (video) {
-      video.muted = muted || !!(s?.key && s.mute);
+      video.muted = muted || !!s?.mute;
       video.volume = s?.key ? 0.35 : 1;
       video.play().catch(() => {});
     }

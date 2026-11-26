@@ -72,7 +72,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (angle.status === "DRAFT" && angle.mediaType === "VIDEO") after(() => brandAfterChange(angle.id));
     report();
     // (`suggestion`: always null now — the phone asks ../join-suggestion; kept for pages still open.)
-    return NextResponse.json({ id: angle.id, status: angle.status, suggestion: null, titleSuggestion: angle.titleSuggestion, captionIdeas: angle.captionIdeas });
+    // `reason`: a video not shot by its uploader is not taken («not_own», 2026-11-27); `music`: recorded
+    // music was heard on it — its own sound is off now, and its owner is told why.
+    const notOwn = angle.status === "HIDDEN" && angle.screening === "repost";
+    return NextResponse.json({ id: angle.id, status: angle.status, suggestion: null, titleSuggestion: angle.titleSuggestion, captionIdeas: angle.captionIdeas, music: !!angle.musicNote, ...(notOwn ? { reason: "not_own" } : {}) });
   } catch (error) {
     if (error instanceof AngleError) {
       return NextResponse.json({ error: error.code }, { status: error.code === "not_found" ? 404 : 409 });
