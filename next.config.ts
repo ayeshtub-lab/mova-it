@@ -1,11 +1,16 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
+import { momentRedirects } from "./src/lib/moment-redirects";
 
 const nextConfig: NextConfig = {
   // The version this build is (the commit), so an open page can tell a newer one is out.
   env: { NEXT_PUBLIC_BUILD: process.env.VERCEL_GIT_COMMIT_SHA ?? "dev" },
   // Required at runtime from node_modules (it locates its binary relative to itself).
   serverExternalPackages: ["ffmpeg-static"],
+  // Closed moments lead to where their photos went (src/lib/moment-redirects.ts).
+  async redirects() {
+    return momentRedirects();
+  },
   // Search engines and link previews (WhatsApp, Facebook…) get the title, description and
   // canonical in <head> even when a page's data is slow; people still get it streamed.
   htmlLimitedBots: /bot|crawler|spider|slurp|google-inspectiontool|facebookexternalhit|facebot|whatsapp|telegram|twitter|linkedin|pinterest|skypeuripreview|embedly|preview/i,
