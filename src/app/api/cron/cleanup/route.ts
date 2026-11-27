@@ -7,6 +7,7 @@ import { remindDrafts } from "@/server/drafts";
 import { purgeRateLimits } from "@/server/rate-limit";
 import { embedPending } from "@/server/similar";
 import { syncStream } from "@/server/stream";
+import { settleMusic } from "@/server/music-rights";
 
 export const maxDuration = 300;
 
@@ -31,6 +32,8 @@ export async function GET(request: Request) {
     golden: await goldenHourly(),
     // Videos whose cover came out black (src/server/angles.ts repairBlackCover).
     blackCovers: await repairBlackCovers().catch((error) => ({ error: String(error) })),
+    // «🎵 الأصوات»: a video with recorded music, its owner told 48 hours ago, gets a library sound now.
+    music: await settleMusic(request.headers.get("x-forwarded-host") ?? new URL(request.url).host).catch((error) => ({ error: String(error) })),
   };
   console.log("cleanup", done);
   return NextResponse.json(done);

@@ -655,6 +655,7 @@ enum NotificationKind {
   COMMENT_LIKE // a heart on your comment (2026-11-18), once per person and comment
   TERMS_UPDATED // 📝 the terms changed: told once in «الوارد» and on the phone (from Zawmo)
   MOMENTS_TIDIED // 🗂️ Zawmo put your photos on the moments of their topics, with thank-you points (`count`), once
+  MUSIC_RIGHTS // 🎵 your video's own sound has recorded music with rights: put a library sound on it within 48 h, or Zawmo will (from Zawmo, once per video)
 }
 
 // What shows at the top of «الوارد»: who did what to your shots, comments or profile.
