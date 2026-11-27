@@ -1,5 +1,7 @@
 import { join } from "node:path";
 import sharp from "sharp";
+import ar from "@/i18n/dictionaries/ar.json";
+import en from "@/i18n/dictionaries/en.json";
 import { db } from "@/lib/db";
 import { cardLang, DEFAULT_CARD_STYLE, type CardKind } from "@/lib/card-styles";
 import { STATUS_PILOT } from "@/lib/status-pilot";
@@ -95,31 +97,47 @@ async function freshPhotos(zawmoId: string, want: number) {
 // What each everyday card says, in turn.
 const EVERYDAY: CardKind[] = ["morning", "coffee", "evening", "wisdom", "love"];
 
-// Makes up to `count` cards in `lang`, of `kind` (or the everyday kinds in turn). Answers how many.
+// The ready lines of an occasion (the dictionary's card.ready, his list) — when Gemini gave none of
+// that kind for a picture (27/11: the Thursday run made no Friday card at all, and said nothing).
+// Short ones only (no long verse on a picture).
+const readyLines = (lang: "ar" | "en", kind: CardKind) =>
+  (((lang === "ar" ? ar : en).card.ready as Record<string, string[] | undefined>)[kind] ?? []).filter((l) => [...l].length <= 60);
+
+// Makes up to `count` cards in `lang`, of `kind` (or the everyday kinds in turn). Answers how many,
+// and logs why the others weren't made (never failing quietly again).
 export async function makeCards(lang: "ar" | "en", count: number, kind?: CardKind) {
   if (count <= 0) return 0;
   const zawmo = await systemUser();
   const photos = await freshPhotos(zawmo.id, count);
   let made = 0;
   let turn = await db.card.count({ where: { creatorId: zawmo.id } });
+  const why: Record<string, number> = { photos: photos.length };
+  const skip = (reason: string) => void (why[reason] = (why[reason] ?? 0) + 1);
   for (const p of photos) {
     if (made >= count) break;
     const want = kind ?? EVERYDAY[turn % EVERYDAY.length];
     try {
       const { ideas, look } = await cardIdeas(p.id, lang);
-      const line = ideas.find((i) => i.kind === want && cardLang(i.text) === lang);
-      if (!line) continue;
+      const ready = readyLines(lang, want);
+      const text = ideas.find((i) => i.kind === want && cardLang(i.text) === lang)?.text ?? (ready.length ? ready[turn % ready.length] : null);
+      if (!ideas.some((i) => i.kind === want && cardLang(i.text) === lang)) skip(text ? "ready line" : "no line");
+      if (!text) continue;
       const url = await viewUrl(p.mediaPath);
       const res = url ? await fetch(url, { signal: AbortSignal.timeout(20_000) }) : null;
-      if (!res?.ok) continue;
-      const image = await drawCard(Buffer.from(await res.arrayBuffer()), line.text, look, p.contributor.displayName, lang);
-      await publishCard(zawmo, { angleId: p.id, text: line.text, kind: want, style: DEFAULT_CARD_STYLE, image });
+      if (!res?.ok) {
+        skip("picture");
+        continue;
+      }
+      const image = await drawCard(Buffer.from(await res.arrayBuffer()), text, look, p.contributor.displayName, lang);
+      await publishCard(zawmo, { angleId: p.id, text, kind: want, style: DEFAULT_CARD_STYLE, image });
       made++;
       turn++;
     } catch (error) {
+      skip(error instanceof CardError ? `refused:${error.code}` : "error");
       if (!(error instanceof CardError)) console.error("auto card failed", p.id, error);
     }
   }
+  console.log("auto cards", JSON.stringify({ lang, kind: kind ?? "everyday", count, made, ...why }));
   return made;
 }
 
