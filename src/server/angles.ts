@@ -729,16 +729,18 @@ export async function repairBlackCovers(now = new Date()) {
 // «✏️ تعديل» sheet opens; a public shot's words pass Gemini's check first (fail-closed, like a moment's
 // description). Empty clears them.
 async function ownShot(user: User, angleId: string) {
-  const angle = await db.angle.findUnique({ where: { id: angleId }, select: { id: true, contributorId: true, note: true, moment: { select: { visibility: true } } } });
+  const angle = await db.angle.findUnique({ where: { id: angleId }, select: { id: true, contributorId: true, note: true, scene: true, moment: { select: { visibility: true } } } });
   if (!angle || (angle.contributorId !== user.id && !staffOver(user, angle.moment))) throw new AngleError("not_found");
   return angle;
 }
 
 export async function shotNote(user: User, angleId: string) {
-  return { note: (await ownShot(user, angleId)).note ?? "" };
+  const angle = await ownShot(user, angleId);
+  return { note: angle.note ?? "", scene: angle.scene ?? "other" }; // the scene picks «🎤»'s question
 }
 
-export async function setShotNote(user: User, angleId: string, raw: unknown) {
+// `voice`: the words came from «🎤 احكيها بصوتك» (kept on the shot; cleared when the words are).
+export async function setShotNote(user: User, angleId: string, raw: unknown, voice = false) {
   const angle = await ownShot(user, angleId);
   const note = cleanNote(raw);
   if (note && note !== angle.note && angle.moment.visibility === "PUBLIC") {
@@ -748,6 +750,6 @@ export async function setShotNote(user: User, angleId: string, raw: unknown) {
     if (verdict.result === "blocked") throw new AngleError("note_blocked", undefined, verdict.reason || undefined);
     if (verdict.result !== "allowed") throw new AngleError("note_failed");
   }
-  await db.angle.update({ where: { id: angle.id }, data: { note } });
+  await db.angle.update({ where: { id: angle.id }, data: { note, ...(!note ? { noteVoice: false } : voice ? { noteVoice: true } : {}) } });
   return { note: note ?? "" };
 }

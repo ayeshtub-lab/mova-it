@@ -27,11 +27,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const slow = await limited("details", request, user.id);
   if (slow) return slow;
-  const body = (await request.json().catch(() => null)) as { note?: unknown } | null;
+  const body = (await request.json().catch(() => null)) as { note?: unknown; voice?: unknown } | null;
   if (!body) return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   try {
     const id = (await params).id;
-    const result = await setShotNote(user, id, body.note);
+    const result = await setShotNote(user, id, body.note, body.voice === true);
     const host = request.headers.get("x-forwarded-host") ?? new URL(request.url).host;
     after(() => reciteFromNote(id, host));
     return NextResponse.json(result);

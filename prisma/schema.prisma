@@ -324,6 +324,9 @@ model Angle {
   // 300 characters — no phone numbers or links (src/lib/shot-note.ts), checked by Gemini when public.
   // Shown on the shot's page and said first to search engines.
   note             String?
+  // «🎤 احكيها بصوتك» (2026-11-27): the words came from the owner speaking (written down by Gemini),
+  // kept to tell voice stories from typed ones when the stories test is read. The sound is never kept.
+  noteVoice        Boolean      @default(false)
   // …and in English (the /en pages' description and image alts).
   aiTextEn         String?
   // The town the uploader's network is in (Vercel's guess from the connection, often coarse):

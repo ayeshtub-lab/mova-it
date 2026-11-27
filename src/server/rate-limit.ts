@@ -25,6 +25,7 @@ export const LIMITS = {
   avatar: [20, 3600], // checked by Gemini
   caption: [60, 3600], // checked by Gemini when public
   details: [30, 3600], // a public description is checked by Gemini
+  voice: [30, 3600], // «🎤 احكيها بصوتك»: each recording is written down by Gemini
   places: [120, 60], // place search while typing, per minute
   guest: [20, 3600], // new guest accounts from one network
   sound: [12, 3600], // «🎤 صوتك» added (each checked by Gemini, and AudD while it has credit)

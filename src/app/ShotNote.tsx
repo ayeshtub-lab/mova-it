@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { StoryVoice, type StoryVoiceLabels } from "@/app/StoryVoice";
 import { NOTE_MAX as MAX, STORY_MIN_WORDS, STORY_POINTS, storyWords } from "@/lib/shot-note";
 
 const fill = (s: string | undefined, n = 0) => (s ?? "").replace("{n}", String(n)).replace("{min}", String(STORY_MIN_WORDS)).replace("{p}", String(STORY_POINTS));
 
-export type ShotNoteLabels = { note: string; noteHint: string; notePlaceholder: string; noteSave: string; noteSaved: string; noteBlocked: string; noteFailed: string; noteIdeas: string; noteQuestions: string[]; noteWords?: string; notePoints?: string; notePointsDone?: string };
+export type ShotNoteLabels = { note: string; noteHint: string; notePlaceholder: string; noteSave: string; noteSaved: string; noteBlocked: string; noteFailed: string; noteIdeas: string; noteQuestions: string[]; noteWords?: string; notePoints?: string; notePointsDone?: string; voice?: StoryVoiceLabels };
 
 // «✍️ احكي عن صورتك» (2026-11-12), inside «✏️ تعديل»: folded to one line until tapped; the words are
 // read only then (one small request, nothing on the gallery's load) and saved on their own.
@@ -22,6 +23,17 @@ export function ShotNote({ angleId, labels, fresh = false }: { angleId: string; 
   const [ideas, setIdeas] = useState(false);
   // What to change, when the words were refused (from the check itself, in Arabic).
   const [hint, setHint] = useState("");
+  // «🎤 احكيها بصوتك»: the words in the box came (partly) from speaking — saved with them.
+  const [voice, setVoice] = useState(false);
+  // Fresh (before «انشر»): the spoken words are kept at once, like typed ones on leaving the box —
+  // the shot isn't out yet, and they stay right there to read and change.
+  const keepSpoken = useRef(false);
+  useEffect(() => {
+    if (!keepSpoken.current) return;
+    keepSpoken.current = false;
+    void save();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
 
   useEffect(() => {
     if (!open || text !== null) return;
@@ -42,7 +54,7 @@ export function ShotNote({ angleId, labels, fresh = false }: { angleId: string; 
   async function save() {
     if (state === "busy" || text === null || text === saved) return;
     setState("busy");
-    const res = await fetch(`/api/angles/${angleId}/note`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ note: text ?? "" }) }).catch(() => null);
+    const res = await fetch(`/api/angles/${angleId}/note`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ note: text ?? "", ...(voice ? { voice: true } : {}) }) }).catch(() => null);
     if (res?.ok) {
       const d = (await res.json().catch(() => ({}))) as { note?: string };
       setText(d.note ?? "");
@@ -72,6 +84,19 @@ export function ShotNote({ angleId, labels, fresh = false }: { angleId: string; 
         <span className={`text-xs font-bold ${storyWords(text) >= STORY_MIN_WORDS ? "text-secondary" : "text-accent-ink"}`}>
           {fill(storyWords(text) >= STORY_MIN_WORDS ? labels.notePointsDone : labels.notePoints)}
         </span>
+      )}
+      {labels.voice && (
+        <StoryVoice
+          angleId={angleId}
+          labels={labels.voice}
+          hasText={!!text?.trim()}
+          onText={(words) => {
+            setText((old) => [old?.trim(), words].filter(Boolean).join(" ").slice(0, MAX));
+            setVoice(true);
+            setState("idle");
+            if (fresh) keepSpoken.current = true;
+          }}
+        />
       )}
       <button type="button" onClick={() => setIdeas((v) => !v)} aria-expanded={ideas} className="w-fit rounded-full bg-background px-3 py-1 text-sm font-bold text-secondary">
         {labels.noteIdeas}
